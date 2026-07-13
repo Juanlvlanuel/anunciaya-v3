@@ -113,6 +113,8 @@ export interface VendedorFiltro {
   id: string;
   nombre: string;
   codigoReferido: string;
+  /** true si es el embajador del usuario logueado (para preseleccionarlo — ej. un gerente que también vende). */
+  esMio: boolean;
 }
 
 /** Una sucursal en la fila expandida de la tabla. */

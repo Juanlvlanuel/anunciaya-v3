@@ -159,6 +159,8 @@ export interface VendedorFiltro {
     id: string;
     nombre: string;
     codigoReferido: string;
+    /** true si este embajador es del usuario que consulta (para preseleccionarlo — ej. un gerente que también vende). */
+    esMio: boolean;
 }
 
 // =============================================================================
@@ -717,6 +719,7 @@ export async function listarVendedoresFiltro(panel: UsuarioPanel): Promise<Vende
     const filas = await db
         .select({
             id: embajadores.id,
+            usuarioId: embajadores.usuarioId,
             nombre: usuarios.nombre,
             apellidos: usuarios.apellidos,
             codigoReferido: embajadores.codigoReferido,
@@ -730,6 +733,7 @@ export async function listarVendedoresFiltro(panel: UsuarioPanel): Promise<Vende
         id: f.id,
         nombre: f.nombre ? `${f.nombre} ${f.apellidos ?? ''}`.trim() : '(sin nombre)',
         codigoReferido: f.codigoReferido,
+        esMio: f.usuarioId === panel.usuarioId,
     }));
 }
 

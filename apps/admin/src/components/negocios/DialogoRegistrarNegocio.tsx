@@ -14,7 +14,7 @@
  * Ubicación: apps/admin/src/components/negocios/DialogoRegistrarNegocio.tsx
  */
 
-import { Fragment, useMemo, useState, useRef } from 'react';
+import { Fragment, useMemo, useState, useRef, useEffect } from 'react';
 import { X, Store, User, CreditCard, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorFecha } from '../ui/SelectorFecha';
@@ -129,6 +129,16 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
     [ciudades],
   );
 
+  // Un gerente también vende: preselecciona su propia figura de vendedor la primera vez que llega la lista.
+  useEffect(() => {
+    if (preseleccionadoRef.current || rol !== 'gerente') return;
+    const mio = (vendedores ?? []).find((v) => v.esMio);
+    if (mio) {
+      setVendedorSel(mio.id);
+      preseleccionadoRef.current = true;
+    }
+  }, [rol, vendedores]);
+
   // Paso del wizard (1 Negocio · 2 Dueño · 3 Cobro)
   const [paso, setPaso] = useState(1);
   // Negocio
@@ -159,6 +169,9 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const [verificandoCorreo, setVerificandoCorreo] = useState(false);
   const [correoDuplicado, setCorreoDuplicado] = useState(false);
   const correoRef = useRef('');
+  // Auto-atribución del gerente: al abrir, preselecciona su propia figura de vendedor (editable). Se hace
+  // una sola vez (ref) para no re-forzarla si el usuario elige "Sin vendedor" u otro después.
+  const preseleccionadoRef = useRef(false);
 
   // Paquete promocional seleccionado (define la vigencia y el monto). Con paquete no hay cortesía (cobro real).
   const paqueteSel = (paquetes ?? []).find((p) => p.id === paqueteId) ?? null;

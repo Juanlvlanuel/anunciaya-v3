@@ -81,16 +81,18 @@ async function resolverEmbajador(usuarioId: string): Promise<string | null> {
     return emb?.id ?? null;
 }
 
-/** Quién VE los datos de cobro de `usuarioId`: el super (los necesita para pagar) y el propio vendedor. */
+/** Quién VE los datos de cobro de `usuarioId`: el super (los necesita para pagar) y el propio interesado
+ *  (vendedor o gerente-que-también-vende: ambos cobran comisiones por su cartera). */
 function puedeVerDatosCobro(panel: UsuarioPanel, usuarioId: string): boolean {
     if (panel.rolEquipo === 'superadmin') return true;
-    return panel.rolEquipo === 'vendedor' && panel.usuarioId === usuarioId;
+    return (panel.rolEquipo === 'vendedor' || panel.rolEquipo === 'gerente') && panel.usuarioId === usuarioId;
 }
 
-/** Quién EDITA los datos de cobro: SOLO el propio vendedor. Es su dato bancario (a dónde va su dinero);
- *  que el super lo edite abriría un vector de fraude (desviar pagos). El super solo los lee, no los toca. */
+/** Quién EDITA los datos de cobro: SOLO el propio interesado (vendedor o gerente-que-también-vende). Es su
+ *  dato bancario (a dónde va su dinero); que un tercero lo edite abriría un vector de fraude (desviar
+ *  pagos). El super solo los lee, no los toca. */
 function puedeEditarDatosCobro(panel: UsuarioPanel, usuarioId: string): boolean {
-    return panel.rolEquipo === 'vendedor' && panel.usuarioId === usuarioId;
+    return (panel.rolEquipo === 'vendedor' || panel.rolEquipo === 'gerente') && panel.usuarioId === usuarioId;
 }
 
 // =============================================================================

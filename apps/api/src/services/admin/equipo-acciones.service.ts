@@ -171,6 +171,45 @@ async function reemplazarCiudades(tx: Tx, embajadorId: string, ciudadIds: string
     }
 }
 
+/** Da al gerente su figura de VENDEDOR: un embajador ACTIVO (código autogenerado) que cubre todas las
+ *  ciudades activas de su región, + esEmbajador=true. Idempotente: si ya tiene embajador, lo reactiva y
+ *  re-sincroniza sus ciudades. Así el gerente trae negocios (cartera + comisiones) como un vendedor — la
+ *  atribución y las comisiones cuelgan de `embajador_id`, sin mirar el rol. */
+async function asegurarEmbajadorGerente(
+    tx: Tx,
+    usuarioId: string,
+    nombre: string,
+    apellidos: string,
+    regionId: string,
+): Promise<void> {
+    // Cobertura = todas las ciudades ACTIVAS de su región.
+    const ciudades = (await tx.execute(
+        sql`SELECT id::text AS id FROM ciudades WHERE region_id = ${regionId}::uuid AND activa = true`,
+    )).rows as Array<{ id: string }>;
+    const ciudadIds = ciudades.map((c) => c.id);
+
+    // Reactivar su embajador si ya existe, o crear uno nuevo (unique: 1 por usuario).
+    const [emb] = (await tx.execute(
+        sql`SELECT id::text AS id FROM embajadores WHERE usuario_id = ${usuarioId}::uuid LIMIT 1`,
+    )).rows as Array<{ id: string }>;
+
+    let embajadorId: string;
+    if (emb) {
+        embajadorId = emb.id;
+        await tx.update(embajadores).set({ estado: 'activo' }).where(eq(embajadores.id, embajadorId));
+    } else {
+        const codigo = await sugerirCodigoReferido(nombre, apellidos);
+        const [creado] = await tx
+            .insert(embajadores)
+            .values({ usuarioId, codigoReferido: codigo, estado: 'activo' })
+            .returning({ id: embajadores.id });
+        embajadorId = creado.id;
+    }
+
+    await reemplazarCiudades(tx, embajadorId, ciudadIds);
+    await tx.update(usuarios).set({ esEmbajador: true }).where(eq(usuarios.id, usuarioId));
+}
+
 /** Envía el código para crear contraseña (modelo C) a una cuenta nueva. Best-effort: no lanza. */
 async function enviarCodigoModeloC(correo: string, nombre: string): Promise<boolean> {
     const codigo = String(randomInt(100000, 1000000));
@@ -350,8 +389,14 @@ export async function revocarAcceso(panel: UsuarioPanel, miembroId: string): Pro
         if (panel.rolEquipo !== 'superadmin') {
             return { ok: false, status: 403, mensaje: 'Solo el superadmin puede revocar el acceso de un gerente.' };
         }
-        // rol_equipo=NULL corta el acceso al instante; se CONSERVA region_id para poder reactivarlo.
-        await db.update(usuarios).set({ rolEquipo: null, updatedAt: new Date().toISOString() }).where(eq(usuarios.id, miembroId));
+        // rol_equipo=NULL corta el acceso al instante; se CONSERVA region_id para poder reactivarlo. Su
+        // figura de vendedor (embajador) queda INACTIVA: no aparece en selectores ni recibe atribuciones.
+        await db.transaction(async (tx) => {
+            await tx.update(usuarios).set({ rolEquipo: null, updatedAt: new Date().toISOString() }).where(eq(usuarios.id, miembroId));
+            if (v.embajadorId) {
+                await tx.update(embajadores).set({ estado: 'inactivo' }).where(eq(embajadores.id, v.embajadorId));
+            }
+        });
         await registrarAuditoria(panel, {
             accion: 'equipo_revocar_acceso',
             entidadTipo: 'usuario',
@@ -375,6 +420,29 @@ export async function reactivarAcceso(panel: UsuarioPanel, miembroId: string): P
     if (!v) return { ok: false, status: 404, mensaje: 'Miembro del equipo no encontrado.' };
     if (v.rolEquipo) return { ok: false, status: 409, mensaje: 'El miembro ya tiene acceso.' };
 
+    // ── Ex-gerente (conserva su region_id; solo superadmin) ──────────────────────
+    // Se chequea ANTES que el ex-vendedor: un gerente ahora TAMBIÉN tiene embajador, así que su
+    // `region_id` es lo que lo distingue (un vendedor no tiene region_id en `usuarios`).
+    if (v.regionId) {
+        if (panel.rolEquipo !== 'superadmin') {
+            return { ok: false, status: 403, mensaje: 'Solo el superadmin puede reactivar a un gerente.' };
+        }
+        await db.transaction(async (tx) => {
+            await tx.update(usuarios).set({ rolEquipo: 'gerente', esEmbajador: true, updatedAt: new Date().toISOString() }).where(eq(usuarios.id, miembroId));
+            // Reactiva y re-sincroniza su figura de vendedor (embajador + ciudades de su región).
+            await asegurarEmbajadorGerente(tx, miembroId, v.nombre, v.apellidos, v.regionId!);
+        });
+        await registrarAuditoria(panel, {
+            accion: 'equipo_reactivar_acceso',
+            entidadTipo: 'usuario',
+            entidadId: miembroId,
+            datosPrevios: { rolEquipo: null },
+            datosNuevos: { rolEquipo: 'gerente', regionId: v.regionId },
+            motivo: null,
+        });
+        return { ok: true };
+    }
+
     // ── Ex-vendedor (conserva su embajador) ──────────────────────────────────────
     if (v.embajadorId) {
         const sinAlcance = vendedorFueraDeAlcance(panel, v);
@@ -390,23 +458,6 @@ export async function reactivarAcceso(panel: UsuarioPanel, miembroId: string): P
             entidadId: miembroId,
             datosPrevios: { rolEquipo: null, embajadorEstado: 'inactivo' },
             datosNuevos: { rolEquipo: 'vendedor', embajadorEstado: 'activo' },
-            motivo: null,
-        });
-        return { ok: true };
-    }
-
-    // ── Ex-gerente (conserva su region_id; solo superadmin) ──────────────────────
-    if (v.regionId) {
-        if (panel.rolEquipo !== 'superadmin') {
-            return { ok: false, status: 403, mensaje: 'Solo el superadmin puede reactivar a un gerente.' };
-        }
-        await db.update(usuarios).set({ rolEquipo: 'gerente', updatedAt: new Date().toISOString() }).where(eq(usuarios.id, miembroId));
-        await registrarAuditoria(panel, {
-            accion: 'equipo_reactivar_acceso',
-            entidadTipo: 'usuario',
-            entidadId: miembroId,
-            datosPrevios: { rolEquipo: null },
-            datosNuevos: { rolEquipo: 'gerente', regionId: v.regionId },
             motivo: null,
         });
         return { ok: true };
@@ -440,36 +491,43 @@ export async function altaGerente(panel: UsuarioPanel, datos: AltaGerenteInput):
         return { ok: false, status: 409, mensaje: 'Esa cuenta ya pertenece al equipo.' };
     }
 
-    let usuarioId: string;
-    let esNuevo: boolean;
-    if (existente) {
-        usuarioId = existente.id;
-        esNuevo = false;
-        await db
-            .update(usuarios)
-            .set({ rolEquipo: 'gerente', regionId: datos.regionId, updatedAt: new Date().toISOString() })
-            .where(eq(usuarios.id, usuarioId));
-    } else {
-        const [creado] = await db
-            .insert(usuarios)
-            .values({
-                nombre: datos.nombre,
-                apellidos: datos.apellidos,
-                correo: datos.correo,
-                telefono: datos.telefono ?? null,
-                contrasenaHash: null,
-                correoVerificado: false,
-                perfil: 'personal',
-                estado: 'activo',
-                tieneModoComercial: false,
-                modoActivo: 'personal',
-                rolEquipo: 'gerente',
-                regionId: datos.regionId,
-            })
-            .returning({ id: usuarios.id });
-        usuarioId = creado.id;
-        esNuevo = true;
-    }
+    // Crea/promueve al gerente + le da su figura de VENDEDOR (embajador + ciudades de su región), en una
+    // sola transacción, para que pueda traer negocios en su propia cartera (con comisiones) como un vendedor.
+    const { usuarioId, esNuevo } = await db.transaction(async (tx) => {
+        let uid: string;
+        let nuevo: boolean;
+        if (existente) {
+            uid = existente.id;
+            nuevo = false;
+            await tx
+                .update(usuarios)
+                .set({ rolEquipo: 'gerente', regionId: datos.regionId, esEmbajador: true, updatedAt: new Date().toISOString() })
+                .where(eq(usuarios.id, uid));
+        } else {
+            const [creado] = await tx
+                .insert(usuarios)
+                .values({
+                    nombre: datos.nombre,
+                    apellidos: datos.apellidos,
+                    correo: datos.correo,
+                    telefono: datos.telefono ?? null,
+                    contrasenaHash: null,
+                    correoVerificado: false,
+                    perfil: 'personal',
+                    estado: 'activo',
+                    tieneModoComercial: false,
+                    modoActivo: 'personal',
+                    rolEquipo: 'gerente',
+                    regionId: datos.regionId,
+                    esEmbajador: true,
+                })
+                .returning({ id: usuarios.id });
+            uid = creado.id;
+            nuevo = true;
+        }
+        await asegurarEmbajadorGerente(tx, uid, datos.nombre, datos.apellidos, datos.regionId);
+        return { usuarioId: uid, esNuevo: nuevo };
+    });
 
     await registrarAuditoria(panel, {
         accion: esNuevo ? 'equipo_alta_gerente' : 'equipo_promover_gerente',
@@ -583,7 +641,12 @@ export async function reasignarRegion(panel: UsuarioPanel, miembroId: string, re
         .limit(1);
     if (!reg) return { ok: false, status: 404, mensaje: 'La región seleccionada no existe o no está activa.' };
 
-    await db.update(usuarios).set({ regionId, updatedAt: new Date().toISOString() }).where(eq(usuarios.id, miembroId));
+    // Mueve la región del gerente Y re-sincroniza la cobertura de su figura de vendedor a las ciudades
+    // de la nueva región (para que su cartera siga las ciudades correctas).
+    await db.transaction(async (tx) => {
+        await tx.update(usuarios).set({ regionId, updatedAt: new Date().toISOString() }).where(eq(usuarios.id, miembroId));
+        await asegurarEmbajadorGerente(tx, miembroId, v.nombre, v.apellidos, regionId);
+    });
 
     await registrarAuditoria(panel, {
         accion: 'equipo_reasignar_region',
