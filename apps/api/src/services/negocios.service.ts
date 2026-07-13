@@ -748,9 +748,18 @@ export async function obtenerPerfilSucursal(
                         AND u.sucursal_asignada = s.id
                   )
               )
-              AND n.activo = true
-              AND n.es_borrador = false
-              AND n.onboarding_completado = true
+              -- El negocio publicado lo ve cualquiera; su propio dueño/gerente (BS "Mi Perfil") lo ve
+              -- AUNQUE aún no esté publicado (alta anticipada / onboarding en curso). Sin esta excepción,
+              -- un negocio pendiente daba 0 filas → "Sucursal no encontrada" (500) en Business Studio.
+              AND (
+                  (n.activo = true AND n.es_borrador = false AND n.onboarding_completado = true)
+                  OR ${userId ? sql`n.usuario_id = ${userId}` : sql`FALSE`}
+                  OR EXISTS (
+                      SELECT 1 FROM usuarios u
+                      WHERE u.id = ${userId ?? null}
+                        AND (u.negocio_id = n.id OR u.sucursal_asignada = s.id)
+                  )
+              )
               -- Los negocios demo se ocultan del público, pero su propio dueño (BS "Mi Perfil") sí los ve.
               AND (n.es_demo = false OR ${userId ? sql`n.usuario_id = ${userId}` : sql`FALSE`})
 
