@@ -50,6 +50,9 @@ const RUTAS_SIN_SUCURSAL = [
   '/onboarding/',
   '/negocios/publico/',
   '/articulos/publico/',
+  '/articulos/negocio/',  // Catálogo PÚBLICO de un negocio (perfil): NO debe filtrarse por la
+                          // sucursal activa del VISITANTE. Si un comerciante en modo comercial ve el
+                          // perfil de otro negocio, inyectar su sucursalId dejaba el catálogo vacío.
   '/guardados/',   // Guardados personales del usuario
   '/duplicar',     // Duplicar artículos usa sucursalesIds en el body, no en query params
   '/notificaciones', // El service de notificaciones calcula su propio sucursalId según ubicación
