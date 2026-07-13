@@ -23,6 +23,7 @@ import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { calcularPrecioPublicidad, CARRUSELES_VALIDOS, type CarruselPub } from '../publicidad-precio.service.js';
 import { obtenerConfigNumero } from '../configuracion.service.js';
+import { notificarCambioPublicidad } from '../publicidad-realtime.js';
 
 export type MetodoCobroManual = 'efectivo' | 'transferencia' | 'cortesia';
 
@@ -173,5 +174,6 @@ export async function crearAnuncioManual(panel: UsuarioPanel, input: AltaManualI
         console.error('Error emitiendo el recibo de publicidad (alta manual):', e);
     }
 
+    notificarCambioPublicidad('alta-manual'); // el anuncio nace 'activa' → aparece al instante
     return { ok: true, id: compraId, folio, monto };
 }

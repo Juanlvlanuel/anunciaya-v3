@@ -45,6 +45,7 @@ import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobant
 import { prepararReciboPago } from './recibo-pago.service.js';
 import { registrarPagoManual } from './pagos-manuales.service.js';
 import { obtenerConfigNumero } from '../configuracion.service.js';
+import { notificarCambioPublicidad } from '../publicidad-realtime.js';
 
 // =============================================================================
 // TIPOS
@@ -301,6 +302,9 @@ export async function marcarDesmarcarFundador(
         datosNuevos: { esFundador },
         motivo: null,
     });
+
+    // El logo entra/sale del carrusel "Fundadores" de la columna derecha → refrescar al instante.
+    notificarCambioPublicidad('fundador');
 
     return { ok: true, negocio: { id: neg.id, estadoAdmin: neg.estadoAdmin, activo: neg.activo, embajadorId: neg.embajadorId } };
 }

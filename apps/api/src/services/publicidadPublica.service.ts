@@ -25,9 +25,13 @@ export interface PublicidadPublica {
     anuncios: AnuncioPublico[];
     patrocinadores: AnuncioPublico[];
     fundadores: AnuncioPublico[];
+    /** ISO del expira_at más próximo entre lo que se muestra (o null). El cliente arma con esto un
+     *  timer para quitar la pieza al instante justo cuando venza, sin recargar ni sondear. Los
+     *  fundadores no vencen → no cuentan. */
+    proximaExpiracion: string | null;
 }
 
-const VACIO: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [] };
+const VACIO: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [], proximaExpiracion: null };
 
 export async function listarPublicidadPublica(ciudadId: string): Promise<PublicidadPublica> {
     if (!ciudadId) return VACIO;
@@ -39,6 +43,7 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
             piezaId: publicidadPiezas.id,
             carrusel: publicidadPiezas.carrusel,
             imagenUrl: publicidadPiezas.imagenUrl,
+            expiraAt: publicidadCompras.expiraAt,
         })
         .from(publicidadPiezas)
         .innerJoin(publicidadCompras, eq(publicidadCompras.id, publicidadPiezas.compraId))
@@ -53,12 +58,16 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
         )
         .orderBy(sql`${publicidadPiezas.prioridad} DESC`, sql`${publicidadCompras.createdAt} DESC`);
 
-    const out: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [] };
+    const out: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [], proximaExpiracion: null };
+    let proxima: string | null = null;
     for (const f of filas) {
         const item: AnuncioPublico = { piezaId: f.piezaId, imagenUrl: f.imagenUrl };
         if (f.carrusel === 'anuncios') out.anuncios.push(item);
         else if (f.carrusel === 'patrocinadores') out.patrocinadores.push(item);
+        // El más próximo a vencer entre lo mostrado → el cliente lo quita al instante al vencer.
+        if (f.expiraAt && (!proxima || new Date(f.expiraAt) < new Date(proxima))) proxima = f.expiraAt;
     }
+    out.proximaExpiracion = proxima;
 
     // Fundadores: REGALO a los negocios marcados de la ciudad (logo del negocio, por su sucursal principal).
     const fund = (await db.execute(sql`

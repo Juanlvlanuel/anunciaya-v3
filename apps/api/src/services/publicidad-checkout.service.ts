@@ -22,6 +22,7 @@ import { db } from '../db/index.js';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
 import { calcularPrecioPublicidad, CARRUSELES_VALIDOS, type CarruselPub } from './publicidad-precio.service.js';
+import { notificarCambioPublicidad } from './publicidad-realtime.js';
 import { obtenerConfigNumero } from './configuracion.service.js';
 
 export interface CheckoutInput {
@@ -156,6 +157,7 @@ export async function activarPublicidadPagada(session: Stripe.Checkout.Session):
         WHERE id = ${compraId}::uuid
     `);
     console.log(`✅ Publicidad activada por pago: ${compraId} (folio ${folio})`);
+    notificarCambioPublicidad('self-service'); // aparece al instante en la columna tras el pago
 
     // Recibo PDF + correo al anunciante (best-effort: el pago ya quedó aplicado).
     try {

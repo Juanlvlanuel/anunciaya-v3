@@ -24,9 +24,11 @@ export interface PublicidadPublica {
   anuncios: AnuncioPublico[];
   patrocinadores: AnuncioPublico[];
   fundadores: AnuncioPublico[];
+  /** ISO del anuncio más próximo a vencer (o null): el hook arma un timer para quitarlo al instante. */
+  proximaExpiracion: string | null;
 }
 
-const VACIO: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [] };
+const VACIO: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [], proximaExpiracion: null };
 
 export async function obtenerPublicidadPorCiudad(ciudadId: string): Promise<PublicidadPublica> {
   const res = await get<PublicidadPublica>(`/publicidad?ciudadId=${encodeURIComponent(ciudadId)}`);

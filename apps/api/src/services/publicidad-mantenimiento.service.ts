@@ -16,6 +16,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { obtenerConfigNumero } from './configuracion.service.js';
 import { enviarAvisoVencimientoPublicidad } from '../utils/email.js';
+import { notificarCambioPublicidad } from './publicidad-realtime.js';
 
 export async function expirarAnunciosVencidos(): Promise<{ expirados: number }> {
     const r = await db.execute(sql`
@@ -24,6 +25,10 @@ export async function expirarAnunciosVencidos(): Promise<{ expirados: number }> 
         WHERE estado = 'activa' AND expira_at < now()
         RETURNING id
     `);
+    // El carrusel público ya filtra por expira_at en vivo y el timer del cliente suele quitar la
+    // pieza justo al vencer; este aviso es la red por si algún cliente no tenía el timer armado
+    // (recién montado, tras reconexión, etc.).
+    if (r.rows.length > 0) notificarCambioPublicidad('expiracion-cron');
     return { expirados: r.rows.length };
 }
 

@@ -23,6 +23,7 @@ import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { obtenerConfigNumero } from '../configuracion.service.js';
 import { CARRUSELES_VALIDOS, type CarruselPub } from '../publicidad-precio.service.js';
+import { notificarCambioPublicidad } from '../publicidad-realtime.js';
 
 export type ResultadoAccionPub =
     | { ok: true; estado: string }
@@ -92,6 +93,7 @@ export async function pausarAnuncio(panel: UsuarioPanel, id: string): Promise<Re
         motivo: null,
     });
 
+    notificarCambioPublicidad('pausar'); // deja de mostrarse al instante en la columna
     return { ok: true, estado: 'pausada' };
 }
 
@@ -119,6 +121,7 @@ export async function reactivarAnuncio(panel: UsuarioPanel, id: string): Promise
         motivo: null,
     });
 
+    notificarCambioPublicidad('reactivar'); // vuelve a mostrarse al instante
     return { ok: true, estado: 'activa' };
 }
 
@@ -219,6 +222,7 @@ export async function editarAnuncio(panel: UsuarioPanel, id: string, input: Edic
         motivo: null,
     });
 
+    notificarCambioPublicidad('editar'); // nuevas imágenes/ciudades se reflejan al instante
     return { ok: true, estado: a.estado };
 }
 
@@ -242,5 +246,6 @@ export async function cancelarAnuncio(panel: UsuarioPanel, id: string, motivo: s
         motivo: motivo || null,
     });
 
+    notificarCambioPublicidad('cancelar'); // desaparece al instante
     return { ok: true, estado: 'cancelada' };
 }

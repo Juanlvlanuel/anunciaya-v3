@@ -22,6 +22,7 @@ import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
 import { calcularPrecioPublicidad, CARRUSELES_VALIDOS, type CarruselPub } from './publicidad-precio.service.js';
 import { obtenerConfigNumero } from './configuracion.service.js';
+import { notificarCambioPublicidad } from './publicidad-realtime.js';
 
 export interface RenovacionInput {
     carruseles: CarruselPub[];
@@ -284,6 +285,7 @@ export async function activarRenovacionPublicidad(session: Stripe.Checkout.Sessi
         `);
     });
     console.log(`✅ Renovación aplicada: pago ${renovacionId} (folio ${folio}) extiende ${compraOriginalId} +${meses}m`);
+    notificarCambioPublicidad('renovacion'); // vigencia extendida / reactivada → refresca la columna
 
     // Limpia de R2 las imágenes viejas del original que la renovación reemplazó y nadie más usa.
     try {
