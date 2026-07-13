@@ -79,8 +79,12 @@ export function useHideOnScroll({
 
   const handleScroll = useCallback(() => {
     const el = mainScrollRef?.current;
-    // Si no hay ref, usar window scroll (páginas con header propio)
-    const scrollTop = el ? el.scrollTop : window.scrollY;
+    // Tomamos el scroll del que efectivamente se mueve: el contenedor
+    // registrado (app-shell propio) O `window`/body. En algunas páginas
+    // app-shell el scroll real termina ocurriendo en el documento y no en
+    // el contenedor interno; escuchar ambos y usar el máximo garantiza que
+    // el auto-hide funcione sin depender de cuál sea el scroller real.
+    const scrollTop = Math.max(el?.scrollTop ?? 0, window.scrollY);
     const now = Date.now();
 
     // En top → siempre visible
@@ -139,17 +143,19 @@ export function useHideOnScroll({
     }
 
     const el = mainScrollRef?.current;
-    const target = el || window;
+    // Escuchamos el contenedor registrado Y `window`: solo uno scrollea de
+    // verdad por página, pero así el auto-hide no depende de acertar cuál.
+    const targets: Array<HTMLElement | Window> = el ? [el, window] : [window];
 
     const onScroll = () => {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(handleScroll);
     };
 
-    target.addEventListener('scroll', onScroll, { passive: true });
+    targets.forEach((t) => t.addEventListener('scroll', onScroll, { passive: true }));
 
     return () => {
-      target.removeEventListener('scroll', onScroll);
+      targets.forEach((t) => t.removeEventListener('scroll', onScroll));
       cancelAnimationFrame(rafRef.current);
     };
   }, [isMobile, disabled, mainScrollRef, handleScroll]);

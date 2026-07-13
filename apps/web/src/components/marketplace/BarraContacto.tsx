@@ -86,11 +86,22 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
     //   - Sin texto "WhatsApp", solo el ícono de marca.
     const claseContenedor =
         variante === 'mobile'
-            ? 'flex items-center gap-3 px-3 py-2'
+            ? 'flex items-center justify-between gap-3 px-4 py-2.5'
             : 'flex items-center gap-3';
 
     return (
         <div data-testid={`barra-contacto-${variante}`} className={claseContenedor}>
+            {/* Móvil: etiqueta de contexto a la izquierda con el nombre del
+                vendedor, para que la barra no se vea como dos íconos sueltos
+                y quede personalizada. Los logos se empujan a la derecha. */}
+            {variante === 'mobile' && (
+                <span className="min-w-0 truncate text-sm font-medium text-white/70">
+                    Contactar a{' '}
+                    <span className="font-semibold text-white">{vendedor.nombre}</span>
+                </span>
+            )}
+
+            <div className="flex shrink-0 items-center gap-3">
             {/* ChatYA — botón primario, inline. */}
             <button
                 data-testid="btn-chatya"
@@ -112,6 +123,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                     <WhatsAppIcon className="h-7 w-7" />
                 </button>
             )}
+            </div>
         </div>
     );
 }

@@ -524,27 +524,51 @@ export function PaginaArticuloMarketplace() {
             {/* ════════════════════════════════════════════════════════════════
                 BARRA FIJA INFERIOR — solo móvil
                 - z-50 para quedar sobre el BottomNav (z-40).
-                - bottom dinámico: 68px cuando BottomNav está visible (sobre él),
+                - bottom dinámico: se ancla a la altura REAL del BottomNav
+                  (var CSS --altura-bottomnav que publica BottomNav, fallback
+                  68px, -1px para solapar y evitar costura) cuando está visible;
                   0 cuando se oculta al hacer scroll (pegada al borde).
-                - Fondo gradient suave de slate (no blanco duro) para integrarse
-                  con el fondo de la app y no contrastar con la página detalle.
+                - Superficie blanca glass (bg-white/95 + backdrop-blur) con borde
+                  superior y sombra hacia arriba, para que los íconos ChatYA/
+                  WhatsApp queden anclados en una barra y no floten sobre el
+                  fondo transparente de la página.
             ════════════════════════════════════════════════════════════════ */}
-            <div
-                className="fixed inset-x-0 z-50 transition-[bottom] duration-300 ease-out lg:hidden"
-                style={{ bottom: bottomNavVisible ? '68px' : '0px' }}
-            >
-                {usuarioActual?.id === articulo.vendedor.id &&
-                articulo.estado === 'pausada' ? (
-                    <div className="border-t-2 border-slate-300 bg-white p-3">
-                        <BotonReactivar
-                            onClick={handleReactivar}
-                            cargando={reactivarMutation.isPending}
+            {(() => {
+                const esMiPublicacion = usuarioActual?.id === articulo.vendedor.id;
+                // Solo mostramos la barra fija si hay algo que mostrar:
+                //  - publicación ajena → BarraContacto (ChatYA/WhatsApp).
+                //  - mía y pausada     → botón Reactivar.
+                // Si es mía y activa, NO montamos el wrapper (evita la franja
+                // negra + acento teal huérfana sin contenido).
+                const mostrarBarra = !esMiPublicacion || articulo.estado === 'pausada';
+                if (!mostrarBarra) return null;
+
+                return (
+                    <div
+                        className="fixed inset-x-0 z-50 shadow-[0_-2px_8px_rgba(0,0,0,0.25)] transition-[bottom] duration-300 ease-out lg:hidden"
+                        style={{
+                            bottom: bottomNavVisible ? 'calc(var(--altura-bottomnav, 68px) - 1px)' : '0px',
+                            background: '#000000',
+                        }}
+                    >
+                        {/* Línea de acento superior (teal) — espejo del header. */}
+                        <div
+                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px]"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
                         />
+                        {esMiPublicacion && articulo.estado === 'pausada' ? (
+                            <div className="p-3">
+                                <BotonReactivar
+                                    onClick={handleReactivar}
+                                    cargando={reactivarMutation.isPending}
+                                />
+                            </div>
+                        ) : (
+                            <BarraContacto articulo={articulo} variante="mobile" />
+                        )}
                     </div>
-                ) : (
-                    <BarraContacto articulo={articulo} variante="mobile" />
-                )}
-            </div>
+                );
+            })()}
         </div>
     );
 }

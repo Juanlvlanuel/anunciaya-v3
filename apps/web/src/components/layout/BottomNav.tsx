@@ -21,7 +21,7 @@
  * Ubicación: apps/web/src/components/layout/BottomNav.tsx
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Store, ShoppingCart, Tag, BarChart3 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
@@ -121,6 +121,32 @@ export function BottomNav() {
   // Auto-hide al hacer scroll down (solo móvil, desactivado en mapa de Negocios)
   const { hideStyle, forzarMostrar } = useHideOnScroll({ direction: 'down', disabled: esMapaNegocios });
 
+  // El BottomNav vive en MainLayout y persiste entre rutas, así que su estado
+  // oculto/visible sobrevive a la navegación. Al cambiar de página siempre lo
+  // forzamos a visible: entrar a una pantalla nueva con el navbar oculto (como
+  // pasaba antes) es desorientador.
+  useEffect(() => {
+    forzarMostrar();
+  }, [location.pathname, forzarMostrar]);
+
+  // Publicar la altura REAL del BottomNav como variable CSS global para que
+  // barras fijas que se anclan "sobre" él (ej. BarraContacto del detalle de
+  // MarketPlace) no dependan de un alto hardcodeado y no dejen una franja
+  // transparente entre ambos. Se mide con ResizeObserver (safe-area, botón
+  // central, etc. cambian la altura entre dispositivos).
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const publicar = () => {
+      document.documentElement.style.setProperty('--altura-bottomnav', `${nav.offsetHeight}px`);
+    };
+    publicar();
+    const observer = new ResizeObserver(publicar);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  });
+
   // Exponer forzarMostrar globalmente para que MainLayout lo use al cerrar teclado
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__bottomNavForzarMostrar = forzarMostrar;
@@ -152,7 +178,7 @@ export function BottomNav() {
         aria-hidden="true"
       />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bottomnav-ocultar-teclado" style={hideStyle}>
+      <nav ref={navRef} className="fixed bottom-0 left-0 right-0 z-40 bottomnav-ocultar-teclado" style={hideStyle}>
 
 
         {/* Fondo con gradiente negro y padding para safe-area */}
