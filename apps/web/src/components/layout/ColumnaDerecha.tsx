@@ -67,7 +67,7 @@ export function ColumnaDerecha() {
 
   return (
     <div className="absolute inset-0 flex flex-col">
-      {/* Publicidad (toma el alto sobrante) + Fundadores. overflow-hidden = sin scroll. */}
+      {/* Publicidad arriba (alto natural) + Fundadores anclado abajo (mt-auto). overflow-hidden = sin scroll. */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
         <SeccionPublicidad grandes={grandes} chicos={chicos} onAmpliar={abrir} />
         <SeccionFundadores items={fundadores} onAmpliar={abrir} />
@@ -158,7 +158,10 @@ function SeccionFundadores({ items, onAmpliar }: { items: AnuncioPublico[]; onAm
   const dur = `${Math.max(12, items.length * 6)}s`;
 
   return (
-    <div className="shrink-0 overflow-hidden py-1.5">
+    // mt-auto ancla el carrusel al fondo del área flex: haya o no anuncio CHICO
+    // arriba, Fundadores siempre baja hasta pegar con el CTA (nunca "sube" a
+    // llenar el hueco de la publicidad faltante).
+    <div className="mt-auto shrink-0 overflow-hidden py-1.5">
       <div className="marquee-logos flex w-max items-center gap-3 2xl:gap-3.5" style={{ '--marquee-dur': dur } as CSSProperties}>
         {fila.map((it, idx) => (
           <button
