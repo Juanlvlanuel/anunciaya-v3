@@ -45,6 +45,9 @@ export interface DatosPagoManual {
     metodoCobro?: 'tarjeta' | 'manual';
     /** Cuándo ocurrió el pago (ISO). Default: ahora. */
     fechaEvento?: string;
+    /** Nota descriptiva del pago (p.ej. "Promoción de apertura 3x1"). Se muestra en el historial de
+     *  la ficha y se estampa como detalle del concepto en el recibo. Opcional. */
+    nota?: string | null;
 }
 
 /**
@@ -72,6 +75,7 @@ export async function registrarPagoManual(
             periodoHasta: datos.hasta,
             cobroPrevio: datos.cobroPrevio ?? null,
             registradoPor: datos.registradoPor,
+            nota: datos.nota?.trim() || null,
         })
         .returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
 

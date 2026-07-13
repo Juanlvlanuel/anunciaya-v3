@@ -50,22 +50,25 @@ function leerMolde(tipo: 'membresia' | 'publicidad'): Uint8Array {
 }
 
 // ── Mapa de coordenadas (origen abajo-izquierda, en pt). Extraído del diseño. ──
-type Campo = { x: number; y: number; size: number; align?: 'left' | 'right'; bold?: boolean; white?: boolean; red?: boolean };
+type Campo = { x: number; y: number; size: number; align?: 'left' | 'right'; bold?: boolean; white?: boolean; red?: boolean; gray?: boolean };
 const COORDS = {
-    folio:       { x: 566.7, y: 680.3, size: 9.5,  align: 'right' as const, red: true },
-    fecha:       { x: 566.7, y: 666.7, size: 9.5,  align: 'right' as const },
-    negocio:     { x: 327.4, y: 593.9, size: 11.2, bold: true },
-    sucursal:    { x: 374.5, y: 579.9, size: 9.5 },
-    dueno:       { x: 374.5, y: 562.6, size: 9.5 },
-    direccion:   { x: 374.5, y: 545.4, size: 9.5 },
-    telefono:    { x: 374.5, y: 511.1, size: 9.5 },
-    correo:      { x: 374.5, y: 493.8, size: 9.5 },
-    periodo:     { x: 279.4, y: 423.0, size: 9.5 },
-    formaPago:   { x: 374.4, y: 423.0, size: 9.5 },
-    totalTabla:  { x: 555.6, y: 423.0, size: 9.5,  align: 'right' as const, bold: true },
-    totalGrande: { x: 548.7, y: 314.8, size: 19.1, align: 'right' as const, bold: true, white: true },
-    vigencia:    { x: 319.4, y: 250.5, size: 11.0, bold: true },
-    atendio:     { x: 127.8, y: 206.1, size: 9.5 },
+    folio:           { x: 567.0, y: 680.6, size: 9.5,  align: 'right' as const, red: true },
+    fecha:           { x: 566.9, y: 667.0, size: 9.5,  align: 'right' as const },
+    negocio:         { x: 327.6, y: 594.2, size: 11.2, bold: true },
+    sucursal:        { x: 374.8, y: 580.1, size: 9.5 },
+    dueno:           { x: 374.8, y: 562.8, size: 9.5 },
+    direccion:       { x: 374.8, y: 545.7, size: 9.5 },
+    telefono:        { x: 374.8, y: 511.4, size: 9.5 },
+    correo:          { x: 374.8, y: 494.1, size: 9.5 },
+    periodo:         { x: 279.7, y: 423.3, size: 9.5 },
+    formaPago:       { x: 374.7, y: 423.3, size: 9.5 },
+    totalTabla:      { x: 555.9, y: 423.3, size: 9.5,  align: 'right' as const, bold: true },
+    totalGrande:     { x: 549.0, y: 315.0, size: 19.1, align: 'right' as const, bold: true, white: true },
+    // Renglón de DETALLE bajo el concepto (columna izquierda de la tabla). Solo se estampa en
+    // recibos de PROMOCIÓN de apertura (= nota del pago); queda vacío en recibos normales.
+    conceptoDetalle: { x: 73.7,  y: 412.2, size: 8.0,  gray: true },
+    vigencia:        { x: 319.7, y: 250.7, size: 11.0, bold: true },
+    atendio:         { x: 128.1, y: 206.4, size: 9.5 },
 } satisfies Record<string, Campo>;
 
 /** Ancho del área de datos (margen derecho del contenido), para el word-wrap de la dirección. */
@@ -74,6 +77,7 @@ const MARGEN_DERECHO = 566;
 const NEGRO = rgb(0, 0, 0);                 // datos del recibo
 const BLANCO = rgb(1, 1, 1);                // Total Pagado grande (sobre el recuadro azul)
 const ROJO = rgb(0.8, 0, 0);                // #CC0000 (folio, estilo recibo)
+const GRIS = rgb(0.42, 0.45, 0.50);         // detalle del concepto (subtexto tenue)
 
 export interface DatosReciboPDF {
     /** Folio del recibo = pagos_membresia.id. */
@@ -88,6 +92,8 @@ export interface DatosReciboPDF {
     correoNegocio?: string | null;
     /** Cómo se pagó: ingreso real (efectivo/transferencia/tarjeta) o cortesía (sin dinero). */
     concepto: 'efectivo' | 'transferencia' | 'cortesia' | 'tarjeta';
+    /** Detalle opcional bajo el concepto (p.ej. "Promoción de apertura 3x1"). Vacío en pagos normales. */
+    conceptoDetalle?: string | null;
     /** Monto cobrado en MXN. NULL en cortesía. */
     monto?: number | null;
     /** N meses cubiertos (para el campo "Periodo"). */
@@ -172,7 +178,7 @@ export async function generarReciboPagoPDF(datos: DatosReciboPDF): Promise<Buffe
         const x = campo.align === 'right'
             ? campo.x - fuente.widthOfTextAtSize(limpio, campo.size)
             : campo.x;
-        const color = campo.white ? BLANCO : campo.red ? ROJO : NEGRO;
+        const color = campo.white ? BLANCO : campo.red ? ROJO : campo.gray ? GRIS : NEGRO;
         page.drawText(limpio, { x, y: campo.y, size: campo.size, font: fuente, color });
     };
 
@@ -209,6 +215,7 @@ export async function generarReciboPagoPDF(datos: DatosReciboPDF): Promise<Buffe
     put(COORDS.correo, datos.correoNegocio);
     put(COORDS.periodo, periodoStr);
     put(COORDS.formaPago, formaPagoLegible(datos.concepto));
+    put(COORDS.conceptoDetalle, datos.conceptoDetalle);
     put(COORDS.totalTabla, totalStr);
     put(COORDS.totalGrande, totalStr);
     put(COORDS.vigencia, formatearFechaLarga(datos.hasta));

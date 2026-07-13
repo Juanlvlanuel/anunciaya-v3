@@ -801,6 +801,8 @@ export async function activarPromocionNegocio(
             registradoPor: panel.usuarioId,
             metodoCobro: 'manual',
             fechaEvento: ahora,
+            // Detalle de la promo → historial de pagos + renglón bajo el concepto del recibo.
+            nota: `Promoción de apertura ${otorgados}x${cobrados}`,
         });
         return { negocio: actualizado, pagoId: pagoManualId };
     });

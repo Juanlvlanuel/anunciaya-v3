@@ -38,6 +38,7 @@ interface FilaPago {
     meses_cubiertos: number | null;
     periodo_hasta: string;
     fecha_pago: string;
+    nota: string | null;
     nombre_negocio: string;
     correo_dueno: string | null;
     nombre_dueno: string | null;
@@ -66,6 +67,7 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
             p.meses_cubiertos,
             p.periodo_hasta::text                                      AS periodo_hasta,
             p.fecha_pago::text                                         AS fecha_pago,
+            p.nota                                                     AS nota,
             n.nombre                                                   AS nombre_negocio,
             u.correo                                                   AS correo_dueno,
             u.nombre                                                   AS nombre_dueno,
@@ -109,6 +111,7 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
             telefonoNegocio: fila.telefono,
             correoNegocio: fila.correo_sucursal ?? fila.correo_dueno,
             concepto: fila.concepto,
+            conceptoDetalle: fila.nota,
             monto,
             periodoMeses: fila.meses_cubiertos,
             hasta: fila.periodo_hasta,

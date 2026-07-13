@@ -317,6 +317,8 @@ export async function altaManualNegocio(
             hasta: vencISO,
             registradoPor: panel.usuarioId,
             metodoCobro: 'manual',
+            // Si el alta aplicó un paquete de promo, dejar el detalle en el pago (historial + recibo).
+            nota: promoSnapshot ? `Promoción de apertura ${promoSnapshot.otorgados}x${promoSnapshot.cobrados}` : null,
         });
 
         return { negocioId: negocio.id, usuarioId: negocio.usuarioId, pagoId, folio };
