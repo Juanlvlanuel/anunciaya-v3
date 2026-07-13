@@ -3157,12 +3157,16 @@ export async function cambiarModo(
           activo: negocios.activo,
           estadoMembresia: negocios.estadoMembresia,
           estadoAdmin: negocios.estadoAdmin,
+          promoPendiente: negocios.promoPendiente,
         })
         .from(negocios)
         .where(eq(negocios.id, usuario.negocioId))
         .limit(1);
 
-      if (negEstado && estaFueraDeCirculacion(negEstado)) {
+      // Un negocio en ALTA ANTICIPADA (promo_pendiente) está `activo=false` a propósito (aún sin publicar
+      // ni cobrar), PERO el equipo debe poder entrar al modo comercial para cargarle los datos (onboarding).
+      // Por eso NO se bloquea aquí; el candado sigue firme para suspensión manual / impago / cancelación.
+      if (negEstado && !negEstado.promoPendiente && estaFueraDeCirculacion(negEstado)) {
         return {
           success: false,
           message: mensajeBloqueoModoComercial(clasificarCirculacion(negEstado)),
