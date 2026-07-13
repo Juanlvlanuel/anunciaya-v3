@@ -15,7 +15,7 @@
  */
 
 import { Fragment, useMemo, useState, useRef, useEffect } from 'react';
-import { X, Store, User, CreditCard, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Store, User, CreditCard, Check, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorFecha } from '../ui/SelectorFecha';
 import { SelectorBuscable } from '../ui/SelectorBuscable';
@@ -150,6 +150,8 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const [correo, setCorreo] = useState('');
   const [confirmarCorreo, setConfirmarCorreo] = useState('');
   const [telDigitos, setTelDigitos] = useState('');
+  const [contrasena, setContrasena] = useState('');
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
   // Cobro
   const [concepto, setConcepto] = useState<ConceptoAlta>('efectivo');
   const [monto, setMonto] = useState(String(precioPorMeses(1, precioBase)));
@@ -187,6 +189,8 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const correosCoinciden =
     correo.trim().toLowerCase() === confirmarCorreo.trim().toLowerCase() && confirmarCorreo.length > 0;
   const telValido = /^\d{10}$/.test(telDigitos);
+  // Contraseña opcional: válida si está vacía (modelo C + correo) o cumple los requisitos.
+  const contrasenaValida = contrasena === '' || (contrasena.length >= 8 && /[A-Z]/.test(contrasena) && /[0-9]/.test(contrasena));
   const pideMonto = concepto !== 'cortesia';
   const montoNum = Number(monto);
   const montoValido = !pideMonto || (monto.trim() !== '' && !Number.isNaN(montoNum) && montoNum > 0);
@@ -218,7 +222,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   // ── Validación por PASO (controla "Siguiente" y el envío final) ──
   const paso1Valido = nombreNegocioValido && ciudadValida;
   const paso2Valido =
-    nombreValido && apellidosValido && correoValido && correosCoinciden && telValido && !correoDuplicado && !verificandoCorreo;
+    nombreValido && apellidosValido && correoValido && correosCoinciden && telValido && contrasenaValida && !correoDuplicado && !verificandoCorreo;
   const paso3Valido = paqueteSel ? true : montoValido && plazoValido;
   const pasoValido = (p: number) => (p === 1 ? paso1Valido : p === 2 ? paso2Valido : paso3Valido);
 
@@ -302,6 +306,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
       correo: correo.trim(),
       confirmarCorreo: confirmarCorreo.trim(),
       telefono: `+52${telDigitos}`,
+      ...(contrasena ? { contrasena } : {}),
       concepto,
       monto: pideMonto ? montoNum : undefined,
       ...(modoPlazo === 'fecha'
@@ -487,6 +492,38 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                     className={`${CLASE_CAMPO} pl-12`}
                   />
                 </div>
+              </div>
+              {/* Contraseña opcional: si se define, el dueño entra con ella (sin correo de activación). */}
+              <div className="mt-3">
+                <label className={LABEL}>Contraseña <span className="font-normal text-texto-4">(opcional)</span></label>
+                <div className="relative">
+                  <input
+                    type={mostrarContrasena ? 'text' : 'password'}
+                    data-testid="alta-contrasena"
+                    value={contrasena}
+                    onChange={(e) => setContrasena(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="Déjala vacía para enviarle el correo de activación"
+                    className={`${CLASE_CAMPO} pr-11`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarContrasena((v) => !v)}
+                    aria-label={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+                  >
+                    {mostrarContrasena ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {contrasena !== '' && !contrasenaValida ? (
+                  <p className="mt-1 text-[12px] font-medium text-peligro" data-testid="alta-contrasena-error">
+                    Mínimo 8 caracteres, 1 mayúscula y 1 número.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-texto-4">
+                    Si la defines, el dueño entra con ella y no se le manda correo. Si la dejas vacía, se le envía el correo para crearla.
+                  </p>
+                )}
               </div>
             </div>
           )}

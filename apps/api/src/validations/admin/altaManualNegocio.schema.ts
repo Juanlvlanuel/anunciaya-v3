@@ -87,6 +87,15 @@ export const altaManualNegocioSchema = z
     // Alta anticipada: crea el negocio SIN iniciar la membresía (se activa después con 1 clic).
     // Requiere un paquete; el cobro/periodo se omiten (se calculan al activar).
     altaAnticipada: z.boolean().optional(),
+
+    // Contraseña OPCIONAL: si el admin la define aquí, la cuenta del dueño nace con acceso (sin el correo
+    // de "crea tu contraseña"). Si se omite → modelo C (sin contraseña; el dueño la crea desde el correo).
+    contrasena: z
+      .string()
+      .min(8, 'La contraseña debe tener al menos 8 caracteres')
+      .regex(/[A-Z]/, 'La contraseña debe tener al menos una mayúscula')
+      .regex(/[0-9]/, 'La contraseña debe tener al menos un número')
+      .optional(),
   })
   .refine((d) => d.correo === d.confirmarCorreo, {
     message: 'Los correos no coinciden',

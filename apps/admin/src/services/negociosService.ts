@@ -360,6 +360,8 @@ export interface DatosAltaManual {
   contraprestacion?: string;
   /** Alta anticipada: crea el negocio sin iniciar la membresía (se activa después). Requiere paquete. */
   altaAnticipada?: boolean;
+  /** Contraseña opcional: si se define, la cuenta del dueño nace con acceso (sin correo de activación). */
+  contrasena?: string;
 }
 
 /** Alta manual (superadmin/gerente/vendedor). Devuelve el negocio y dueño creados. */

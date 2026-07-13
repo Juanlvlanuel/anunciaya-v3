@@ -17,6 +17,7 @@
  * Ubicación: apps/api/src/services/admin/altaManualNegocio.service.ts
  */
 
+import bcrypt from 'bcrypt';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { negocios, embajadores } from '../../db/schemas/schema.js';
@@ -183,6 +184,12 @@ export async function altaManualNegocio(
         promoSnapshot = { id: paq.id, otorgados: paq.mesesOtorgados, cobrados: paq.mesesCobrados };
     }
 
+    // Contraseña OPCIONAL definida por el admin en el alta: la cuenta nace CON contraseña (y el correo se
+    // da por verificado, para entrar directo a cargar datos) y NO se manda el correo de bienvenida. Sin
+    // contraseña → modelo C (sin contraseña; el correo de bienvenida invita a crearla).
+    const contrasenaHash = datos.contrasena ? await bcrypt.hash(datos.contrasena, 12) : null;
+    const correoVerificado = !!datos.contrasena;
+
     // -------------------------------------------------------------------------
     // 3.6) ALTA ANTICIPADA: crea el negocio afiliado al paquete pero SIN iniciar la membresía
     //      (activo=false, promo_pendiente=true). No hay cobro ni comisiones; se activa después con 1 clic
@@ -196,8 +203,8 @@ export async function altaManualNegocio(
                 apellidos: datos.apellidos,
                 correo: datos.correo,
                 telefono: datos.telefono,
-                contrasenaHash: null,
-                correoVerificado: false,
+                contrasenaHash,
+                correoVerificado,
                 autenticadoPorGoogle: false,
                 stripeCustomerId: null,
                 stripeSubscriptionId: null,
@@ -269,8 +276,8 @@ export async function altaManualNegocio(
             apellidos: datos.apellidos,
             correo: datos.correo,
             telefono: datos.telefono,
-            contrasenaHash: null,            // modelo C: cuenta sin contraseña (la define en su 1er ingreso)
-            correoVerificado: false,         // modelo C: el correo NO se verificó antes; se verifica al crear la contraseña
+            contrasenaHash,                  // definida en el alta (opcional) o null (modelo C: la crea en su 1er ingreso)
+            correoVerificado,                // true si el admin definió la contraseña; si no, se verifica al crearla
             autenticadoPorGoogle: false,
             stripeCustomerId: null,          // sin Stripe
             stripeSubscriptionId: null,      // sin Stripe
@@ -370,16 +377,20 @@ export async function altaManualNegocio(
         console.error('Error al emitir el recibo PDF (alta manual)');
     }
 
-    try {
-        await enviarEmailBienvenida(datos.correo, datos.nombre, datos.nombreNegocio, {
-            nombreNegocio: datos.nombreNegocio,
-            concepto: datos.concepto,
-            monto: montoComprobante,
-            hasta: vencISO,
-            reciboUrl,
-        });
-    } catch {
-        console.error('Error al enviar el correo de bienvenida del alta manual');
+    // Si el admin definió la contraseña en el alta, la cuenta ya tiene acceso → se OMITE el correo de
+    // bienvenida (que sirve para crear la contraseña). Sin contraseña, se manda como siempre.
+    if (!datos.contrasena) {
+        try {
+            await enviarEmailBienvenida(datos.correo, datos.nombre, datos.nombreNegocio, {
+                nombreNegocio: datos.nombreNegocio,
+                concepto: datos.concepto,
+                monto: montoComprobante,
+                hasta: vencISO,
+                reciboUrl,
+            });
+        } catch {
+            console.error('Error al enviar el correo de bienvenida del alta manual');
+        }
     }
 
     return { ok: true, negocioId: creado.negocioId, usuarioId: creado.usuarioId };
