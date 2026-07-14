@@ -253,15 +253,19 @@ const articuloSchema = z.object({
     .string()
     .min(3, 'El nombre debe tener al menos 3 caracteres')
     .max(150, 'El nombre no puede tener más de 150 caracteres'),
+  // .nullish() = acepta string, null y undefined. La BD guarda la descripción
+  // como null cuando el comerciante no la captura, y el front la reenvía tal cual;
+  // con .optional() (que solo acepta undefined) el guardado fallaba con 400.
   descripcion: z
     .string()
     .max(1000, 'La descripción no puede tener más de 1000 caracteres')
-    .optional(),
+    .nullish(),
   precioBase: z
     .number()
     .positive('El precio debe ser mayor a 0')
     .max(999999.99, 'El precio es demasiado alto'),
-  imagenPrincipal: z.string().url('URL de imagen inválida').optional(),
+  // Acepta URL, cadena vacía o null/undefined (mismo motivo que descripción).
+  imagenPrincipal: z.string().nullish(),
   disponible: z.boolean().default(true),
 });
 
