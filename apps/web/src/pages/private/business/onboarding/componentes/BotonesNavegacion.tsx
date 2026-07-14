@@ -16,7 +16,7 @@
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Boton } from '@/components/ui';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { notificar } from '@/utils/notificaciones';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -25,6 +25,14 @@ import authService from '@/services/authService';
 // =============================================================================
 // COMPONENTE
 // =============================================================================
+
+// Guard COMPARTIDO entre instancias. BotonesNavegacion se renderiza 2 veces
+// (móvil + escritorio), cada una con su propio estado/ref; un guard por-instancia
+// NO bloqueaba a la otra, así que al finalizar salían DOS flujos concurrentes
+// (2 POST /articulos con DELETE+INSERT + 2 /finalizar que se pisaban y hacían que
+// el conteo viera 2 en vez de 3). Un flag a nivel de módulo es común a ambas
+// instancias, así solo un flujo corre a la vez.
+let flujoEnCurso = false;
 
 export function BotonesNavegacion() {
   const {
@@ -39,11 +47,6 @@ export function BotonesNavegacion() {
   const navigate = useNavigate();
   const { usuario, setUsuario } = useAuthStore();
   const [guardando, setGuardando] = useState(false);
-  // Guard SÍNCRONO contra doble disparo: `guardando` (estado) solo bloquea el
-  // botón en el siguiente render, así que un doble clic muy rápido lograba
-  // disparar dos flujos concurrentes (dos POST /articulos + dos /finalizar que
-  // se pisaban). Este ref bloquea de inmediato.
-  const enProcesoRef = useRef(false);
 
   // Detectar si es el último paso
   const esUltimoPaso = pasoActual === 8;
@@ -124,8 +127,8 @@ export function BotonesNavegacion() {
   // Manejar click en "Anterior"
   // ---------------------------------------------------------------------------
   const handleAnterior = async () => {
-    if (enProcesoRef.current) return;
-    enProcesoRef.current = true;
+    if (flujoEnCurso) return;
+    flujoEnCurso = true;
     setGuardando(true);
 
     try {
@@ -141,7 +144,7 @@ export function BotonesNavegacion() {
       notificar.error(error?.response?.data?.message || error.message || 'Error al guardar. Intenta de nuevo.');
     } finally {
       setGuardando(false);
-      enProcesoRef.current = false;
+      flujoEnCurso = false;
     }
   };
 
@@ -149,8 +152,8 @@ export function BotonesNavegacion() {
   // Manejar click en "Siguiente"
   // ---------------------------------------------------------------------------
   const handleSiguiente = async () => {
-    if (enProcesoRef.current) return;   // guard síncrono contra doble disparo
-    enProcesoRef.current = true;
+    if (flujoEnCurso) return;   // guard síncrono contra doble disparo
+    flujoEnCurso = true;
     setGuardando(true);
 
     try {
@@ -203,7 +206,7 @@ export function BotonesNavegacion() {
       notificar.error(error?.response?.data?.message || error.message || 'Error al procesar.');
     } finally {
       setGuardando(false);
-      enProcesoRef.current = false;
+      flujoEnCurso = false;
     }
   };
 
