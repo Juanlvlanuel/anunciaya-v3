@@ -74,29 +74,35 @@ export const crearArticulosIniciales = async (
             destacado: false,
         }));
 
-        // 1. Eliminar artículos anteriores del negocio
-        await db
-            .delete(articulos)
-            .where(eq(articulos.negocioId, negocioId));
+        // DELETE + INSERT en UNA transacción: es atómico. Así, si dos guardados
+        // corren casi a la vez (doble submit), ninguna otra consulta (p.ej. la
+        // validación de "al menos 3" al finalizar) puede ver el estado intermedio
+        // en que la tabla quedó vacía tras el DELETE y antes del INSERT.
+        await db.transaction(async (tx) => {
+            // 1. Eliminar artículos anteriores del negocio
+            await tx
+                .delete(articulos)
+                .where(eq(articulos.negocioId, negocioId));
 
-        if (articulosData.length > 0) {
-            // 2. Insertar artículos y OBTENER los IDs generados
-            const articulosInsertados = await db
-                .insert(articulos)
-                .values(articulosData)
-                .returning({ id: articulos.id });  // ← OBTENER IDs
+            if (articulosData.length > 0) {
+                // 2. Insertar artículos y OBTENER los IDs generados
+                const articulosInsertados = await tx
+                    .insert(articulos)
+                    .values(articulosData)
+                    .returning({ id: articulos.id });
 
-            // 3. Crear registros para articulo_sucursales
-            const articulosSucursalesData = articulosInsertados.map(art => ({
-                articuloId: art.id,
-                sucursalId: sucursalId,  // ← ASIGNAR A SUCURSAL
-            }));
+                // 3. Crear registros para articulo_sucursales
+                const articulosSucursalesData = articulosInsertados.map(art => ({
+                    articuloId: art.id,
+                    sucursalId: sucursalId,
+                }));
 
-            // 4. Insertar en articulo_sucursales
-            await db
-                .insert(articuloSucursales)  // ← NOMBRE DE LA TABLA (verificar import)
-                .values(articulosSucursalesData);
-        }
+                // 4. Insertar en articulo_sucursales
+                await tx
+                    .insert(articuloSucursales)
+                    .values(articulosSucursalesData);
+            }
+        });
 
         return { success: true, message: 'Artículos guardados correctamente' };
     } catch (error) {
@@ -900,11 +906,6 @@ export const guardarBorradorArticulos = async (
         }
 
         if (data.articulos && data.articulos.length > 0) {
-            // Eliminar artículos anteriores
-            await db
-                .delete(articulos)
-                .where(eq(articulos.negocioId, negocioId));
-
             // Insertar nuevos artículos
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const articulosData = data.articulos.map((art: any, index: number) => ({
@@ -920,20 +921,26 @@ export const guardarBorradorArticulos = async (
                 destacado: false,
             }));
 
-            const articulosInsertados = await db
-                .insert(articulos)
-                .values(articulosData)
-                .returning({ id: articulos.id });
+            // DELETE + INSERT atómico (ver nota en crearArticulosIniciales).
+            await db.transaction(async (tx) => {
+                await tx
+                    .delete(articulos)
+                    .where(eq(articulos.negocioId, negocioId));
 
-            // Crear registros en articulo_sucursales
-            const articulosSucursalesData = articulosInsertados.map(art => ({
-                articuloId: art.id,
-                sucursalId: sucursal.id,
-            }));
+                const articulosInsertados = await tx
+                    .insert(articulos)
+                    .values(articulosData)
+                    .returning({ id: articulos.id });
 
-            await db
-                .insert(articuloSucursales)
-                .values(articulosSucursalesData);
+                const articulosSucursalesData = articulosInsertados.map(art => ({
+                    articuloId: art.id,
+                    sucursalId: sucursal.id,
+                }));
+
+                await tx
+                    .insert(articuloSucursales)
+                    .values(articulosSucursalesData);
+            });
         }
 
         return { success: true, message: 'Borrador de artículos guardado' };

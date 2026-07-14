@@ -16,7 +16,7 @@
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Boton } from '@/components/ui';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { notificar } from '@/utils/notificaciones';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -39,6 +39,11 @@ export function BotonesNavegacion() {
   const navigate = useNavigate();
   const { usuario, setUsuario } = useAuthStore();
   const [guardando, setGuardando] = useState(false);
+  // Guard SÍNCRONO contra doble disparo: `guardando` (estado) solo bloquea el
+  // botón en el siguiente render, así que un doble clic muy rápido lograba
+  // disparar dos flujos concurrentes (dos POST /articulos + dos /finalizar que
+  // se pisaban). Este ref bloquea de inmediato.
+  const enProcesoRef = useRef(false);
 
   // Detectar si es el último paso
   const esUltimoPaso = pasoActual === 8;
@@ -56,7 +61,7 @@ export function BotonesNavegacion() {
   // FUNCIÓN COMPARTIDA: Guardar paso actual
   // ---------------------------------------------------------------------------
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  const guardarPasoActual = async (validar: boolean) => {
+  const guardarPasoActual = async (validar: boolean): Promise<boolean> => {
 
     if (pasoActual === 1) {
       // PASO 1: Categorías
@@ -106,9 +111,12 @@ export function BotonesNavegacion() {
     else if (pasoActual === 8) {
       // PASO 8: Productos/Servicios
       if (typeof (window as any).guardarPaso8 === 'function') {
-        await (window as any).guardarPaso8(validar);
+        // guardarFn del paso 8 devuelve false si el guardado falló o no es válido.
+        const ok = await (window as any).guardarPaso8(validar);
+        return ok !== false;
       }
     }
+    return true;
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -116,6 +124,8 @@ export function BotonesNavegacion() {
   // Manejar click en "Anterior"
   // ---------------------------------------------------------------------------
   const handleAnterior = async () => {
+    if (enProcesoRef.current) return;
+    enProcesoRef.current = true;
     setGuardando(true);
 
     try {
@@ -128,9 +138,10 @@ export function BotonesNavegacion() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Error al guardar paso:', error);
-      notificar.error(error.message || 'Error al guardar. Intenta de nuevo.');
+      notificar.error(error?.response?.data?.message || error.message || 'Error al guardar. Intenta de nuevo.');
     } finally {
       setGuardando(false);
+      enProcesoRef.current = false;
     }
   };
 
@@ -138,11 +149,15 @@ export function BotonesNavegacion() {
   // Manejar click en "Siguiente"
   // ---------------------------------------------------------------------------
   const handleSiguiente = async () => {
+    if (enProcesoRef.current) return;   // guard síncrono contra doble disparo
+    enProcesoRef.current = true;
     setGuardando(true);
 
     try {
-      // GUARDAR PASO ACTUAL (CON VALIDACIÓN)
-      await guardarPasoActual(true);
+      // GUARDAR PASO ACTUAL (CON VALIDACIÓN). Si el guardado falló o no es válido,
+      // NO continuar: así nunca se llama a finalizar con datos incompletos.
+      const guardadoOk = await guardarPasoActual(true);
+      if (!guardadoOk) return;
 
       if (pasoActual === 8) {
 
@@ -185,9 +200,10 @@ export function BotonesNavegacion() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Error:', error);
-      notificar.error(error.message || 'Error al procesar.');
+      notificar.error(error?.response?.data?.message || error.message || 'Error al procesar.');
     } finally {
       setGuardando(false);
+      enProcesoRef.current = false;
     }
   };
 

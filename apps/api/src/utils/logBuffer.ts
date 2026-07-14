@@ -16,6 +16,8 @@
  * Ubicación: apps/api/src/utils/logBuffer.ts
  */
 
+import * as Sentry from '@sentry/node';
+
 export type NivelLog = 'info' | 'warn' | 'error';
 
 export interface EntradaLog {
@@ -63,6 +65,24 @@ function empujar(nivel: NivelLog, args: unknown[]): void {
 }
 
 /**
+ * Si algún argumento de un `console.error(...)` es un `Error`, lo envía a Sentry
+ * (además del buffer/stdout). Así TODOS los 500 "manejados" de la app —que en su
+ * catch hacen `console.error('...', error)` y responden a mano, sin propagar con
+ * next()— llegan a Sentry sin tocar cada controller. En dev (Sentry sin init) es
+ * no-op. Solo reporta si hay un Error real (ignora los `console.error` de solo texto).
+ */
+function reportarASentry(args: unknown[]): void {
+    try {
+        const error = args.find((a) => a instanceof Error);
+        if (!error) return;
+        const contexto = typeof args[0] === 'string' ? args[0] : undefined;
+        Sentry.captureException(error, contexto ? { tags: { contexto } } : undefined);
+    } catch {
+        /* la captura a Sentry nunca debe romper el console.error real */
+    }
+}
+
+/**
  * Envuelve `console.log/info/warn/error` para capturar en memoria. Idempotente:
  * si ya está activa, no hace nada. Llamar una sola vez al arranque del servidor.
  */
@@ -89,6 +109,7 @@ export function inicializarCapturaLogs(): void {
     };
     console.error = (...args: unknown[]) => {
         empujar('error', args);
+        reportarASentry(args);
         origError(...args);
     };
 }
