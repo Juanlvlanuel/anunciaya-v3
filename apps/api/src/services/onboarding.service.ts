@@ -61,7 +61,6 @@ export const crearArticulosIniciales = async (
     data: ArticulosInput
 ) => {
     try {
-        console.log('[DEBUG-ONB] POST /articulos negocio=' + negocioId + ' recibidos=' + data.articulos.length);
         const articulosData = data.articulos.map((articulo, index) => ({
             negocioId,
             tipo: articulo.tipo,
@@ -105,7 +104,6 @@ export const crearArticulosIniciales = async (
             }
         });
 
-        console.log('[DEBUG-ONB] /articulos guardados negocio=' + negocioId + ' total=' + articulosData.length);
         return { success: true, message: 'Artículos guardados correctamente' };
     } catch (error) {
         console.error('Error al crear artículos:', error);
@@ -199,19 +197,10 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
             subcategorias,
             contactoData,
             horariosData,
+            logoData,          // ← faltaba: el Promise.all tiene 6 queries (paso 5: logo)
             metodosPagoData,
             articulosData,
         ] = validaciones;
-
-        // ⚠️ TEMPORAL (diagnóstico): ver qué cuenta el finalizar en el momento exacto.
-        console.log(
-            '[DEBUG-ONB] finalizar negocio=' + negocioId +
-            ' articulosEnBD=' + articulosData.length +
-            ' ids=' + JSON.stringify(articulosData.map((a) => a.id)) +
-            ' subcats=' + subcategorias.length +
-            ' horarios=' + horariosData.length +
-            ' metodosPago=' + metodosPagoData.length
-        );
 
         // Validar cada paso
         if (subcategorias.length === 0) {
@@ -229,6 +218,12 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
 
         if (horariosData.length !== 7) {
             throw new Error('Debes configurar los horarios de los 7 días');
+        }
+
+        // Paso 5: logo obligatorio (esta validación estaba implícita en el Promise.all
+        // pero su variable quedaba sin usar por la destructuración desalineada).
+        if (!logoData[0]?.logoUrl) {
+            throw new Error('Debes subir el logo del negocio');
         }
 
         if (metodosPagoData.length === 0) {
