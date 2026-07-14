@@ -8,6 +8,28 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [14 Julio 2026] - Fix: el onboarding no se podía finalizar + captura global de errores en Sentry 🛠️
+
+Un negocio no podía **finalizar el onboarding**: daba siempre *"Debes agregar al menos 3 productos/servicios"* aunque tuviera sus 3 productos. El caso destapó **5 bugs** (uno era la causa raíz; los otros, reales y también arreglados). `tsc` verde en api/web/admin.
+
+### Corregido
+
+- **Causa raíz — destructuración desalineada de un `Promise.all`** (`onboarding.service.ts` · `finalizarOnboarding`): el array de validaciones tenía **6** queries (se sumó la del logo, paso 5) pero la destructuración tomaba **5** variables, corriendo todo un lugar → `articulosData` recibía el resultado de `negocioMetodosPago`, así que *"≥3 productos"* validaba en realidad el **número de métodos de pago**. Un negocio con 1-2 métodos de pago fallaba siempre. Se agregó `logoData` a la destructuración (ahora `articulosData` son los artículos reales) y se valida el logo, que quedaba suelto. La pista fue `ids=[658,659]` (enteros) donde los artículos son UUID.
+- **Doble disparo al finalizar** (`BotonesNavegacion.tsx`): el componente se renderiza 2 veces (móvil + escritorio) y el guard era un `useRef` **por-instancia**, así que una no bloqueaba a la otra → 2 flujos concurrentes (2 POST /articulos + 2 /finalizar). Se cambió a un flag a nivel de **módulo**, compartido por ambas instancias.
+- **`crearArticulosIniciales` y `guardarBorradorArticulos`** hacen el `DELETE`+`INSERT` dentro de `db.transaction` (atómico): ningún `SELECT` concurrente ve la tabla vacía entre el borrado y la reinserción.
+- **Schema de artículos** (`onboarding.schema.ts`): `descripcion` e `imagenPrincipal` pasaron de `.optional()` a `.nullish()`. La BD las guarda como `null` y el front las reenvía así; `.optional()` (solo `undefined`) hacía que el POST /articulos diera 400.
+- **El front ya no continúa a finalizar si el guardado del paso 8 falló** y muestra el mensaje real del backend (`error.response.data.message`) en vez del genérico de axios (`BotonesNavegacion.tsx`).
+
+### Agregado
+
+- **Captura global de errores 500 en Sentry** (`utils/logBuffer.ts`): como todos los controllers atrapan el error y responden el 500 a mano (sin `next()`), `setupExpressErrorHandler` no los veía. Ahora `logBuffer` (que ya envolvía `console.error`) reenvía a Sentry cualquier `console.error(msg, Error)`, así **todos** los 500 "manejados" de la app (controllers, crons, sockets, services) llegan a Sentry. Fue lo que hizo visible este bug — antes se tragaba en silencio.
+
+### Notas
+
+- **Pendiente opcional:** auditoría dedicada del resto de validaciones del onboarding (`finalizar`, `negocioManagement.service`, edge cases del wizard) para descartar otros bugs latentes del mismo tipo.
+
+---
+
 ## [8 Julio 2026] - Demo de Business Studio activado en prod + demos ocultos del Panel/ChatYA 🎭
 
 Se **activó el Demo de Business Studio en producción** (los vendedores ya pueden mostrarlo a prospectos) y se **ocultaron los negocios/usuarios/actividad demo** de las vistas y KPIs del Panel Admin y del directorio de ChatYA, que antes inflaban los contadores. `tsc` verde en api/admin.
