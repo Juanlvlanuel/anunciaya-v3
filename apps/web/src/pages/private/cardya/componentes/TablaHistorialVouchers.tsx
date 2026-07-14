@@ -215,7 +215,7 @@ export default function TablaHistorialVouchers({
             <p className="text-xs font-semibold text-slate-600">Sin vouchers en este filtro</p>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="grid grid-cols-1 gap-2.5">
             {vouchersOrdenados.map((voucher) => {
               const estadoConf = presentacionEstado(voucher);
 

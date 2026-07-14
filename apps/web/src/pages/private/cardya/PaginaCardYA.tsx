@@ -727,7 +727,7 @@ export function PaginaCardYA() {
             {/* =========================================================================
                 CONTENIDO — móvil: contenedor con scroll propio; desktop: normal
             ========================================================================= */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain max-w-7xl mx-auto px-4 py-4 pb-24 lg:flex-none lg:overflow-visible lg:px-6 lg:py-6 2xl:px-8">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain max-w-7xl mx-auto px-4 py-4 pb-24 lg:flex-none lg:overflow-visible lg:px-6 lg:py-6 2xl:px-8">
                 {tabActiva === 'billeteras' && seccionBilleteras}
                 {tabActiva === 'recompensas' && seccionRecompensas}
                 {tabActiva === 'vouchers' && seccionVouchers}

@@ -176,7 +176,7 @@ export default function TablaHistorialCompras({
             <p className="text-xs font-semibold text-slate-600">Sin transacciones en este filtro</p>
           </div>
         ) : mostrarAgrupado ? (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {gruposMes.map(([mes, txs]) => (
               <div
                 key={mes}
