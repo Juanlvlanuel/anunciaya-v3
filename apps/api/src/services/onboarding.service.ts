@@ -61,6 +61,7 @@ export const crearArticulosIniciales = async (
     data: ArticulosInput
 ) => {
     try {
+        console.log('[DEBUG-ONB] POST /articulos negocio=' + negocioId + ' recibidos=' + data.articulos.length);
         const articulosData = data.articulos.map((articulo, index) => ({
             negocioId,
             tipo: articulo.tipo,
@@ -104,6 +105,7 @@ export const crearArticulosIniciales = async (
             }
         });
 
+        console.log('[DEBUG-ONB] /articulos guardados negocio=' + negocioId + ' total=' + articulosData.length);
         return { success: true, message: 'Artículos guardados correctamente' };
     } catch (error) {
         console.error('Error al crear artículos:', error);
