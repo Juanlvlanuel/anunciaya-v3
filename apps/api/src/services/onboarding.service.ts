@@ -201,6 +201,16 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
             articulosData,
         ] = validaciones;
 
+        // ⚠️ TEMPORAL (diagnóstico): ver qué cuenta el finalizar en el momento exacto.
+        console.log(
+            '[DEBUG-ONB] finalizar negocio=' + negocioId +
+            ' articulosEnBD=' + articulosData.length +
+            ' ids=' + JSON.stringify(articulosData.map((a) => a.id)) +
+            ' subcats=' + subcategorias.length +
+            ' horarios=' + horariosData.length +
+            ' metodosPago=' + metodosPagoData.length
+        );
+
         // Validar cada paso
         if (subcategorias.length === 0) {
             throw new Error('Debes asignar al menos 1 subcategoría');
