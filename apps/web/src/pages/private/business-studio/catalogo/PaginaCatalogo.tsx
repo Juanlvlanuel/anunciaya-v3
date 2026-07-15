@@ -995,7 +995,7 @@ export function PaginaCatalogo() {
                                                         onClick={(e) => { e.stopPropagation(); handleToggle(art.id, 'destacado', !art.destacado); }}
                                                         className="p-1.5 rounded-lg cursor-pointer hover:bg-amber-100"
                                                     >
-                                                        <Star className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${art.destacado ? 'text-slate-900 fill-amber-500' : 'text-slate-600 hover:text-slate-900'}`} />
+                                                        <Star className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${art.destacado ? 'text-amber-400 fill-amber-400' : 'text-slate-500 fill-transparent hover:text-amber-400'}`} />
                                                     </button>
                                                 </Tooltip>
                                             </div>
