@@ -1210,6 +1210,13 @@ export const crearSucursal = async (
 				...(matriz && {
 					tieneEnvioDomicilio: matriz.tieneEnvioDomicilio,
 					tieneServicioDomicilio: matriz.tieneServicioDomicilio,
+					// Heredar el logo/portada de la Matriz DE INMEDIATO (misma URL, sin
+					// duplicar aún en R2) para que la sucursal muestre su logo al instante.
+					// El clonado en segundo plano (paso 6) reemplaza estas URLs por copias
+					// propias en R2. La Matriz sigue referenciando estos archivos, así que
+					// el Recolector R2 no los toca mientras se comparten.
+					fotoPerfil: matriz.fotoPerfil,
+					portadaUrl: matriz.portadaUrl,
 				}),
 			})
 			.returning();
@@ -1281,9 +1288,50 @@ export const crearSucursal = async (
 			}
 		}
 
-		// 5. Clonar catálogo (duplicar artículos como registros independientes con imágenes en R2)
-		if (matriz) {
-			const articulosIds = await db
+		// La parte pesada (clonar catálogo, imágenes en R2, galería y ofertas) NO se
+		// hace aquí: cada duplicación de imagen es un round-trip a R2 y en conjunto
+		// puede tardar >10s, superando el timeout del frontend y provocando un falso
+		// "Error al crear sucursal" (aunque la fila ya quedó creada). Se dispara en
+		// segundo plano desde el controller vía clonarContenidoSucursal().
+		return { success: true, sucursal, matrizId: matriz?.id ?? null };
+	} catch (error) {
+		console.error('Error al crear sucursal:', error);
+		// Re-lanzar errores de validación conocidos con su mensaje intacto
+		if (error instanceof Error && error.message === 'NOMBRE_DUPLICADO') {
+			throw error;
+		}
+		throw new Error('Error al crear sucursal');
+	}
+};
+
+/**
+ * Clona el contenido PESADO de la Matriz hacia una sucursal recién creada:
+ * catálogo (artículos + imágenes en R2), foto de perfil/portada/galería y ofertas
+ * públicas. Cada `duplicarArchivo` es un round-trip a R2, por eso esta parte corre
+ * en SEGUNDO PLANO (no bloquea la respuesta de crearSucursal). Al terminar, el
+ * controller emite un evento Socket.io para que el frontend refresque la vista.
+ *
+ * Idempotencia/errores: best-effort. Si algo falla a mitad, la sucursal ya existe
+ * (creada por crearSucursal) — solo faltaría parte del contenido clonado.
+ */
+export const clonarContenidoSucursal = async (
+	negocioId: string,
+	sucursalId: string
+): Promise<void> => {
+	// Re-obtener la Matriz (fuente del clonado). Sin Matriz no hay nada que copiar.
+	const [matriz] = await db
+		.select()
+		.from(negocioSucursales)
+		.where(and(
+			eq(negocioSucursales.negocioId, negocioId),
+			eq(negocioSucursales.esPrincipal, true),
+		));
+
+	if (!matriz) return;
+
+	// 5. Clonar catálogo (duplicar artículos como registros independientes con imágenes en R2)
+	if (matriz) {
+		const articulosIds = await db
 				.select({ articuloId: articuloSucursales.articuloId })
 				.from(articuloSucursales)
 				.where(eq(articuloSucursales.sucursalId, matriz.id));
@@ -1340,7 +1388,7 @@ export const crearSucursal = async (
 					// Asignar a la nueva sucursal
 					await db.insert(articuloSucursales).values({
 						articuloId: nuevoArticulo.id,
-						sucursalId: sucursal.id,
+						sucursalId,
 					});
 				}
 			}
@@ -1367,7 +1415,7 @@ export const crearSucursal = async (
 				await db
 					.update(negocioSucursales)
 					.set({ ...imagenesActualizadas, updatedAt: new Date().toISOString() })
-					.where(eq(negocioSucursales.id, sucursal.id));
+					.where(eq(negocioSucursales.id, sucursalId));
 			}
 
 			// Galería
@@ -1382,7 +1430,7 @@ export const crearSucursal = async (
 					if (nuevaUrl) {
 						await db.insert(negocioGaleria).values({
 							negocioId,
-							sucursalId: sucursal.id,
+							sucursalId,
 							url: nuevaUrl,
 							titulo: img.titulo,
 							orden: img.orden,
@@ -1415,7 +1463,7 @@ export const crearSucursal = async (
 					// Insertar oferta clonada (sin historial de usos)
 					await db.insert(ofertas).values({
 						negocioId,
-						sucursalId: sucursal.id,
+						sucursalId,
 						articuloId: oferta.articuloId,
 						titulo: oferta.titulo,
 						descripcion: oferta.descripcion,
@@ -1435,15 +1483,6 @@ export const crearSucursal = async (
 			}
 		}
 
-		return { success: true, sucursal };
-	} catch (error) {
-		console.error('Error al crear sucursal:', error);
-		// Re-lanzar errores de validación conocidos con su mensaje intacto
-		if (error instanceof Error && error.message === 'NOMBRE_DUPLICADO') {
-			throw error;
-		}
-		throw new Error('Error al crear sucursal');
-	}
 };
 
 /**
@@ -1869,6 +1908,7 @@ export default {
 
     // CRUD Sucursales
     crearSucursal,
+    clonarContenidoSucursal,
     toggleActivaSucursal,
     eliminarSucursal,
 };

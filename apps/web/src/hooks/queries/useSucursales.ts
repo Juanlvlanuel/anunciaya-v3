@@ -115,7 +115,9 @@ export function useCrearSucursal() {
 		mutationFn: (datos: CrearSucursalInput) => sucursalesService.crear(negocioId, datos),
 		onSuccess: () => {
 			invalidar();
-			notificar.exito('Sucursal creada');
+			// El catálogo/imágenes se copian en segundo plano en el backend; al terminar
+			// llega el evento 'sucursal:contenido-listo' (ver PaginaSucursales).
+			notificar.exito('Sucursal creada. Copiando catálogo e imágenes…');
 		},
 		onError: () => {
 			notificar.error('Error al crear sucursal');

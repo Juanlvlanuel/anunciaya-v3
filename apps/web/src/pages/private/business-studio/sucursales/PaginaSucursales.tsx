@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
 	Building2,
@@ -47,6 +48,8 @@ import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { notificar } from '../../../../utils/notificaciones';
+import { escucharEvento } from '../../../../services/socketService';
+import { queryKeys } from '../../../../config/queryKeys';
 import { ModalCrearSucursal } from './ModalCrearSucursal';
 import { ModalDetalleSucursal } from './ModalDetalleSucursal';
 import type { SucursalResumen } from '../../../../types/sucursales';
@@ -73,6 +76,7 @@ const ESTILO_ICONO_HEADER = `
 export default function PaginaSucursales() {
 	const { usuario } = useAuthStore();
 	const navegar = useNavegarASeccion();
+	const queryClient = useQueryClient();
 
 	const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
 	const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
@@ -103,6 +107,22 @@ export default function PaginaSucursales() {
 		window.addEventListener('resize', check);
 		return () => window.removeEventListener('resize', check);
 	}, []);
+
+	// Clonado en segundo plano: el backend crea la sucursal al instante y copia el
+	// contenido pesado (catálogo, imágenes en R2, galería, ofertas) aparte. Cuando
+	// termina, avisa por Socket.io → refrescamos lista/KPIs para que aparezca todo.
+	useEffect(() => {
+		const off = escucharEvento('sucursal:contenido-listo', () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.sucursales.all() });
+			queryClient.invalidateQueries({ queryKey: queryKeys.negocios.all() });
+			notificar.exito('Sucursal lista: se copiaron catálogo e imágenes');
+		});
+		const offError = escucharEvento('sucursal:contenido-error', () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.sucursales.all() });
+			notificar.advertencia('La sucursal se creó, pero hubo un problema al copiar parte del catálogo o las imágenes');
+		});
+		return () => { off(); offError(); };
+	}, [queryClient]);
 
 	// Debounce búsqueda
 	useEffect(() => {

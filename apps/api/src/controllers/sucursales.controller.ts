@@ -11,6 +11,7 @@ import * as negocioManagement from '../services/negocioManagement.service';
 import * as sucursalesService from '../services/sucursales.service';
 import { crearSucursalSchema, crearGerenteSchema, toggleActivaSchema } from '../validations/sucursales.schema';
 import { enviarEmailGerenteCreado, enviarEmailGerenteAsignado, enviarEmailCredencialesReenviadas, enviarEmailGerenteRevocado } from '../utils/email';
+import { emitirAUsuario } from '../socket';
 
 interface RequestConNegocio extends Request {
 	negocioId?: string;
@@ -88,7 +89,41 @@ export async function crearSucursalController(req: RequestConNegocio, res: Respo
 		}
 
 		const resultado = await negocioManagement.crearSucursal(negocioId, parsed.data);
-		return res.status(201).json({ success: true, data: resultado.sucursal });
+		const sucursal = resultado.sucursal;
+
+		// Responder de inmediato: la sucursal ya quedó creada. El contenido PESADO
+		// (catálogo + imágenes en R2, galería, portada/perfil y ofertas) se clona en
+		// segundo plano para no superar el timeout del frontend (era la causa del
+		// falso "Error al crear sucursal"). Al terminar, se avisa por Socket.io.
+		res.status(201).json({ success: true, data: sucursal });
+
+		if (resultado.matrizId) {
+			// El payload del JWT expone el id del usuario como `usuarioId` (no `id`).
+			// Con `.id` el evento se emitía a `usuario:undefined` y nunca llegaba,
+			// por eso el logo/contenido no aparecía hasta refrescar a mano.
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const usuarioId = (req as any).usuario?.usuarioId as string | undefined;
+			void negocioManagement
+				.clonarContenidoSucursal(negocioId, sucursal.id)
+				.then(() => {
+					if (usuarioId) {
+						emitirAUsuario(usuarioId, 'sucursal:contenido-listo', {
+							sucursalId: sucursal.id,
+							nombre: sucursal.nombre,
+						});
+					}
+				})
+				.catch((err) => {
+					console.error('Error al clonar contenido de sucursal en segundo plano:', err);
+					if (usuarioId) {
+						emitirAUsuario(usuarioId, 'sucursal:contenido-error', {
+							sucursalId: sucursal.id,
+							nombre: sucursal.nombre,
+						});
+					}
+				});
+		}
+		return;
 	} catch (error) {
 		if (error instanceof Error && error.message === 'NOMBRE_DUPLICADO') {
 			return res.status(409).json({
