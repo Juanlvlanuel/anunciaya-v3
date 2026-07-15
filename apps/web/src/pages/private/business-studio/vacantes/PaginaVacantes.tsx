@@ -247,13 +247,24 @@ export default function PaginaVacantes() {
     const cerrarSlideover = () => setSlideoverAbierto(false);
 
     const handleSubmitCrear = async (input: CrearVacanteInput) => {
-        try {
-            await crearMutation.mutateAsync(input);
-            notificar.exito('Vacante publicada con éxito');
-            cerrarSlideover();
-        } catch {
-            notificar.error('No pudimos publicar la vacante. Intenta de nuevo.');
-        }
+        // Cierre optimista: cerramos el wizard de inmediato y disparamos la
+        // mutación en background. El hook inserta la fila optimista en la tabla
+        // al instante (onMutate). Cerrar ANTES de esperar evita el rebote al
+        // paso 1 que ocurría cuando la invalidación re-renderizaba el slideover
+        // mientras seguía abierto.
+        cerrarSlideover();
+        // Descartamos el borrador de forma determinista desde aquí (no desde el
+        // slideover, que corre tras su propio await y produce un race con la
+        // relectura del banner). El `tick` fuerza a `resumenBorradorVacantes` a
+        // releer localStorage YA vacío → el banner "borrador en progreso"
+        // desaparece al instante.
+        descartarBorradorVacantes(sucursalActivaId);
+        setTickBorrador((n) => n + 1);
+        crearMutation.mutate(input, {
+            onSuccess: () => notificar.exito('Vacante publicada con éxito'),
+            onError: () =>
+                notificar.error('No pudimos publicar la vacante. Intenta de nuevo.'),
+        });
     };
 
     const handleSubmitEditar = async (

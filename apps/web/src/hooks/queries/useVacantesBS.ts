@@ -142,9 +142,76 @@ interface RespuestaCrearVacante {
     message?: string;
 }
 
+/**
+ * Construye una `Vacante` optimista a partir del payload de creación para
+ * insertarla en la tabla al instante (antes de que el POST responda). Los
+ * contadores nacen en 0 y el estado en 'activa'; `onSettled` reconcilia con
+ * la fila real del backend (que trae id definitivo, expira_at exacto, etc.).
+ */
+function construirVacanteOptimista(
+    input: CrearVacanteInput,
+    sucursalNombre: string | null,
+    usuarioId: string,
+    negocioId: string,
+): Vacante {
+    const ahora = new Date().toISOString();
+    const expira = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    return {
+        id: `optimistic-${Date.now()}`,
+        usuarioId,
+        sucursalId: input.sucursalId,
+        negocioId,
+        negocioNombre: null,
+        negocioLogo: null,
+        sucursalNombre,
+        sucursalPortada: null,
+        sucursalFotoPerfil: null,
+        modo: 'ofrezco',
+        tipo: 'vacante-empresa',
+        subtipo: null,
+        titulo: input.titulo,
+        descripcion: input.descripcion,
+        fotos: [],
+        fotoPortadaIndex: 0,
+        precio: input.precio,
+        modalidad: input.modalidad,
+        ubicacionAproximada: { lat: input.latitud, lng: input.longitud },
+        ciudad: input.ciudad,
+        zonasAproximadas: input.zonasAproximadas ?? [],
+        skills: [],
+        requisitos: input.requisitos,
+        horario: input.horario ?? null,
+        diasSemana: input.diasSemana ?? [],
+        tipoEmpleo: input.tipoEmpleo,
+        beneficios: input.beneficios ?? [],
+        presupuesto: null,
+        categoria: null,
+        urgente: false,
+        estado: 'activa',
+        totalVistas: 0,
+        totalMensajes: 0,
+        totalGuardados: 0,
+        expiraAt: expira,
+        createdAt: ahora,
+        updatedAt: ahora,
+    };
+}
+
+/** Contexto del optimismo para poder revertir en caso de error. */
+interface ContextoCrearVacante {
+    snapshotListas: [readonly unknown[], RespuestaVacantes | undefined][];
+    kpisKey: readonly unknown[];
+    kpisPrev: KpisVacantes | undefined;
+}
+
 export function useCrearVacanteBS() {
     const queryClient = useQueryClient();
-    return useMutation({
+    return useMutation<
+        RespuestaCrearVacante,
+        unknown,
+        CrearVacanteInput,
+        ContextoCrearVacante
+    >({
         mutationFn: async (input: CrearVacanteInput): Promise<RespuestaCrearVacante> => {
             const response = await api.post<RespuestaCrearVacante>(
                 '/business-studio/vacantes',
@@ -152,8 +219,90 @@ export function useCrearVacanteBS() {
             );
             return response.data;
         },
-        onSuccess: () => {
+        // Optimismo: insertamos la fila en el cache antes de que responda el POST
+        // para que la tabla la muestre al instante tras "Publicar vacante".
+        onMutate: async (input): Promise<ContextoCrearVacante> => {
+            await queryClient.cancelQueries({ queryKey: queryKeys.vacantes.all() });
+
+            const { usuario } = useAuthStore.getState();
+            const negocioId = usuario?.negocioId ?? '';
+            const sucursales =
+                queryClient.getQueryData<{ id: string; nombre: string }[]>(
+                    queryKeys.perfil.sucursales(negocioId),
+                ) ?? [];
+            const sucursalNombre =
+                sucursales.find((s) => s.id === input.sucursalId)?.nombre ?? null;
+
+            const optimista = construirVacanteOptimista(
+                input,
+                sucursalNombre,
+                usuario?.id ?? '',
+                negocioId,
+            );
+
+            // Snapshot de todas las listas de esa sucursal (para rollback).
+            const snapshotListas = queryClient.getQueriesData<RespuestaVacantes>({
+                queryKey: ['vacantes', 'lista', input.sucursalId],
+            });
+
+            // Insertar al inicio en las variantes de lista compatibles con la
+            // vacante recién creada (estado activa/todas y que matchee la
+            // búsqueda si hay una activa).
+            queryClient
+                .getQueryCache()
+                .findAll({ queryKey: ['vacantes', 'lista', input.sucursalId] })
+                .forEach((q) => {
+                    const filtros = q.queryKey[3] as FiltrosVacantes | undefined;
+                    if (filtros?.estado && filtros.estado !== 'activa') return;
+                    if (
+                        filtros?.busqueda &&
+                        !optimista.titulo
+                            .toLowerCase()
+                            .includes(filtros.busqueda.toLowerCase())
+                    ) {
+                        return;
+                    }
+                    queryClient.setQueryData<RespuestaVacantes>(q.queryKey, (old) =>
+                        old
+                            ? {
+                                  data: [optimista, ...old.data],
+                                  paginacion: {
+                                      ...old.paginacion,
+                                      total: old.paginacion.total + 1,
+                                  },
+                              }
+                            : old,
+                    );
+                });
+
+            // KPIs: +1 total y +1 activas de forma optimista.
+            const kpisKey = queryKeys.vacantes.kpis(input.sucursalId);
+            const kpisPrev = queryClient.getQueryData<KpisVacantes>(kpisKey);
+            if (kpisPrev) {
+                queryClient.setQueryData<KpisVacantes>(kpisKey, {
+                    ...kpisPrev,
+                    total: kpisPrev.total + 1,
+                    activas: kpisPrev.activas + 1,
+                });
+            }
+
+            return { snapshotListas, kpisKey, kpisPrev };
+        },
+        onError: (_error, _input, ctx) => {
+            // Revertir la inserción optimista.
+            ctx?.snapshotListas.forEach(([key, data]) => {
+                queryClient.setQueryData(key, data);
+            });
+            if (ctx?.kpisPrev) {
+                queryClient.setQueryData(ctx.kpisKey, ctx.kpisPrev);
+            }
+        },
+        onSettled: () => {
+            // Reconciliar con el backend (reemplaza la fila optimista por la real)
+            // e invalidar el feed público de Servicios, donde la vacante también
+            // aparece (tipo='vacante-empresa').
             queryClient.invalidateQueries({ queryKey: queryKeys.vacantes.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.servicios.all() });
         },
     });
 }
@@ -186,6 +335,7 @@ export function useActualizarVacanteBS() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.vacantes.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.servicios.all() });
         },
     });
 }
@@ -212,6 +362,7 @@ export function useCambiarEstadoVacanteBS() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.vacantes.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.servicios.all() });
         },
     });
 }
@@ -231,6 +382,7 @@ export function useCerrarVacanteBS() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.vacantes.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.servicios.all() });
         },
     });
 }
@@ -250,6 +402,7 @@ export function useEliminarVacanteBS() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.vacantes.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.servicios.all() });
         },
     });
 }

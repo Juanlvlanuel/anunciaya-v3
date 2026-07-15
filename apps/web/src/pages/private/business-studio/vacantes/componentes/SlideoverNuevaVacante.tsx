@@ -391,14 +391,14 @@ export function SlideoverNuevaVacante({
     useEffect(() => {
         if (!abierto) return;
 
-        // Sucursal por defecto:
-        //  - Edición: la sucursal de la vacante (o la activa si no existe)
-        //  - Creación + sucursal secundaria: la sucursal activa (forzada,
-        //    sin opción de cambio porque el dropdown no se muestra)
-        //  - Creación + Matriz: la primera sucursal de la lista
-        const sucursalDefault = !esSucursalPrincipal && sucursalActivaId
-            ? sucursalActivaId
-            : sucursales[0]?.id ?? '';
+        // Sucursal por defecto: SIEMPRE la sucursal activa (la que el usuario
+        // está viendo en BS), cayendo a la primera de la lista solo si no
+        // hubiera activa. Así, al publicar sin tocar el selector, la vacante
+        // se crea para la sucursal en la que estás parado y aparece de
+        // inmediato en su tabla y KPIs (que filtran por sucursal activa).
+        // Matriz sigue pudiendo elegir otra sucursal desde el dropdown; las
+        // secundarias no lo ven (se usa su propia sucursal forzada).
+        const sucursalDefault = sucursalActivaId || sucursales[0]?.id || '';
 
         if (esEdicion && vacanteInicial) {
             const v = vacanteInicial;
