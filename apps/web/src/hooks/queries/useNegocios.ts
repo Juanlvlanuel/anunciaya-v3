@@ -108,12 +108,19 @@ export function useNegocioOfertas(sucursalId: string | undefined) {
 // CATÁLOGO DE UN NEGOCIO (sección pública)
 // =============================================================================
 
-export function useNegocioCatalogo(negocioId: string | undefined) {
+/**
+ * `sucursalId` filtra el catálogo a la sucursal cuyo perfil público se está
+ * viendo. Sin él, el backend devuelve TODOS los artículos del negocio —
+ * incluidos los duplicados a otras sucursales vía "Duplicar a sucursales"
+ * en BS — y el catálogo público se ve con productos repetidos.
+ */
+export function useNegocioCatalogo(negocioId: string | undefined, sucursalId?: string) {
   return useQuery({
-    queryKey: ['negocios', 'catalogo', negocioId] as const,
+    queryKey: ['negocios', 'catalogo', negocioId, sucursalId] as const,
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: unknown[] }>(
-        `/articulos/negocio/${negocioId}`
+        `/articulos/negocio/${negocioId}`,
+        { params: sucursalId ? { sucursalId } : undefined }
       );
       return response.data.success ? response.data.data : [];
     },
@@ -172,12 +179,15 @@ export function useNegocioPrefetch() {
       staleTime: 5 * 60 * 1000,
     });
 
-    // Pre-cargar catálogo
+    // Pre-cargar catálogo — filtrado por sucursalId (misma queryKey y mismo
+    // filtro que useNegocioCatalogo) para que el prefetch de verdad llene el
+    // caché que se va a leer, en vez de un slot huérfano sin filtrar.
     qc.prefetchQuery({
-      queryKey: ['negocios', 'catalogo', negocioId] as const,
+      queryKey: ['negocios', 'catalogo', negocioId, sucursalId] as const,
       queryFn: async () => {
         const response = await api.get<{ success: boolean; data: unknown[] }>(
-          `/articulos/negocio/${negocioId}`
+          `/articulos/negocio/${negocioId}`,
+          { params: sucursalId ? { sucursalId } : undefined }
         );
         return response.data.success ? response.data.data : [];
       },

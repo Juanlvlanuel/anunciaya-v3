@@ -566,7 +566,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const loading = perfilQuery.isPending;
     const error = perfilQuery.error ? 'Error al cargar negocio' : null;
 
-    const catalogoQuery = useNegocioCatalogo(negocio?.negocioId);
+    const catalogoQuery = useNegocioCatalogo(negocio?.negocioId, sucursalId);
     const catalogo = (catalogoQuery.data ?? []) as ItemCatalogo[];
     const resenasQuery = useNegocioResenas(sucursalId);
     const resenas = (resenasQuery.data ?? []) as Resena[];
