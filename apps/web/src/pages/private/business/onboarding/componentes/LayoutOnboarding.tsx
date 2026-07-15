@@ -272,7 +272,7 @@ export function LayoutOnboarding({
               {/* ================================================================= */}
               {/* COLUMNA DERECHA — Contenido directo */}
               {/* ================================================================= */}
-              <main className="space-y-4 lg:space-y-3 2xl:space-y-4">
+              <main className="min-w-0 space-y-4 lg:space-y-3 2xl:space-y-4">
                 {children}
               </main>
             </div>
