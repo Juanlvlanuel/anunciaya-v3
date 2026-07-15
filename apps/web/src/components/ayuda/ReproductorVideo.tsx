@@ -18,6 +18,11 @@ interface VideoConFullscreen extends HTMLVideoElement {
   webkitEnterFullscreen?: () => void;
 }
 
+/** `screen.orientation.lock/unlock` no están en el lib estándar de TS todavía. */
+interface OrientacionBloqueable extends ScreenOrientation {
+  lock?: (orientacion: string) => Promise<void>;
+}
+
 function formatearDuracion(seg?: number | null): string | null {
   if (!seg || seg <= 0) return null;
   const m = Math.floor(seg / 60);
@@ -36,26 +41,44 @@ export function ReproductorVideo({ src, poster, titulo, duracionSeg, onOrientaci
     if (v && v.videoWidth && v.videoHeight) onOrientacion?.(v.videoHeight > v.videoWidth);
   };
 
-  // Móvil: al girar el teléfono a horizontal, el video entra a pantalla
-  // completa; al volver a vertical, sale.
+  // Móvil: al acostar el teléfono, el video entra a pantalla completa.
+  //
+  // Antes también forzábamos la SALIDA cuando la media query volvía a "vertical".
+  // El problema: al entrar a pantalla completa el navegador (Android) rota el
+  // contenido a horizontal por su cuenta, y durante ese giro la media query
+  // parpadea reportando "vertical" un instante → se disparaba `exitFullscreen`
+  // y el video "se regresaba" a su tamaño chico. Por eso ya NO salimos según la
+  // orientación: al entrar a pantalla completa bloqueamos la orientación en
+  // horizontal (como YouTube) y se sale con el control nativo del reproductor.
   useEffect(() => {
     if (!src) return;
     const esTactil = window.matchMedia('(pointer: coarse)').matches;
     if (!esTactil) return;
 
+    const orientacion = window.screen?.orientation as OrientacionBloqueable | undefined;
+
+    // Al entrar a pantalla completa, fija horizontal; al salir, libera.
+    const alCambiarFullscreen = () => {
+      if (document.fullscreenElement) orientacion?.lock?.('landscape').catch(() => {});
+      else orientacion?.unlock?.();
+    };
+    document.addEventListener('fullscreenchange', alCambiarFullscreen);
+
+    // Al acostar el teléfono, entra a pantalla completa (si aún no lo está).
     const mq = window.matchMedia('(orientation: landscape)');
     const alRotar = (e: MediaQueryListEvent) => {
+      if (!e.matches || document.fullscreenElement) return;
       const video = videoRef.current as VideoConFullscreen | null;
       if (!video) return;
-      if (e.matches) {
-        if (video.requestFullscreen) video.requestFullscreen().catch(() => {});
-        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-      } else if (document.fullscreenElement === video) {
-        document.exitFullscreen().catch(() => {});
-      }
+      if (video.requestFullscreen) video.requestFullscreen().catch(() => {});
+      else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
     };
     mq.addEventListener('change', alRotar);
-    return () => mq.removeEventListener('change', alRotar);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', alCambiarFullscreen);
+      mq.removeEventListener('change', alRotar);
+    };
   }, [src]);
 
   // Autoplay SOLO en la instancia visible. La página monta el detalle en dos
