@@ -800,6 +800,8 @@ export interface SucursalFila {
     ciudad: string | null;
     regionNombre: string | null;
     activa: boolean;
+    /** Logo de la sucursal (su foto de perfil; fallback al logo del negocio). */
+    logoUrl: string | null;
 }
 
 export interface SucursalDetalle {
@@ -826,6 +828,8 @@ export interface SucursalDetalle {
     vendedorId: string | null;
     vendedorNombre: string | null;
     vendedorCodigo: string | null;
+    /** Logo de la sucursal (su foto de perfil; fallback al logo del negocio). */
+    logoUrl: string | null;
 }
 
 /** ¿El negocio es visible para el panel? (respeta el alcance del rol). */
@@ -845,15 +849,17 @@ async function negocioVisibleParaPanel(panel: UsuarioPanel, negocioId: string): 
 export async function listarSucursalesNegocio(panel: UsuarioPanel, negocioId: string): Promise<SucursalFila[]> {
     if (!(await negocioVisibleParaPanel(panel, negocioId))) return [];
     const filas = (await db.execute(sql`
-        SELECT s.id::text AS id, s.nombre, s.es_principal, c.nombre AS ciudad, s.activa, r.nombre AS region_nombre
+        SELECT s.id::text AS id, s.nombre, s.es_principal, c.nombre AS ciudad, s.activa, r.nombre AS region_nombre,
+               COALESCE(s.foto_perfil, n.logo_url) AS logo_url
         FROM negocio_sucursales s
+        JOIN negocios n ON n.id = s.negocio_id
         LEFT JOIN ciudades c ON c.id = s.ciudad_id
         LEFT JOIN regiones r ON r.id = c.region_id
         WHERE s.negocio_id = ${negocioId}
         ORDER BY s.es_principal DESC, c.nombre
     `)).rows as Array<{
         id: string; nombre: string; es_principal: boolean; ciudad: string | null;
-        activa: boolean; region_nombre: string | null;
+        activa: boolean; region_nombre: string | null; logo_url: string | null;
     }>;
     return filas.map((f) => ({
         id: f.id,
@@ -862,6 +868,7 @@ export async function listarSucursalesNegocio(panel: UsuarioPanel, negocioId: st
         ciudad: f.ciudad ?? null,
         regionNombre: f.region_nombre ?? null,
         activa: f.activa,
+        logoUrl: f.logo_url ?? null,
     }));
 }
 
@@ -937,9 +944,11 @@ export async function obtenerDetalleSucursal(
     const filas = (await db.execute(sql`
         SELECT s.id::text AS id, s.negocio_id::text AS negocio_id, s.nombre, s.es_principal, s.activa,
                c.nombre AS ciudad, s.estado, s.direccion, s.telefono, s.whatsapp, s.correo, s.created_at,
+               COALESCE(s.foto_perfil, n.logo_url) AS logo_url,
                r.id::text AS region_id, r.nombre AS region_nombre,
                g.nombre AS g_nombre, g.apellidos AS g_apellidos, g.correo AS g_correo, g.telefono AS g_telefono
         FROM negocio_sucursales s
+        JOIN negocios n ON n.id = s.negocio_id
         LEFT JOIN ciudades c ON c.id = s.ciudad_id
         LEFT JOIN regiones r ON r.id = c.region_id
         LEFT JOIN usuarios g ON g.sucursal_asignada = s.id
@@ -948,7 +957,7 @@ export async function obtenerDetalleSucursal(
     `)).rows as Array<{
         id: string; negocio_id: string; nombre: string; es_principal: boolean; activa: boolean;
         ciudad: string | null; estado: string | null; direccion: string | null; telefono: string | null;
-        whatsapp: string | null; correo: string | null; created_at: string | null;
+        whatsapp: string | null; correo: string | null; created_at: string | null; logo_url: string | null;
         region_id: string | null; region_nombre: string | null;
         g_nombre: string | null; g_apellidos: string | null; g_correo: string | null; g_telefono: string | null;
     }>;
@@ -990,5 +999,6 @@ export async function obtenerDetalleSucursal(
         vendedorId: v?.vendedor_id ?? null,
         vendedorNombre,
         vendedorCodigo: v?.v_codigo ?? null,
+        logoUrl: f.logo_url ?? null,
     };
 }

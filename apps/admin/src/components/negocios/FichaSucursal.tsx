@@ -52,6 +52,7 @@ function placeholderDesdeFila(negocioId: string, s: SucursalFila): SucursalDetal
     vendedorId: null,
     vendedorNombre: null,
     vendedorCodigo: null,
+    logoUrl: s.logoUrl,
   };
 }
 
@@ -75,7 +76,7 @@ export function FichaSucursal({ negocioId, sucursal, onCerrar }: FichaSucursalPr
       <div className="flex h-full min-h-0 flex-col" data-testid="ficha-sucursal">
         {/* Cabecera */}
         <div className="flex shrink-0 items-center gap-3 border-b border-borde px-5 py-4">
-          <AvatarNegocio nombre={s.nombre} tam={46} />
+          <AvatarNegocio nombre={s.nombre} logoUrl={s.logoUrl} tam={46} />
           <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
             <span className="truncate text-[17px] font-bold tracking-[-0.2px] text-texto" data-testid="ficha-sucursal-nombre">
               {s.nombre}

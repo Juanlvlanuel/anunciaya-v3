@@ -125,6 +125,8 @@ export interface SucursalFila {
   ciudad: string | null;
   regionNombre: string | null;
   activa: boolean;
+  /** Logo de la sucursal (su foto de perfil; fallback al logo del negocio). */
+  logoUrl: string | null;
 }
 
 /** Detalle de una sucursal para el modal (sin membresía ni acciones). */
@@ -149,6 +151,8 @@ export interface SucursalDetalle {
   vendedorId: string | null;
   vendedorNombre: string | null;
   vendedorCodigo: string | null;
+  /** Logo de la sucursal (su foto de perfil; fallback al logo del negocio). */
+  logoUrl: string | null;
 }
 
 export interface ParametrosLista {
