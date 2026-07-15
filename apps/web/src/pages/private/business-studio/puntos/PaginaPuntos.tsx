@@ -418,7 +418,7 @@ export default function PaginaPuntos() {
   const [diasExpiracionPuntos, setDiasExpiracionPuntos]       = useState<number>(() => configInicial?.diasExpiracionPuntos ?? 30);
   const [noExpiran, setNoExpiran]                             = useState(() => configInicial?.diasExpiracionPuntos === null);
   const [diasExpiracionVoucher, setDiasExpiracionVoucher]     = useState<number>(() => configInicial?.diasExpiracionVoucher ?? 7);
-  const [nivelesActivos, setNivelesActivos]                   = useState(() => configInicial?.nivelesActivos ?? true);
+  const [nivelesActivos, setNivelesActivos]                   = useState(() => configInicial?.nivelesActivos ?? false);
   const [niveles, setNiveles] = useState<{ bronce: NivelLocal; plata: NivelLocal; oro: NivelLocal }>(() => {
     if (!configInicial) {
       return {
@@ -745,7 +745,7 @@ export default function PaginaPuntos() {
     if (noExpiran !== (expOriginal === null)) return true;
     if (!noExpiran && diasExpiracionPuntos !== (expOriginal ?? 30)) return true;
     if (diasExpiracionVoucher !== (configInicial.diasExpiracionVoucher ?? 7)) return true;
-    if (nivelesActivos !== (configInicial.nivelesActivos ?? true)) return true;
+    if (nivelesActivos !== (configInicial.nivelesActivos ?? false)) return true;
     if (niveles.bronce.max !== configInicial.nivelBronce.max || niveles.bronce.multiplicador !== configInicial.nivelBronce.multiplicador) return true;
     if (niveles.plata.min !== configInicial.nivelPlata.min || niveles.plata.max !== configInicial.nivelPlata.max || niveles.plata.multiplicador !== configInicial.nivelPlata.multiplicador) return true;
     if (niveles.oro.min !== configInicial.nivelOro.min || niveles.oro.multiplicador !== configInicial.nivelOro.multiplicador) return true;
@@ -961,6 +961,7 @@ export default function PaginaPuntos() {
     <SistemaNiveles
       niveles={niveles}
       nivelesActivos={nivelesActivos}
+      cargando={!configuracion}
       onToggleNiveles={() => { if (!esGerente) setNivelesActivos(!nivelesActivos); }}
       onCambioNivel={actualizarNivel}
       errores={erroresNiveles}

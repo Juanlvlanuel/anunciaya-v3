@@ -352,6 +352,7 @@ export default function SistemaNiveles({
   onCambioNivel,
   errores = {},
   esGerente,
+  cargando = false,
 }: {
   niveles: { bronce: NivelLocal; plata: NivelLocal; oro: NivelLocal };
   nivelesActivos: boolean;
@@ -359,6 +360,8 @@ export default function SistemaNiveles({
   onCambioNivel: (nivel: 'bronce' | 'plata' | 'oro', campo: 'min' | 'max' | 'multiplicador', valor: number) => void;
   errores?: Record<string, string>;
   esGerente: boolean;
+  /** Mientras la config no ha cargado: no mostrar un estado definido del toggle (evita parpadeo). */
+  cargando?: boolean;
 }) {
   return (
     <div
@@ -384,14 +387,14 @@ export default function SistemaNiveles({
           <button
             type="button"
             onClick={onToggleNiveles}
-            disabled={esGerente}
+            disabled={esGerente || cargando}
             className={`relative w-12 h-6 lg:w-10 lg:h-5 rounded-full cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-              nivelesActivos ? 'bg-slate-500' : 'bg-white/20'
+              cargando ? 'bg-white/20 animate-pulse' : nivelesActivos ? 'bg-slate-500' : 'bg-white/20'
             }`}
           >
             <span
               className={`absolute top-0.5 left-0.5 w-5 h-5 lg:w-4 lg:h-4 bg-white rounded-full shadow-md transition-transform ${
-                nivelesActivos ? 'translate-x-6 lg:translate-x-5' : ''
+                !cargando && nivelesActivos ? 'translate-x-6 lg:translate-x-5' : ''
               }`}
             />
           </button>
@@ -399,7 +402,13 @@ export default function SistemaNiveles({
       </div>
 
       {/* Contenido de niveles */}
-      {nivelesActivos ? (
+      {cargando ? (
+        /* Estado de carga: placeholder neutro (no revela activado/desactivado) */
+        <div className="py-10 lg:py-10 2xl:py-12 flex flex-col items-center text-center">
+          <div className="w-12 h-12 lg:w-12 lg:h-12 2xl:w-14 2xl:h-14 rounded-2xl bg-slate-200 animate-pulse mb-3" />
+          <div className="h-3 w-48 rounded bg-slate-200 animate-pulse" />
+        </div>
+      ) : nivelesActivos ? (
         <div className="p-2.5 lg:p-3 2xl:p-4 flex-1">
           <div className="flex gap-3 2xl:gap-4">
 

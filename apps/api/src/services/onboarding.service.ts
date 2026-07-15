@@ -286,7 +286,7 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
                     horarioInicio: '09:00:00',        // 9 AM
                     horarioFin: '22:00:00',           // 10 PM
                     activo: true,
-                    nivelesActivos: true,
+                    nivelesActivos: false,            // Nace desactivado; el comerciante decide activarlo
                     // Nivel Bronce
                     nivelBronceMin: 0,
                     nivelBronceMax: 999,
