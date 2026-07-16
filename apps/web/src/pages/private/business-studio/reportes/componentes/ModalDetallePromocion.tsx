@@ -94,9 +94,9 @@ export function ModalDetallePromocion({ abierto, onCerrar, tipo }: Props) {
       sinScrollInterno
       alturaMaxima="lg"
       headerOscuro
-      className="max-lg:[background:linear-gradient(180deg,#1e293b_2.5rem,rgb(248,250,252)_2.5rem)]"
+      className="flex flex-col h-[75vh]! lg:h-[80vh]! max-lg:[background:linear-gradient(180deg,#1e293b_2.5rem,rgb(248,250,252)_2.5rem)]"
     >
-      <div data-testid={`modal-detalle-${tipo}`}>
+      <div data-testid={`modal-detalle-${tipo}`} className="flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div
           className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 lg:rounded-t-2xl"
@@ -122,7 +122,7 @@ export function ModalDetallePromocion({ abierto, onCerrar, tipo }: Props) {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {isPending ? (
             <div className="flex items-center justify-center py-16">
               <Spinner />
