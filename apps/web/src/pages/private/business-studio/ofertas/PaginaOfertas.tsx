@@ -900,7 +900,7 @@ export function PaginaOfertas() {
                             <Tooltip text="Ofertas" position="bottom">
                                 <button
                                     data-testid="toggle-ofertas"
-                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
+                                    onClick={() => setFiltros(prev => ({ ...prev, busqueda: '', visibilidad: 'publico' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                                     className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${
                                         !esCupones ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
                                     }`}
@@ -912,7 +912,7 @@ export function PaginaOfertas() {
                             <Tooltip text="Cupones" position="bottom">
                                 <button
                                     data-testid="toggle-cupones"
-                                    onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
+                                    onClick={() => setFiltros(prev => ({ ...prev, busqueda: '', visibilidad: 'privado' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                                     className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${
                                         esCupones ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'
                                     }`}
@@ -1099,7 +1099,7 @@ export function PaginaOfertas() {
 
                 <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
                     <button
-                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'publico' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
+                        onClick={() => setFiltros(prev => ({ ...prev, busqueda: '', visibilidad: 'publico' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                         className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
                             !esCupones ? 'text-white shadow-md' : 'text-slate-700'
                         }`}
@@ -1109,7 +1109,7 @@ export function PaginaOfertas() {
                         Ofertas
                     </button>
                     <button
-                        onClick={() => setFiltros(prev => ({ ...prev, visibilidad: 'privado' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
+                        onClick={() => setFiltros(prev => ({ ...prev, busqueda: '', visibilidad: 'privado' as const, tipo: 'todos' as const, estado: 'todos' as const }))}
                         className={`flex-1 h-10 flex items-center justify-center gap-1.5 rounded-lg font-semibold text-sm cursor-pointer ${
                             esCupones ? 'text-white shadow-md' : 'text-slate-700'
                         }`}

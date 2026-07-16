@@ -450,7 +450,7 @@ function EstadoVacioTransacciones({
 
 export default function PaginaTransacciones() {
   // Leer parámetro de búsqueda de la URL
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const busquedaInicial = searchParams.get('busqueda') || '';
   const tabInicial = searchParams.get('tab') || '';
 
@@ -565,9 +565,25 @@ export default function PaginaTransacciones() {
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
   const sentinelaCanjesRef = useRef<HTMLDivElement | null>(null);
 
-  // ——— Aplicar deep links desde URL (tab y búsqueda iniciales) ———
-  // React Query gestiona la carga de datos automáticamente.
+  // ——— Deep links desde URL (tab y búsqueda) al montar la página ———
+  // La URL es la fuente de verdad al MONTAR:
+  //  1. Siempre partimos de filtros limpios (evita arrastrar operador/estado/
+  //     periodo de una visita anterior). Esto reemplaza al `limpiar()` que antes
+  //     vivía en el unmount, frágil ante el doble montaje de React.StrictMode.
+  //  2. Aplicamos el deep-link de la URL: tab (?tab=canjes) y búsqueda
+  //     (?busqueda=…, ej. "Ver historial completo" desde Clientes/ChatYA),
+  //     sincronizando tanto el store como el input visible.
+  //
+  // NO limpiamos la URL con setSearchParams: al borrar el query en el 1.er
+  // montaje, bajo StrictMode el 2.º montaje releía una URL vacía y perdía el
+  // filtro (el input quedaba en blanco y salían TODAS las transacciones).
+  // Mantener el query es idempotente, sobrevive remounts y además conserva el
+  // filtro si el usuario recarga.
   useEffect(() => {
+    limpiar();
+    setTextoBusqueda('');
+    setTextoBusquedaCanjes('');
+
     if (tabInicial === 'canjes') {
       setTabActivo('canjes');
     }
@@ -576,10 +592,11 @@ export default function PaginaTransacciones() {
         setTextoBusquedaCanjes(busquedaInicial);
         setBusquedaCanjes(busquedaInicial);
       } else {
+        setTextoBusqueda(busquedaInicial);
         setBusqueda(busquedaInicial);
       }
-      setSearchParams({}, { replace: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ——— Abrir transacción/canje desde URL (notificaciones) ———
@@ -605,12 +622,9 @@ export default function PaginaTransacciones() {
     setCanjeIdPendiente('');
   }, [canjeIdPendiente, historialCanjes]);
 
-  // ——— Limpiar filtros al salir ———
-  // React Query re-fetches automáticamente cuando el queryKey cambia,
-  // así que solo necesitamos resetear el estado UI del store.
-  useEffect(() => {
-    return () => limpiar();
-  }, [limpiar]);
+  // Nota: la limpieza de filtros ahora ocurre al MONTAR la página (efecto de
+  // deep-links arriba), no en el unmount. Hacerlo en el unmount vaciaba el store
+  // entre los dos montajes de StrictMode y rompía el deep-link de búsqueda.
 
   // ——— Debounce: enviar búsqueda al backend después de 400ms sin escribir ———
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -647,10 +661,36 @@ export default function PaginaTransacciones() {
     }, 400);
   }, [setBusquedaCanjes]);
 
+  // ——— Cambiar de pestaña (Ventas/Cupones/Vouchers) ———
+  // Al cambiar de tab reseteamos el buscador: cada pestaña busca sobre un
+  // conjunto distinto, y arrastrar el texto anterior dejaba la lista en
+  // "Sin resultados" con un filtro que el usuario ya no ve como suyo.
+  // Va en el handler y NO en un efecto sobre `tabActivo` a propósito: el
+  // deep-link (?tab=canjes&busqueda=…) también mueve el tab de forma
+  // programática, y un efecto le borraría la búsqueda recién aplicada.
+  const handleCambiarTab = useCallback((tab: 'ventas' | 'cupones' | 'canjes') => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceCanjesRef.current) clearTimeout(debounceCanjesRef.current);
+    setTextoBusqueda('');
+    setTextoBusquedaCanjes('');
+    setBusqueda('');
+    setBusquedaCanjes('');
+    setTabActivo(tab);
+  }, [setBusqueda, setBusquedaCanjes, setTabActivo]);
+
   // ——— Reset al cambiar de sucursal (jerarquía sucursal > toggle > filtros) ———
   // Reseteamos el store (limpiar) Y los inputs locales con sus debounce timers.
   // Sin esto, los inputs textoBusqueda/textoBusquedaCanjes se quedarían con el texto anterior.
+  //
+  // Comparamos contra el valor ANTERIOR de la sucursal (no un flag de "primer
+  // montaje"): así solo limpiamos ante un cambio REAL de sucursal. Un flag
+  // booleano fallaba bajo React.StrictMode, que en dev corre cada efecto
+  // setup→cleanup→setup sin recrear el ref → en la 2.ª pasada el flag ya era
+  // false y el efecto limpiaba el deep-link recién aplicado (input en blanco).
+  const sucursalPrevia = useRef(sucursalActiva);
   useEffect(() => {
+    if (sucursalPrevia.current === sucursalActiva) return;
+    sucursalPrevia.current = sucursalActiva;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (debounceCanjesRef.current) clearTimeout(debounceCanjesRef.current);
     setTextoBusqueda('');
@@ -931,7 +971,7 @@ export default function PaginaTransacciones() {
               <div className="lg:hidden flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
                 <Tooltip text="Ventas" position="bottom">
                   <button
-                    onClick={() => setTabActivo('ventas')}
+                    onClick={() => handleCambiarTab('ventas')}
                     className={`h-10 w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                     style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
@@ -940,7 +980,7 @@ export default function PaginaTransacciones() {
                 </Tooltip>
                 <Tooltip text="Cupones" position="bottom">
                   <button
-                    onClick={() => setTabActivo('cupones')}
+                    onClick={() => handleCambiarTab('cupones')}
                     className={`h-10 w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'cupones' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                     style={tabActivo === 'cupones' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
@@ -949,7 +989,7 @@ export default function PaginaTransacciones() {
                 </Tooltip>
                 <Tooltip text="Vouchers" position="bottom">
                   <button
-                    onClick={() => setTabActivo('canjes')}
+                    onClick={() => handleCambiarTab('canjes')}
                     className={`h-10 w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                     style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                   >
@@ -963,7 +1003,7 @@ export default function PaginaTransacciones() {
             <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
               <Tooltip text="Ventas" position="bottom">
                 <button
-                  onClick={() => setTabActivo('ventas')}
+                  onClick={() => handleCambiarTab('ventas')}
                   className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                   style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
@@ -972,7 +1012,7 @@ export default function PaginaTransacciones() {
               </Tooltip>
               <Tooltip text="Cupones" position="bottom">
                 <button
-                  onClick={() => setTabActivo('cupones')}
+                  onClick={() => handleCambiarTab('cupones')}
                   className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'cupones' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                   style={tabActivo === 'cupones' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
@@ -981,7 +1021,7 @@ export default function PaginaTransacciones() {
               </Tooltip>
               <Tooltip text="Vouchers" position="bottom">
                 <button
-                  onClick={() => setTabActivo('canjes')}
+                  onClick={() => handleCambiarTab('canjes')}
                   className={`h-9 2xl:h-10 w-9 2xl:w-10 flex items-center justify-center rounded-md cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700 hover:bg-slate-300'}`}
                   style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                 >
@@ -1260,7 +1300,7 @@ export default function PaginaTransacciones() {
 
         <div className="lg:hidden flex w-full bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
           <button
-            onClick={() => setTabActivo('ventas')}
+            onClick={() => handleCambiarTab('ventas')}
             className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'ventas' ? 'text-white shadow-md' : 'text-slate-700'}`}
             style={tabActivo === 'ventas' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
           >
@@ -1268,7 +1308,7 @@ export default function PaginaTransacciones() {
             Ventas
           </button>
           <button
-            onClick={() => setTabActivo('cupones')}
+            onClick={() => handleCambiarTab('cupones')}
             className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'cupones' ? 'text-white shadow-md' : 'text-slate-700'}`}
             style={tabActivo === 'cupones' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
           >
@@ -1276,7 +1316,7 @@ export default function PaginaTransacciones() {
             Cupones
           </button>
           <button
-            onClick={() => setTabActivo('canjes')}
+            onClick={() => handleCambiarTab('canjes')}
             className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg text-sm font-semibold cursor-pointer ${tabActivo === 'canjes' ? 'text-white shadow-md' : 'text-slate-700'}`}
             style={tabActivo === 'canjes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
           >
