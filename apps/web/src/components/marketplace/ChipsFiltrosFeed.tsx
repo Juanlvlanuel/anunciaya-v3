@@ -16,7 +16,7 @@
  * Ubicación: apps/web/src/components/marketplace/ChipsFiltrosFeed.tsx
  */
 
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import type { OrdenFeedInfinito } from '../../types/marketplace';
 

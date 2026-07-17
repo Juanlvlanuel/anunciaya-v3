@@ -15,8 +15,8 @@
 
 import { useState } from 'react';
 import { X, ChevronRight, Check } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useBackNativo } from '@/hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

@@ -29,8 +29,8 @@ import {
   CalendarDays,
   Locate,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 // El tipo aceptable abarca tanto LucideIcon como los wrappers de Iconify.

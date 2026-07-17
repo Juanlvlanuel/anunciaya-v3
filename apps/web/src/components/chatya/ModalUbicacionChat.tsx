@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mapa, Marker, type MapRef, type MarkerDragEvent } from '../mapa/Mapa';
 import { Send, Loader, AlertCircle } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

@@ -38,7 +38,7 @@ import {
     Lock,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../../config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -1063,15 +1063,17 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     }`}
                                 >
                                     <Icon
-                                        icon={liked ? ICONOS.like : 'material-symbols:thumb-up-outline-rounded'}
+                                        icon={ICONOS.like}
                                         className="w-5 h-5"
+                                        fill={liked ? 'currentColor' : 'none'}
                                     />
                                 </button>
                             </Tooltip>
                             {/* Botón Guardar — pill 38px + zoom hover + pulse
                                 ring amber cuando followed (mismo patrón cross-
-                                módulo). Icono ICONOS.guardar siempre relleno
-                                con color toggle entre amber/slate. */}
+                                módulo). El ícono NO se rellena: solo cambia de
+                                color entre amber/slate (relleno se satura y no
+                                se lee). */}
                             <Tooltip text={followed ? 'Quitar de guardados' : 'Guardar'} position="bottom">
                                 <button
                                     onClick={handleSaveConAuth}

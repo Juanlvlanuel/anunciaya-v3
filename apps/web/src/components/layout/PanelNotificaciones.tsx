@@ -25,7 +25,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Icon, type IconProps } from '@iconify/react';
+import { AlertTriangle, Check, CheckCircle, Trash2, X } from 'lucide-react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -35,7 +36,7 @@ import { obtenerIniciales } from '../../utils/obtenerIniciales';
 import { notificar } from '../../utils/notificaciones';
 
 // =============================================================================
-// WRAPPERS DE ÍCONOS (Iconify centralizado)
+// WRAPPERS DE ÍCONOS (registro centralizado)
 // =============================================================================
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -45,11 +46,12 @@ const IcoStar = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 const IcoClock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const IcoCoin = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
 const IcoGift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
-const IcoCheck = (p: IconoWrapperProps) => <Icon icon="lucide:check" {...p} />;
-const IcoWarning = (p: IconoWrapperProps) => <Icon icon="lucide:alert-triangle" {...p} />;
-const IcoTrash = (p: IconoWrapperProps) => <Icon icon="lucide:trash-2" {...p} />;
-const IcoX = (p: IconoWrapperProps) => <Icon icon="lucide:x" {...p} />;
-const IcoCheckCircle = (p: IconoWrapperProps) => <Icon icon="lucide:check-circle" {...p} />;
+// Utilitarios: van de lucide directo (no son semánticos, no están en ICONOS).
+const IcoCheck = Check;
+const IcoWarning = AlertTriangle;
+const IcoTrash = Trash2;
+const IcoX = X;
+const IcoCheckCircle = CheckCircle;
 const IcoChartUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 const IcoChat = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 

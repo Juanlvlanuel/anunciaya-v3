@@ -34,9 +34,8 @@ import {
     ShoppingBag,
     Repeat,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
@@ -49,6 +48,7 @@ import scanyaService from '@/services/scanyaService';
 import type { TarjetaSellos } from '@/services/scanyaService';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
 import useScanYAStore from '@/stores/useScanYAStore';
+import useOnlineStatus from '@/hooks/useOnlineStatus';
 import type { ConfiguracionScanYA } from '@/types/scanya';
 
 // =============================================================================
@@ -72,6 +72,7 @@ interface ModalRegistrarVentaProps {
         montoTarjeta?: number;
         montoTransferencia?: number;
         nota?: string;
+        concepto?: string;
         recordatorioId?: string;
     };
 }
@@ -136,6 +137,11 @@ export function ModalRegistrarVenta({
     const agregarRecordatorioOffline = useScanYAStore(s => s.agregarRecordatorioOffline);
     const setNivelesActivos = useScanYAStore(s => s.setNivelesActivos);
 
+    // Estado real de la red. `modoOffline` es la intención (guardar recordatorio),
+    // no la conexión: al procesar un recordatorio se abre en modo online y el
+    // internet puede haberse ido otra vez.
+    const online = useOnlineStatus();
+
 
     // ---------------------------------------------------------------------------
     // Detectar si es móvil (para mostrar/ocultar teclado visual)
@@ -196,10 +202,17 @@ export function ModalRegistrarVenta({
     // ---------------------------------------------------------------------------
     useEffect(() => {
         if (abierto) {
-            cargarConfiguracion();
             resetearFormulario();
         }
     }, [abierto]);
+
+    // Sin red la config no llega; el modo offline solo guarda el recordatorio,
+    // que no la necesita. Se carga sola al volver la conexión.
+    useEffect(() => {
+        if (abierto && online) {
+            cargarConfiguracion();
+        }
+    }, [abierto, online]);
 
     // ---------------------------------------------------------------------------
     // Bloquear scroll del body cuando el modal está abierto
@@ -258,6 +271,7 @@ export function ModalRegistrarVenta({
             if (datosPreLlenado.monto) setMonto(datosPreLlenado.monto.toString());
             if (datosPreLlenado.metodoPago) setMetodoPago(datosPreLlenado.metodoPago);
             if (datosPreLlenado.nota) setNota(datosPreLlenado.nota);
+            if (datosPreLlenado.concepto) setConcepto(datosPreLlenado.concepto);
             if (datosPreLlenado.recordatorioId) setRecordatorioId(datosPreLlenado.recordatorioId);
 
             if (datosPreLlenado.metodoPago === 'mixto') {
@@ -268,21 +282,8 @@ export function ModalRegistrarVenta({
                 });
             }
 
-            // Ejecutar búsqueda de cliente si no está en modo offline
-            // Usar setTimeout para asegurar que el estado de telefono se actualizó
-            if (!modoOffline && datosPreLlenado.telefonoOAlias) {
-                setTimeout(() => {
-                    const numeroLimpio = datosPreLlenado.telefonoOAlias!
-                        .replace(/^\+52/, '')
-                        .replace(/^\+1/, '');
-                    if (numeroLimpio.length === 10) {
-                        buscarCliente();
-                    }
-                }, 0);
-            }
-            if (datosPreLlenado.recordatorioId) {
-                setRecordatorioId(datosPreLlenado.recordatorioId);
-            }
+            // La búsqueda del cliente la dispara el efecto de `telefono` al llegar
+            // a 10 dígitos; forzarla aquí la ejecutaría con el teléfono aún vacío.
         }
     }, [abierto, datosPreLlenado, modoOffline]);
 
@@ -349,14 +350,15 @@ export function ModalRegistrarVenta({
     // Buscar cliente
     // ---------------------------------------------------------------------------
     useEffect(() => {
-        // Solo buscar si NO está en modo offline
-        if (!modoOffline && telefono.length === 10) {
+        // Solo buscar si NO está en modo offline y hay red (sin conexión la
+        // petición fallaría; al volver el internet este efecto reintenta solo).
+        if (!modoOffline && online && telefono.length === 10) {
             buscarCliente();
         } else {
             setCliente(null);
             setErrorCliente(null);
         }
-    }, [telefono, modoOffline]);
+    }, [telefono, modoOffline, online]);
 
     const obtenerMultiplicador = (nivel: string): number => {
         if (!config?.multiplicadores) return 1;
@@ -720,7 +722,10 @@ export function ModalRegistrarVenta({
                 fotoTicketUrl: fotoUrl || undefined,
                 nota: nota.trim() || undefined,
                 concepto: concepto.trim() || undefined,
-                recordatorioId: recordatorioId || undefined,
+                // Los recordatorios offline viven en localStorage con id `temp_...` (no UUID):
+                // el backend solo acepta ids de recordatorios propios, y la limpieza local
+                // la hace PaginaScanYA al confirmarse la venta.
+                recordatorioId: recordatorioId && !recordatorioId.startsWith('temp_') ? recordatorioId : undefined,
                 recompensaSellosId: tarjetaSeleccionada?.id || undefined,
             });
 

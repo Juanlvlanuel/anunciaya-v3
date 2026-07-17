@@ -17,7 +17,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { useCiudades } from '../../../hooks/queries/useCiudades';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';

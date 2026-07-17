@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { AlertCircle, Loader2, ArrowRight, Store } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../../../config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

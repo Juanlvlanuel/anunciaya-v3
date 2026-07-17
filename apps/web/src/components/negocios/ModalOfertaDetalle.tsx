@@ -21,8 +21,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X, Flame, Store } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useNavigate } from 'react-router-dom';
 import { formatearSucursalLabel } from '@/utils/sucursalOferta';
 

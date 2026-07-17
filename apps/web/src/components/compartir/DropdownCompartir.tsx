@@ -22,7 +22,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link2 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { notificar } from '../../utils/notificaciones';
 

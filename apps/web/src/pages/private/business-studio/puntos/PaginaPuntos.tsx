@@ -34,9 +34,9 @@ import {
   Plus, CircleDollarSign, Repeat, ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+
 import type { ComponentType } from 'react';
-import { ICONOS } from '@/config/iconos';
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useBackNativo } from '@/hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

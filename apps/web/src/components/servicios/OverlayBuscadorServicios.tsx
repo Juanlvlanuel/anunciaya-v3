@@ -26,7 +26,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Search, Wrench, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useSearchStore } from '../../stores/useSearchStore';

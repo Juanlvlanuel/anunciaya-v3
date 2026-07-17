@@ -59,7 +59,11 @@ export default function PaginaScanYA() {
   // Push: abrir la conversación exacta al tocar la notificación (?chat= / PUSH_CLICK).
   usePushAppShell();
   const contadorRecordatorios = useScanYAStore(selectContadorRecordatorios);
-  const prevOnlineRef = useRef(online);
+  // Arranca en false a propósito: si se inicializara con `online`, abrir ScanYA
+  // con internet ya activo no contaría como transición offline→online y los
+  // recordatorios que quedaron en localStorage (de una sesión sin señal que se
+  // cerró antes de reconectar) no subirían nunca al servidor.
+  const prevOnlineRef = useRef(false);
   const chatYAInicializadoRef = useRef(false);
 
   // ChatYA — badge real de mensajes no leídos
@@ -102,6 +106,7 @@ export default function PaginaScanYA() {
     montoTarjeta?: number;
     montoTransferencia?: number;
     nota?: string;
+    concepto?: string;
     recordatorioId?: string;
   } | undefined>(undefined);
 
@@ -194,7 +199,11 @@ export default function PaginaScanYA() {
   }, []);
 
   // Polling: actualizar contadores cada 30 segundos
+  // Sin conexión no se agenda: la petición fallaría cada 30s sin nada que ganar.
+  // Al volver el internet, el efecto de `online` recarga los datos igual.
   useEffect(() => {
+    if (!online) return;
+
     const intervalo = setInterval(async () => {
       try {
         const resp = await scanyaService.obtenerContadores();
@@ -210,7 +219,7 @@ export default function PaginaScanYA() {
     }, 30000);
 
     return () => clearInterval(intervalo);
-  }, []);
+  }, [online]);
 
   // Inicializar ChatYA (socket + conversaciones comerciales) una vez al montar
   useEffect(() => {
@@ -447,6 +456,7 @@ export default function PaginaScanYA() {
       montoTarjeta: recordatorio.montoTarjeta,
       montoTransferencia: recordatorio.montoTransferencia,
       nota: recordatorio.nota ?? undefined,
+      concepto: recordatorio.concepto ?? undefined,
       recordatorioId: recordatorio.id,
     });
     setModoOffline(false);
@@ -469,6 +479,7 @@ export default function PaginaScanYA() {
       montoTarjeta: recordatorio.montoTarjeta,
       montoTransferencia: recordatorio.montoTransferencia,
       nota: recordatorio.nota ?? undefined,
+      concepto: recordatorio.concepto ?? undefined,
       recordatorioId: recordatorio.id,
     });
     // Eliminar el recordatorio anterior del localStorage (se reemplazará al guardar)

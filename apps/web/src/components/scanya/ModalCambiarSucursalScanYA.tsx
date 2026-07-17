@@ -20,7 +20,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Store, Check, X, Loader2 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.

@@ -20,8 +20,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
 import { ArrowRightLeft, Ban, Banknote, CalendarCheck, ChevronLeft, CreditCard, IdCard, Landmark, Loader2, Megaphone, Shield, User, type LucideIcon } from 'lucide-react';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useUiStore } from '@/stores/useUiStore';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { useAuthStore } from '@/stores/useAuthStore';

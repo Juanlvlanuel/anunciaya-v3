@@ -37,7 +37,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/config/iconos';
 import { ICONOS } from '../config/iconos';
 
 type EstadoBubble = 'save' | 'unsave';

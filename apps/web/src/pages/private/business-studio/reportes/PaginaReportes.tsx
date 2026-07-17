@@ -11,10 +11,9 @@
 
 import { useEffect, useState } from 'react';
 import { BarChart3, Download, Loader2, Users, UserCog, Tag, type LucideIcon } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import type { ComponentType } from 'react';
-import { ICONOS } from '@/config/iconos';
 
+import type { ComponentType } from 'react';
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;

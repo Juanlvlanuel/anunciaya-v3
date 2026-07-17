@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Loader2, Check, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

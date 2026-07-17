@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Pencil, PencilLine, ArrowUpDown, ChevronDown, Check } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.

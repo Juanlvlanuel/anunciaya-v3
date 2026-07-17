@@ -458,6 +458,7 @@ export interface RecordatorioScanYA {
   montoTarjeta: number;
   montoTransferencia: number;
   nota: string | null;
+  concepto: string | null;
   estado: EstadoRecordatorio;
   procesadoAt: string | null;
   procesadoPor: string | null;

@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Store, ChevronRight } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 

@@ -14,9 +14,8 @@ import { createPortal } from 'react-dom';
 import { Mapa, Marker, type MapRef, type MarkerDragEvent, type MapLayerMouseEvent } from '@/components/mapa/Mapa';
 import { PinMapa } from '@/components/mapa/MarcadorPopup';
 import { Loader2, X, Search, Maximize2, Crosshair, Plus, Minus } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;

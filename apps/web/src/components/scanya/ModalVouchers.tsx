@@ -49,9 +49,8 @@ import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import { TarjetaVoucher } from './TarjetaVoucher';
 import type { VoucherCompleto, ClienteConVouchers } from '@/types/scanya';
 import { Coins } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;

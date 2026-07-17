@@ -13,9 +13,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '@/hooks/useVolverAtras';
 import { Building2, Check, ArrowRight, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;

@@ -22,14 +22,17 @@ import {
   Tag,
   X,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
-// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+// Wrappers locales: íconos del registro manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
-const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} hFlip {...p} />;
+// La llave va volteada horizontalmente (antes `hFlip` de Iconify, que lucide no tiene).
+const Wrench = ({ className = '', ...p }: IconoWrapperProps) => (
+  <Icon icon={ICONOS.servicios} className={`-scale-x-100 ${className}`} {...p} />
+);
 
 // Stores
 import { useAuthStore } from '../../stores/useAuthStore';

@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.

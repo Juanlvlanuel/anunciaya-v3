@@ -22,7 +22,7 @@ import {
   LayoutDashboard, Receipt, Users, MessageSquare, ShoppingBag, Tag,
   UserCog, BarChart3, User, Coins,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useAuthStore } from '../../stores/useAuthStore';

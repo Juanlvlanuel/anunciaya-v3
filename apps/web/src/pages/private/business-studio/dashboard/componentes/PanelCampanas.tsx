@@ -15,8 +15,8 @@
 import { useState, useRef, type ComponentType } from 'react';
 import { createPortal } from 'react-dom';
 import { Tag, MousePointer, Percent } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import type { Campana } from '../../../../../services/dashboardService';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

@@ -17,7 +17,9 @@
 import { useState } from 'react';
 import { AlertTriangle, Bell, Check, Copy, Eye, EyeOff, KeyRound, Loader2, LogOut, Mail, Shield, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
+// Logo de marca: lucide no incluye el Google multicolor, así que viene de Iconify.
 import { Icon } from '@iconify/react';
+import { ICONOS_REMOTOS } from '@/config/iconos';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePushNotificaciones } from '@/hooks/usePushNotificaciones';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
@@ -595,7 +597,7 @@ export default function TabSeguridad() {
             <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
-                        <Icon icon="flat-color-icons:google" className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
+                        <Icon icon={ICONOS_REMOTOS.google} className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
                         <div className="min-w-0">
                             <h2 className="text-sm font-bold text-slate-800">Inicio de sesión con Google</h2>
                             <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-0.5">
@@ -626,7 +628,7 @@ export default function TabSeguridad() {
                             style={{ background: GRADIENTE_MARCA }}
                             className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer text-white shadow-md disabled:opacity-60 disabled:cursor-default"
                         >
-                            {vinculandoGoogle ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <Icon icon="flat-color-icons:google" className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
+                            {vinculandoGoogle ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <Icon icon={ICONOS_REMOTOS.google} className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
                             Vincular Google
                         </button>
                     )}

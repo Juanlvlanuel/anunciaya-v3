@@ -20,8 +20,9 @@
  */
 
 import { createPortal } from 'react-dom';
+// Logo de marca: lucide no incluye WhatsApp, así que este viene de Iconify.
 import { Icon } from '@iconify/react';
-import { ICONOS } from '../../config/iconos';
+import { ICONOS_REMOTOS } from '../../config/iconos';
 import { useConfigPublica } from '../../hooks/queries/useConfigPublica';
 
 export function FabWhatsApp() {
@@ -43,7 +44,7 @@ export function FabWhatsApp() {
       data-testid="landing-fab-whatsapp"
       className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25A924] text-white shadow-lg transition-transform active:scale-95 lg:cursor-pointer lg:hover:scale-105"
     >
-      <Icon icon={ICONOS.whatsapp} className="h-8 w-8" aria-hidden="true" />
+      <Icon icon={ICONOS_REMOTOS.whatsapp} className="h-8 w-8" aria-hidden="true" />
     </button>,
     document.body,
   );

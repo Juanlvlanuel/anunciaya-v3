@@ -3,6 +3,12 @@
  * =============================
  * Galería visual para comparar variantes de íconos.
  * Mantener mientras iteras sobre las elecciones. BORRAR cuando todo esté final.
+ *
+ * OBSOLETA desde la migración a lucide (jul 2026): compara variantes de los sets
+ * de Iconify (Phosphor / Solar / Material) para elegir entre ellas, y esa
+ * elección ya no existe — los íconos salen de `lucide-react`. Usa el `Icon` de
+ * Iconify a propósito, para que la galería siga pintando. Se puede borrar junto
+ * con su ruta `/test-iconos` en `router/index.tsx`.
  */
 
 import { Icon } from '@iconify/react';

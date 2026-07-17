@@ -19,9 +19,8 @@
 
 import { useState, useEffect } from 'react';
 import { ImagePlus, Trash2, Loader2, Repeat } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
@@ -543,7 +542,6 @@ export default function ModalRecompensa({
                   style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                 />
               </div>
-
 
               {/* Botones */}
               <div className="flex gap-3 2xl:gap-3 mt-4 mb-2 lg:mb-2 2xl:mb-0 lg:mt-auto 2xl:mt-auto">

@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useBackNativo } from '../../hooks/useBackNativo';
 

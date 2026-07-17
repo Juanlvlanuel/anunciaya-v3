@@ -19,7 +19,7 @@
  */
 
 import { WifiOff, Ticket, History, type LucideIcon } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import type { ComponentType } from 'react';
 import { ICONOS } from '../../config/iconos';
 

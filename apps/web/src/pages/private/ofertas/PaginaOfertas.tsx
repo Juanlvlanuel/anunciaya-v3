@@ -34,8 +34,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useScrollAppShell } from '@/hooks/useScrollAppShell';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

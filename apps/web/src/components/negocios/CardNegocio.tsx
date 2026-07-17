@@ -40,7 +40,7 @@ import {
   Store,
   ChevronRight,
 } from 'lucide-react';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
@@ -483,8 +483,9 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
         />
       )}
       <Icon
-        icon={liked ? ICONOS.like : 'material-symbols:thumb-up-outline-rounded'}
+        icon={ICONOS.like}
         className={iconSize}
+        fill={liked ? 'currentColor' : 'none'}
         style={{ color: liked ? '#3b82f6' : 'rgba(255,255,255,0.9)' }}
       />
     </button>
@@ -513,7 +514,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
         />
       )}
       <Icon
-        icon={followed ? ICONOS.guardar : 'ph:archive-box'}
+        icon={ICONOS.guardar}
         className={iconSize}
         style={{ color: followed ? '#f59e0b' : 'rgba(255,255,255,0.9)' }}
       />

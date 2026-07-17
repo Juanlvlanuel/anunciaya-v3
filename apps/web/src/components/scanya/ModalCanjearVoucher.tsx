@@ -23,9 +23,8 @@ import {
   ArrowLeft,
   CameraOff,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;

@@ -8,9 +8,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Building2, AlignLeft, Tag, ChevronDown, Check } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
@@ -50,7 +49,6 @@ function SelectorSubcategoria({ subcategorias, seleccionados, onToggle, deshabil
     if (abierto) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [abierto]);
-
 
   useEffect(() => {
     if (!abierto || window.innerWidth >= 1024) return;

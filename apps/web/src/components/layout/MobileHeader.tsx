@@ -14,7 +14,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Menu, Search, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrapper Iconify con nombre familiar.

@@ -51,9 +51,8 @@ import {
     Store,
     BadgeCheck,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 

@@ -13,7 +13,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

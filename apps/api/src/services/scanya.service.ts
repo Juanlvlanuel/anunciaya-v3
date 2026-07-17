@@ -3918,6 +3918,7 @@ export async function obtenerRecordatorios(
         montoTarjeta: number;
         montoTransferencia: number;
         nota: string | null;
+        concepto: string | null;
         createdAt: string;
         empleadoNombre?: string;
         sucursalNombre?: string;
@@ -3983,6 +3984,7 @@ export async function obtenerRecordatorios(
                 montoTarjeta: scanyaRecordatorios.montoTarjeta,
                 montoTransferencia: scanyaRecordatorios.montoTransferencia,
                 nota: scanyaRecordatorios.nota,
+                concepto: scanyaRecordatorios.concepto,
                 createdAt: scanyaRecordatorios.createdAt,
                 empleadoNombre: empleados.nombre,
                 sucursalNombre: negocioSucursales.nombre,
@@ -4005,6 +4007,7 @@ export async function obtenerRecordatorios(
                     montoTarjeta: parseFloat(r.montoTarjeta || '0'),
                     montoTransferencia: parseFloat(r.montoTransferencia || '0'),
                     nota: r.nota,
+                    concepto: r.concepto,
                     createdAt: r.createdAt || '',
                     empleadoNombre: r.empleadoNombre || undefined,
                     sucursalNombre: r.sucursalNombre || undefined,

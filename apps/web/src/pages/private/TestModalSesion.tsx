@@ -10,9 +10,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Icon } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, ICONOS } from '@/config/iconos';
 const TIEMPO_INICIAL = 300;
 
 export default function TestModalSesion() {

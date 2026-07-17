@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
 import Tooltip from '../../../components/ui/Tooltip';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/config/iconos';
 import { ICONOS } from '../../../config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';

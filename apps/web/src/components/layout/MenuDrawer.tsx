@@ -24,8 +24,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Icon, type IconProps } from '@iconify/react';
-import { Lock, LogOut, Ticket, User, Download, HelpCircle, Megaphone, ChartNoAxesCombined } from 'lucide-react';
+import { Icon, type IconProps } from '@/config/iconos';
+import { Lock, LogOut, Ticket, User, Download, HelpCircle, Megaphone, ChartNoAxesCombined, ChevronRight, Store, X } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -765,7 +765,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           <Lock width={14} height={14} strokeWidth={2.25} className="md4-chev" />
         ) : (
           <span className="md4-chev">
-            <Icon icon="lucide:chevron-right" width={16} height={16} />
+            <ChevronRight width={16} height={16} />
           </span>
         )}
       </button>
@@ -820,7 +820,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 : undefined
             }
           >
-            <Icon icon="lucide:user" width={15} height={15} style={{ strokeWidth: 1.9 }} />
+            <User width={15} height={15} style={{ strokeWidth: 1.9 }} />
             Personal
           </button>
           <button
@@ -840,7 +840,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
                 : undefined
             }
           >
-            <Icon icon="lucide:store" width={15} height={15} style={{ strokeWidth: 1.9 }} />
+            <Store width={15} height={15} style={{ strokeWidth: 1.9 }} />
             Comercial
           </button>
         </div>
@@ -855,7 +855,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             aria-label="Cerrar menú"
             data-testid="menu-drawer-close"
           >
-            <Icon icon="lucide:x" width={16} height={16} style={{ strokeWidth: 2 }} />
+            <X width={16} height={16} style={{ strokeWidth: 2 }} />
           </button>
           <span
             className={'md4-indicator' + (!tieneModoComercial ? ' md4-indicator-derecha' : '')}

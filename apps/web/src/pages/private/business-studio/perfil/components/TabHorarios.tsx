@@ -21,8 +21,8 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Coffee, Copy, Check, X, ChevronDown } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useBackNativo } from '@/hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

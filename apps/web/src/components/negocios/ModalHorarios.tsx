@@ -13,7 +13,7 @@
  */
 
 import { X, UtensilsCrossed } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 

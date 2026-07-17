@@ -10,7 +10,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Check, ChevronLeft } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../../config/iconos';
 import { useConfigPublica } from '../../../hooks/queries/useConfigPublica';
 

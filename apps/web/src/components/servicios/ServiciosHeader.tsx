@@ -24,8 +24,8 @@
 import { useEffect, useRef, useState, type Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Search, Wrench, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useSearchStore } from '../../stores/useSearchStore';
 import { useUiStore } from '../../stores/useUiStore';

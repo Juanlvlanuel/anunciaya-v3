@@ -17,8 +17,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { BarChart3 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import type { VentasData } from '../../../../../services/dashboardService';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -120,7 +120,6 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
     // Parsear fecha sin conversión de zona horaria
     const [, mes, dia] = v.fecha.split('-').map(Number);
     const fechaFormateada = `${dia} ${['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][mes - 1]}`;
-
 
     return {
       ...v,

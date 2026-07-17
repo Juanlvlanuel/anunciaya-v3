@@ -25,7 +25,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, ArrowUpRight } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useSearchStore } from '../../stores/useSearchStore';
 import { OverlayBuscadorContainer } from '../ui/OverlayBuscadorContainer';

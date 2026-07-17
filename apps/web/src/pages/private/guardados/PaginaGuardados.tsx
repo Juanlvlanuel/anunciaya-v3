@@ -30,9 +30,9 @@ import {
     History,
     type LucideIcon,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+
 import type { ComponentType } from 'react';
-import { ICONOS } from '@/config/iconos';
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { BotonIrArriba } from '@/components/ui/BotonIrArriba';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

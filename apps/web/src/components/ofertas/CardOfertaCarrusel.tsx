@@ -22,8 +22,8 @@
 
 import { useRef } from 'react';
 import { Tag, Store } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useViewTracker } from '@/hooks/useViewTracker';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.

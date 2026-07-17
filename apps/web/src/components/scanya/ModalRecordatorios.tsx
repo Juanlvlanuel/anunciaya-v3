@@ -66,7 +66,6 @@ export function ModalRecordatorios({
     const [recordatorios, setRecordatorios] = useState<RecordatorioScanYA[]>([]);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [yaCargo, setYaCargo] = useState(false);
     const prevOnline = useRef(online);
     // ---------------------------------------------------------------------------
     // Títulos según rol
@@ -103,6 +102,7 @@ export function ModalRecordatorios({
                     montoTarjeta: r.montoTarjeta,
                     montoTransferencia: r.montoTransferencia,
                     nota: r.nota || null,
+                    concepto: r.concepto || null,
                     estado: 'pendiente',
                     procesadoAt: null,
                     procesadoPor: null,
@@ -130,6 +130,7 @@ export function ModalRecordatorios({
                         montoTarjeta: r.montoTarjeta,
                         montoTransferencia: r.montoTransferencia,
                         nota: r.nota,
+                        concepto: r.concepto,
                         estado: 'pendiente',
                         procesadoAt: null,
                         procesadoPor: null,
@@ -153,6 +154,7 @@ export function ModalRecordatorios({
                         montoTarjeta: r.montoTarjeta,
                         montoTransferencia: r.montoTransferencia,
                         nota: r.nota || null,
+                        concepto: r.concepto || null,
                         estado: 'pendiente',
                         procesadoAt: null,
                         procesadoPor: null,
@@ -179,6 +181,7 @@ export function ModalRecordatorios({
                             montoTarjeta: r.montoTarjeta,
                             montoTransferencia: r.montoTransferencia,
                             nota: r.nota || null,
+                            concepto: r.concepto || null,
                             estado: 'pendiente',
                             procesadoAt: null,
                             procesadoPor: null,
@@ -212,6 +215,7 @@ export function ModalRecordatorios({
                         montoTarjeta: r.montoTarjeta,
                         montoTransferencia: r.montoTransferencia,
                         nota: r.nota || null,
+                        concepto: r.concepto || null,
                         estado: 'pendiente',
                         procesadoAt: null,
                         procesadoPor: null,
@@ -238,13 +242,14 @@ export function ModalRecordatorios({
     // Efectos
     // ---------------------------------------------------------------------------
 
-    // 2. Cargar solo la primera vez que se abre
+    // 2. Recargar cada vez que se abre. El modal no se desmonta al cerrarse, así
+    //    que sin esto conservaría la lista de la primera apertura: un recordatorio
+    //    ya procesado (el backend lo borra) seguiría apareciendo.
     useEffect(() => {
-        if (abierto && !yaCargo) {
+        if (abierto) {
             cargarRecordatorios();
-            setYaCargo(true);
         }
-    }, [abierto, yaCargo]);
+    }, [abierto, cargarRecordatorios]);
 
     useEffect(() => {
         // Detectar cambio de offline → online
@@ -298,7 +303,6 @@ export function ModalRecordatorios({
     };
 
     const handleRefresh = () => {
-        setYaCargo(false); // Permitir recarga manual
         cargarRecordatorios();
     };
 

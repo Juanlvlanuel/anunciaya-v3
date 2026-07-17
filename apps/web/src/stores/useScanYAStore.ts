@@ -56,6 +56,7 @@ export interface RecordatorioOffline {
   montoTarjeta: number;
   montoTransferencia: number;
   nota?: string;
+  concepto?: string;
   estado: 'pendiente';
   createdAt: string; // ISO string
   intentosSincronizacion: number;
@@ -72,6 +73,7 @@ interface DatosCrearRecordatorio {
   montoTarjeta?: number;
   montoTransferencia?: number;
   nota?: string;
+  concepto?: string;
 }
 
 /**
@@ -531,6 +533,9 @@ export const useScanYAStore = create<ScanYAState>()(
             }
             if (recordatorio.nota) {
               datos.nota = recordatorio.nota;
+            }
+            if (recordatorio.concepto) {
+              datos.concepto = recordatorio.concepto;
             }
 
             // Enviar al backend

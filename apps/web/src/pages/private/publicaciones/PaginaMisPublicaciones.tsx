@@ -38,10 +38,9 @@ import {
     Trash2,
     type LucideIcon,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import type { ComponentType } from 'react';
-import { ICONOS } from '@/config/iconos';
 
+import type { ComponentType } from 'react';
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;

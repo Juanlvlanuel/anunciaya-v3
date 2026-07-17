@@ -16,8 +16,8 @@
  * - compartido: Alguien compartió el negocio
  */
 
-import { Users, ShoppingCart, Ticket } from 'lucide-react';
-import { Icon } from '@iconify/react';
+import { Users, ShoppingCart, Ticket, type LucideIcon } from 'lucide-react';
+import { Icon } from '@/config/iconos';
 import { ICONOS } from '../../../../../config/iconos';
 import type { Interaccion } from '../../../../../services/dashboardService';
 
@@ -64,62 +64,56 @@ function obtenerIniciales(nombre: string): string {
 }
 
 type EstiloTipo = {
-  icon: string; // nombre Iconify
+  icon: LucideIcon;
+  /** Fondo del avatar cuando no hay foto (con las iniciales encima). */
   gradiente: string;
+  /** Fondo del badge; su glifo siempre va blanco. */
   gradienteBadge: string;
-  colorIcono: string;
 };
 
 function getEstiloTipo(tipo: Interaccion['tipo']): EstiloTipo {
   switch (tipo) {
     case 'venta':
       return {
-        icon: 'lucide:shopping-cart', // Carrito se mantiene en estilo lucide
+        icon: ShoppingCart,
         gradiente: 'linear-gradient(135deg, #34d399, #059669)',
         gradienteBadge: 'linear-gradient(135deg, #059669, #047857)',
-        colorIcono: '#059669',
       };
     case 'cupon_canjeado':
       return {
-        icon: 'lucide:ticket', // Ticket se mantiene en estilo lucide
+        icon: Ticket,
         gradiente: 'linear-gradient(135deg, #f472b6, #db2777)',
         gradienteBadge: 'linear-gradient(135deg, #db2777, #be185d)',
-        colorIcono: '#db2777',
       };
     case 'like':
       return {
         icon: ICONOS.like,
         gradiente: 'linear-gradient(135deg, #60a5fa, #2563eb)',
         gradienteBadge: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-        colorIcono: '#2563eb',
       };
     case 'nuevo_seguidor':
       return {
         icon: ICONOS.guardar,
         gradiente: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
         gradienteBadge: 'linear-gradient(135deg, #f59e0b, #d97706)',
-        colorIcono: '#f59e0b',
       };
     case 'resena':
       return {
         icon: ICONOS.rating,
         gradiente: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
         gradienteBadge: 'linear-gradient(135deg, #f59e0b, #b45309)',
-        colorIcono: '#f59e0b',
       };
     case 'compartido':
       return {
         icon: ICONOS.compartir,
         gradiente: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
         gradienteBadge: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-        colorIcono: '#7c3aed',
       };
     default:
       return {
-        icon: 'lucide:users',
+        icon: Users,
         gradiente: 'linear-gradient(135deg, #94a3b8, #475569)',
         gradienteBadge: 'linear-gradient(135deg, #475569, #334155)',
-        colorIcono: '#475569',
       };
   }
 }
@@ -172,13 +166,15 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
                       </span>
                     )}
                   </div>
+                  {/* Badge del tipo: círculo de color con glifo blanco, mismo
+                      patrón que PanelNotificaciones (.pn-badge). */}
                   <div
-                    className="absolute -bottom-1 -right-1 w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm bg-white"
+                    className="absolute -bottom-1 -right-1 w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                    style={{ background: estilo.gradienteBadge }}
                   >
                     <Icon
                       icon={estilo.icon}
-                      className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5"
-                      style={{ color: estilo.colorIcono }}
+                      className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white"
                     />
                   </div>
                 </div>

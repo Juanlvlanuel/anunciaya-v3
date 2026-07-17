@@ -45,7 +45,7 @@ import {
     UserCheck,
     Flag,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../../config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -349,7 +349,7 @@ export function PaginaArticuloMarketplace() {
                                             />
                                         )}
                                         <Icon
-                                            icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
+                                            icon={ICONOS.guardar}
                                             className="h-5 w-5"
                                             style={{ color: guardado ? '#f59e0b' : 'rgba(255,255,255,0.9)' }}
                                         />

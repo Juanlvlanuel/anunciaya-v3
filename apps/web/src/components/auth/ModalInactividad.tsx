@@ -18,7 +18,8 @@
 
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Icon } from '@iconify/react';
+import { Lock } from 'lucide-react';
+import { Icon } from '@/config/iconos';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { ICONOS } from '../../config/iconos';
 
@@ -253,8 +254,7 @@ function ModalSesionCerrada({ onCerrar }: { onCerrar: () => void }) {
               opacity: 0.18,
             }}
           />
-          <Icon
-            icon="ph:lock-key-fill"
+          <Lock
             className="w-10 h-10 relative"
             style={{ color: '#dc2626' }}
           />

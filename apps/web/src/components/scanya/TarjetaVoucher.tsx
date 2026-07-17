@@ -15,9 +15,8 @@ import {
   Ban,
   ChevronRight,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
 
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
@@ -47,7 +46,6 @@ const esCompleto = (v: VoucherData): v is VoucherCompleto => 'usuarioNombre' in 
 
 const getNombre = (v: VoucherData): string => esCompleto(v) ? v.usuarioNombre : v.clienteNombre;
 const getAvatar = (v: VoucherData): string | null => esCompleto(v) ? (v.usuarioAvatarUrl || null) : (v.clienteAvatarUrl || null);
-
 
 const formatearExpiracion = (fechaStr: string): { texto: string; color: string } => {
   const fecha = new Date(fechaStr);

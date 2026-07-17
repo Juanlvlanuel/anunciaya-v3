@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, HelpCircle, ChevronRight, ChevronLeft, Play, BookOpen, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';

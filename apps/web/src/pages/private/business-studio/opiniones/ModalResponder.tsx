@@ -16,7 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import { MessageSquare, Send, Quote } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
+import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../../../config/iconos';
 
 // Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.

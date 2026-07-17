@@ -14,8 +14,8 @@ import {
     Trash2, ImagePlus,
     Tag,
 } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '@/config/iconos';
+
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { DatePicker } from '../../../../components/ui';
 import type { TipoOferta } from '../../../../types/ofertas';
 

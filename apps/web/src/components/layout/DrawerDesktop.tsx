@@ -24,8 +24,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Icon, type IconProps } from '@iconify/react';
-import { Package, User, LogOut, Download, HelpCircle } from 'lucide-react';
+import { Icon, type IconProps } from '@/config/iconos';
+import { Package, User, LogOut, Download, HelpCircle, ChevronRight, Store } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -486,7 +486,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
               : undefined
           }
         >
-          <Icon icon="lucide:user" width={14} height={14} style={{ strokeWidth: 1.9 }} />
+          <User width={14} height={14} style={{ strokeWidth: 1.9 }} />
           Personal
         </button>
         <button
@@ -506,7 +506,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
               : undefined
           }
         >
-          <Icon icon="lucide:store" width={14} height={14} style={{ strokeWidth: 1.9 }} />
+          <Store width={14} height={14} style={{ strokeWidth: 1.9 }} />
           Comercial
         </button>
       </div>
@@ -575,7 +575,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
                   </span>
                   <span className="dd-lbl">{it.label}</span>
                   <span className="dd-chev">
-                    <Icon icon="lucide:chevron-right" width={16} height={16} />
+                    <ChevronRight width={16} height={16} />
                   </span>
                 </button>
               );
