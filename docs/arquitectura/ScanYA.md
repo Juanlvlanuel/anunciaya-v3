@@ -105,6 +105,7 @@ ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado par
 - Registrar ventas y otorgar puntos CardYA
 - Validar y canjear códigos de descuento (cupones privados → tabla `oferta_usuarios`)
 - Validar vouchers de premios canjeables
+- Sellar tarjetas de sellos (recompensas N+1)
 - Gestionar turnos de trabajo
 - Trabajar sin conexión con sincronización automática
 
@@ -114,6 +115,24 @@ ScanYA es un **sistema de punto de venta (POS) PWA independiente** diseñado par
 - Funciona offline con recordatorios
 - Upload directo a Cloudflare R2
 - Sistema de niveles CardYA (Bronce, Plata, Oro)
+
+### CardYA NO es requisito para usar ScanYA
+
+`negocios.participa_puntos` gatea **únicamente el cálculo de puntos**, no el acceso.
+Un negocio que no quiere dar puntos usa ScanYA igual para registrar ventas, validar
+cupones y sellar tarjetas: la venta se guarda con `puntos_otorgados = 0` y sin tocar
+la billetera del cliente. El gate vive en `otorgarPuntos()` (`scanya.service.ts`,
+variable `otorgaPuntos`) — **no** en los logins ni en el middleware.
+
+Requisitos reales para entrar a ScanYA: onboarding completo y negocio en circulación
+(`activo = true`). Un negocio en alta anticipada (`promo_pendiente`) está `activo=false`
+a propósito y se le bloquea con su propio mensaje (`mensajeScanyaBloqueado`), porque
+todavía no abre al público.
+
+`puntos_configuracion` existe **siempre**, participe o no en CardYA (su campo `activo`
+sigue a `participa_puntos`), para que activar el sistema de puntos después sea un solo
+toggle. La crea `asegurarConfiguracionPuntos()` en `negocioManagement.service.ts`,
+compartida por Onboarding y Business Studio.
 
 ---
 

@@ -113,9 +113,14 @@ export function FranjaBusinessStudio() {
   // Navegación entre módulos (mismo filtrado que Navbar)
   const esGerente = !!usuario?.sucursalAsignada;
   const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
-  const modulosNavegables = vistaComoGerente
+  // Sin CardYA el módulo solo sirve para tarjetas de sellos → "Recompensas".
+  const participaPuntos = usuario?.participaPuntos ?? false;
+  const modulosNavegables = (vistaComoGerente
     ? MODULOS_BS.filter((m) => !RUTAS_OCULTAS_GERENTE.includes(m.ruta))
-    : MODULOS_BS;
+    : MODULOS_BS
+  ).map((m) =>
+    m.ruta === '/business-studio/puntos' && !participaPuntos ? { ...m, nombre: 'Tarjeta de Sellos' } : m
+  );
 
   const obtenerIndiceModuloActual = () => {
     const exacto = modulosNavegables.findIndex((m) => location.pathname === m.ruta);
@@ -135,7 +140,10 @@ export function FranjaBusinessStudio() {
   };
 
   const IconoModulo = obtenerIconoModulo(location.pathname);
-  const nombreModulo = obtenerNombreModulo(location.pathname);
+  // Sin CardYA, el módulo de puntos se muestra como "Tarjeta de Sellos".
+  const nombreModulo = !participaPuntos && location.pathname.startsWith('/business-studio/puntos')
+    ? 'Tarjeta de Sellos'
+    : obtenerNombreModulo(location.pathname);
 
   return (
     <div

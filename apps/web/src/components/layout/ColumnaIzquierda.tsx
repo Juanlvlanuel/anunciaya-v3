@@ -366,10 +366,10 @@ export function ColumnaIzquierda() {
   const nombreNegocio = usuario?.nombreNegocio || 'Mi Negocio';
   // Gerentes NUNCA ven onboarding — tratar como completado
   const onboardingCompletado = !!usuario?.sucursalAsignada || (usuario?.onboardingCompletado ?? false);
-  const participaPuntos = usuario?.participaPuntos ?? true;
-  // ScanYA requiere CardYA activa (participaPuntos) Y el onboarding terminado (igual que el backend).
-  const scanyaHabilitado = participaPuntos && onboardingCompletado;
-  const hintScanyaBloqueado = !onboardingCompletado ? 'Completa tu registro primero' : 'Activa CardYA primero';
+  // ScanYA NO exige CardYA: también sirve para validar cupones y sellar tarjetas.
+  // Solo requiere el onboarding terminado (igual que el backend).
+  const scanyaHabilitado = onboardingCompletado;
+  const hintScanyaBloqueado = 'Completa tu registro primero';
   const esGerente = !!usuario?.sucursalAsignada;
   const sucursalPrincipalId = useAuthStore((s) => s.sucursalPrincipalId);
   const sucursalParaPerfil = esGerente ? usuario?.sucursalActiva : (sucursalPrincipalId || usuario?.sucursalActiva);
@@ -502,7 +502,7 @@ export function ColumnaIzquierda() {
 
       {/* ===== RESUMEN DE HOY ===== */}
       <div className="flex-1 flex flex-col">
-        <ContenidoComercial participaPuntos={participaPuntos} />
+        <ContenidoComercial />
       </div>
     </div>
   ) : (
@@ -609,7 +609,7 @@ const TIPS_DIARIOS = [
   'Revisa tus métricas semanalmente para identificar mejoras.',
 ];
 
-function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
+function ContenidoComercial() {
   const navigate = useNavigate();
   const usuario = useAuthStore((state) => state.usuario);
   const sucursalActiva = usuario?.sucursalActiva;
@@ -672,11 +672,10 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
       {/* Espacio flexible - empuja resumen y tip hacia abajo */}
       <div className="flex-1" />
 
-      {/* ===== RESUMEN DE HOY (card) ===== */}
-      {participaPuntos ? (
-        <>
-          {/* Card */}
-          <div className="mx-3 lg:mx-2 2xl:mx-3 mb-2 lg:mb-1.5 2xl:mb-2 rounded-xl border-2 border-white/15 bg-white/5 shadow-md overflow-hidden">
+      {/* ===== RESUMEN DE HOY (card) =====
+          Ventas/clientes/transacciones son datos de ScanYA, no de puntos: se muestran
+          aunque el negocio no participe en CardYA. */}
+      <div className="mx-3 lg:mx-2 2xl:mx-3 mb-2 lg:mb-1.5 2xl:mb-2 rounded-xl border-2 border-white/15 bg-white/5 shadow-md overflow-hidden">
           {/* Header */}
           <div className="px-3 lg:px-2.5 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 flex items-center gap-2" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
             <BarChart3 className="w-4 h-4 text-white shrink-0" />
@@ -756,8 +755,6 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
             </button>
           </div>
           </div>
-        </>
-      ) : null}
 
       {/* ===== TIP DEL DÍA ===== */}
       <div className="mx-3 lg:mx-2 2xl:mx-3 mb-3 lg:mb-2 2xl:mb-3">

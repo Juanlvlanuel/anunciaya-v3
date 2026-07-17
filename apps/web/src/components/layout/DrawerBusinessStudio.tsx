@@ -118,10 +118,16 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
     const kpisResenasQuery = useResenasKPIs();
     const opinionesPendientes = kpisResenasQuery.data?.pendientes ?? 0;
 
+    // Sin CardYA el módulo solo sirve para tarjetas de sellos → "Recompensas".
+    const participaPuntos = usuario?.participaPuntos ?? false;
+
     // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
-    const opcionesFiltradas = vistaComoGerente
+    const opcionesFiltradas = (vistaComoGerente
         ? opcionesMenu.filter((opcion) => opcion.id !== 'sucursales' && opcion.id !== 'puntos')
-        : opcionesMenu;
+        : opcionesMenu
+    ).map((opcion) =>
+        opcion.id === 'puntos' && !participaPuntos ? { ...opcion, label: 'Tarjeta de Sellos' } : opcion
+    );
 
     // Handler de navegación. Cerramos el drawer PRIMERO y navegamos un instante
     // después: con useBackNativo el drawer empuja una entrada al history que se

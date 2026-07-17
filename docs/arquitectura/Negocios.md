@@ -1189,7 +1189,7 @@ CREATE TABLE negocios (
     es_borrador BOOLEAN DEFAULT false,
     verificado BOOLEAN DEFAULT false,
     onboarding_completado BOOLEAN NOT NULL DEFAULT false,
-    participa_puntos BOOLEAN DEFAULT true,  -- CardYA
+    participa_puntos BOOLEAN NOT NULL DEFAULT false,  -- CardYA (solo gatea el cálculo de puntos, NO el acceso a ScanYA)
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

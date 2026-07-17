@@ -17,7 +17,6 @@ import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
-import { useAuthStore } from '../../../../../stores/useAuthStore';
 
 interface CardYAProps {
   participaCardYA: boolean;
@@ -129,10 +128,10 @@ function PopoverConfirmacion({ onCancelar, onConfirmar }: PopoverConfirmacionPro
       {/* Cuerpo */}
       <div className="px-4 py-3">
         <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 leading-relaxed">
-          <span className="font-semibold text-slate-800">ScanYA dejará de funcionar</span> para ti y tus empleados.
+          <span className="font-semibold text-slate-800">Tus clientes dejarán de acumular puntos</span> en cada compra.
         </p>
         <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 mt-1">
-          Los puntos de tus clientes se mantendrán guardados.
+          Los puntos ya acumulados se mantendrán guardados, y ScanYA seguirá funcionando para registrar ventas, validar cupones y sellar tarjetas.
         </p>
       </div>
 
@@ -162,9 +161,6 @@ function PopoverConfirmacion({ onCancelar, onConfirmar }: PopoverConfirmacionPro
 export default function CardYA({ participaCardYA, onToggle }: CardYAProps) {
   const navegar = useNavegarASeccion();
 
-  const usuario = useAuthStore((s) => s.usuario);
-  const setUsuario = useAuthStore((s) => s.setUsuario);
-
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [toast, setToast] = useState<{ msg: string; key: number } | null>(null);
 
@@ -188,12 +184,8 @@ export default function CardYA({ participaCardYA, onToggle }: CardYAProps) {
   const popoverMobileRef = useRef<HTMLDivElement>(null);
   const popoverDesktopRef = useRef<HTMLDivElement>(null);
 
-  // Sincronizar participaPuntos con auth store
-  useEffect(() => {
-    if (usuario && usuario.participaPuntos !== participaCardYA) {
-      setUsuario({ ...usuario, participaPuntos: participaCardYA });
-    }
-  }, [participaCardYA]);
+  // La sincronización de participaPuntos con el auth store la hace el hook usePerfil
+  // (cambiarParticipacionCardYA) tras persistir, con reversión si el guardado falla.
 
   // Cerrar popover al hacer click fuera de ambos toggles
   useEffect(() => {

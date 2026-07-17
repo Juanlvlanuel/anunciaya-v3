@@ -932,7 +932,7 @@ export async function obtenerDatosNegocio(
             fotoPerfil: sucursal?.fotoPerfil ?? null,
             sucursalPrincipalId: sucursal?.id ?? null,
             nombreSucursal: sucursal?.nombre ?? null,  // ✅ NUEVO
-            participaPuntos: negocio.participaPuntos ?? true,  // ✅ CardYA activo
+            participaPuntos: negocio.participaPuntos ?? false,  // CardYA activo
         };
     } catch (error) {
         console.error('Error obteniendo datos del negocio:', error);

@@ -476,6 +476,8 @@ export interface ConfiguracionScanYA {
   // Config ScanYA (operaciÃ³n PWA)
   fotoTicket: OpcionFotoTicket;
   requiereNumeroOrden: boolean;
+  // CardYA activo. En false ScanYA opera sin puntos (solo cupones y sellos).
+  participaPuntos: boolean;
   // Config Puntos (cÃ¡lculo de puntos)
   puntosPorPeso: number;
   minimoCompra: number;

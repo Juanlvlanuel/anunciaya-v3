@@ -40,6 +40,7 @@ import {
     eliminarFotoPerfilController,
     obtenerSucursalesNegocioController,
     actualizarInformacionController,
+    actualizarParticipacionPuntosController,
     actualizarContactoController,
     actualizarUbicacionController,
     actualizarHorariosController,
@@ -161,6 +162,18 @@ router.put(
     verificarNegocio,
     validarAccesoSucursal,
     actualizarInformacionController
+);
+
+/**
+ * PATCH /api/negocios/:id/participacion-puntos
+ * Toggle atómico de CardYA — persiste al instante, sin guardar el resto del form.
+ * Solo dueños - gerentes reciben 403
+ */
+router.patch(
+    '/:id/participacion-puntos',
+    verificarNegocio,
+    validarAccesoSucursal,
+    actualizarParticipacionPuntosController
 );
 
 /**

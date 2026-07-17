@@ -265,7 +265,7 @@ async function usuarioAPublico(
     nombreSucursalAsignada: datosNegocioGerente?.nombreSucursal ?? null,
     correoSucursalAsignada: datosNegocioGerente?.correo ?? null,
     fotoPerfilSucursalAsignada: datosNegocioGerente?.fotoPerfil ?? null,  // ✅ NUEVO
-    participaPuntos: datosNegocio?.participaPuntos ?? true,  // ✅ CardYA activo
+    participaPuntos: datosNegocio?.participaPuntos ?? false,  // CardYA activo (sin negocio: no participa)
     createdAt: usuario.createdAt ?? new Date().toISOString(),
   };
 }

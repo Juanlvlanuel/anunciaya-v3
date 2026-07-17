@@ -130,10 +130,17 @@ export function MenuBusinessStudio() {
   const kpisResenasQuery = useResenasKPIs();
   const opinionesPendientes = kpisResenasQuery.data?.pendientes ?? 0;
 
+  // Sin CardYA (participa_puntos), el módulo solo sirve para tarjetas de sellos:
+  // el ítem se llama "Recompensas" en vez de "Puntos y Recompensas".
+  const participaPuntos = usuario?.participaPuntos ?? false;
+
   // Filtrar opciones: ocultar "Sucursales" y "Puntos" para gerentes y dueños en sucursal secundaria
-  const opcionesFiltradas = vistaComoGerente
+  const opcionesFiltradas = (vistaComoGerente
     ? opcionesMenu.filter((opcion) => opcion.id !== 'sucursales' && opcion.id !== 'puntos')
-    : opcionesMenu;
+    : opcionesMenu
+  ).map((opcion) =>
+    opcion.id === 'puntos' && !participaPuntos ? { ...opcion, label: 'Tarjeta de Sellos' } : opcion
+  );
 
   // Estado para navegación por teclado
   const [indiceFocused, setIndiceFocused] = useState(-1);

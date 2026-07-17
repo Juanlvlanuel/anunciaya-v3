@@ -221,7 +221,9 @@ export const negocios = pgTable("negocios", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	embajadorId: uuid("embajador_id"),
 	onboardingCompletado: boolean("onboarding_completado").default(false).notNull(),
-	participaPuntos: boolean('participa_puntos').default(true).notNull(),
+	// Nace en false: el negocio decide dar puntos en el Paso 7 del onboarding.
+	// Sin CardYA, ScanYA sigue sirviendo para cupones y tarjetas de sellos.
+	participaPuntos: boolean('participa_puntos').default(false).notNull(),
 	fechaPrimerPago: date("fecha_primer_pago"),
 	estadoMembresia: varchar("estado_membresia", { length: 20 }).default('al_corriente').notNull(),
 	fechaVencimiento: timestamp("fecha_vencimiento", { withTimezone: true, mode: 'string' }),

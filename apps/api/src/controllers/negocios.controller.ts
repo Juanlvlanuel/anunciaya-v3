@@ -574,10 +574,14 @@ export async function actualizarInformacionController(req: Request, res: Respons
             await actualizarDescripcionNegocio(negocioId, descripcion.trim());
         }
 
-        // 3. Actualizar participación en CardYA
-        await actualizarParticipacionPuntos(negocioId, {
-            participaPuntos: participaCardYA ?? true,
-        });
+        // 3. Actualizar participación en CardYA — solo si el body la trae.
+        // Con `?? true` una edición de nombre/descripción que omitiera el campo
+        // activaba CardYA sin pedirlo.
+        if (participaCardYA !== undefined) {
+            await actualizarParticipacionPuntos(negocioId, {
+                participaPuntos: participaCardYA,
+            });
+        }
 
         res.status(200).json({
             success: true,
@@ -588,6 +592,61 @@ export async function actualizarInformacionController(req: Request, res: Respons
         res.status(500).json({
             success: false,
             message: error instanceof Error ? error.message : 'Error al actualizar información',
+        });
+    }
+}
+
+/**
+ * PATCH /api/negocios/:id/participacion-puntos
+ * Activa/desactiva CardYA de forma inmediata (toggle atómico, sin guardar el
+ * resto del formulario). Solo dueños — gerentes reciben 403.
+ *
+ * Body: { participaPuntos: boolean }
+ */
+export async function actualizarParticipacionPuntosController(req: Request, res: Response) {
+    try {
+        const { id: negocioId } = req.params;
+        const { participaPuntos } = req.body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userId = (req as any).usuario?.usuarioId;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'No autenticado' });
+        }
+
+        if (typeof participaPuntos !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'participaPuntos debe ser un booleano',
+            });
+        }
+
+        // Bloquear gerentes (misma regla que editar información del negocio).
+        const queryUsuario = await db.execute(sql`
+            SELECT sucursal_asignada
+            FROM usuarios
+            WHERE id = ${userId as string}
+        `);
+
+        if (queryUsuario.rows.length > 0 && queryUsuario.rows[0].sucursal_asignada !== null) {
+            return res.status(403).json({
+                success: false,
+                message: 'Los gerentes no pueden cambiar la participación en CardYA. Esta acción requiere permisos de dueño.',
+            });
+        }
+
+        // Persiste participa_puntos y sincroniza puntos_configuracion.activo.
+        await actualizarParticipacionPuntos(negocioId, { participaPuntos });
+
+        res.status(200).json({
+            success: true,
+            message: participaPuntos ? 'CardYA activado' : 'CardYA desactivado',
+        });
+    } catch (error) {
+        console.error('Error al actualizar participación en CardYA:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Error al actualizar participación en CardYA',
         });
     }
 }

@@ -15,7 +15,7 @@
 import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { resolverCiudadId } from '../utils/ciudades.js';
-import { autohabilitarCatalogoPorCiudad } from './negocioManagement.service';
+import { autohabilitarCatalogoPorCiudad, asegurarConfiguracionPuntos } from './negocioManagement.service';
 import {
     negocios,
     asignacionSubcategorias,
@@ -27,7 +27,6 @@ import {
     articulos,
     articuloSucursales,
     usuarios,
-    puntosConfiguracion,
 } from '../db/schemas/schema';
 import type { ArticulosInput } from '../validations/onboarding.schema';
 import {
@@ -262,50 +261,11 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
         await autohabilitarCatalogoPorCiudad(negocioId);
 
         // ───────────────────────────────────────────────────────────────────
-        // NUEVO: Si participa_puntos = true, crear configuración inicial
+        // Configuración de puntos: se crea SIEMPRE, participe o no en CardYA.
+        // `activo` refleja la decisión del comerciante, así activar CardYA después
+        // desde Business Studio es un solo toggle y no depende de que exista la fila.
         // ───────────────────────────────────────────────────────────────────
-        if (negocio.participaPuntos) {
-            // Verificar si ya existe configuración (por si acaso)
-            const [configExistente] = await db
-                .select()
-                .from(puntosConfiguracion)
-                .where(eq(puntosConfiguracion.negocioId, negocioId))
-                .limit(1);
-
-            // Solo crear si NO existe
-            if (!configExistente) {
-                await db.insert(puntosConfiguracion).values({
-                    negocioId,
-                    puntosPorPeso: '1.0',
-                    pesosOriginales: null,
-                    puntosOriginales: null,
-                    minimoCompra: '0',                // Sin mínimo de compra
-                    diasExpiracionPuntos: 90,
-                    diasExpiracionVoucher: 30,
-                    validarHorario: true,             // Validar horario por default
-                    horarioInicio: '09:00:00',        // 9 AM
-                    horarioFin: '22:00:00',           // 10 PM
-                    activo: true,
-                    nivelesActivos: false,            // Nace desactivado; el comerciante decide activarlo
-                    // Nivel Bronce
-                    nivelBronceMin: 0,
-                    nivelBronceMax: 999,
-                    nivelBronceMultiplicador: '1.0',
-                    nivelBronceNombre: null,
-                    // Nivel Plata
-                    nivelPlataMin: 1000,
-                    nivelPlataMax: 4999,
-                    nivelPlataMultiplicador: '1.2',
-                    nivelPlataNombre: null,
-                    // Nivel Oro
-                    nivelOroMin: 5000,
-                    nivelOroMultiplicador: '1.5',
-                    nivelOroNombre: null,
-                });
-
-                console.log(`✅ Configuración de puntos creada automáticamente para negocio ${negocioId}`);
-            }
-        }
+        await asegurarConfiguracionPuntos(negocioId, negocio.participaPuntos);
 
         return {
             success: true,
@@ -430,7 +390,9 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
             paso4Completo: horariosData.length === 7,
             paso5Completo: Boolean(negocio.logoUrl),
             paso6Completo: metodosPago.length > 0,
-            paso7Completo: negocio.participaPuntos === true,
+            // Paso 7 es opcional: decir "no participo en CardYA" también es decidir.
+            // Siempre completo (igual que el front), no depende de la respuesta.
+            paso7Completo: true,
             paso8Completo: articulosData.length >= 3,
             onboardingCompletado: negocio.onboardingCompletado,
             negocio: {

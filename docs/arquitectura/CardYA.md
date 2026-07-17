@@ -708,6 +708,31 @@ Stock de recompensa +1
 
 ---
 
+## 🎛️ Negocios sin CardYA — el módulo colapsa a "Tarjeta de Sellos"
+
+`negocios.participa_puntos` decide si el negocio da puntos, **no** si usa el módulo.
+Un negocio con CardYA apagado sigue necesitando las tarjetas de sellos (que operan en
+ScanYA sin puntos, ver `docs/arquitectura/ScanYA.md`), y esas se crean/gestionan dentro
+de este mismo módulo. Por eso la sección **no se oculta**: se reduce.
+
+Con `participa_puntos = false` (variable `soloSellos` en `PaginaPuntos.tsx`):
+
+- **Menú de Business Studio:** el ítem "Puntos y Recompensas" pasa a llamarse
+  **"Tarjeta de Sellos"**. El label es dinámico en los cuatro contenedores de
+  navegación (`MenuBusinessStudio`, `DrawerBusinessStudio`, `HeaderBusinessStudioMovil`,
+  `FranjaBusinessStudio`) y en el indicador de módulo actual (`obtenerNombreModulo`).
+- **Página `/business-studio/puntos`:** título "Tarjeta de Sellos"; se ocultan la
+  configuración de puntos (pesos→puntos, expiración), el Sistema de Niveles, la tab bar
+  móvil (Config/Niveles) y el toggle "Por puntos / Por compras". Queda **solo** la
+  gestión de tarjetas de sellos; el botón "Nueva" abre el modal directo en
+  `compras_frecuentes`. Los KPIs de cabecera muestran los de sellos (Activas /
+  Desbloqueos / Popular) en vez de los de puntos.
+
+Al reactivar CardYA, todo reaparece sin pasos extra (la config ya existe — ver
+`asegurarConfiguracionPuntos()`).
+
+---
+
 ## 🎯 Recompensas N+1 (Compras Frecuentes / Tarjeta de Sellos)
 
 **Concepto:** Recompensas que se desbloquean después de N compras acumuladas. Ejemplo: "Después de 5 compras, la 6ª es gratis".

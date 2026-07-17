@@ -138,6 +138,7 @@ export default function PaginaPerfil() {
           <TabInformacion
             datosInformacion={hookPerfil.datosInformacion}
             setDatosInformacion={hookPerfil.setDatosInformacion}
+            onToggleCardYA={hookPerfil.cambiarParticipacionCardYA}
           />
         ),
       });

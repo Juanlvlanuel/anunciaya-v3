@@ -28,6 +28,7 @@ import {
     ofertas,
     empleados,
     puntosTransacciones,
+    puntosConfiguracion,
     transaccionesEvidencia,
     usuarios,
     recompensas,
@@ -987,8 +988,63 @@ export const actualizarMetodosPagoNegocio = async (
 // ============================================
 
 /**
+ * Garantiza que el negocio tenga su fila en `puntos_configuracion` y deja su
+ * campo `activo` en sincronía con `negocios.participa_puntos`.
+ *
+ * La fila existe SIEMPRE (participe o no en CardYA) para que activar el sistema
+ * de puntos sea un solo toggle: sin esto, un negocio que dijo "no" en el
+ * onboarding y luego cambia de opinión se queda sin configuración y ScanYA
+ * rechaza sus ventas con "el sistema de puntos no está configurado".
+ *
+ * Compartida por Onboarding y Business Studio — no duplicar los defaults.
+ *
+ * @param negocioId - UUID del negocio
+ * @param activo - Si el sistema de puntos queda activo (= participa_puntos)
+ */
+export const asegurarConfiguracionPuntos = async (
+    negocioId: string,
+    activo: boolean
+) => {
+    await db
+        .insert(puntosConfiguracion)
+        .values({
+            negocioId,
+            puntosPorPeso: '1.0',
+            pesosOriginales: null,
+            puntosOriginales: null,
+            minimoCompra: '0',                // Sin mínimo de compra
+            diasExpiracionPuntos: 90,
+            diasExpiracionVoucher: 30,
+            validarHorario: true,             // Validar horario por default
+            horarioInicio: '09:00:00',        // 9 AM
+            horarioFin: '22:00:00',           // 10 PM
+            activo,
+            nivelesActivos: false,            // Nace desactivado; el comerciante decide activarlo
+            // Nivel Bronce
+            nivelBronceMin: 0,
+            nivelBronceMax: 999,
+            nivelBronceMultiplicador: '1.0',
+            nivelBronceNombre: null,
+            // Nivel Plata
+            nivelPlataMin: 1000,
+            nivelPlataMax: 4999,
+            nivelPlataMultiplicador: '1.2',
+            nivelPlataNombre: null,
+            // Nivel Oro
+            nivelOroMin: 5000,
+            nivelOroMultiplicador: '1.5',
+            nivelOroNombre: null,
+        })
+        // Si ya existe, solo se sincroniza `activo` — el resto es del comerciante.
+        .onConflictDoUpdate({
+            target: puntosConfiguracion.negocioId,
+            set: { activo },
+        });
+};
+
+/**
  * Actualiza si el negocio participa en el sistema de puntos CardYA
- * 
+ *
  * @param negocioId - UUID del negocio
  * @param data - Datos de participación en puntos
  * @returns Objeto con success y mensaje
@@ -1005,6 +1061,10 @@ export const actualizarParticipacionPuntos = async (
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, negocioId));
+
+        // La configuración sigue al toggle: activarla aquí evita que ScanYA
+        // rechace las ventas por "sistema de puntos no configurado".
+        await asegurarConfiguracionPuntos(negocioId, data.participaPuntos);
 
         return { success: true, message: 'Participación en puntos actualizada' };
     } catch (error) {

@@ -413,11 +413,12 @@ export function usePerfil() {
           const datosAnteriores = { ...datosInformacion };
 
           try {
+            // participaCardYA NO va aquí: el toggle lo persiste al instante vía
+            // cambiarParticipacionCardYA (PATCH /participacion-puntos).
             await api.put(`/negocios/${negocioId}/informacion`, {
               nombre: datosInformacion.nombre,
               descripcion: datosInformacion.descripcion,
               subcategoriasIds: datosInformacion.subcategoriasIds,
-              participaCardYA: datosInformacion.participaCardYA,
               ...(datosInformacion.totalSucursales > 1 && {
                 nombreSucursal: datosInformacion.nombreSucursal,
                 sucursalId: sucursalActiva,
@@ -635,6 +636,43 @@ export function usePerfil() {
   };
 
   // =============================================================================
+  // TOGGLE CARDYA — persiste al instante (no espera al botón Guardar)
+  // =============================================================================
+  // CardYA es una acción atómica: al togglear debe quedar guardada de inmediato.
+  // Actualiza estado actual + inicial (para que no cuente como cambio pendiente
+  // ni se revierta al re-sincronizar desde React Query) y sincroniza el auth
+  // store, del que leen el menú y ScanYA. Optimista con reversión en error.
+  const cambiarParticipacionCardYA = useCallback(async (valor: boolean) => {
+    if (!negocioId) return;
+
+    const anterior = datosInformacion.participaCardYA;
+    if (anterior === valor) return;
+
+    // Optimista: UI y auth store al nuevo valor.
+    setDatosInformacion((prev) => ({ ...prev, participaCardYA: valor }));
+    setDatosInicialesInformacion((prev) => (prev ? { ...prev, participaCardYA: valor } : prev));
+    const usuarioActual = useAuthStore.getState().usuario;
+    if (usuarioActual) {
+      useAuthStore.getState().setUsuario({ ...usuarioActual, participaPuntos: valor });
+    }
+
+    try {
+      await api.patch(`/negocios/${negocioId}/participacion-puntos`, { participaPuntos: valor });
+      // Refrescar el perfil del servidor (aceptaCardya) sin bloquear la UI.
+      if (sucursalActiva) {
+        qc.invalidateQueries({ queryKey: queryKeys.perfil.sucursal(sucursalActiva) });
+      }
+    } catch {
+      // Revertir todo al valor previo.
+      setDatosInformacion((prev) => ({ ...prev, participaCardYA: anterior }));
+      setDatosInicialesInformacion((prev) => (prev ? { ...prev, participaCardYA: anterior } : prev));
+      const u = useAuthStore.getState().usuario;
+      if (u) useAuthStore.getState().setUsuario({ ...u, participaPuntos: anterior });
+      notificar.error('No se pudo actualizar CardYA. Intenta de nuevo.');
+    }
+  }, [negocioId, datosInformacion.participaCardYA, sucursalActiva, qc]);
+
+  // =============================================================================
   // RETURN
   // =============================================================================
 
@@ -674,6 +712,9 @@ export function usePerfil() {
     setDatosHorarios,
     setDatosOperacion,
     setDatosImagenes,
+
+    // Toggle CardYA — persiste solo, fuera del guardado del formulario
+    cambiarParticipacionCardYA,
 
     // Única acción de guardado
     guardarTodo,

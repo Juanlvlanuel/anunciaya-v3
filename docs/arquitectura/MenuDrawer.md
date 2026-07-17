@@ -109,7 +109,7 @@ Colores semánticos del círculo:
 | **Nombre** | 600 | **700** |
 | **Correo** | 400 (default) | **500** + `letter-spacing: -0.005em` |
 | **Label de filas** | 500 | **600** |
-| Hint "Activa CardYA" | 400 | 500 |
+| Hint bajo ScanYA bloqueado ("Completa tu registro primero") | 400 | 500 |
 | **Cerrar Sesión** | 600 | **700** + `letter-spacing: -0.005em` |
 | Inicial del avatar | 400 (Instrument Serif) | **700** (Inter Bold) + `letter-spacing: -0.02em` |
 
@@ -163,7 +163,7 @@ Todas las animaciones se cortan con `@media (prefers-reduced-motion: reduce)`.
 ### Otras adaptaciones
 
 - **Inyección de CSS al cargar el módulo** (no en `useEffect`) — evita FOUC en el primer paint. Las funciones `inyectarEstilosMenuDrawer()` / `inyectarEstilosDrawerDesktop()` se llaman a nivel de módulo. Si HMR re-evalúa el módulo, el `textContent` del `<style>` se refresca con el nuevo CSS.
-- **ScanYA bloqueado** (modo comercial sin `participaPuntos`): tile gris `#94A3B8`, imagen `/IconoScanYA.webp` en grayscale + opacity 0.7, glifo de candado superpuesto, hint "Activa CardYA" debajo del label. Comportamiento heredado del menú anterior, no del handoff.
+- **ScanYA bloqueado** (modo comercial con el onboarding sin terminar): tile gris `#94A3B8`, imagen `/IconoScanYA.webp` en grayscale + opacity 0.7, glifo de candado superpuesto, hint "Completa tu registro primero" debajo del label. Comportamiento heredado del menú anterior, no del handoff. **CardYA (`participaPuntos`) ya NO bloquea ScanYA** — también sirve para cupones y sellos (ver `docs/arquitectura/ScanYA.md`).
 - **Item "Ubicación"** se nombra dinámicamente con `ciudadData?.nombre || 'Tu Ubicación'` y abre `ModalUbicacion` (no navega). El handoff lo mostraba como "Puerto Peñasco" literal.
 - **Cambio de modo** reutiliza la lógica del store (`useAuthStore.cambiarModo`): redirección a `/inicio` si la ruta actual es exclusiva del modo viejo, validación `tieneModoComercial`, notificación de éxito/error vía `notificar`. El componente `ToggleModoUsuario` ya no se importa dentro de los drawers — los tabs son el único mecanismo de switch.
 
@@ -208,7 +208,7 @@ export const PALETAS_DRAWER: Record<ModoDrawer, PaletaDrawer> = {
 | Modo | Items (en orden) |
 |------|------------------|
 | Personal | Ubicación · CardYA · Mis Cupones · Mis Publicaciones · Mis Guardados · Mi Perfil |
-| Comercial | Ubicación · ScanYA (con candado si `!participaPuntos`) · Business Studio · Mis Guardados · Mi Perfil |
+| Comercial | Ubicación · ScanYA (con candado si el onboarding no está completo) · Business Studio · Mis Guardados · Mi Perfil |
 
 ### Desktop
 

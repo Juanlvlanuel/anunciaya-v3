@@ -53,6 +53,17 @@ export function estaFueraDeCirculacion(n: CamposCirculacionNegocio): boolean {
 /** Mensaje genérico para ScanYA (no distingue motivo). */
 export const MENSAJE_SCANYA_FUERA = 'Tu negocio está temporalmente fuera de servicio.';
 
+/**
+ * Mensaje de bloqueo de ScanYA. Un negocio en alta anticipada (promo_pendiente)
+ * está `activo=false` a propósito: todavía no abre, así que no debe operar caja
+ * — pero no está suspendido y decírselo así lo alarma sin motivo.
+ */
+export function mensajeScanyaBloqueado(promoPendiente?: boolean | null): string {
+    return promoPendiente
+        ? 'Tu negocio aún no ha sido activado. ScanYA estará disponible cuando abras al público.'
+        : MENSAJE_SCANYA_FUERA;
+}
+
 /** Mensaje para el cliente en CardYA, según el motivo de salida. */
 export function mensajeNegocioNoDisponible(estado: EstadoCirculacion): string {
     return estado === 'cancelado'

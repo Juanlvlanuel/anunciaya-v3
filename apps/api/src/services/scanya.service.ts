@@ -54,7 +54,7 @@ import {
     obtenerAvisoTurnoAutoCerrado,
     type AvisoTurnoAutoCerrado,
 } from './scanya-cierre-auto.service.js';
-import { MENSAJE_SCANYA_FUERA } from '../utils/estadoNegocio.js';
+import { mensajeScanyaBloqueado } from '../utils/estadoNegocio.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -227,9 +227,9 @@ export async function loginDueno(
                     nombre: negocios.nombre,
                     logoUrl: negocios.logoUrl,
                     onboardingCompletado: negocios.onboardingCompletado,
-                    participaPuntos: negocios.participaPuntos,
                     usuarioId: negocios.usuarioId,
                     activo: negocios.activo,
+                    promoPendiente: negocios.promoPendiente,
                 })
                 .from(negocios)
                 .where(eq(negocios.id, usuario.negocioId!))
@@ -251,19 +251,13 @@ export async function loginDueno(
                 };
             }
 
-            // Verificar que el negocio tenga CardYA activo
-            if (!negocioEncontrado.participaPuntos) {
-                return {
-                    success: false,
-                    message: 'El sistema de puntos (CardYA) no está activo para este negocio. Actívalo en Business Studio → Mi Perfil.',
-                    code: 403,
-                };
-            }
+            // CardYA (participa_puntos) NO gatea la entrada: ScanYA también sirve para
+            // validar cupones y sellar tarjetas. El gate de puntos vive en otorgarPuntos().
 
             // Candado de circulación: un negocio fuera de circulación (activo=false)
             // no puede entrar a ScanYA. Cubre dueño y gerente (ambos entran por aquí).
             if (negocioEncontrado.activo === false) {
-                return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
+                return { success: false, message: mensajeScanyaBloqueado(negocioEncontrado.promoPendiente), code: 403 };
             }
 
             negocio = negocioEncontrado;
@@ -677,9 +671,9 @@ export async function loginEmpleado(
                 id: negocios.id,
                 nombre: negocios.nombre,
                 logoUrl: negocios.logoUrl,
-                participaPuntos: negocios.participaPuntos,
                 usuarioId: negocios.usuarioId,
                 activo: negocios.activo,
+                promoPendiente: negocios.promoPendiente,
             })
             .from(negocios)
             .where(eq(negocios.id, sucursal.negocioId))
@@ -703,18 +697,12 @@ export async function loginEmpleado(
             }
         }
 
-        // Verificar que el negocio tenga CardYA activo
-        if (!negocio.participaPuntos) {
-            return {
-                success: false,
-                message: 'El sistema de puntos (CardYA) no está activo para este negocio',
-                code: 403,
-            };
-        }
+        // CardYA (participa_puntos) NO gatea la entrada del empleado: ScanYA también
+        // sirve para validar cupones y sellar tarjetas.
 
         // Candado de circulación: negocio fuera (activo=false) no puede entrar a ScanYA.
         if (negocio.activo === false) {
-            return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
+            return { success: false, message: mensajeScanyaBloqueado(negocio.promoPendiente), code: 403 };
         }
 
         // -------------------------------------------------------------------------
@@ -978,7 +966,7 @@ export async function refrescarTokenScanYA(
 
         // Verificar que el negocio aún exista
         const [negocio] = await db
-            .select({ id: negocios.id, nombre: negocios.nombre, activo: negocios.activo })
+            .select({ id: negocios.id, nombre: negocios.nombre, activo: negocios.activo, promoPendiente: negocios.promoPendiente })
             .from(negocios)
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
@@ -994,7 +982,7 @@ export async function refrescarTokenScanYA(
         // Candado de circulación: corta sesiones vivas. Si el negocio cayó fuera
         // (activo=false) después de iniciar sesión, el siguiente refresh lo expulsa.
         if (negocio.activo === false) {
-            return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
+            return { success: false, message: mensajeScanyaBloqueado(negocio.promoPendiente), code: 403 };
         }
 
         // Si es empleado, verificar que aún esté activo
@@ -1986,26 +1974,22 @@ export async function otorgarPuntos(
         }
 
         // -------------------------------------------------------------------------
-        // Paso 1.5: Verificar que el negocio tenga CardYA activo
+        // Paso 1.5: Resolver si esta venta otorga puntos
         // -------------------------------------------------------------------------
         const [negocioCheck] = await db
-            .select({ participaPuntos: negocios.participaPuntos, activo: negocios.activo })
+            .select({ participaPuntos: negocios.participaPuntos, activo: negocios.activo, promoPendiente: negocios.promoPendiente })
             .from(negocios)
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
 
-        if (!negocioCheck?.participaPuntos) {
-            return {
-                success: false,
-                message: 'El sistema de puntos (CardYA) no está activo para este negocio',
-                code: 403,
-            };
-        }
+        // Único gate de CardYA: sin participa_puntos la venta se registra igual
+        // (cupón y tarjeta de sellos incluidos), pero con 0 puntos y sin tocar saldo.
+        const otorgaPuntos = negocioCheck?.participaPuntos === true;
 
         // Candado de circulación (barrera dura): aunque la sesión de ScanYA siga
-        // viva, un negocio fuera de circulación (activo=false) NO otorga puntos.
-        if (negocioCheck.activo === false) {
-            return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
+        // viva, un negocio fuera de circulación (activo=false) NO registra ventas.
+        if (negocioCheck?.activo === false) {
+            return { success: false, message: mensajeScanyaBloqueado(negocioCheck.promoPendiente), code: 403 };
         }
 
         // -------------------------------------------------------------------------
@@ -2031,11 +2015,11 @@ export async function otorgarPuntos(
             };
         }
 
-        // Una cuenta dada de baja (inactiva) o suspendida no puede acumular puntos.
+        // Una cuenta dada de baja (inactiva) o suspendida no puede registrar compras.
         if (cliente.estado !== 'activo') {
             return {
                 success: false,
-                message: 'La cuenta de este cliente no está activa; no puede acumular puntos.',
+                message: 'La cuenta de este cliente no está activa; no puede registrar compras.',
                 code: 403,
             };
         }
@@ -2049,7 +2033,9 @@ export async function otorgarPuntos(
             .where(eq(puntosConfiguracion.negocioId, payload.negocioId))
             .limit(1);
 
-        if (!config || !config.activo) {
+        // La configuración solo se exige cuando el negocio otorga puntos. Un negocio
+        // que solo usa cupones y sellos no necesita tenerla activa.
+        if (otorgaPuntos && (!config || !config.activo)) {
             return {
                 success: false,
                 message: 'El sistema de puntos no está configurado para este negocio',
@@ -2058,10 +2044,10 @@ export async function otorgarPuntos(
         }
 
         // -------------------------------------------------------------------------
-        // Paso 4: Verificar mÃ­nimo de compra
+        // Paso 4: Verificar mÃ­nimo de compra (solo aplica al otorgar puntos)
         // -------------------------------------------------------------------------
-        const minimoCompra = config.minimoCompra ? parseFloat(config.minimoCompra) : 0;
-        if (datos.montoTotal < minimoCompra && !datos.cuponId) {
+        const minimoCompra = config?.minimoCompra ? parseFloat(config.minimoCompra) : 0;
+        if (otorgaPuntos && datos.montoTotal < minimoCompra && !datos.cuponId) {
             return {
                 success: false,
                 message: `El monto mínimo para otorgar puntos es $${minimoCompra}`,
@@ -2215,7 +2201,7 @@ export async function otorgarPuntos(
         const nivelActual = billetera.nivelActual || 'bronce';
         let multiplicador = 1.0;
 
-        if (config.nivelesActivos) {
+        if (otorgaPuntos && config?.nivelesActivos) {
             switch (nivelActual) {
                 case 'bronce':
                     multiplicador = config.nivelBronceMultiplicador
@@ -2238,9 +2224,9 @@ export async function otorgarPuntos(
         // -------------------------------------------------------------------------
         // Paso 9: Calcular puntos
         // -------------------------------------------------------------------------
-        const puntosPorPeso = config.puntosPorPeso ? parseFloat(config.puntosPorPeso) : 1.0;
+        const puntosPorPeso = config?.puntosPorPeso ? parseFloat(config.puntosPorPeso) : 1.0;
         const puntosBase = montoFinal * puntosPorPeso;
-        const puntosFinales = Math.floor(puntosBase * multiplicador);
+        const puntosFinales = otorgaPuntos ? Math.floor(puntosBase * multiplicador) : 0;
 
         // -------------------------------------------------------------------------
         // Paso 10-14: Todas las escrituras en una transacción atómica
@@ -2252,7 +2238,7 @@ export async function otorgarPuntos(
         let nuevoNivel = nivelActual;
         let subioDeNivel = false;
 
-        if (config.nivelesActivos) {
+        if (otorgaPuntos && config?.nivelesActivos) {
             const nivelPlataMin = config.nivelPlataMin ?? 1000;
             const nivelOroMin = config.nivelOroMin ?? 5000;
 
@@ -2433,7 +2419,9 @@ export async function otorgarPuntos(
                     : `Compra Registrada: $${montoFinal.toFixed(2)}`,
             mensaje: esCuponGratis
                 ? `Usaste tu cupón con éxito\n${negocioInfo?.nombre ?? 'un negocio'}`
-                : `+${puntosFinales} puntos Ganados\n${negocioInfo?.nombre ?? 'un negocio'}`,
+                : otorgaPuntos
+                    ? `+${puntosFinales} puntos Ganados\n${negocioInfo?.nombre ?? 'un negocio'}`
+                    : `${negocioInfo?.nombre ?? 'un negocio'}`,
             negocioId: payload.negocioId,
             sucursalId: payload.sucursalId,
             referenciaId: resultado.transaccionId,
@@ -2465,8 +2453,12 @@ export async function otorgarPuntos(
                 mensaje: esCuponGratis
                     ? cuponUsadoInfo?.codigo || 'Cupón'
                     : esVentaConCupon
-                        ? `${cuponUsadoInfo?.codigo || 'Cupón'} • ${puntosFinales} pts`
-                        : `Ganó ${puntosFinales} puntos`,
+                        ? otorgaPuntos
+                            ? `${cuponUsadoInfo?.codigo || 'Cupón'} • ${puntosFinales} pts`
+                            : `${cuponUsadoInfo?.codigo || 'Cupón'}`
+                        : otorgaPuntos
+                            ? `Ganó ${puntosFinales} puntos`
+                            : 'Compra registrada',
                 negocioId: payload.negocioId,
                 sucursalId: payload.sucursalId,
                 referenciaId: resultado.transaccionId,
@@ -2537,9 +2529,11 @@ export async function otorgarPuntos(
             success: true,
             message: esCuponGratis
                 ? 'Cupón canjeado exitosamente'
-                : subioDeNivel
-                    ? `¡${puntosFinales} puntos otorgados! El cliente subió a nivel ${nuevoNivel}`
-                    : `${puntosFinales} puntos otorgados`,
+                : !otorgaPuntos
+                    ? 'Venta registrada'
+                    : subioDeNivel
+                        ? `¡${puntosFinales} puntos otorgados! El cliente subió a nivel ${nuevoNivel}`
+                        : `${puntosFinales} puntos otorgados`,
             data: {
                 transaccion: {
                     id: resultado.transaccionId,
@@ -4171,6 +4165,9 @@ export async function obtenerConfigScanYA(
     // Config ScanYA (operación PWA)
     fotoTicket: string;
     requiereNumeroOrden: boolean;
+    // Si el negocio participa en CardYA. En false, ScanYA opera sin puntos
+    // (solo cupones y tarjetas de sellos) y oculta todo lo relativo a puntos.
+    participaPuntos: boolean;
     // Config Puntos (cálculo de puntos)
     puntosPorPeso: number;
     minimoCompra: number;
@@ -4210,6 +4207,14 @@ export async function obtenerConfigScanYA(
             .where(eq(puntosConfiguracion.negocioId, payload.negocioId))
             .limit(1);
 
+        // La verdad de CardYA vive en negocios.participa_puntos (mismo campo que
+        // usa otorgarPuntos), no en puntos_configuracion.activo.
+        const [negocioConfig] = await db
+            .select({ participaPuntos: negocios.participaPuntos })
+            .from(negocios)
+            .where(eq(negocios.id, payload.negocioId))
+            .limit(1);
+
         // -------------------------------------------------------------------------
         // Paso 3: Construir respuesta con valores por defecto si no existen
         // -------------------------------------------------------------------------
@@ -4220,6 +4225,7 @@ export async function obtenerConfigScanYA(
                 // Config ScanYA
                 fotoTicket: configScanYA?.fotoTicket || 'opcional',
                 requiereNumeroOrden: configScanYA?.requiereNumeroOrden || false,
+                participaPuntos: negocioConfig?.participaPuntos ?? false,
                 // Config Puntos
                 puntosPorPeso: configPuntos?.puntosPorPeso ? parseFloat(configPuntos.puntosPorPeso) : 0.1,
                 minimoCompra: configPuntos?.minimoCompra ? parseFloat(configPuntos.minimoCompra) : 0,

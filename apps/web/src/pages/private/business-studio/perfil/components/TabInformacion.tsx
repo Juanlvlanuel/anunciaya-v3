@@ -21,6 +21,7 @@ import type { DatosInformacion } from '../hooks/usePerfil';
 interface TabInformacionProps {
   datosInformacion: DatosInformacion;
   setDatosInformacion: (datos: DatosInformacion) => void;
+  onToggleCardYA: (valor: boolean) => void;
 }
 
 const ESTILO_INPUT = { border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' } as const;
@@ -164,6 +165,7 @@ function SelectorSubcategoria({ subcategorias, seleccionados, onToggle, deshabil
 export default function TabInformacion({
   datosInformacion,
   setDatosInformacion,
+  onToggleCardYA,
 }: TabInformacionProps) {
 
   const { data: categorias = [] } = usePerfilCategorias();
@@ -335,7 +337,7 @@ export default function TabInformacion({
 
       <CardYA
         participaCardYA={datosInformacion.participaCardYA}
-        onToggle={(valor) => setDatosInformacion({ ...datosInformacion, participaCardYA: valor })}
+        onToggle={onToggleCardYA}
       />
 
     </div>

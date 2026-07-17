@@ -389,6 +389,12 @@ export default function PaginaPuntos() {
   const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
   const esGerente      = !!usuario?.sucursalAsignada; // Gerente tiene sucursalAsignada, dueño tiene null
 
+  // Sin CardYA (participa_puntos) el módulo colapsa a "Tarjeta de Sellos":
+  // se oculta toda la configuración de puntos, niveles y las recompensas por
+  // puntos; queda solo la creación/gestión de tarjetas de sellos (que sí operan
+  // en ScanYA sin puntos). Ver docs/arquitectura/ScanYA.md.
+  const soloSellos = !(usuario?.participaPuntos ?? false);
+
   // Reset período al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
   useEffect(() => {
     limpiarPuntos();
@@ -397,8 +403,9 @@ export default function PaginaPuntos() {
   const { setGuardarBsFn, setGuardandoBs, setBsPuedeGuardar } = useUiStore();
 
   // ─── Estado: Tab mobile ────────────────────────────────────────────────
-  const [tabActiva, setTabActiva] = useState<TabPuntos>('configuracion');
-  const [tabDesktop, setTabDesktop] = useState<'puntos' | 'recompensas'>('puntos');
+  // soloSellos arranca directo en la vista de recompensas (sin config ni niveles).
+  const [tabActiva, setTabActiva] = useState<TabPuntos>(soloSellos ? 'recompensas' : 'configuracion');
+  const [tabDesktop, setTabDesktop] = useState<'puntos' | 'recompensas'>(soloSellos ? 'recompensas' : 'puntos');
 
   // ─── Estado: Configuración ────────────────────────────────────────────
   // Inicializar con valores del store si existen (evita "salto" visual)
@@ -454,8 +461,9 @@ export default function PaginaPuntos() {
   const [modalAbierto, setModalAbierto]             = useState(false);
   const [modalKey, setModalKey]                     = useState(0);
   const [recompensaEditando, setRecompensaEditando] = useState<Recompensa | null>(null);
-  const [tipoRecompensaFiltro, setTipoRecompensaFiltro] = useState<'basica' | 'compras_frecuentes'>('basica');
-  const [contextoRecompensas, setContextoRecompensas] = useState(false);
+  // soloSellos fija el tipo en tarjetas de sellos y el contexto de recompensas.
+  const [tipoRecompensaFiltro, setTipoRecompensaFiltro] = useState<'basica' | 'compras_frecuentes'>(soloSellos ? 'compras_frecuentes' : 'basica');
+  const [contextoRecompensas, setContextoRecompensas] = useState(soloSellos);
   const [popupSellosVisible, setPopupSellosVisible] = useState(false);
   // El popup de sellos (móvil, fixed inset-0) debe cerrarse con el back nativo
   // en vez de sacar del módulo.
@@ -758,13 +766,15 @@ export default function PaginaPuntos() {
 
   useEffect(() => {
     if (esGerente) return;
+    // En soloSellos la config de puntos no se muestra → nunca hay guardado que registrar.
+    if (soloSellos) { setGuardarBsFn(null); return; }
     if (hayCambiosPuntos) {
       setGuardarBsFn(() => guardarRef.current());
     } else {
       setGuardarBsFn(null);
     }
     return () => setGuardarBsFn(null);
-  }, [hayCambiosPuntos]);
+  }, [hayCambiosPuntos, soloSellos]);
 
   useEffect(() => {
     if (esGerente) return;
@@ -972,8 +982,10 @@ export default function PaginaPuntos() {
   /** Sección: Recompensas */
   const seccionRecompensas = (
     <div className="space-y-3">
-      {/* Móvil: Toggle + Botón Nueva */}
+      {/* Móvil: Toggle + Botón Nueva. En soloSellos se oculta el toggle
+          (solo hay sellos) y el botón Nueva ocupa el ancho. */}
       <div className="lg:hidden flex gap-2">
+        {!soloSellos && (
         <div className="flex flex-1 bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5">
           <button
             onClick={() => { setTipoRecompensaFiltro('basica'); setContextoRecompensas(true); }}
@@ -996,16 +1008,18 @@ export default function PaginaPuntos() {
             Por compras
           </button>
         </div>
+        )}
         {!esGerente && (
           <button
             onClick={handleCrear}
-            className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl text-white cursor-pointer"
+            className={`${soloSellos ? 'flex-1 gap-1.5 font-semibold text-sm' : 'w-11 shrink-0'} h-11 flex items-center justify-center rounded-xl text-white cursor-pointer`}
             style={{
               background: 'linear-gradient(135deg, #1e293b, #334155)',
               boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
             }}
           >
             <Plus className="w-5 h-5" />
+            {soloSellos && 'Nueva tarjeta de sellos'}
           </button>
         )}
       </div>
@@ -1036,8 +1050,8 @@ export default function PaginaPuntos() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Toggle Por puntos / Por compras */}
-            <div className="flex bg-white/10 rounded-lg border-2 border-white/20 h-8 2xl:h-9">
+            {/* Toggle Por puntos / Por compras — oculto en soloSellos */}
+            <div className={`${soloSellos ? 'hidden' : 'flex'} bg-white/10 rounded-lg border-2 border-white/20 h-8 2xl:h-9`}>
               <Tooltip text="Por puntos" position="bottom">
                 <button
                   data-testid="toggle-recompensa-basica"
@@ -1276,18 +1290,21 @@ export default function PaginaPuntos() {
             </div>
             <div>
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {contextoRecompensas || tabActiva === 'recompensas' ? 'Recompensas' : 'Sistema de Puntos'}
+                {soloSellos ? 'Tarjeta de Sellos' : (contextoRecompensas || tabActiva === 'recompensas' ? 'Recompensas' : 'Sistema de Puntos')}
               </h1>
               <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
-                {contextoRecompensas || tabActiva === 'recompensas'
-                  ? tipoRecompensaFiltro === 'compras_frecuentes' ? 'Tarjeta de Sellos Digitales' : 'Canje por puntos acumulados'
-                  : 'Configuración y Niveles'}
+                {soloSellos
+                  ? 'Recompensa por compras frecuentes'
+                  : contextoRecompensas || tabActiva === 'recompensas'
+                    ? tipoRecompensaFiltro === 'compras_frecuentes' ? 'Tarjeta de Sellos Digitales' : 'Canje por puntos acumulados'
+                    : 'Configuración y Niveles'}
               </p>
             </div>
           </div>
 
-          {/* Toggle Puntos/Recompensas — Desktop, icon-only con tooltip */}
-          <div className="hidden lg:flex items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0">
+          {/* Toggle Puntos/Recompensas — Desktop, icon-only con tooltip.
+              Oculto en soloSellos: no hay "puntos" a los que alternar. */}
+          <div className={`${soloSellos ? 'hidden' : 'hidden lg:flex'} items-center bg-slate-200 rounded-lg p-0.5 border-2 border-slate-300 shrink-0`}>
             <Tooltip text="Configuración de puntos" position="bottom">
               <button
                 onClick={() => { setTabDesktop('puntos'); setContextoRecompensas(false); }}
@@ -1358,8 +1375,8 @@ export default function PaginaPuntos() {
             MOBILE: 3 Tabs → solo se muestra la sección activa
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="lg:hidden mt-2">
-          {/* Tab bar */}
-          <div className="flex items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 shadow-md mb-3">
+          {/* Tab bar — oculta en soloSellos: solo existe la vista de recompensas */}
+          <div className={`${soloSellos ? 'hidden' : 'flex'} items-center bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 shadow-md mb-3`}>
             {TABS_CONFIG.map(({ id, label, Icono }) => (
               <button
                 key={id}

@@ -558,8 +558,12 @@ export function ModalRegistrarVenta({
     // ---------------------------------------------------------------------------
     // Calcular puntos (preview aproximado - el backend calcula el valor real)
     // ---------------------------------------------------------------------------
+    // Un negocio sin CardYA usa ScanYA solo para cupones y tarjetas de sellos:
+    // la venta se registra igual, pero no hay puntos que mostrar ni otorgar.
+    const participaPuntos = config?.participaPuntos ?? false;
+
     const calcularPuntos = (): number => {
-        if (!cliente || !config) return 0;
+        if (!cliente || !config || !participaPuntos) return 0;
 
         const montoNum = parseFloat(monto) || 0;
 
@@ -862,7 +866,7 @@ export function ModalRegistrarVenta({
                             return (
                                 <>
                                     <h2 className="text-white text-2xl lg:text-xl 2xl:text-2xl font-bold mb-2 lg:mb-1.5 2xl:mb-2">
-                                        {esCuponGratis ? '¡Cupón canjeado!' : esVentaConCupon ? '¡Venta con cupón registrada!' : '¡Puntos otorgados!'}
+                                        {esCuponGratis ? '¡Cupón canjeado!' : esVentaConCupon ? '¡Venta con cupón registrada!' : participaPuntos ? '¡Puntos otorgados!' : '¡Venta registrada!'}
                                     </h2>
 
                                     {esCuponGratis ? (
@@ -870,12 +874,12 @@ export function ModalRegistrarVenta({
                                             <p className="text-[#60A5FA] text-lg lg:text-base 2xl:text-lg font-bold mb-1">{cupon?.titulo}</p>
                                             <p className="text-[#94A3B8] text-sm lg:text-[11px] 2xl:text-sm font-medium">Entrega el producto al cliente</p>
                                         </div>
-                                    ) : (
+                                    ) : participaPuntos ? (
                                         <div className="flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2 mb-4">
                                             <Coins className="w-8 h-8 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#F59E0B]" />
                                             <span className="text-[#F59E0B] text-4xl lg:text-3xl 2xl:text-4xl font-bold">+{resultadoPuntos}</span>
                                         </div>
-                                    )}
+                                    ) : null}
 
                                     {resultadoSellos && (
                                         <div data-testid="resultado-sellos" className="mb-6 px-4 py-3 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3 rounded-xl border border-[#334155] bg-[#1E293B]/60">
@@ -1184,7 +1188,7 @@ export function ModalRegistrarVenta({
                                                     </div>
                                                     <div className="flex-1">
                                                         <p className="text-white font-medium">{cliente.nombre}</p>
-                                                        {!cliente.esNuevo && (
+                                                        {!cliente.esNuevo && participaPuntos && (
                                                             <div className="flex items-center gap-3 text-sm lg:text-xs 2xl:text-sm">
                                                                 {config?.nivelesActivos && (
                                                                     <span
@@ -1199,7 +1203,7 @@ export function ModalRegistrarVenta({
                                                                 </span>
                                                             </div>
                                                         )}
-                                                        {cliente.esNuevo && (
+                                                        {cliente.esNuevo && participaPuntos && (
                                                             <p className="text-[#3B82F6] text-xs">{config?.nivelesActivos ? 'Iniciará en Bronce x1.0' : 'Cliente nuevo'}</p>
                                                         )}
                                                     </div>
@@ -1956,13 +1960,15 @@ export function ModalRegistrarVenta({
                                 </div>
                             )}
                             {/* Puntos */}
-                            <div className="flex items-center justify-between">
-                                <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">Puntos a otorgar:</span>
-                                <div className="flex items-center gap-1">
-                                    <Coins className="w-5 h-5 text-[#F59E0B]" />
-                                    <span className="text-[#F59E0B] text-xl font-bold">+{calcularPuntos()}</span>
+                            {participaPuntos && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">Puntos a otorgar:</span>
+                                    <div className="flex items-center gap-1">
+                                        <Coins className="w-5 h-5 text-[#F59E0B]" />
+                                        <span className="text-[#F59E0B] text-xl font-bold">+{calcularPuntos()}</span>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
 
