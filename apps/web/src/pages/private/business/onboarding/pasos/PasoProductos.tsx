@@ -42,6 +42,7 @@ interface Articulo {
     descripcion: string;
     categoria?: string;
     precioBase: number;
+    precioDesde?: boolean;
     imagenPrincipal: string;
     disponible: boolean;
 }
@@ -96,6 +97,7 @@ export function PasoProductos() {
                         nombre: art.nombre as string,
                         descripcion: art.descripcion as string,
                         precioBase: parseFloat(String(art.precioBase)),
+                        precioDesde: (art.precioDesde as boolean) ?? false,
                         imagenPrincipal: art.imagenPrincipal as string,
                         disponible: (art.disponible as boolean) ?? true,
                     }));
@@ -190,6 +192,7 @@ export function PasoProductos() {
                         descripcion: (datos as CrearArticuloInput).descripcion || a.descripcion,
                         categoria: (datos as CrearArticuloInput).categoria || a.categoria,
                         precioBase: (datos as CrearArticuloInput).precioBase ?? a.precioBase,
+                        precioDesde: (datos as CrearArticuloInput).precioDesde ?? a.precioDesde,
                         imagenPrincipal: (datos as CrearArticuloInput).imagenPrincipal ?? a.imagenPrincipal,
                         tipo: (datos as CrearArticuloInput).tipo || a.tipo,
                         disponible: (datos as CrearArticuloInput).disponible ?? a.disponible,
@@ -208,6 +211,7 @@ export function PasoProductos() {
                 descripcion: crear.descripcion || '',
                 categoria: crear.categoria || '',
                 precioBase: crear.precioBase,
+                precioDesde: crear.precioDesde ?? false,
                 imagenPrincipal: crear.imagenPrincipal || '',
                 disponible: crear.disponible ?? true,
             };
@@ -267,6 +271,7 @@ export function PasoProductos() {
             nombre: `${original.nombre} (copia)`,
             descripcion: original.descripcion,
             precioBase: original.precioBase,
+            precioDesde: original.precioDesde,
             imagenPrincipal: original.imagenPrincipal,
             disponible: original.disponible,
         };
@@ -457,7 +462,7 @@ export function PasoProductos() {
                         descripcion: articuloEditar.descripcion,
                         categoria: articuloEditar.categoria || '',
                         precioBase: String(articuloEditar.precioBase),
-                        precioDesde: false,
+                        precioDesde: articuloEditar.precioDesde ?? false,
                         imagenPrincipal: articuloEditar.imagenPrincipal,
                         disponible: articuloEditar.disponible,
                         destacado: false,

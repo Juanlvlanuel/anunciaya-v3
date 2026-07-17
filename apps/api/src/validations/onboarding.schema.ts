@@ -279,6 +279,7 @@ const articuloSchema = z.object({
     .number()
     .positive('El precio debe ser mayor a 0')
     .max(999999.99, 'El precio es demasiado alto'),
+  precioDesde: z.boolean().default(false),
   // Acepta URL, cadena vacía o null/undefined (mismo motivo que descripción).
   imagenPrincipal: z.string().nullish(),
   disponible: z.boolean().default(true),
