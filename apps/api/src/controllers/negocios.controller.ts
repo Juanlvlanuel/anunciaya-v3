@@ -14,6 +14,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { horariosSchema } from '../validations/onboarding.schema';
 import {
     listarSucursalesCercanas,
     obtenerPerfilSucursal,
@@ -763,22 +764,21 @@ export async function actualizarHorariosController(req: Request, res: Response) 
             });
         }
 
-        // Validaciones
-        if (!horarios || !Array.isArray(horarios)) {
+        // Se valida con el MISMO schema que el onboarding: las dos rutas
+        // escriben `negocio_horarios`, así que deben exigir lo mismo. El schema
+        // además normaliza las horas a "HH:MM" (Business Studio las reenvía con
+        // segundos, tal como las devuelve el GET).
+        const validacion = horariosSchema.safeParse({ horarios });
+
+        if (!validacion.success) {
             return res.status(400).json({
                 success: false,
-                message: 'Horarios debe ser un array',
+                message: 'Horarios inválidos',
+                errors: validacion.error.issues,
             });
         }
 
-        if (horarios.length !== 7) {
-            return res.status(400).json({
-                success: false,
-                message: 'Debes proporcionar horarios para los 7 días',
-            });
-        }
-
-        await actualizarHorariosSucursal(sucursalId, { horarios });
+        await actualizarHorariosSucursal(sucursalId, validacion.data);
 
         res.status(200).json({
             success: true,

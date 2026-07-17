@@ -30,6 +30,7 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import type { DatosHorarios, HorarioDia } from '../hooks/usePerfil';
 import { notificar } from '@/utils/notificaciones';
+import { validarHorarioDia, cruzaMedianoche, formatearHora12 } from '@/utils/horarios';
 
 interface TabHorariosProps {
     datosHorarios: DatosHorarios;
@@ -57,36 +58,6 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
 
     const visualADiaSemana = (indiceVisual: number): number => (indiceVisual + 1) % 7;
     const formatearHora = (hora: string | null): string => hora ? hora.substring(0, 5) : '09:00';
-
-    const validarHorarioDia = (horario: HorarioDia): string | null => {
-        if (!horario.abierto) return null;
-
-        if (!horario.horaApertura || !horario.horaCierre) {
-            return 'Falta hora de apertura o cierre';
-        }
-
-        const apertura = horario.horaApertura.substring(0, 5);
-        const cierre = horario.horaCierre.substring(0, 5);
-
-        if (cierre <= apertura) {
-            return 'La hora de cierre debe ser mayor que la de apertura';
-        }
-
-        if (horario.tieneHorarioComida && horario.comidaInicio && horario.comidaFin) {
-            const comidaInicio = horario.comidaInicio.substring(0, 5);
-            const comidaFin = horario.comidaFin.substring(0, 5);
-
-            if (comidaFin <= comidaInicio) {
-                return 'El fin de comida debe ser mayor que el inicio';
-            }
-
-            if (comidaInicio < apertura || comidaFin > cierre) {
-                return 'El horario de comida debe estar dentro del horario de operación';
-            }
-        }
-
-        return null;
-    };
 
     const actualizarHorarioDia = (indiceVisual: number, cambios: Partial<HorarioDia>) => {
         const diaBD = visualADiaSemana(indiceVisual);
@@ -139,6 +110,11 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
     };
 
     const errorValidacion = validarHorarioDia(horarioDia);
+
+    // Turno nocturno: el negocio cierra de madrugada del día siguiente.
+    const turnoNocturno = horarioDia.abierto && !errorValidacion &&
+        !!horarioDia.horaApertura && !!horarioDia.horaCierre &&
+        cruzaMedianoche(horarioDia.horaApertura, horarioDia.horaCierre);
 
     const handleToggleComida = (activar: boolean) => {
         actualizarHorarioDia(diaSeleccionado, { tieneHorarioComida: activar });
@@ -407,6 +383,15 @@ export default function TabHorarios({ datosHorarios, setDatosHorarios }: TabHora
                                     <p className="text-red-700 font-bold text-sm lg:text-xs 2xl:text-sm">Horario inválido</p>
                                     <p className="text-red-600 text-sm lg:text-xs 2xl:text-sm font-medium">{errorValidacion}</p>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Turno que cierra de madrugada */}
+                        {turnoNocturno && (
+                            <div className="bg-indigo-100 border-2 border-indigo-300 rounded-xl p-3">
+                                <p className="text-indigo-700 text-sm lg:text-xs 2xl:text-sm font-medium">
+                                    Cierras de madrugada: abres a las {formatearHora12(horarioDia.horaApertura!)} y cierras a las {formatearHora12(horarioDia.horaCierre!)} del día siguiente.
+                                </p>
                             </div>
                         )}
 

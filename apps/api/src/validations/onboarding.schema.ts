@@ -126,30 +126,31 @@ export const contactoSchema = z
 // PASO 4: HORARIOS
 // ============================================
 
+/**
+ * Hora del día. Se aceptan "HH:MM" y "HH:MM:SS" porque las dos rutas que
+ * escriben `negocio_horarios` mandan formatos distintos: el onboarding trabaja
+ * en "HH:MM", mientras que Business Studio reenvía lo que leyó del GET, que
+ * Postgres devuelve siempre con segundos. Se normaliza a "HH:MM" para que en la
+ * tabla quede un único formato venga de donde venga.
+ */
+const horaDelDia = z
+  .string()
+  .regex(
+    /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/,
+    'Formato de hora inválido (HH:MM)'
+  )
+  .transform((hora) => hora.substring(0, 5))
+  .optional()
+  .nullable();
+
 const horarioSchema = z.object({
   diaSemana: z.number().int().min(0).max(6),
   abierto: z.boolean(),
-  horaApertura: z
-    .string()
-    .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-    .optional()
-    .nullable(),
-  horaCierre: z
-    .string()
-    .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-    .optional()
-    .nullable(),
+  horaApertura: horaDelDia,
+  horaCierre: horaDelDia,
   tieneHorarioComida: z.boolean().default(false),
-  comidaInicio: z
-    .string()
-    .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-    .optional()
-    .nullable(),
-  comidaFin: z
-    .string()
-    .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-    .optional()
-    .nullable(),
+  comidaInicio: horaDelDia,
+  comidaFin: horaDelDia,
 });
 
 export const horariosSchema = z
@@ -183,6 +184,20 @@ export const horariosSchema = z
     },
     {
       message: 'Si tiene horario de comida, debe especificar inicio y fin',
+      path: ['horarios'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Un cierre ANTERIOR a la apertura es válido: significa que el turno
+      // termina de madrugada (bares, antros: 20:00 → 03:00). Lo único ambiguo
+      // es que ambas horas sean iguales — para 24 horas se usa 00:00–23:59.
+      return data.horarios.every(
+        (h) => !h.abierto || h.horaApertura !== h.horaCierre
+      );
+    },
+    {
+      message: 'La hora de apertura y la de cierre no pueden ser iguales',
       path: ['horarios'],
     }
   );

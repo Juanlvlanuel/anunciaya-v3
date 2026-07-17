@@ -12,6 +12,7 @@
  */
 
 import { eq, and, sql, isNotNull } from 'drizzle-orm';
+import { sqlEstaAbierto } from '../utils/sqlHorarios';
 import { db } from '../db';
 import { tokenizarQuery } from './_helpers/busquedaFlexible.js';
 import { negocios, negocioGaleria, negocioSucursales, empleados, usuarios, ciudades } from '../db/schemas/schema';
@@ -350,25 +351,8 @@ export async function listarSucursalesCercanas(
                     false as followed,
                 `}
                 
-                -- Horarios (hoy está abierto?)
-                (
-                    SELECT 
-                        CASE 
-                            WHEN nh.abierto = false THEN false
-                            WHEN nh.hora_cierre < nh.hora_apertura THEN 
-                                -- Horario que cruza medianoche (ej: 22:00 - 02:00)
-                                (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time >= nh.hora_apertura 
-                                OR (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time <= nh.hora_cierre
-                            ELSE 
-                                -- Horario normal
-                                (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time 
-                                BETWEEN nh.hora_apertura AND nh.hora_cierre
-                        END
-                    FROM negocio_horarios nh
-                    WHERE nh.sucursal_id = s.id
-                    AND nh.dia_semana = EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.zona_horaria))::INTEGER
-                    LIMIT 1
-                ) as esta_abierto,
+                -- Horarios (¿está abierto ahora?) — incluye turnos de madrugada
+                ${sqlEstaAbierto()} as esta_abierto,
 
                 -- Total de sucursales activas del negocio (global,
                 -- todas las ciudades). Lo consumen los buscadores
@@ -683,25 +667,8 @@ export async function obtenerPerfilSucursal(
                     AND ns.activa = true
                 ) as total_sucursales,
 
-                -- Horarios (hoy está abierto?)
-                (
-                    SELECT 
-                        CASE 
-                            WHEN nh.abierto = false THEN false
-                            WHEN nh.hora_cierre < nh.hora_apertura THEN 
-                                -- Horario que cruza medianoche (ej: 22:00 - 02:00)
-                                (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time >= nh.hora_apertura 
-                                OR (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time <= nh.hora_cierre
-                            ELSE 
-                                -- Horario normal
-                                (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time 
-                                BETWEEN nh.hora_apertura AND nh.hora_cierre
-                        END
-                    FROM negocio_horarios nh
-                    WHERE nh.sucursal_id = s.id
-                    AND nh.dia_semana = EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.zona_horaria))::INTEGER
-                    LIMIT 1
-                ) as esta_abierto,
+                -- Horarios (¿está abierto ahora?) — incluye turnos de madrugada
+                ${sqlEstaAbierto()} as esta_abierto,
                 
                 -- Estado de voto del usuario
                 -- Considera votanteSucursalId para distinguir modo personal vs comercial

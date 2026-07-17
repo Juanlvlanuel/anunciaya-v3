@@ -16,6 +16,12 @@ import { X, UtensilsCrossed } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import {
+  formatearHora12,
+  calcularEstadoNegocio,
+  type Horario,
+  type InfoHorario,
+} from '@/utils/horarios';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -25,23 +31,10 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 // TIPOS
 // =============================================================================
 
-export interface Horario {
-  diaSemana: number;
-  abierto: boolean;
-  horaApertura: string;
-  horaCierre: string;
-  tieneHorarioComida?: boolean;
-  comidaInicio?: string | null;
-  comidaFin?: string | null;
-}
-
-export type EstadoNegocio = 'abierto' | 'cerrado' | 'comida' | 'cerrado_hoy';
-
-export interface InfoHorario {
-  estado: EstadoNegocio;
-  proximaApertura?: string;
-  proximoCierre?: string;
-}
+// La lógica de horarios vive en utils/horarios.ts; se re-exporta aquí porque
+// varias pantallas la importan históricamente desde este módulo.
+export type { Horario, EstadoNegocio, InfoHorario } from '@/utils/horarios';
+export { calcularEstadoNegocio };
 
 interface ModalHorariosProps {
   horarios: Horario[];
@@ -66,101 +59,7 @@ const GRADIENTE = {
 // UTILIDADES
 // =============================================================================
 
-export function formatearHora(hora: string): string {
-  if (!hora) return '';
-  const [h, m] = hora.split(':');
-  const hour = parseInt(h);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${m} ${ampm}`;
-}
-
-function encontrarProximaApertura(horarios: Horario[], diaActual: number): Horario | undefined {
-  for (let i = 1; i <= 7; i++) {
-    const diaBuscar = (diaActual + i) % 7;
-    const horario = horarios.find(h => h.diaSemana === diaBuscar && h.abierto);
-    if (horario) return horario;
-  }
-  return undefined;
-}
-
-export function calcularEstadoNegocio(horarios: Horario[], zonaHoraria?: string): InfoHorario {
-  if (!horarios || horarios.length === 0) {
-    return { estado: 'cerrado_hoy' };
-  }
-
-  let ahora: Date;
-  let horaActual: string;
-  let diaActual: number;
-
-  if (zonaHoraria) {
-    const fechaEnZona = new Date().toLocaleString('en-US', { timeZone: zonaHoraria });
-    ahora = new Date(fechaEnZona);
-    diaActual = ahora.getDay();
-    horaActual = ahora.getHours().toString().padStart(2, '0') + ':' +
-      ahora.getMinutes().toString().padStart(2, '0');
-  } else {
-    ahora = new Date();
-    diaActual = ahora.getDay();
-    horaActual = ahora.getHours().toString().padStart(2, '0') + ':' +
-      ahora.getMinutes().toString().padStart(2, '0');
-  }
-
-  const horarioHoy = horarios.find(h => h.diaSemana === diaActual);
-
-  if (!horarioHoy || !horarioHoy.abierto) {
-    const proximoHorario = encontrarProximaApertura(horarios, diaActual);
-    return {
-      estado: 'cerrado_hoy',
-      proximaApertura: proximoHorario?.horaApertura
-    };
-  }
-
-  const { horaApertura, horaCierre, tieneHorarioComida, comidaInicio, comidaFin } = horarioHoy;
-
-  if (!horaApertura || !horaCierre) {
-    const proximoHorario = encontrarProximaApertura(horarios, diaActual);
-    return {
-      estado: 'cerrado_hoy',
-      proximaApertura: proximoHorario?.horaApertura
-    };
-  }
-
-  const horaAperturaCorta = horaApertura.substring(0, 5);
-  const horaCierreCorta = horaCierre.substring(0, 5);
-
-  if (horaActual < horaAperturaCorta) {
-    return {
-      estado: 'cerrado',
-      proximaApertura: horaApertura
-    };
-  }
-
-  if (horaActual >= horaCierreCorta) {
-    const proximoHorario = encontrarProximaApertura(horarios, diaActual);
-    return {
-      estado: 'cerrado',
-      proximaApertura: proximoHorario?.horaApertura
-    };
-  }
-
-  if (tieneHorarioComida && comidaInicio && comidaFin) {
-    const comidaInicioCorta = comidaInicio.substring(0, 5);
-    const comidaFinCorta = comidaFin.substring(0, 5);
-
-    if (horaActual >= comidaInicioCorta && horaActual < comidaFinCorta) {
-      return {
-        estado: 'comida',
-        proximaApertura: comidaFin
-      };
-    }
-  }
-
-  return {
-    estado: 'abierto',
-    proximoCierre: horaCierre
-  };
-}
+export const formatearHora = formatearHora12;
 
 // =============================================================================
 // COMPONENTE: Timeline de Horarios

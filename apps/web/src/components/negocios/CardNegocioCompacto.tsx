@@ -17,7 +17,9 @@
  *    al cambiar de tab Negocios → Ofertas → Marketplace.
  *  - Sin botones de acción dentro de la card. El bookmark glass es responsabilidad
  *    del padre (igual patrón que `CardArticulo` en Guardados Marketplace).
- *  - Click en cualquier parte → navega al perfil del negocio.
+ *  - Click en cualquier parte → navega al perfil del negocio, salvo en los dos
+ *    controles anidados (pill de horarios y botón ChatYA), que frenan la
+ *    propagación.
  *
  * Doc: `docs/estandares/PATRON_BUSCADOR_SECCION.md` no aplica. Patrón visual
  * heredado del grid de Guardados Marketplace + Ofertas.
@@ -25,8 +27,16 @@
  * Ubicación: apps/web/src/components/negocios/CardNegocioCompacto.tsx
  */
 
+import { useState } from 'react';
 import { MapPin, Star, Store } from 'lucide-react';
+import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
+import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
+import { ModalHorarios } from './ModalHorarios';
+
+// Wrapper local: mismo patrón que el resto de las cards de negocio.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 
 // =============================================================================
 // TIPOS
@@ -115,6 +125,24 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
     // conversación existente con el negocio antes de abrir temporal
     // (evita chats duplicados). Solo se muestra el botón si tenemos
     // `usuarioId` (sin él no hay con quién crear la conversación).
+    // Horarios bajo demanda — mismo patrón que CardNegocio: se piden al abrir
+    // el modal, no al montar la card (el grid de Guardados pinta muchas).
+    const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
+    const { horarios, loading: loadingHorarios, fetchHorarios, reset: resetHorarios } = useHorariosNegocio();
+
+    // stopPropagation: sin esto el click del pill burbujea al `article` y
+    // navegaría al perfil en vez de abrir el modal.
+    const handleVerHorarios = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const data = await fetchHorarios(negocio.sucursalId);
+        if (data) setModalHorariosAbierto(true);
+    };
+
+    const handleCerrarModalHorarios = () => {
+        setModalHorariosAbierto(false);
+        resetHorarios();
+    };
+
     const iniciarChatNegocio = useIniciarChatNegocio();
     const handleChatYA = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -140,6 +168,7 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
     };
 
     return (
+        <>
         <article
             data-testid={`card-negocio-compacto-${negocio.sucursalId}`}
             onClick={onClick}
@@ -180,22 +209,27 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
                       - Posiciones inf intercambiadas: rating ahora
                         inf-IZQ, distancia inf-DER (antes era al revés). */}
 
-                {/* Pill de estado Abierto/Cerrado — esquina sup-der */}
+                {/* Pill de estado Abierto/Cerrado — esquina sup-der.
+                    Clickeable: abre el modal de horarios igual que en
+                    CardNegocio y CardNegocioDetallado. */}
                 {estaAbierto !== null && estaAbierto !== undefined && (
-                    <span
-                        className={`absolute right-2 top-2 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold shadow-md backdrop-blur ${
+                    <button
+                        data-testid={`card-negocio-compacto-horarios-${negocio.sucursalId}`}
+                        onClick={handleVerHorarios}
+                        disabled={loadingHorarios}
+                        aria-label={`Ver horarios de ${nombre}`}
+                        className={`absolute right-2 top-2 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-md ring-rose-400 backdrop-blur active:opacity-70 lg:hover:ring-2 ${
                             estaAbierto
-                                ? 'bg-emerald-500 text-white'
-                                : 'bg-slate-900/70 text-white'
+                                ? 'bg-emerald-500 lg:hover:bg-emerald-600'
+                                : 'bg-slate-900/70 lg:hover:bg-slate-900'
                         }`}
                     >
-                        <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                                estaAbierto ? 'bg-white' : 'bg-slate-300'
-                            }`}
-                        />
-                        {estaAbierto ? 'Abierto' : 'Cerrado'}
-                    </span>
+                        {/* El reloj (en vez del dot de color) es lo que delata que
+                            el badge se puede tocar: el estado ya lo comunica el
+                            fondo verde/oscuro, así que el dot era redundante. */}
+                        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        {loadingHorarios ? '...' : estaAbierto ? 'Abierto' : 'Cerrado'}
+                    </button>
                 )}
 
                 {/* Rating — esquina inf-IZQ sobre la foto */}
@@ -295,6 +329,16 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
                 )}
             </div>
         </article>
+
+        {/* Modal de horarios — FUERA del <article> a propósito, por dos razones:
+            el modal usa position:fixed y el hover de la card aplica un
+            translate, que convertiría a la card en el contenedor de referencia
+            y lo descuadraría; y estando fuera, sus clicks no burbujean al
+            onClick de la card (que navega al perfil). */}
+        {modalHorariosAbierto && horarios && (
+            <ModalHorarios horarios={horarios} onClose={handleCerrarModalHorarios} />
+        )}
+        </>
     );
 }
 

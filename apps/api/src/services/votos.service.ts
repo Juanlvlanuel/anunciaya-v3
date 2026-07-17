@@ -24,6 +24,7 @@
  */
 
 import { eq, and, isNull, sql } from 'drizzle-orm';
+import { sqlEstaAbierto } from '../utils/sqlHorarios';
 import { db } from '../db';
 import { votos } from '../db/schemas/schema';
 
@@ -357,25 +358,8 @@ export async function obtenerSeguidos(
                     -- Calificaciones
                     COALESCE(m.promedio_rating, 0) as calificacion_promedio,
                     COALESCE(m.total_resenas, 0) as total_calificaciones,
-                    -- Estado abierto/cerrado (calcula según horarios)
-                    (
-                        SELECT 
-                            CASE 
-                                WHEN nh.abierto = false THEN false
-                                WHEN nh.hora_cierre < nh.hora_apertura THEN 
-                                    -- Horario que cruza medianoche (ej: 22:00 - 02:00)
-                                    (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time >= nh.hora_apertura 
-                                    OR (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time <= nh.hora_cierre
-                                ELSE 
-                                    -- Horario normal
-                                    (CURRENT_TIME AT TIME ZONE s.zona_horaria)::time 
-                                    BETWEEN nh.hora_apertura AND nh.hora_cierre
-                            END
-                        FROM negocio_horarios nh
-                        WHERE nh.sucursal_id = s.id
-                        AND nh.dia_semana = EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.zona_horaria))::INTEGER
-                        LIMIT 1
-                    ) as esta_abierto,
+                    -- Estado abierto/cerrado — incluye turnos de madrugada
+                    ${sqlEstaAbierto()} as esta_abierto,
                     -- Estado de like del usuario actual
                     EXISTS(
                         SELECT 1 FROM votos v2

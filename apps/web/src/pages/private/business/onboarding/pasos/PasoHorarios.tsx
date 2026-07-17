@@ -35,6 +35,7 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';
+import { validarHorarioDia, cruzaMedianoche, formatearHora12 } from '@/utils/horarios';
 import { CargandoPaso } from '../componentes';
 
 // =============================================================================
@@ -166,16 +167,7 @@ export function PasoHorarios() {
         const algunDiaAbierto = horarios.some(h => h.abierto);
         if (!algunDiaAbierto) return false;
 
-        for (const horario of horarios) {
-            if (!horario.abierto) continue;
-            if (horario.horaApertura >= horario.horaCierre) return false;
-            if (horario.tieneHorarioComida) {
-                if (horario.comidaInicio < horario.horaApertura) return false;
-                if (horario.comidaFin > horario.horaCierre) return false;
-                if (horario.comidaInicio >= horario.comidaFin) return false;
-            }
-        }
-        return true;
+        return horarios.every(horario => validarHorarioDia(horario) === null);
     };
 
     useEffect(() => {
@@ -278,12 +270,15 @@ export function PasoHorarios() {
     // ---------------------------------------------------------------------------
     // Validaciones de errores
     // ---------------------------------------------------------------------------
-    const errorHorarioGeneral = horarioActual.abierto && horarioActual.horaApertura >= horarioActual.horaCierre;
-    const errorHorarioComida = horarioActual.abierto && horarioActual.tieneHorarioComida && (
-        horarioActual.comidaInicio < horarioActual.horaApertura ||
-        horarioActual.comidaFin > horarioActual.horaCierre ||
-        horarioActual.comidaInicio >= horarioActual.comidaFin
-    );
+    const errorDia = validarHorarioDia(horarioActual);
+    // El mensaje de comida se pinta dentro de su propia caja; el resto arriba.
+    const errorEsDeComida = errorDia !== null && errorDia.toLowerCase().includes('comida');
+    const errorHorarioGeneral = errorDia !== null && !errorEsDeComida ? errorDia : null;
+    const errorHorarioComida = errorEsDeComida ? errorDia : null;
+
+    // Turno nocturno: el negocio cierra de madrugada del día siguiente.
+    const turnoNocturno = horarioActual.abierto && !errorDia &&
+        cruzaMedianoche(horarioActual.horaApertura, horarioActual.horaCierre);
 
     // ---------------------------------------------------------------------------
     // Render condicional
@@ -319,7 +314,15 @@ export function PasoHorarios() {
 
                 {errorHorarioGeneral && (
                     <div className="p-2.5 bg-red-100 border-2 border-red-300 rounded-lg">
-                        <p className="text-sm font-medium text-red-600">La hora de apertura debe ser menor a la de cierre</p>
+                        <p className="text-sm font-medium text-red-600">{errorHorarioGeneral}</p>
+                    </div>
+                )}
+
+                {turnoNocturno && (
+                    <div className="p-2.5 bg-indigo-100 border-2 border-indigo-300 rounded-lg">
+                        <p className="text-sm font-medium text-indigo-700">
+                            Cierras de madrugada: abres a las {formatearHora12(horarioActual.horaApertura)} y cierras a las {formatearHora12(horarioActual.horaCierre)} del día siguiente.
+                        </p>
                     </div>
                 )}
 
@@ -352,7 +355,7 @@ export function PasoHorarios() {
 
                     {errorHorarioComida && (
                         <div className="p-2.5 bg-red-100 border-2 border-red-300 rounded-lg mt-2">
-                            <p className="text-sm font-medium text-red-600">El horario de comida debe estar dentro del horario de operación</p>
+                            <p className="text-sm font-medium text-red-600">{errorHorarioComida}</p>
                         </div>
                     )}
                 </div>

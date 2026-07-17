@@ -50,7 +50,8 @@ import { useBreakpoint, BreakpointOverride } from '../../hooks/useBreakpoint';
 import { PortalTargetProvider } from '../../hooks/usePortalTarget';
 import { GaleriaArchivosCompartidos, invalidarCachéGaleria } from './GaleriaArchivosCompartidos';
 import Tooltip from '../ui/Tooltip';
-import { ModalHorarios } from '../negocios/ModalHorarios';
+import { ModalHorarios, calcularEstadoNegocio, type Horario } from '../negocios/ModalHorarios';
+import { formatearHora12 } from '@/utils/horarios';
 
 // Lazy load — mantiene PaginaPerfilNegocio en su propio chunk (code-split)
 const PaginaPerfilNegocio = lazy(() => import('../../pages/private/negocios/PaginaPerfilNegocio'));
@@ -85,14 +86,6 @@ function formatFecha(fecha: string | null) {
     .join('');
 }
 
-/** Convierte "HH:MM" a formato 12hrs */
-function formatoHora12(hora24: string): string {
-  const [h, m] = hora24.split(':').map(Number);
-  const periodo = h >= 12 ? 'PM' : 'AM';
-  const hora12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${hora12}:${m.toString().padStart(2, '0')} ${periodo}`;
-}
-
 /** Obtiene el horario de hoy en formato legible */
 function horarioHoy(horarios: NegocioCompleto['horarios']): string | null {
   if (!horarios?.length) return null;
@@ -101,22 +94,19 @@ function horarioHoy(horarios: NegocioCompleto['horarios']): string | null {
   if (!diaHoy || !diaHoy.abierto) return null;
   const apertura = diaHoy.horaApertura?.slice(0, 5) || '';
   const cierre = diaHoy.horaCierre?.slice(0, 5) || '';
-  return apertura && cierre ? `${formatoHora12(apertura)} - ${formatoHora12(cierre)}` : null;
+  return apertura && cierre ? `${formatearHora12(apertura)} - ${formatearHora12(cierre)}` : null;
 }
 
-/** Calcula si el negocio está abierto ahora según sus horarios */
+/**
+ * Calcula si el negocio está abierto ahora.
+ * Se apoya en calcularEstadoNegocio (el mismo que usan las cards y el perfil)
+ * en vez de comparar horas a mano: así los turnos que cierran de madrugada
+ * (20:00 → 03:00) no aparecen como "Cerrado" aquí mientras el perfil del mismo
+ * negocio dice "Abierto".
+ */
 function calcularAbierto(horarios: NegocioCompleto['horarios']): boolean {
   if (!horarios?.length) return false;
-  const ahora = new Date();
-  const hoy = ahora.getDay();
-  const diaHoy = horarios.find((h) => h.diaSemana === hoy);
-  if (!diaHoy || !diaHoy.abierto) return false;
-  const [hA, mA] = diaHoy.horaApertura.split(':').map(Number);
-  const [hC, mC] = diaHoy.horaCierre.split(':').map(Number);
-  const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
-  const minApertura = hA * 60 + mA;
-  const minCierre = hC * 60 + mC;
-  return minAhora >= minApertura && minAhora < minCierre;
+  return calcularEstadoNegocio(horarios as Horario[]).estado === 'abierto';
 }
 
 // =============================================================================

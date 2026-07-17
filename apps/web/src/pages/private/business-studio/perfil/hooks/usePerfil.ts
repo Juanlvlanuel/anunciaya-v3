@@ -25,6 +25,7 @@ import { api } from '../../../../../services/api';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { notificar } from '../../../../../utils/notificaciones';
 import { detectarZonaHoraria } from '../../../../../utils/zonaHoraria';
+import { validarHorarioDia } from '../../../../../utils/horarios';
 import { usePerfilSucursal, usePerfilSucursales } from '../../../../../hooks/queries/usePerfil';
 import { queryKeys } from '../../../../../config/queryKeys';
 
@@ -303,7 +304,9 @@ export function usePerfil() {
     const horariosInicial = {
       horarios: perfil.horarios.map(h => ({
         diaSemana: h.diaSemana,
-        abierto: h.abierto,
+        // `?? true` igual que tieneHorarioComida: la columna es nullable en BD y
+        // un null aquí haría rebotar el guardado contra la validación del PUT.
+        abierto: h.abierto ?? true,
         horaApertura: h.horaApertura,
         horaCierre: h.horaCierre,
         tieneHorarioComida: h.tieneHorarioComida ?? false,
@@ -364,53 +367,19 @@ export function usePerfil() {
  * UBICACIÓN: Agregar ANTES de la función guardarTodo() (aproximadamente línea 330)
  * 
  * PROPÓSITO:
- * Validar que los horarios sean consistentes antes de guardar
- * - Si está abierto, debe tener hora_apertura Y hora_cierre
- * - hora_cierre debe ser MAYOR que hora_apertura
- * - Si tiene horario de comida, comida_fin debe ser MAYOR que comida_inicio
+ * Validar que los horarios sean consistentes antes de guardar.
+ * La regla por día vive en utils/horarios.ts (compartida con el onboarding);
+ * aquí solo se le antepone el nombre del día a cada error.
  */
 
   function validarHorarios(horarios: HorarioDia[]): string[] {
-    const errores: string[] = [];
     const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-    for (const horario of horarios) {
-      const nombreDia = diasNombres[horario.diaSemana];
-
-      // Si está marcado como abierto, DEBE tener horarios
-      if (horario.abierto) {
-        if (!horario.horaApertura || !horario.horaCierre) {
-          errores.push(`${nombreDia}: Falta hora de apertura o cierre`);
-          continue;
-        }
-
-        // Validar que hora_cierre > hora_apertura
-        const apertura = horario.horaApertura.substring(0, 5); // "09:00"
-        const cierre = horario.horaCierre.substring(0, 5);     // "21:00"
-
-        if (cierre <= apertura) {
-          errores.push(`${nombreDia}: La hora de cierre (${cierre}) debe ser mayor que la de apertura (${apertura})`);
-        }
-
-        // Validar horario de comida si existe
-        if (horario.tieneHorarioComida && horario.comidaInicio && horario.comidaFin) {
-          const comidaInicio = horario.comidaInicio.substring(0, 5);
-          const comidaFin = horario.comidaFin.substring(0, 5);
-
-          // Validar que comida_fin > comida_inicio
-          if (comidaFin <= comidaInicio) {
-            errores.push(`${nombreDia}: El fin de comida (${comidaFin}) debe ser mayor que el inicio (${comidaInicio})`);
-          }
-
-          // Validar que el horario de comida esté dentro del horario de operación
-          if (comidaInicio < apertura || comidaFin > cierre) {
-            errores.push(`${nombreDia}: El horario de comida debe estar dentro del horario de operación`);
-          }
-        }
-      }
-    }
-
-    return errores;
+    return horarios.reduce<string[]>((errores, horario) => {
+      const error = validarHorarioDia(horario);
+      if (error) errores.push(`${diasNombres[horario.diaSemana]}: ${error}`);
+      return errores;
+    }, []);
   }
 
   // =============================================================================
