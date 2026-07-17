@@ -324,6 +324,16 @@ export default function ModalDetalleBilletera({
           </div>}
         </div>
 
+        {/* Puntos vencidos — solo si el negocio expira puntos y el cliente perdió alguno */}
+        {billetera.puntosExpiradosTotal > 0 && (
+          <div className="flex items-center gap-1.5 mt-2 lg:mt-1.5 2xl:mt-2 text-amber-400/90">
+            <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+            <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium">
+              <strong className="text-amber-300">{billetera.puntosExpiradosTotal.toLocaleString()}</strong> puntos vencidos en total
+            </span>
+          </div>
+        )}
+
         {/* Nivel + Multiplicador */}
         {nivelesActivos && (billetera.multiplicador > 1.0 || billetera.beneficios.length > 0) && (
           <div
@@ -360,6 +370,7 @@ export default function ModalDetalleBilletera({
             <div>
               {billetera.ultimasTransacciones.slice(0, 4).map((tx, i) => {
                 const esGanado = tx.tipo === 'compra';
+                const esExpiracion = tx.tipo === 'expiracion';
                 return (
                   <div
                     key={tx.id}
@@ -372,23 +383,27 @@ export default function ModalDetalleBilletera({
                         style={{
                           background: esGanado
                             ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
-                            : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
+                            : esExpiracion
+                              ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                              : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
                         }}
                       >
                         {esGanado ? (
                           <TrendingUp className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-emerald-700" strokeWidth={2.5} />
+                        ) : esExpiracion ? (
+                          <Clock className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" strokeWidth={2.5} />
                         ) : (
                           <TrendingDown className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-rose-600" strokeWidth={2.5} />
                         )}
                       </div>
                       <div>
                         <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800">
-                          {esGanado ? `Compra $${tx.monto.toLocaleString()}` : tx.descripcion}
+                          {esGanado ? `Compra $${tx.monto.toLocaleString()}` : esExpiracion ? 'Puntos vencidos' : tx.descripcion}
                         </p>
                         <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">{formatearFecha(tx.createdAt)}</p>
                       </div>
                     </div>
-                    <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : esExpiracion ? 'text-amber-700' : 'text-rose-600'}`}>
                       {esGanado ? '+' : ''}{tx.puntos.toLocaleString()}
                     </span>
                   </div>

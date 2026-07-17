@@ -26,6 +26,7 @@ import {
   cancelarVoucherController,
   obtenerHistorialComprasController,
   obtenerHistorialCanjesController,
+  obtenerHistorialExpiracionesController,
 } from '../controllers/cardya.controller.js';
 
 // Importar middlewares
@@ -130,6 +131,13 @@ router.get('/historial/compras', obtenerHistorialComprasController);
  * Acceso: Usuarios autenticados
  */
 router.get('/historial/canjes', obtenerHistorialCanjesController);
+
+/**
+ * GET /api/cardya/historial/expiraciones?negocioId=xxx&limit=20&offset=0
+ * Obtiene el historial de expiraciones de puntos (puntos vencidos)
+ * Acceso: Usuarios autenticados
+ */
+router.get('/historial/expiraciones', obtenerHistorialExpiracionesController);
 
 // =============================================================================
 // EXPORTAR ROUTER

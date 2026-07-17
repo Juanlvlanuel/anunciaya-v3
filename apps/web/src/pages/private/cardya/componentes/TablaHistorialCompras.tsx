@@ -200,6 +200,13 @@ export default function TablaHistorialCompras({
                 <div className="divide-y-[1.5px] divide-slate-300">
                   {txs.map((tx) => {
                     const esGanado = tx.tipo === 'compra';
+                    const esExpiracion = tx.tipo === 'expiracion';
+                    const fondoIcono = esGanado
+                      ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
+                      : esExpiracion
+                        ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                        : 'linear-gradient(135deg, #ffe4e6, #fecdd3)';
+                    const colorPuntos = esGanado ? 'text-emerald-600' : esExpiracion ? 'text-amber-600' : 'text-rose-500';
                     return (
                       <div
                         key={tx.id}
@@ -209,14 +216,12 @@ export default function TablaHistorialCompras({
                         {/* Ícono tipo */}
                         <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                          style={{
-                            background: esGanado
-                              ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
-                              : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
-                          }}
+                          style={{ background: fondoIcono }}
                         >
                           {esGanado ? (
                             <TrendingUp className="w-[18px] h-[18px] text-emerald-700" strokeWidth={2.5} />
+                          ) : esExpiracion ? (
+                            <Clock className="w-[18px] h-[18px] text-amber-700" strokeWidth={2.5} />
                           ) : (
                             <Gift className="w-[18px] h-[18px] text-rose-600" strokeWidth={2.5} />
                           )}
@@ -251,7 +256,7 @@ export default function TablaHistorialCompras({
                         {/* Puntos + Fecha */}
                         <div className="shrink-0 text-right pl-2">
                           <span
-                            className={`text-base font-black block leading-tight ${esGanado ? 'text-emerald-600' : 'text-rose-500'}`}
+                            className={`text-base font-black block leading-tight ${colorPuntos}`}
                           >
                             {esGanado ? '+' : ''}{tx.puntos.toLocaleString()} pts
                           </span>
@@ -273,6 +278,13 @@ export default function TablaHistorialCompras({
           >
             {txOrdenadas.map((tx) => {
               const esGanado = tx.tipo === 'compra';
+              const esExpiracion = tx.tipo === 'expiracion';
+              const fondoIcono = esGanado
+                ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
+                : esExpiracion
+                  ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                  : 'linear-gradient(135deg, #ffe4e6, #fecdd3)';
+              const colorPuntos = esGanado ? 'text-emerald-600' : esExpiracion ? 'text-amber-600' : 'text-rose-500';
               return (
                 <div
                   key={tx.id}
@@ -282,14 +294,12 @@ export default function TablaHistorialCompras({
                   {/* Ícono tipo */}
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{
-                      background: esGanado
-                        ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
-                        : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
-                    }}
+                    style={{ background: fondoIcono }}
                   >
                     {esGanado ? (
                       <TrendingUp className="w-[18px] h-[18px] text-emerald-700" strokeWidth={2.5} />
+                    ) : esExpiracion ? (
+                      <Clock className="w-[18px] h-[18px] text-amber-700" strokeWidth={2.5} />
                     ) : (
                       <Gift className="w-[18px] h-[18px] text-rose-600" strokeWidth={2.5} />
                     )}
@@ -319,7 +329,7 @@ export default function TablaHistorialCompras({
                   {/* Puntos + Fecha */}
                   <div className="shrink-0 text-right pl-2">
                     <span
-                      className={`text-base font-black block leading-tight ${esGanado ? 'text-emerald-600' : 'text-rose-500'}`}
+                      className={`text-base font-black block leading-tight ${colorPuntos}`}
                     >
                       {esGanado ? '+' : ''}{tx.puntos.toLocaleString()} pts
                     </span>
@@ -435,6 +445,7 @@ export default function TablaHistorialCompras({
                     let filaIdx = 0;
                     return txOrdenadas.map((tx) => {
                       const esGanado = tx.tipo === 'compra';
+                      const esExpiracion = tx.tipo === 'expiracion';
                       const mesActual = obtenerMesAnio(tx.fecha);
                       const mostrarSeparador = mostrarAgrupado && mesActual !== mesAnterior;
                       mesAnterior = mesActual;
@@ -470,17 +481,21 @@ export default function TablaHistorialCompras({
                                   style={{
                                     background: esGanado
                                       ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
-                                      : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
+                                      : esExpiracion
+                                        ? 'linear-gradient(135deg, #fef3c7, #fde68a)'
+                                        : 'linear-gradient(135deg, #ffe4e6, #fecdd3)',
                                   }}
                                 >
                                   {esGanado ? (
                                     <TrendingUp className="w-4 h-4 text-emerald-700" strokeWidth={2.5} />
+                                  ) : esExpiracion ? (
+                                    <Clock className="w-4 h-4 text-amber-700" strokeWidth={2.5} />
                                   ) : (
                                     <TrendingDown className="w-4 h-4 text-rose-600" strokeWidth={2.5} />
                                   )}
                                 </div>
-                                <span className={`text-sm lg:text-[11px] 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                  {esGanado ? 'Ganados' : 'Canjeados'}
+                                <span className={`text-sm lg:text-[11px] 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : esExpiracion ? 'text-amber-700' : 'text-rose-600'}`}>
+                                  {esGanado ? 'Ganados' : esExpiracion ? 'Vencidos' : 'Canjeados'}
                                 </span>
                               </div>
                             </td>
@@ -534,7 +549,7 @@ export default function TablaHistorialCompras({
                                 <span className="text-xs text-slate-300">—</span>
                               ) : (
                               <span
-                                className={`text-sm lg:text-xs 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : 'text-rose-600'}`}
+                                className={`text-sm lg:text-xs 2xl:text-sm font-bold ${esGanado ? 'text-emerald-700' : esExpiracion ? 'text-amber-700' : 'text-rose-600'}`}
                               >
                                 {esGanado ? '+' : '-'}
                                 {Math.abs(tx.puntos).toLocaleString()}

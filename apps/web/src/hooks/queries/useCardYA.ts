@@ -24,6 +24,7 @@ import type {
   FiltrosVouchers,
   FiltrosHistorialCompras,
   FiltrosHistorialCanjes,
+  FiltrosHistorialExpiraciones,
 } from '../../types/cardya';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -112,6 +113,23 @@ export function useCardYAHistorialCanjes(filtros?: FiltrosHistorialCanjes) {
   return useQuery({
     queryKey: ['cardya', 'historialCanjes', filtros] as const,
     queryFn: () => cardyaService.getHistorialCanjes(filtros).then((r) => r.data ?? []),
+    enabled: habilitado,
+    placeholderData: keepPreviousData,
+  });
+}
+
+// =============================================================================
+// HISTORIAL EXPIRACIONES
+// =============================================================================
+
+export function useCardYAHistorialExpiraciones(filtros?: FiltrosHistorialExpiraciones) {
+  const usuarioId = useAuthStore((s) => s.usuario?.id ?? '');
+  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+  const habilitado = !!usuarioId && modoActivo === 'personal';
+
+  return useQuery({
+    queryKey: ['cardya', 'historialExpiraciones', filtros] as const,
+    queryFn: () => cardyaService.getHistorialExpiraciones(filtros).then((r) => r.data ?? []),
     enabled: habilitado,
     placeholderData: keepPreviousData,
   });

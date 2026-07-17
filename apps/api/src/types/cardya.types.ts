@@ -56,6 +56,7 @@ export interface BilleteraNegocio {
   puntosDisponibles: number;
   puntosAcumuladosTotal: number;
   puntosCanjeadosTotal: number;
+  puntosExpiradosTotal: number;
   nivelActual: 'bronce' | 'plata' | 'oro';
   multiplicador: number;
   progreso: ProgresoNivel;
@@ -85,9 +86,9 @@ export interface DetalleNegocioBilletera extends BilleteraNegocio {
  */
 export interface TransaccionResumen {
   id: string;
-  tipo: 'compra' | 'canje';
+  tipo: 'compra' | 'canje' | 'expiracion';
   monto: number; // Pesos si es compra, puntos si es canje
-  puntos: number; // Positivo si ganó, negativo si canjeó
+  puntos: number; // Positivo si ganó, negativo si canjeó/expiró
   createdAt: string;
   descripcion: string | null; // Nombre de recompensa si es canje
 }
@@ -187,6 +188,16 @@ export interface HistorialCanje {
   usadoAt: string | null;
 }
 
+/** Un evento de expiración de puntos, para el historial del cliente. */
+export interface HistorialExpiracion {
+  id: string;
+  negocioId: string;
+  negocioNombre: string;
+  negocioLogo: string | null;
+  puntosExpirados: number;
+  createdAt: string;
+}
+
 // =============================================================================
 // FILTROS
 // =============================================================================
@@ -206,6 +217,15 @@ export interface FiltrosHistorialCompras {
 export interface FiltrosHistorialCanjes {
   negocioId?: string; // Filtrar por negocio específico
   estado?: 'usado' | 'cancelado'; // Filtrar por estado
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Filtros para historial de expiraciones de puntos
+ */
+export interface FiltrosHistorialExpiraciones {
+  negocioId?: string; // Filtrar por negocio específico
   limit?: number;
   offset?: number;
 }

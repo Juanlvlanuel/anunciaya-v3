@@ -31,6 +31,7 @@ import {
     useCardYAVouchers,
     useCardYAHistorialCompras,
     useCardYAHistorialCanjes,
+    useCardYAHistorialExpiraciones,
     useCanjearRecompensa,
     useCancelarVoucher,
     useCardYASocket,
@@ -158,6 +159,7 @@ export function PaginaCardYA() {
     const { data: vouchersHistorial = [] } = useCardYAVouchers();
     const { data: historialCompras = [], isPending: cargandoHistorialCompras } = useCardYAHistorialCompras();
     const { data: historialCanjes = [], isPending: cargandoHistorialCanjes } = useCardYAHistorialCanjes();
+    const { data: historialExpiraciones = [] } = useCardYAHistorialExpiraciones();
     const canjearMutation = useCanjearRecompensa();
     const cancelarMutation = useCancelarVoucher();
     useCardYASocket();
@@ -201,7 +203,18 @@ export function PaginaCardYA() {
         empleadoNombre: c.canjeadoPorNombre ?? undefined,
     }));
 
-    const transaccionesUnificadas: Transaccion[] = [...transacciones, ...transaccionesCanjes];
+    const transaccionesExpiraciones: Transaccion[] = historialExpiraciones.map((e) => ({
+        id: e.id,
+        tipo: 'expiracion' as const,
+        fecha: e.createdAt,
+        negocioId: e.negocioId,
+        negocioNombre: e.negocioNombre,
+        negocioLogo: e.negocioLogo ?? null,
+        puntos: -e.puntosExpirados,
+        descripcion: 'Puntos vencidos',
+    }));
+
+    const transaccionesUnificadas: Transaccion[] = [...transacciones, ...transaccionesCanjes, ...transaccionesExpiraciones];
 
     // Inyectar CSS para carousel
     useEffect(() => {
@@ -465,9 +478,10 @@ export function PaginaCardYA() {
                             if (voucher) {
                                 setVoucherSeleccionado(voucher);
                             }
-                        } else {
+                        } else if (tx.tipo === 'compra') {
                             setTransaccionSeleccionada(tx);
                         }
+                        // 'expiracion': la fila ya es autoexplicativa, no abre modal de detalle.
                     }}
                     stickyTop={headerHeight}
                     negocioFiltro={negocioFiltro}

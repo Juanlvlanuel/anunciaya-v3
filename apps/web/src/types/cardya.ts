@@ -56,6 +56,7 @@ export interface BilleteraNegocio {
   puntosDisponibles: number;
   puntosAcumuladosTotal: number;
   puntosCanjeadosTotal: number;
+  puntosExpiradosTotal: number;
   nivelActual: NivelLealtad;
   multiplicador: number;
   progreso: ProgresoNivel;
@@ -72,7 +73,7 @@ export interface BilleteraNegocio {
  */
 export interface TransaccionResumen {
   id: string;
-  tipo: 'compra' | 'canje';
+  tipo: 'compra' | 'canje' | 'expiracion';
   monto: number;
   puntos: number;
   createdAt: string;
@@ -231,6 +232,25 @@ export interface FiltrosHistorialCanjes {
   offset?: number;
 }
 
+/**
+ * Evento de expiración de puntos.
+ * Retornado por: GET /api/cardya/historial/expiraciones
+ */
+export interface HistorialExpiracion {
+  id: string;
+  negocioId: string;
+  negocioNombre: string;
+  negocioLogo: string | null;
+  puntosExpirados: number;
+  createdAt: string;
+}
+
+export interface FiltrosHistorialExpiraciones {
+  negocioId?: string;
+  limit?: number;
+  offset?: number;
+}
+
 // =============================================================================
 // HISTORIAL — TIPO UNIFICADO PARA UI
 // =============================================================================
@@ -238,7 +258,7 @@ export interface FiltrosHistorialCanjes {
 /**
  * Tipo de transacción en el historial unificado.
  */
-export type TipoTransaccion = 'compra' | 'canje';
+export type TipoTransaccion = 'compra' | 'canje' | 'expiracion';
 
 /**
  * Transacción unificada para la UI.

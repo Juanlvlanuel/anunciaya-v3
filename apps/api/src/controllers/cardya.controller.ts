@@ -392,3 +392,48 @@ export async function obtenerHistorialCanjesController(req: Request, res: Respon
     });
   }
 }
+
+/**
+ * GET /api/cardya/historial/expiraciones?negocioId=xxx&limit=20&offset=0
+ * Obtiene el historial de expiraciones de puntos (puntos vencidos)
+ */
+export async function obtenerHistorialExpiracionesController(req: Request, res: Response) {
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+
+    // Mismos filtros que compras (negocioId, limit, offset).
+    const validacion = filtrosHistorialComprasSchema.safeParse(req.query);
+
+    if (!validacion.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Parámetros inválidos',
+        errors: formatearErroresZod(validacion.error),
+      });
+    }
+
+    const resultado = await cardyaService.obtenerHistorialExpiraciones(
+      usuarioId,
+      validacion.data
+    );
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({
+        success: false,
+        message: resultado.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('Error en obtenerHistorialExpiracionesController:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+}

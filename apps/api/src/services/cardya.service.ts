@@ -11,6 +11,7 @@ import {
   puntosBilletera,
   puntosConfiguracion,
   puntosTransacciones,
+  puntosExpiraciones,
   recompensas,
   recompensaProgreso,
   vouchersCanje,
@@ -36,8 +37,10 @@ import type {
   Voucher,
   HistorialCompra,
   HistorialCanje,
+  HistorialExpiracion,
   FiltrosHistorialCompras,
   FiltrosHistorialCanjes,
+  FiltrosHistorialExpiraciones,
   FiltrosRecompensas,
   FiltrosVouchers,
 } from '../types/cardya.types.js';
@@ -58,6 +61,7 @@ export async function obtenerBilleterasPorUsuario(
         puntosDisponibles: puntosBilletera.puntosDisponibles,
         puntosAcumuladosTotal: puntosBilletera.puntosAcumuladosTotal,
         puntosCanjeadosTotal: puntosBilletera.puntosCanjeadosTotal,
+        puntosExpiradosTotal: puntosBilletera.puntosExpiradosTotal,
         nivelActual: puntosBilletera.nivelActual,
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
@@ -122,6 +126,7 @@ export async function obtenerBilleterasPorUsuario(
         puntosDisponibles: b.puntosDisponibles,
         puntosAcumuladosTotal: b.puntosAcumuladosTotal,
         puntosCanjeadosTotal: b.puntosCanjeadosTotal,
+        puntosExpiradosTotal: b.puntosExpiradosTotal,
         nivelActual: (b.nivelActual ?? 'bronce') as 'bronce' | 'plata' | 'oro',
         multiplicador,
         progreso,
@@ -158,6 +163,7 @@ export async function obtenerDetalleNegocioBilletera(
         puntosDisponibles: puntosBilletera.puntosDisponibles,
         puntosAcumuladosTotal: puntosBilletera.puntosAcumuladosTotal,
         puntosCanjeadosTotal: puntosBilletera.puntosCanjeadosTotal,
+        puntosExpiradosTotal: puntosBilletera.puntosExpiradosTotal,
         nivelActual: puntosBilletera.nivelActual,
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
@@ -223,6 +229,20 @@ export async function obtenerDetalleNegocioBilletera(
       .orderBy(desc(vouchersCanje.createdAt))
       .limit(5);
 
+    const transaccionesExpiraciones = await db
+      .select({
+        id: puntosExpiraciones.id,
+        puntosExpirados: puntosExpiraciones.puntosExpirados,
+        createdAt: puntosExpiraciones.createdAt,
+      })
+      .from(puntosExpiraciones)
+      .where(and(
+        eq(puntosExpiraciones.usuarioId, usuarioId),
+        eq(puntosExpiraciones.negocioId, negocioId)
+      ))
+      .orderBy(desc(puntosExpiraciones.createdAt))
+      .limit(5);
+
     const transaccionesResumen: TransaccionResumen[] = [
       ...transaccionesCompras.map((t) => ({
         id: t.id,
@@ -239,6 +259,14 @@ export async function obtenerDetalleNegocioBilletera(
         puntos: -t.puntosUsados,
         createdAt: t.createdAt ?? new Date().toISOString(),
         descripcion: t.recompensaNombre,
+      })),
+      ...transaccionesExpiraciones.map((t) => ({
+        id: t.id,
+        tipo: 'expiracion' as const,
+        monto: 0,
+        puntos: -t.puntosExpirados,
+        createdAt: t.createdAt ?? new Date().toISOString(),
+        descripcion: null,
       })),
     ]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -296,6 +324,7 @@ export async function obtenerDetalleNegocioBilletera(
       puntosDisponibles: billetera.puntosDisponibles,
       puntosAcumuladosTotal: billetera.puntosAcumuladosTotal,
       puntosCanjeadosTotal: billetera.puntosCanjeadosTotal,
+      puntosExpiradosTotal: billetera.puntosExpiradosTotal,
       nivelActual: (billetera.nivelActual ?? 'bronce') as 'bronce' | 'plata' | 'oro',
       multiplicador,
       progreso,
@@ -1175,6 +1204,56 @@ export async function obtenerHistorialCanjes(
   } catch (error) {
     console.error('Error en obtenerHistorialCanjes:', error);
     return { success: false, message: 'Error al obtener historial de canjes', code: 500 };
+  }
+}
+
+/**
+ * Historial de expiraciones de puntos del cliente. Lee `puntos_expiraciones`
+ * (el rastro que deja cada vencimiento) para que el cliente vea qué pasó con
+ * sus puntos, no solo que "desaparecieron".
+ */
+export async function obtenerHistorialExpiraciones(
+  usuarioId: string,
+  filtros?: FiltrosHistorialExpiraciones
+): Promise<RespuestaServicio<HistorialExpiracion[]>> {
+  try {
+    const limit = filtros?.limit ?? 1000;
+    const offset = filtros?.offset ?? 0;
+
+    const condiciones = [eq(puntosExpiraciones.usuarioId, usuarioId)];
+    if (filtros?.negocioId) {
+      condiciones.push(eq(puntosExpiraciones.negocioId, filtros.negocioId));
+    }
+
+    const resultados = await db
+      .select({
+        id: puntosExpiraciones.id,
+        puntosExpirados: puntosExpiraciones.puntosExpirados,
+        createdAt: puntosExpiraciones.createdAt,
+        negocioId: negocios.id,
+        negocioNombre: negocios.nombre,
+        negocioLogo: negocios.logoUrl,
+      })
+      .from(puntosExpiraciones)
+      .innerJoin(negocios, eq(puntosExpiraciones.negocioId, negocios.id))
+      .where(and(...condiciones))
+      .orderBy(desc(puntosExpiraciones.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const historial: HistorialExpiracion[] = resultados.map((h) => ({
+      id: h.id,
+      negocioId: h.negocioId,
+      negocioNombre: h.negocioNombre,
+      negocioLogo: h.negocioLogo,
+      puntosExpirados: h.puntosExpirados,
+      createdAt: h.createdAt ?? new Date().toISOString(),
+    }));
+
+    return { success: true, message: 'Historial obtenido correctamente', data: historial };
+  } catch (error) {
+    console.error('Error en obtenerHistorialExpiraciones:', error);
+    return { success: false, message: 'Error al obtener historial de expiraciones', code: 500 };
   }
 }
 

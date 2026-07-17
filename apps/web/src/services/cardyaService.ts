@@ -34,6 +34,8 @@ import type {
   FiltrosHistorialCompras,
   HistorialCanje,
   FiltrosHistorialCanjes,
+  HistorialExpiracion,
+  FiltrosHistorialExpiraciones,
 } from '../types/cardya';
 
 // =============================================================================
@@ -243,4 +245,29 @@ export async function getHistorialCanjes(filtros?: FiltrosHistorialCanjes) {
   const url = query ? `/cardya/historial/canjes?${query}` : '/cardya/historial/canjes';
 
   return get<HistorialCanje[]>(url);
+}
+
+/**
+ * Obtiene el historial de expiraciones de puntos (puntos vencidos).
+ * GET /api/cardya/historial/expiraciones
+ *
+ * @param filtros - Filtros opcionales (negocioId, limit, offset)
+ */
+export async function getHistorialExpiraciones(filtros?: FiltrosHistorialExpiraciones) {
+  const params = new URLSearchParams();
+
+  if (filtros?.negocioId) {
+    params.append('negocioId', filtros.negocioId);
+  }
+  if (filtros?.limit) {
+    params.append('limit', filtros.limit.toString());
+  }
+  if (filtros?.offset) {
+    params.append('offset', filtros.offset.toString());
+  }
+
+  const query = params.toString();
+  const url = query ? `/cardya/historial/expiraciones?${query}` : '/cardya/historial/expiraciones';
+
+  return get<HistorialExpiracion[]>(url);
 }
