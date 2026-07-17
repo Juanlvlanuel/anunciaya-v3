@@ -48,6 +48,33 @@ export function usePushNotificaciones(): EstadoPush {
         return () => { vivo = false; };
     }, [soportado]);
 
+    // El permiso puede cambiar FUERA de la app (ajustes del navegador). Sin esto,
+    // el usuario lo permite en los ajustes, vuelve, y el aviso ámbar sigue ahí
+    // hasta recargar. Dos vías, porque ninguna cubre todos los navegadores:
+    //   1. Permissions API `onchange` → reacciona al instante (Chrome/Edge/Firefox).
+    //   2. `visibilitychange` → al volver de los ajustes re-lee el permiso (Safari
+    //      iOS no expone 'notifications' en Permissions API).
+    useEffect(() => {
+        if (!soportado) return;
+
+        const revisar = () => setPermisoBloqueado(permisoActual() === 'denied');
+
+        document.addEventListener('visibilitychange', revisar);
+        window.addEventListener('focus', revisar);
+
+        let estado: PermissionStatus | null = null;
+        navigator.permissions
+            ?.query({ name: 'notifications' as PermissionName })
+            .then((p) => { estado = p; p.addEventListener('change', revisar); })
+            .catch(() => { /* navegador sin soporte para consultar 'notifications' */ });
+
+        return () => {
+            document.removeEventListener('visibilitychange', revisar);
+            window.removeEventListener('focus', revisar);
+            estado?.removeEventListener('change', revisar);
+        };
+    }, [soportado]);
+
     const alternar = useCallback(async () => {
         if (cargando || !soportado) return;
         setCargando(true);
