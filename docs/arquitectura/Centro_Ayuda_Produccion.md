@@ -1296,6 +1296,68 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 
 ---
 
+### 🎬 S-· — "Activa las notificaciones de ChatYA y responde chats desde ScanYA" · 📟 · tablet/celular · ~55-70 seg
+
+> **Nota:** categoría **"4.- Avanzado"**, posición **#1** (confirmado 15-jul-2026 — primero, por ser comunicación con clientes de uso frecuente). La campana **no es exclusiva de ChatYA** — es el mismo mecanismo de suscripción push del dispositivo usado en "Mi Perfil → Seguridad", solo etiquetado aquí para el contexto de ScanYA. El diálogo de permiso lo controla el navegador (Chrome/Safari/etc.), no la app. Responder el chat requiere el permiso de empleado **"responderChat"**; sin él, el error es "No tienes permiso para acceder al chat".
+
+> `[Pantalla: header de ScanYA, tocas el ícono de campana]`
+> **"Para no perderte ningún mensaje mientras vendes, toca la campana: 'Notificaciones de ChatYA'."**
+>
+> `[Se abre el popover; estado "Desactivadas"; activas el switch]`
+> **"Actívalas. Tu navegador te va a pedir permiso: acéptalo."**
+>
+> `[Cambia a "Activadas · te avisamos al instante"]`
+> **"Y listo: 'Activadas, te avisamos al instante'. Ahora te llega el aviso aunque estés en medio de una venta."**
+>
+> `[Si quedaron bloqueadas: "Bloqueadas en el navegador"]`
+> **"Si por accidente las bloqueaste, aquí mismo te dice cómo activarlas desde los ajustes de tu navegador."**
+>
+> `[Tocas el ícono de ChatYA en accesos rápidos; se abre el chat]`
+> **"Para responder, toca el ícono de ChatYA. Se abre el mismo chat de siempre: contesta a tu cliente sin salir de ScanYA."**
+>
+> `[Cierre]`
+> **"Así atiendes a tus clientes al instante, sin perder ni una venta."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. En el header de ScanYA, toca la campana ("Notificaciones de ChatYA").
+2. Actívalas y acepta el permiso que te pida tu navegador.
+3. Verás **"Activadas · te avisamos al instante"** — te llegará un aviso con cada mensaje nuevo.
+4. Si quedaron **"Bloqueadas en el navegador"**, actívalas desde los ajustes del navegador para este sitio.
+5. Toca el ícono de **ChatYA** en los accesos rápidos para responder sin salir de ScanYA.
+
+---
+
+### 🎬 S-· — "Registra visitas en una Tarjeta de Sellos" · 📟 · tablet/celular · ~55-70 seg
+
+> **Nota:** categoría **"2.- Operar la caja"**, posición **#2** (confirmado 15-jul-2026 — justo después de "Registra una Venta...", mismo modal). No es un flujo aparte — el sello se suma **dentro del mismo "Registrar Venta"**, junto con los puntos, en la misma transacción. La sección "Tarjeta de Sellos (opcional)" solo aparece si el cliente tiene alguna tarjeta activa con el negocio; si tiene varias, se elige una (selección única, con botón "Quitar selección").
+
+> `[Pantalla: registrando una venta, identificas al cliente por teléfono]`
+> **"Si tu cliente tiene una Tarjeta de Sellos contigo, aquí mismo, al registrar su venta, se la sumas."**
+>
+> `[Se despliega "Tarjeta de Sellos (opcional)"]`
+> **"Aparece la sección 'Tarjeta de Sellos'. Si tiene más de una, elige cuál."**
+>
+> `[Seleccionas; se ve el conteo "3/8" con el +1 proyectado]`
+> **"Selecciónala, y ves su avance: cuántos sellos lleva y cuántos le faltan, ya contando el que le vas a dar."**
+>
+> `[Terminas de llenar la venta y confirmas]`
+> **"Termina de registrar la venta normal, con su monto y método de pago, y confirma."**
+>
+> `[Pantalla de éxito: "🎯 {nombre} X/Y" o "🎉 ¡Tarjeta completada!"]`
+> **"Al final ves su nuevo avance… y si con esta venta completó la tarjeta, te avisamos: '¡Tarjeta completada!', para que le entregues su premio."**
+>
+> `[Cierre]`
+> **"Así, cada visita cuenta, y tu cliente ve que va avanzando."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Al registrar una venta, identifica al cliente por su teléfono.
+2. Si tiene una Tarjeta de Sellos activa, aparece **"Tarjeta de Sellos (opcional)"** — si tiene varias, elige cuál.
+3. Verás su avance actual, ya con el sello de esta compra sumado.
+4. Completa el resto de la venta (monto, método de pago) y confirma.
+5. Si la tarjeta se completó, verás **"¡Tarjeta completada!"** — entrega el premio a tu cliente.
+
+---
+
 *(Los guiones U-21, … se agregan debajo conforme se escriben en el chat de producción.)*
 
 ---
@@ -1315,9 +1377,9 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 | 9 | C-06 | Primera oferta | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 10 | C-09 | Puntos y recompensas | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 11 | C-14 | Responde a tus clientes por ChatYA (desde BS y ScanYA) y ve su billetera | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 12 | S-01 | Entra a ScanYA y abre tu turno | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 13 | S-02 | Registra venta, otorga puntos y aplica cupones | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 14 | S-03 | Canjea un voucher y cierra tu turno | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 12 | S-01 | Entra a ScanYA y abre tu turno | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 13 | S-02 | Registra venta, otorga puntos y aplica cupones | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 14 | S-03 | Canjea un voucher y cierra tu turno | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 15 | C-· | Crea y envía cupones privados | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 16 | C-· | Gestiona y envía cupones y ofertas por ChatYA | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 17 | C-· | Actualiza info del negocio (Mi Perfil) | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -1335,12 +1397,14 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 | 29 | C-· | Revisa y resuelve tus alertas | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 30 | C-· | Lee y exporta tus reportes (ventas, clientes, promociones) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 31 | C-· | Revisa tu historial de Transacciones (ventas, cupones y vouchers) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 32 | S-· | Registra ventas sin internet (modo offline) | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 33 | S-· | Consulta el historial del turno y filtra (período / empleado) | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 34 | S-· | Consulta y gestiona los vouchers de tus clientes | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 35 | S-· | Cambia de sucursal en ScanYA | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 36 | S-· | Responde reseñas desde ScanYA | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 37 | S-· | Instala ScanYA en tu tablet o teléfono | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 32 | S-· | Registra ventas sin internet (modo offline) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 33 | S-· | Consulta el historial del turno y filtra (período / empleado) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 34 | S-· | Consulta y gestiona los vouchers de tus clientes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 35 | S-· | Cambia de sucursal en ScanYA | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 36 | S-· | Responde reseñas desde ScanYA | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 37 | S-· | Instala ScanYA en tu tablet o teléfono | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 38 | S-· | Activa las notificaciones de ChatYA y responde chats desde ScanYA | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 39 | S-· | Registra visitas en una Tarjeta de Sellos | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 > **Publicados en redes:** U-01 y U-06 también están en TikTok y Facebook (descripciones en §5/chat). U-10 y U-19: publicados en el Panel — confirmar si van a redes.
 > **Títulos reales del Panel (14-jul-2026):** algunos artículos se publicaron con un título ligeramente distinto al propuesto en el guion — la tabla ya refleja el título REAL visible en el Panel, no el de trabajo.
@@ -1437,3 +1501,33 @@ Definido 14-jul-2026. Coincide **exactamente** con la jerarquía oficial de `CLA
 8. Mi Cuenta y Seguridad
 
 > Aplicado en el Panel. 27 tutoriales totales en AnunciaYA, 4 con video (15% grabados) — U-01, U-06, U-10, U-19.
+
+### Categorías y orden de videos en el Panel (ScanYA)
+
+Categorías ya existentes en el Panel (no se reordenaron, siguen el flujo natural de un empleado: entrar → operar → recompensas → extra):
+
+1. Empezar en ScanYA
+2. Operar la caja
+3. Recompensas
+4. Avanzado
+
+**Orden de videos dentro de cada categoría** (definido 15-jul-2026, tras agregar los 2 videos nuevos de esta sesión):
+
+**2.- Operar la caja**
+1. Registra una Venta, Otorga Puntos y Aplica Cupones
+2. Registra visitas en una Tarjeta de Sellos *(nuevo — va justo después: es el mismo modal de "Registrar Venta", solo un campo distinto)*
+3. Canjea un Voucher (QR o código) y Cierra tu Turno
+4. Registra ventas sin internet (modo offline) *(al final: es el caso excepcional, no la operación normal)*
+
+**3.- Recompensas**
+1. Consulta y Gestiona los Vouchers de tus Clientes
+
+**4.- Avanzado**
+1. Activa las notificaciones de ChatYA y responde chats desde ScanYA *(nuevo — primero: comunicación con clientes, de uso frecuente)*
+2. Responde reseñas desde ScanYA *(también comunicación/atención al cliente, junto al anterior)*
+3. Consulta el historial del turno y filtra (período / empleado)
+4. Cambia de sucursal en ScanYA *(más específico: solo negocios con varias sucursales)*
+5. Instala ScanYA en tu tablet o teléfono *(al final: referencia de configuración inicial de dispositivo, no de uso diario)*
+
+> **Decisión sobre "Canjea un Voucher... y Cierra tu Turno":** se evaluó moverlo a "Recompensas" (ya que incluye canjear un voucher) pero se **descartó** — el video también cubre "Cerrar turno", una acción puramente operativa que necesita quedarse en "Operar la caja" para completar el arco natural del día de un cajero (abrir turno → vender → cerrar turno). "Recompensas" ya tiene su propio video de vouchers que se sostiene solo (consultar/gestionar, sin mezclar cierre de caja).
+> ScanYA suma **11 tutoriales en total**, todos con guion, grabados y publicados (15-jul-2026) — ver §6 filas 12-14 y 32-39.
