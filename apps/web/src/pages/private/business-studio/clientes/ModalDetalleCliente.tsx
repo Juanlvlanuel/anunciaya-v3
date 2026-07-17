@@ -406,15 +406,18 @@ export default function ModalDetalleCliente({
 
             {/* ── Sección Puntos ── */}
             <div className="px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-2 border-b border-slate-300">
-              {/* 3 puntos en fila compacta */}
-              <div className="grid grid-cols-3 text-center">
+              {/* Puntos en fila compacta. "Vencidos" solo aparece si el negocio tiene
+                  expiración activa y el cliente perdió puntos; así la cuenta cierra a la
+                  vista (Disponibles + Canjeados + Vencidos = Acumulados) sin ensuciar la
+                  ficha de los negocios que no expiran. */}
+              <div className={`grid ${cliente.puntosExpiradosTotal > 0 ? 'grid-cols-4' : 'grid-cols-3'} text-center divide-x divide-slate-300`}>
                 <div>
                   <p className="text-base lg:text-sm 2xl:text-base font-bold text-emerald-600">
                     {cliente.puntosDisponibles.toLocaleString()}
                   </p>
                   <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Disponibles</p>
                 </div>
-                <div className="border-x border-slate-300">
+                <div>
                   <p className="text-base lg:text-sm 2xl:text-base font-bold text-blue-600">
                     {cliente.puntosAcumuladosTotal.toLocaleString()}
                   </p>
@@ -426,6 +429,14 @@ export default function ModalDetalleCliente({
                   </p>
                   <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Canjeados</p>
                 </div>
+                {cliente.puntosExpiradosTotal > 0 && (
+                  <div>
+                    <p className="text-base lg:text-sm 2xl:text-base font-bold text-amber-600">
+                      {cliente.puntosExpiradosTotal.toLocaleString()}
+                    </p>
+                    <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium">Vencidos</p>
+                  </div>
+                )}
               </div>
 
               {/* Barra de progreso + Badges nivel */}

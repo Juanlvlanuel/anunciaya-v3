@@ -179,6 +179,7 @@ export interface ClienteDetalle {
   puntosDisponibles: number;
   puntosAcumuladosTotal: number;
   puntosCanjeadosTotal: number;
+  puntosExpiradosTotal: number;
   nivelActual: string;
   clienteDesde: string | null;
   ultimaActividad: string | null;

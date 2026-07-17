@@ -1268,7 +1268,9 @@ export const puntosConfiguracion = pgTable("puntos_configuracion", {
 	pesosOriginales: integer("pesos_originales"),
 	puntosOriginales: integer("puntos_originales"),
 	minimoCompra: numeric("minimo_compra", { precision: 10, scale: 2 }).default('0').notNull(),
-	diasExpiracionPuntos: integer("dias_expiracion_puntos").default(90),
+	// NULL = los puntos no expiran. Es el default: un negocio nace sin expiración
+	// y el dueño la activa en BS si quiere (columna nullable, sin default en BD).
+	diasExpiracionPuntos: integer("dias_expiracion_puntos"),
 	diasExpiracionVoucher: integer("dias_expiracion_voucher").default(30).notNull(),
 	validarHorario: boolean("validar_horario").default(true).notNull(),
 	horarioInicio: time("horario_inicio").default('09:00:00').notNull(),
@@ -1333,6 +1335,43 @@ export const puntosBilletera = pgTable("puntos_billetera", {
 	unique("puntos_billetera_unique").on(table.usuarioId, table.negocioId),
 	check("puntos_billetera_puntos_disponibles_check", sql`puntos_disponibles >= 0`),
 	check("puntos_billetera_totales_check", sql`(puntos_acumulados_total >= 0) AND (puntos_canjeados_total >= 0) AND (puntos_expirados_total >= 0)`),
+]);
+
+// Rastro auditable de cada expiración de puntos por inactividad. No se registra
+// en puntos_transacciones (esa tabla es de ventas/canjes). Una fila por evento de
+// vencimiento; `origen` distingue si la materializó el cron o una lectura (ScanYA).
+export const puntosExpiraciones = pgTable("puntos_expiraciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	billeteraId: uuid("billetera_id").notNull(),
+	negocioId: uuid("negocio_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	puntosExpirados: integer("puntos_expirados").notNull(),
+	// Fecha base (ultima_actividad de la billetera) que disparó el vencimiento.
+	ultimaActividad: timestamp("ultima_actividad", { withTimezone: true, mode: 'string' }),
+	// Días de expiración vigentes en la config al momento de vencer (trazabilidad).
+	diasExpiracion: integer("dias_expiracion"),
+	origen: varchar("origen", { length: 10 }).notNull(),  // 'cron' | 'on_read'
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_puntos_expiraciones_negocio").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_puntos_expiraciones_usuario_negocio").using("btree", table.usuarioId.asc().nullsLast(), table.negocioId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.billeteraId],
+		foreignColumns: [puntosBilletera.id],
+		name: "fk_puntos_expiraciones_billetera"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.negocioId],
+		foreignColumns: [negocios.id],
+		name: "fk_puntos_expiraciones_negocio"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_puntos_expiraciones_usuario"
+	}).onDelete("cascade"),
+	check("puntos_expiraciones_puntos_check", sql`puntos_expirados > 0`),
+	check("puntos_expiraciones_origen_check", sql`origen IN ('cron', 'on_read')`),
 ]);
 
 export const recompensas = pgTable("recompensas", {
@@ -1784,7 +1823,7 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying])::text[]))`),
 ]);
 

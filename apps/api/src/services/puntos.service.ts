@@ -27,7 +27,7 @@
  * - date-fns: Instalar con "pnpm add date-fns" en apps/api
  */
 
-import { eq, and, inArray, notInArray, gte, lte, lt, gt, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, inArray, notInArray, gte, lte, lt, gt, desc, asc, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   puntosConfiguracion,
@@ -35,6 +35,7 @@ import {
   recompensaProgreso,
   puntosTransacciones,
   puntosBilletera,
+  puntosExpiraciones,
   usuarios,
   empleados,
   negocioSucursales,
@@ -61,6 +62,7 @@ import { generarPresignedUrl } from './r2.service.js';
 import { eliminarImagenSiHuerfana } from './negocioManagement.service.js';
 import { startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { crearNotificacion, eliminarNotificacionesPorReferencia, obtenerSucursalPrincipal } from './notificaciones.service.js';
+import { enviarPushAUsuario } from './push.service.js';
 
 // =============================================================================
 // VALORES POR DEFECTO
@@ -1628,13 +1630,16 @@ export async function expirarPuntosPorInactividad(
     );
 
     if (new Date() > finDiaExpiracion) {
-      await db
-        .update(puntosBilletera)
-        .set({
-          puntosDisponibles: 0,
-          puntosExpiradosTotal: (billetera.puntosExpiradosTotal || 0) + billetera.puntosDisponibles,
-        })
-        .where(eq(puntosBilletera.id, billetera.id));
+      await materializarExpiracionPuntos({
+        billeteraId: billetera.id,
+        negocioId,
+        usuarioId,
+        puntosDisponibles: billetera.puntosDisponibles,
+        puntosExpiradosTotal: billetera.puntosExpiradosTotal || 0,
+        ultimaActividad: billetera.ultimaActividad,
+        diasExpiracion: config.diasExpiracionPuntos,
+        origen: 'on_read',
+      });
 
       console.log(`[Expiracion] Puntos expirados: ${billetera.puntosDisponibles} pts del usuario ${usuarioId} en negocio ${negocioId} (zona: ${zonaHoraria})`);
     }
@@ -1642,6 +1647,42 @@ export async function expirarPuntosPorInactividad(
   } catch (error) {
     console.error('[Expiracion] Error al verificar puntos por inactividad:', error);
   }
+}
+
+/**
+ * Materializa una expiración de puntos: pone el saldo disponible en 0, suma al
+ * total expirado de la billetera y registra el evento en `puntos_expiraciones`.
+ * Todo en una transacción. Compartido por el camino on-read y el cron.
+ */
+async function materializarExpiracionPuntos(datos: {
+  billeteraId: string;
+  negocioId: string;
+  usuarioId: string;
+  puntosDisponibles: number;
+  puntosExpiradosTotal: number;
+  ultimaActividad: string | null;
+  diasExpiracion: number | null;
+  origen: 'cron' | 'on_read';
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(puntosBilletera)
+      .set({
+        puntosDisponibles: 0,
+        puntosExpiradosTotal: datos.puntosExpiradosTotal + datos.puntosDisponibles,
+      })
+      .where(eq(puntosBilletera.id, datos.billeteraId));
+
+    await tx.insert(puntosExpiraciones).values({
+      billeteraId: datos.billeteraId,
+      negocioId: datos.negocioId,
+      usuarioId: datos.usuarioId,
+      puntosExpirados: datos.puntosDisponibles,
+      ultimaActividad: datos.ultimaActividad,
+      diasExpiracion: datos.diasExpiracion,
+      origen: datos.origen,
+    });
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -1664,6 +1705,194 @@ export async function verificarExpiraciones(
 ): Promise<void> {
   await expirarVouchersVencidos(negocioId);
   await expirarPuntosPorInactividad(usuarioId, negocioId);
+}
+
+// -----------------------------------------------------------------------------
+// 11d. EXPIRACIÓN MASIVA (para el cron diario)
+// -----------------------------------------------------------------------------
+
+/**
+ * Recorre TODAS las billeteras candidatas a expirar y las vence proactivamente,
+ * sin esperar a que el cliente vuelva a ScanYA. Lo ejecuta el cron diario.
+ *
+ * Agrupa por negocio para resolver la zona horaria una sola vez y reusar
+ * `calcularFinDiaExpiracion` (misma aritmética que el camino on-read).
+ * Solo considera negocios con expiración activa (`dias_expiracion_puntos IS NOT NULL`).
+ */
+export async function expirarPuntosVencidosMasivo(): Promise<{
+  billeterasExpiradas: number;
+  puntosExpirados: number;
+}> {
+  const candidatas = await db
+    .select({
+      id: puntosBilletera.id,
+      usuarioId: puntosBilletera.usuarioId,
+      negocioId: puntosBilletera.negocioId,
+      puntosDisponibles: puntosBilletera.puntosDisponibles,
+      puntosExpiradosTotal: puntosBilletera.puntosExpiradosTotal,
+      ultimaActividad: puntosBilletera.ultimaActividad,
+      diasExpiracion: puntosConfiguracion.diasExpiracionPuntos,
+    })
+    .from(puntosBilletera)
+    .innerJoin(
+      puntosConfiguracion,
+      eq(puntosConfiguracion.negocioId, puntosBilletera.negocioId)
+    )
+    .where(
+      and(
+        isNotNull(puntosConfiguracion.diasExpiracionPuntos),
+        gt(puntosBilletera.puntosDisponibles, 0),
+        isNotNull(puntosBilletera.ultimaActividad)
+      )
+    );
+
+  // Agrupar por negocio para resolver la zona horaria una vez por negocio.
+  const porNegocio = new Map<string, typeof candidatas>();
+  for (const c of candidatas) {
+    const arr = porNegocio.get(c.negocioId) ?? [];
+    arr.push(c);
+    porNegocio.set(c.negocioId, arr);
+  }
+
+  let billeterasExpiradas = 0;
+  let puntosExpirados = 0;
+  const ahora = new Date();
+
+  for (const [negocioId, billeteras] of porNegocio) {
+    const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId);
+    for (const b of billeteras) {
+      if (b.diasExpiracion === null || !b.ultimaActividad) continue;
+      const finDia = calcularFinDiaExpiracion(b.ultimaActividad, b.diasExpiracion, zonaHoraria);
+      if (ahora > finDia) {
+        await materializarExpiracionPuntos({
+          billeteraId: b.id,
+          negocioId,
+          usuarioId: b.usuarioId,
+          puntosDisponibles: b.puntosDisponibles,
+          puntosExpiradosTotal: b.puntosExpiradosTotal || 0,
+          ultimaActividad: b.ultimaActividad,
+          diasExpiracion: b.diasExpiracion,
+          origen: 'cron',
+        });
+        billeterasExpiradas++;
+        puntosExpirados += b.puntosDisponibles;
+      }
+    }
+  }
+
+  return { billeterasExpiradas, puntosExpirados };
+}
+
+// -----------------------------------------------------------------------------
+// 11e. AVISO PREVIO DE VENCIMIENTO (para el cron diario)
+// -----------------------------------------------------------------------------
+
+/** Días de antelación con que se avisa al cliente que sus puntos van a vencer. */
+const DIAS_AVISO_PREVIO_PUNTOS = 7;
+
+/**
+ * Avisa al cliente cuando sus puntos en un negocio están por vencer (dentro de
+ * los próximos DIAS_AVISO_PREVIO_PUNTOS días). Notificación in-app + push.
+ *
+ * Idempotente por ciclo de inactividad: no repite el aviso si ya existe una
+ * notificación `puntos_por_vencer` creada DESPUÉS de la última actividad de la
+ * billetera. Si el cliente compra de nuevo, `ultima_actividad` se renueva, el
+ * ciclo reinicia y se podrá volver a avisar cuando se acerque el nuevo venc.
+ */
+export async function notificarPuntosPorVencer(): Promise<{ avisos: number }> {
+  const candidatas = await db
+    .select({
+      usuarioId: puntosBilletera.usuarioId,
+      negocioId: puntosBilletera.negocioId,
+      puntosDisponibles: puntosBilletera.puntosDisponibles,
+      ultimaActividad: puntosBilletera.ultimaActividad,
+      diasExpiracion: puntosConfiguracion.diasExpiracionPuntos,
+    })
+    .from(puntosBilletera)
+    .innerJoin(
+      puntosConfiguracion,
+      eq(puntosConfiguracion.negocioId, puntosBilletera.negocioId)
+    )
+    .where(
+      and(
+        isNotNull(puntosConfiguracion.diasExpiracionPuntos),
+        gt(puntosBilletera.puntosDisponibles, 0),
+        isNotNull(puntosBilletera.ultimaActividad)
+      )
+    );
+
+  const porNegocio = new Map<string, typeof candidatas>();
+  for (const c of candidatas) {
+    const arr = porNegocio.get(c.negocioId) ?? [];
+    arr.push(c);
+    porNegocio.set(c.negocioId, arr);
+  }
+
+  const ahora = new Date();
+  const limite = new Date(ahora.getTime() + DIAS_AVISO_PREVIO_PUNTOS * 24 * 60 * 60 * 1000);
+  let avisos = 0;
+
+  for (const [negocioId, billeteras] of porNegocio) {
+    const zonaHoraria = await obtenerZonaHorariaNegocio(negocioId);
+    const [negocioInfo] = await db
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+    const sucursalPrincipalId = await obtenerSucursalPrincipal(negocioId);
+
+    for (const b of billeteras) {
+      if (b.diasExpiracion === null || !b.ultimaActividad) continue;
+      const finDia = calcularFinDiaExpiracion(b.ultimaActividad, b.diasExpiracion, zonaHoraria);
+
+      // Por vencer: la fecha de vencimiento cae dentro de la ventana de aviso.
+      if (finDia <= ahora || finDia > limite) continue;
+
+      // Idempotencia: ¿ya avisamos en este ciclo (notif posterior a la última actividad)?
+      const [yaAvisado] = await db
+        .select({ id: notificaciones.id })
+        .from(notificaciones)
+        .where(
+          and(
+            eq(notificaciones.usuarioId, b.usuarioId),
+            eq(notificaciones.negocioId, negocioId),
+            eq(notificaciones.tipo, 'puntos_por_vencer'),
+            gt(notificaciones.createdAt, b.ultimaActividad)
+          )
+        )
+        .limit(1);
+      if (yaAvisado) continue;
+
+      const fechaVenc = new Intl.DateTimeFormat('es-MX', {
+        day: 'numeric', month: 'long', timeZone: zonaHoraria,
+      }).format(finDia);
+      const nombreNegocio = negocioInfo?.nombre ?? 'un negocio';
+
+      crearNotificacion({
+        usuarioId: b.usuarioId,
+        modo: 'personal',
+        tipo: 'puntos_por_vencer',
+        titulo: 'Tus puntos están por vencer',
+        mensaje: `Tienes ${b.puntosDisponibles} puntos en ${nombreNegocio} que vencen el ${fechaVenc}. Visítalos antes para no perderlos.`,
+        negocioId,
+        sucursalId: sucursalPrincipalId ?? undefined,
+        icono: '⏳',
+        actorImagenUrl: negocioInfo?.logoUrl ?? undefined,
+        actorNombre: nombreNegocio,
+      }).catch((err) => console.error('Error notificación puntos por vencer:', err));
+
+      enviarPushAUsuario(b.usuarioId, {
+        titulo: 'Tus puntos están por vencer',
+        cuerpo: `${b.puntosDisponibles} puntos en ${nombreNegocio} vencen el ${fechaVenc}.`,
+        url: '/cardya',
+        tag: `puntos-vencer-${negocioId}`,
+      }).catch((err) => console.error('Error push puntos por vencer:', err));
+
+      avisos++;
+    }
+  }
+
+  return { avisos };
 }
 
 // =============================================================================

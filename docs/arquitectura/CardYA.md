@@ -205,6 +205,49 @@ function calcularNivel(puntosAcumuladosTotal: number, config: ConfigNiveles): Ni
 
 ---
 
+## ⏳ Expiración de puntos
+
+**Modelo: por inactividad, todo el saldo de golpe.** Si el cliente pasa
+`dias_expiracion_puntos` días sin comprar (contados desde `ultima_actividad`, al
+fin del día en la zona horaria del negocio), su saldo disponible vence completo.
+No es FIFO por lote — comprar de nuevo renueva el reloj de todo el saldo.
+
+**Apagado por defecto.** `puntos_configuracion.dias_expiracion_puntos` nace en
+`NULL` (= no expira). Un negocio arranca sin expiración; el dueño la activa a
+propósito en BS → Sistema de Puntos → Expiración de Puntos. Así ningún negocio
+"desaparece" puntos sin haberlo decidido.
+
+**Identidad contable** (siempre debe cerrar):
+`acumulados = disponibles + canjeados + expirados`. La expiración la preserva:
+pone `puntos_disponibles = 0` y suma esa misma cantidad a `puntos_expirados_total`.
+
+### Cuándo se materializa
+
+Dos caminos, misma lógica (`materializarExpiracionPuntos` en `puntos.service.ts`):
+
+1. **Cron diario** (`puntos-expiracion.cron.ts`, ~03:00 MX / 09:00 UTC) —
+   `expirarPuntosVencidosMasivo()` recorre todas las billeteras con expiración
+   activa y vence las vencidas **proactivamente**, sin esperar al cliente.
+2. **On-read** (heredado) — al identificar al cliente en ScanYA
+   (`verificarExpiraciones`), por si el cron aún no pasó.
+
+### Rastro auditable
+
+Cada vencimiento inserta una fila en **`puntos_expiraciones`** (billetera, negocio,
+usuario, puntos, `ultima_actividad`, `dias_expiracion`, `origen` = `cron`/`on_read`).
+No se registra en `puntos_transacciones` (esa tabla es de ventas/canjes). La ficha
+del cliente en BS muestra "Vencidos" (`puntos_expirados_total`) como 4ª columna
+cuando hay puntos vencidos, para que la cuenta cierre a la vista.
+
+### Aviso previo al cliente
+
+`notificarPuntosPorVencer()` (2º job del mismo cron) avisa **7 días antes** del
+vencimiento: notificación in-app (`tipo = 'puntos_por_vencer'`) + push. Idempotente
+por ciclo: no repite mientras el cliente no compre de nuevo (compara contra
+`ultima_actividad` de la billetera).
+
+---
+
 ## 🎁 Catálogo de Recompensas
 
 ### Concepto

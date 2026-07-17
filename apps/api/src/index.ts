@@ -19,6 +19,7 @@ import { inicializarCronServiciosExpiracion } from './cron/servicios-expiracion.
 import { inicializarCronSuscripcionesGracia } from './cron/suscripciones-gracia.cron.js';
 import { inicializarCronVencimientosManuales } from './cron/suscripciones-vencimientos-manuales.cron.js';
 import { inicializarCronPublicidad } from './cron/publicidad.cron.js';
+import { inicializarCronPuntosExpiracion } from './cron/puntos-expiracion.cron.js';
 import { inicializarCapturaLogs } from './utils/logBuffer.js';
 import { refrescarEmailSoporte } from './utils/email.js';
 
@@ -58,6 +59,7 @@ const iniciarServidor = async () => {
     inicializarCronSuscripcionesGracia();   // Suspende negocios con periodo de gracia vencido (diario)
     inicializarCronVencimientosManuales();  // Expira negocios manuales vencidos (al_corriente → en_gracia, diario)
     inicializarCronPublicidad();            // Expira anuncios vencidos + avisa 3 días antes (cada 12h)
+    inicializarCronPuntosExpiracion();      // Expira puntos por inactividad proactivamente (diario 9:00 UTC)
     // (Pieza 3) El cron de "foto mensual" de comisiones se RETIRÓ: la comisión recurrente ahora se devenga
     // en cada COBRO (ver comisiones-devengo.service · devengarComisionRecurrenteAlCobro).
   } catch (error) {

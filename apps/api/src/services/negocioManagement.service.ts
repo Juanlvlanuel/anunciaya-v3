@@ -1013,7 +1013,8 @@ export const asegurarConfiguracionPuntos = async (
             pesosOriginales: null,
             puntosOriginales: null,
             minimoCompra: '0',                // Sin mínimo de compra
-            diasExpiracionPuntos: 90,
+            diasExpiracionPuntos: null,       // Nace SIN expiración: los puntos no vencen
+                                              // hasta que el dueño active la expiración en BS.
             diasExpiracionVoucher: 30,
             validarHorario: true,             // Validar horario por default
             horarioInicio: '09:00:00',        // 9 AM

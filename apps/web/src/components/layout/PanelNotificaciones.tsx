@@ -99,6 +99,7 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   recompensa_desbloqueada: 'entregado',
   voucher_pendiente: 'pendiente',
   nueva_recompensa: 'pendiente',
+  puntos_por_vencer: 'alerta',
   nueva_resena: 'resena',
   stock_bajo: 'alerta',
   cupon_revocado: 'alerta',

@@ -25,6 +25,8 @@ export type TipoNotificacion =
   | 'cupon_revocado'
   | 'nuevo_cliente'
   | 'voucher_pendiente'
+  /** Al CLIENTE cuando sus puntos en un negocio están por vencer (aviso previo). */
+  | 'puntos_por_vencer'
   | 'stock_bajo'
   | 'nueva_resena'
   | 'sistema'
