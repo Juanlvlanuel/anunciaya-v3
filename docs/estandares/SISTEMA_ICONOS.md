@@ -99,7 +99,15 @@ import { ICONOS_REMOTOS } from '@/config/iconos';
 <Icon icon={ICONOS_REMOTOS.whatsapp} className="h-8 w-8" />
 ```
 
-Son los **únicos** dos usos válidos de `@iconify/react` en la app. Ninguno está en el flujo offline de ScanYA. Si se necesita un tercer logo de marca, agrégalo aquí — no a `ICONOS`.
+Ninguno está en el flujo offline de ScanYA. Si se necesita otro logo de marca, agrégalo aquí — no a `ICONOS`.
+
+### Íconos dinámicos desde BD
+
+Hay un tercer caso válido de `@iconify/react`: cuando el ícono **no se conoce en build** porque viene de la base de datos. Hoy es solo el ícono por categoría del Centro de Ayuda (`IconoCategoria` en `PaginaCentroAyuda.tsx`), que el Panel Admin guarda como string (`"ph:storefront"`). Un string dinámico no puede resolverse a un componente de lucide al compilar, así que se pinta con el `Icon` de Iconify.
+
+Si agregas un campo así, ten presente que **depende de la red**: sin conexión no se pinta. No lo uses en pantallas que deban funcionar offline (ScanYA).
+
+Fuera de estos tres casos (`ICONOS_REMOTOS` y los íconos de BD), `@iconify/react` no se usa en la app.
 
 ### Wrappers locales
 
@@ -267,7 +275,9 @@ Ver lista completa en el header de `config/iconos.ts`.
 
 ## Verificación
 
-El typecheck **no** protege contra pasarle un string a `Icon`: `LucideIcon` resuelve a `any` en este monorepo (desajuste entre los tipos de `lucide-react` y `@types/react`), así que `<Icon icon="ph:algo" />` compila sin error y simplemente no pinta nada (React crea una etiqueta HTML inexistente). Hasta que eso se arregle, la verificación es por grep:
+**Ojo con el typecheck local.** El build de Vercel (`tsc -b && vite build`, con `pnpm install` limpio) SÍ detecta que le pases un string a `Icon` (`Type 'string' is not assignable to type 'LucideIcon'`). Pero en el `node_modules` de desarrollo `LucideIcon` puede resolver a `any` y esos errores pasan de largo — el ícono simplemente no se pinta (React crea una etiqueta HTML inexistente). Causa sin diagnosticar (jul 2026).
+
+Consecuencia práctica: **un `tsc --noEmit` local limpio no garantiza que el build de Vercel pase.** Ante dudas, corre `pnpm run build` en `apps/web` y complementa con grep:
 
 ```regex
 '(ph|lucide|material-symbols|solar|mdi|flat-color-icons):[a-z0-9-]+'

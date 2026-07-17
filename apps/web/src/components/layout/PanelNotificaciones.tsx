@@ -23,7 +23,7 @@
  * Ubicación: apps/web/src/components/layout/PanelNotificaciones.tsx
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCircle, Trash2, X } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
@@ -76,11 +76,15 @@ type FamiliaNotificacion =
   /** Estatus de pago de membresía (rechazado/aprobado/anulado/gracia). Tile índigo + glifo dinero. */
   | 'membresia';
 
+// Acepta tanto los wrappers locales (funciones) como los íconos de lucide
+// directos (ForwardRefExoticComponent), que no devuelven ReactElement.
+type Glifo = ComponentType<IconoWrapperProps>;
+
 interface FamiliaConfig {
   tile: string;
-  badge: { bg: string; Glifo: (p: IconoWrapperProps) => ReactElement } | null;
+  badge: { bg: string; Glifo: Glifo } | null;
   /** Glifo del tile cuando el avatar es generado (sin persona). */
-  TileGlifo: (p: IconoWrapperProps) => ReactElement;
+  TileGlifo: Glifo;
 }
 
 /**

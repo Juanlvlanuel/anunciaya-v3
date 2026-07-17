@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Search, HelpCircle, ChevronRight, ChevronLeft, Play, BookOpen, X } from 'lucide-react';
 
+// Los íconos de categoría los define el Panel Admin y viajan como string desde
+// la BD, así que ese caso puntual (IconoCategoria) sigue resolviéndose por API.
+import { Icon as IconIconify } from '@iconify/react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUiStore } from '@/stores/useUiStore';
@@ -427,7 +430,10 @@ export default PaginaCentroAyuda;
 // =============================================================================
 
 function IconoCategoria({ icono, className }: { icono: string | null; className?: string }) {
-  if (icono) return <Icon icon={icono} className={className} />;
+  // `icono` es un nombre de Iconify (ej. "ph:storefront") que el Panel Admin
+  // guarda en BD por categoría. Al ser dinámico no puede resolverse a un
+  // componente de lucide en build, así que este SÍ va por la API de Iconify.
+  if (icono) return <IconIconify icon={icono} className={className} />;
   return <BookOpen className={className} strokeWidth={2.2} />;
 }
 
