@@ -637,8 +637,11 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
 
                             {/* Badge de urgencia con overlay - Alineado a la derecha */}
                             {badgeUrgencia && (
-                                <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-end pr-3 lg:pr-4 z-10"
-                                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}>
+                                <div
+                                    className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-end pr-3 lg:pr-4 z-10 cursor-pointer"
+                                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}
+                                    onClick={() => setImagenExpandida(true)}
+                                >
                                     <div className={`px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
                                         {badgeUrgencia.icono === "flame" ? (
                                             <Flame className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />

@@ -229,7 +229,10 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                     )}
                     
                     {/* Título y categoría sobre la imagen */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 lg:p-3 2xl:p-4">
+                    <div
+                        className="absolute bottom-0 left-0 right-0 p-4 lg:p-3 2xl:p-4 cursor-pointer"
+                        onClick={() => setImagenExpandida(true)}
+                    >
                         <h2 className="text-white text-xl lg:text-base 2xl:text-xl font-bold drop-shadow-lg leading-tight line-clamp-2">
                             {item.nombre}
                         </h2>
