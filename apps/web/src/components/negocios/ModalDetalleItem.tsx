@@ -18,8 +18,9 @@ import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
 import { DropdownCompartir } from '../compartir';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { ModalImagenes } from '../ui/ModalImagenes';
 import Tooltip from '../ui/Tooltip';
 import api from '../../services/api';
 import { useIniciarChatNegocio } from '@/hooks/useIniciarChatNegocio';
@@ -67,6 +68,7 @@ interface ModalDetalleItemProps {
 export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
     const iniciarChatNegocio = useIniciarChatNegocio();
     const usuario = useAuthStore((s) => s.usuario);
+    const [imagenExpandida, setImagenExpandida] = useState(false);
     // Registrar vista del artículo (con filtro de cooldown)
     useEffect(() => {
         if (!item) return;
@@ -154,6 +156,7 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
     };
 
     return (
+        <>
         <Modal
             abierto={!!item}
             onCerrar={onClose}
@@ -174,7 +177,8 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                         <img
                             src={item.imagenPrincipal}
                             alt={item.nombre}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => setImagenExpandida(true)}
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -186,8 +190,8 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                         </div>
                     )}
                     
-                    {/* Overlay gradiente */}
-                    <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                    {/* Overlay gradiente — pointer-events-none para no bloquear el click en la imagen */}
+                    <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
                     
                     {/* Botones flotantes arriba-derecha */}
                     <div className="absolute top-3 right-3 flex gap-2">
@@ -293,6 +297,15 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                     )}
                 </div>
             </Modal>
+
+            {item.imagenPrincipal && (
+                <ModalImagenes
+                    images={[item.imagenPrincipal]}
+                    isOpen={imagenExpandida}
+                    onClose={() => setImagenExpandida(false)}
+                />
+            )}
+        </>
     );
 }
 

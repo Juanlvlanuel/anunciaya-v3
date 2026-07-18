@@ -45,6 +45,7 @@ import {
 import { useGpsStore } from '@/stores/useGpsStore';
 import { DropdownCompartir } from '../compartir';
 import { Modal } from '../ui/Modal';
+import { ModalImagenes } from '../ui/ModalImagenes';
 import Tooltip from '../ui/Tooltip';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useIniciarChatNegocio } from '@/hooks/useIniciarChatNegocio';
@@ -311,6 +312,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
     // Solo se carga cuando `oferta.totalSucursales > 1`. La sección
     // "Disponible en N sucursales" se muestra solo si el array tiene >0.
     const [sucursales, setSucursales] = useState<SucursalDeOferta[]>([]);
+    const [imagenExpandida, setImagenExpandida] = useState(false);
     const latitud = useGpsStore((s) => s.latitud);
     const longitud = useGpsStore((s) => s.longitud);
 
@@ -606,14 +608,15 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                 <img
                                     src={oferta.imagen}
                                     alt={oferta.titulo}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover cursor-pointer"
+                                    onClick={() => setImagenExpandida(true)}
                                 />
                             ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-slate-200">
                                     <MessageCircle className="h-16 w-16 text-slate-300" />
                                 </div>
                             )}
-                            <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
+                            <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
 
                             {/* Pill de vistas — esquina inf-izquierda. Estilo "live count"
                                 consistente con `CardOfertaHero` destacado del feed. */}
@@ -838,6 +841,14 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                     </div>
                 </div>
             </Modal>
+
+            {oferta.imagen && (
+                <ModalImagenes
+                    images={[oferta.imagen]}
+                    isOpen={imagenExpandida}
+                    onClose={() => setImagenExpandida(false)}
+                />
+            )}
         </>
     );
 }
