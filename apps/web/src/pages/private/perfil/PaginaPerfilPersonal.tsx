@@ -292,7 +292,7 @@ export default function PaginaPerfilPersonal() {
                                             <User className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
                                         </div>
                                         <span className="text-2xl font-extrabold text-white tracking-tight">
-                                            Mi <span className="text-blue-400">Perfil</span>
+                                            Mi Perfil <span className="text-blue-400">Personal</span>
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-0 -mr-1 shrink-0">
@@ -354,8 +354,8 @@ export default function PaginaPerfilPersonal() {
                                             <User className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
                                         </div>
                                         <div className="flex items-baseline">
-                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">Mi&nbsp;</span>
-                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">Perfil</span>
+                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">Mi Perfil&nbsp;</span>
+                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">Personal</span>
                                         </div>
                                     </div>
 

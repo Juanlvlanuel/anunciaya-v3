@@ -59,7 +59,7 @@ const MODULOS_BS = [
   { nombre: 'Vacantes', ruta: '/business-studio/vacantes' },
   { nombre: 'Reportes', ruta: '/business-studio/reportes' },
   { nombre: 'Sucursales', ruta: '/business-studio/sucursales' },
-  { nombre: 'Mi Perfil', ruta: '/business-studio/perfil' },
+  { nombre: 'Mi Perfil Comercial', ruta: '/business-studio/perfil' },
 ];
 
 function obtenerIconoModulo(pathname: string): ModuloIcono {
@@ -91,7 +91,7 @@ function obtenerNombreModulo(pathname: string): string {
   if (pathname.includes('/vacantes')) return 'Vacantes';
   if (pathname.includes('/reportes')) return 'Reportes';
   if (pathname.includes('/sucursales')) return 'Sucursales';
-  if (pathname.includes('/perfil')) return 'Mi Perfil';
+  if (pathname.includes('/perfil')) return 'Mi Perfil Comercial';
   return 'Dashboard';
 }
 

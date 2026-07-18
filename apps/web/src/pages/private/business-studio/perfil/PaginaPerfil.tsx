@@ -274,7 +274,7 @@ export default function PaginaPerfil() {
             </div>
             <div>
               <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                Mi Perfil
+                Mi Perfil Comercial
               </h1>
               <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium lg:mt-0.5 -mt-0.5">
                 {tabs[tabActivo]?.subtitulo ?? 'Administra tu Información'}

@@ -631,7 +631,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
   const perfilItem: ItemMenuDrawer = {
     id: 'prf',
-    label: 'Mi Perfil',
+    label: 'Mi Perfil Personal',
     tile: TILE.perfil,
     icon: User,
     onClick: () => handleNavegar('/perfil'),

@@ -378,13 +378,13 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
         { id: 'pub', label: 'Mis Publicaciones', ruta: '/mis-publicaciones', icon: Package, tile: TILE.publicaciones },
         { id: 'sav', label: 'Mis Guardados', ruta: '/guardados', icon: Bookmark, tile: TILE.guardados },
         { id: 'ayuda', label: 'Ayuda y Tutoriales', ruta: '/ayuda', icon: HelpCircle, tile: 'linear-gradient(135deg, #0284c7, #0369a1)' },
-        { id: 'prf', label: 'Mi Perfil', ruta: '/perfil', icon: User, tile: TILE.perfil },
+        { id: 'prf', label: 'Mi Perfil Personal', ruta: '/perfil', icon: User, tile: TILE.perfil },
       ];
     }
     return [
       { id: 'sav', label: 'Mis Guardados', ruta: '/guardados', icon: Bookmark, tile: TILE.guardados },
       { id: 'ayuda', label: 'Ayuda y Tutoriales', ruta: '/ayuda', icon: HelpCircle, tile: 'linear-gradient(135deg, #0284c7, #0369a1)' },
-      { id: 'prf', label: 'Mi Perfil', ruta: '/perfil', icon: User, tile: TILE.perfil },
+      { id: 'prf', label: 'Mi Perfil Personal', ruta: '/perfil', icon: User, tile: TILE.perfil },
     ];
   }, [modo]);
 

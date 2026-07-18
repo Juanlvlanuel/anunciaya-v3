@@ -99,7 +99,7 @@ const opcionesMenu = [
   // =========== ANÁLISIS & CONFIGURACIÓN ===========
   { id: 'reportes', label: 'Reportes', icono: FileBarChart, ruta: '/business-studio/reportes' },
   { id: 'sucursales', label: 'Sucursales', icono: Building2, ruta: '/business-studio/sucursales' },
-  { id: 'perfil', label: 'Mi Perfil', icono: User, ruta: '/business-studio/perfil' },
+  { id: 'perfil', label: 'Mi Perfil Comercial', icono: User, ruta: '/business-studio/perfil' },
 ];
 
 // =============================================================================
