@@ -31,6 +31,7 @@ import PaginaRegistroExito from '../pages/public/PaginaRegistroExito';
 import PaginaArticuloPublico from '../pages/public/PaginaArticuloPublico';
 import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
 import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMarketplacePublico';
+import PaginaPublicacionNegocioPublica from '../pages/public/PaginaPublicacionNegocioPublica';
 import PaginaServicioPublico from '../pages/public/PaginaServicioPublico';
 import PaginaTutorialPublico from '../pages/public/PaginaTutorialPublico';
 import PaginaDemoEntrada from '../pages/public/PaginaDemoEntrada';
@@ -47,7 +48,7 @@ import TestModalSesion from '../pages/private/TestModalSesion';
 // Páginas de usuario (nuevas - Fase 4)
 import PaginaGuardados from '../pages/private/guardados/PaginaGuardados';
 import PaginaMisPublicaciones from '../pages/private/publicaciones/PaginaMisPublicaciones';
-import { PaginaNegocios, PaginaPerfilNegocio } from '../pages/private/negocios';
+import { PaginaNegocios, PaginaPerfilNegocio, PaginaPublicacionNegocio } from '../pages/private/negocios';
 // ⭐ NUEVO: CardYA (Fase X)
 import PaginaCardYA from '../pages/private/cardya/PaginaCardYA';
 import PaginaMisCupones from '../pages/private/cupones/PaginaMisCupones';
@@ -222,6 +223,10 @@ const router = createBrowserRouter([
         element: <PaginaArticuloMarketplacePublico />,
       },
       {
+        path: '/p/negocio-post/:publicacionId',
+        element: <PaginaPublicacionNegocioPublica />,
+      },
+      {
         path: '/p/servicio/:publicacionId',
         element: <PaginaServicioPublico />,
       },
@@ -311,6 +316,10 @@ const router = createBrowserRouter([
               {
                 index: true,
                 element: <PaginaNegocios />,
+              },
+              {
+                path: 'publicacion/:publicacionId',
+                element: <PaginaPublicacionNegocio />,
               },
               {
                 path: ':sucursalId',

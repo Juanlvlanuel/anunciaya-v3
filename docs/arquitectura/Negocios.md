@@ -1,8 +1,109 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
-**Última actualización:** 14 Mayo 2026
-**Versión:** 3.2
+**Última actualización:** 17 Julio 2026
+**Versión:** 3.3
 **Estado:** ✅ 100% Operacional
+
+## 🆕 v3.3 — Feed de Publicaciones de Negocio + toggle Feed/Mapa (17 Jul 2026)
+
+Feed de publicaciones libres de negocio (estilo post — texto, fotos, precio
+opcional, sin categoría estructurada) publicado solo por negocios en modo
+Comercial, visible para cualquier usuario. **No reemplaza a Ofertas**
+(descuentos estructurados) — es contenido informal (aviso, foto del local,
+producto nuevo, evento).
+
+### Toggle: Mapa/Lista → Feed/Mapa
+
+- El toggle pill flotante (ver v3.1) pasa de `'lista' | 'mapa'` a
+  `'feed' | 'mapa'`. **Feed es el default** en desktop y móvil por igual
+  (reemplaza a Lista, que se elimina del toggle — ya no existe grid
+  full-width sin mapa/feed).
+- **Desktop, tab Feed:** mismo layout de 2 columnas que el tab Mapa (cards de
+  negocio a la izquierda, `w-[300px] 2xl:w-[340px]` scrolleable), pero la
+  columna derecha renderiza `<FeedPublicacionesNegocio>` en vez de
+  `<MapaNegocio>`.
+- **Móvil, tab Feed:** NO es fullscreen como el tab Mapa. Es un reel
+  horizontal compacto de negocios (`<ReelNegociosFeed>`, cards
+  `CardNegocioCompacto`) arriba + el feed de publicaciones debajo, en un
+  solo scroll vertical normal.
+- El tab Mapa no cambia.
+
+### Backend
+
+- Tablas nuevas `negocio_publicaciones` (negocioId, sucursalId NOT NULL,
+  autorUsuarioId, texto, precio opcional sin estructura, fotos JSONB sin
+  límite de producto — 40 es tope técnico anti-abuso, ciudadId
+  desnormalizado desde la sucursal al crear, estado `activa|archivada` —
+  **sin TTL**, a diferencia de MarketPlace que expira a 30 días) y
+  `negocio_publicaciones_comentarios` (espejo de `marketplace_comentarios`,
+  hilos de 1 nivel).
+- Rutas montadas en `/api/negocio-publicaciones` — mismo patrón que
+  `ofertas.routes.ts` (feed público `verificarTokenOpcional`, CRUD
+  `verificarToken + verificarNegocio + validarAccesoSucursal`). El feed
+  filtra por `ciudad` (nombre, texto) igual que MarketPlace/Servicios — el
+  backend resuelve el `ciudad_id` vía `resolverCiudadId`, el frontend no
+  maneja UUIDs de ciudad.
+- **Comentarios: cualquier usuario logueado, cualquier modo** (Personal o
+  Comercial) puede comentar — a diferencia de MarketPlace, que exige modo
+  Personal. Moderación de comentarios: el autor, o cualquier dueño/gerente
+  del negocio dueño de la publicación (no solo del post puntual).
+- Moderación de texto reusa `validarTextoPublicacion` de
+  `services/marketplace/filtros.ts` (import cruzado, función pura).
+- Sin notificaciones push en v1 (agregar un tipo nuevo a `TipoNotificacion`
+  implica también tocar su CHECK constraint en BD — quedó fuera de alcance).
+
+### Frontend
+
+- Composer (`components/negocios/publicaciones/composer/`) nace **sin barra
+  colapsada inline** — el FAB (`components/ui/FabPublicar.tsx`, azul) abre
+  un modal (`ModalAdaptativo`, `sinScrollInterno` + header propio del
+  composer con `pt-11` móvil para despejar el drag handle). De paso, se
+  eliminó `ComposerColapsado.tsx` en **MarketPlace y Servicios** — ambos
+  migraron al mismo patrón FAB-only (antes tenían la barra "¿Qué estás
+  vendiendo/ofreciendo hoy?" inline en el feed).
+- Feed: `FeedPublicacionesNegocio.tsx` (scroll infinito, mismo patrón
+  `IntersectionObserver` que `PaginaMarketplace.tsx`) + `CardPublicacionNegocioFeed.tsx`
+  — estilo Facebook: primeros 2 comentarios inline (`ComentarioItem`) + input
+  para comentar sin salir del feed. Los comentarios vienen **embebidos** en
+  la respuesta del feed (`topComentarios`/`totalComentarios` por
+  publicación, vía `json_agg` correlacionado en `obtenerFeedPublicacionesNegocio`)
+  — mismo patrón que `ArticuloFeedInfinitoRow.topComentarios` de MarketPlace,
+  evita que cada card dispare su propio request de comentarios (N+1). Crear/
+  editar/eliminar un comentario invalida el feed completo (prefix match) además
+  de la query de detalle, para que la card se refresque sola.
+- "Ver más" (cuando hay más de 2 hilos, o al tocar el texto/foto) navega
+  directo a la página de detalle — **sin modal intermedio**, a diferencia de
+  MarketPlace (que abre `ModalArticuloDetalle` antes de la página).
+- Detalle: `DetallePublicacionNegocioContenido.tsx` es el cuerpo COMPARTIDO
+  (texto completo, fotos, precio, "Ver perfil del negocio", comentarios
+  completos — este sí los pide aparte, es una sola publicación, no hay N+1
+  que evitar) usado por `PaginaPublicacionNegocio.tsx` (privada,
+  `/negocios/publicacion/:publicacionId`) y `PaginaPublicacionNegocioPublica.tsx`
+  (pública, `/p/negocio-post/:publicacionId`, con OG tags).
+- `sucursalId` para publicar **no se pasa manual** — lo inyecta el
+  interceptor Axios en modo comercial (`usuario.sucursalActiva ||
+  usuario.sucursalAsignada`), mismo patrón que `ofertasService.crearOferta`.
+
+### Archivos tocados (resumen)
+
+**Backend:** `db/schemas/schema.ts` (2 tablas nuevas), migración
+`docs/migraciones/2026-07-17-negocio-publicaciones.sql`,
+`utils/imageRegistry.ts` (entrada `negocio_publicaciones.fotos`),
+`validations/negocioPublicaciones.schema.ts`,
+`services/negocioPublicaciones.service.ts` (+ submódulo `comentarios.ts`),
+`controllers/negocioPublicaciones.controller.ts`,
+`routes/negocioPublicaciones.routes.ts` (+ registro en `routes/index.ts`).
+
+**Frontend:** `types/negocioPublicaciones.ts`, bloque `negocioPublicaciones`
+en `config/queryKeys.ts`, `hooks/queries/useNegocioPublicaciones.ts`,
+`hooks/useComposerNegocioPublicacion.ts`,
+`hooks/useFotosUploaderNegocioPublicacion.ts`, todo
+`components/negocios/publicaciones/` (feed, cards, reel, composer, modal,
+detalle compartido), `components/ui/FabPublicar.tsx` (nuevo, reusado en MP/
+Servicios/Negocios), `pages/private/negocios/PaginaPublicacionNegocio.tsx`,
+`pages/public/PaginaPublicacionNegocioPublica.tsx`,
+`pages/private/negocios/PaginaNegocios.tsx` (toggle Feed/Mapa + layouts +
+FAB + composer), `router/index.tsx` (rutas nuevas).
 
 ## 🆕 v3.2 — Overlay de buscador con sugerencias en vivo (14 May 2026)
 

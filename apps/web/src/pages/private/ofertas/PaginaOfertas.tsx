@@ -638,12 +638,11 @@ function EstadoCiudadSinOfertas({ ciudad }: { ciudad: string }) {
       </div>
 
       <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
-        Aún no hay ofertas en{' '}
-        <span className="text-amber-600">{ciudad || 'tu ciudad'}</span>
+        Aún no hay ofertas
       </h3>
       <p className="max-w-sm text-base text-slate-600">
-        Estamos sumando negocios locales. Pronto verás aquí descuentos y
-        promociones de comercios cerca de ti.
+        Todavía no hay negocios publicando ofertas en{' '}
+        <span className="font-bold text-slate-900">{ciudad || 'tu ciudad'}</span>.
       </p>
     </div>
   );

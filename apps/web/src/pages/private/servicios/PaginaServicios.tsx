@@ -67,6 +67,7 @@ import { CardHorizontal } from '../../../components/servicios/CardHorizontal';
 import { ClasificadosWidget } from '../../../components/servicios/ClasificadosWidget';
 import { ComposerSection } from '../../../components/servicios/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
+import { FabPublicar } from '../../../components/ui/FabPublicar';
 import type {
     ModoServicio,
     PublicacionServicio,
@@ -807,44 +808,17 @@ export function PaginaServicios() {
             {/* FAB "+ Publicar" — un solo botón. El wizard pregunta el modo
                 (Ofrezco / Solicito) en su Paso 1 cuando no se especifica. En
                 tabs Servicios/Solicitudes ya se preselecciona el modo. Tab
-                Vacantes no tiene FAB (se publica desde BS).
-                ESCRITORIO: anclado arriba bajo el header (`topPublicar`).
-                MÓVIL: abajo a la derecha (sube a bottom-20 con el BottomNav,
-                baja a bottom-4 al ocultarse). Mismo patrón que MarketPlace. */}
+                Vacantes no tiene FAB (se publica desde BS). Color sky de la
+                marca Servicios. Ver components/ui/FabPublicar.tsx. */}
             {fabHandler && (
-                <button
-                    type="button"
-                    data-testid="fab-publicar"
+                <FabPublicar
                     onClick={fabHandler}
-                    aria-label="Publicar"
-                    style={{
-                        ...(esEscritorio ? { top: `${topPublicar}px` } : {}),
-                        transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1), bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
-                    }}
-                    className={`fixed right-4 z-30 lg:right-[330px] 2xl:right-[394px] flex cursor-pointer flex-col items-center gap-1 ${
-                        esEscritorio ? '' : bottomNavVisible ? 'bottom-20' : 'bottom-4'
-                    }`}
-                >
-                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/30 ring-2 ring-sky-300/30 transition-transform hover:scale-105">
-                        <Plus
-                            className="h-6 w-6"
-                            strokeWidth={2.75}
-                            style={{
-                                animation:
-                                    'fab-servicios-pulse 2.4s ease-in-out infinite',
-                            }}
-                        />
-                    </span>
-                    <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:bg-transparent lg:px-0 lg:py-0 lg:text-base lg:shadow-none lg:backdrop-blur-none">
-                        Publicar
-                    </span>
-                    <style>{`
-                        @keyframes fab-servicios-pulse {
-                            0%, 100% { transform: rotate(0deg) scale(1); }
-                            50% { transform: rotate(90deg) scale(1.15); }
-                        }
-                    `}</style>
-                </button>
+                    ariaLabel="Publicar"
+                    claseColor="bg-linear-to-br from-sky-500 to-sky-700 shadow-lg shadow-sky-500/30 ring-2 ring-sky-300/30"
+                    topPublicar={topPublicar}
+                    esEscritorio={esEscritorio}
+                    bottomNavVisible={bottomNavVisible}
+                />
             )}
 
             {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no

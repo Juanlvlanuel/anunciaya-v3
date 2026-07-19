@@ -23,7 +23,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, AlertCircle, Send, Loader2, CornerDownRight, Reply, Pencil, MoreVertical } from 'lucide-react';
+import { Trash2, AlertCircle, Send, Loader2, CornerDownRight, Reply, Pencil, MoreVertical, ChevronDown } from 'lucide-react';
 import { BotonComentarista } from './BotonComentarista';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
@@ -40,6 +40,63 @@ export interface UsuarioComentario {
     apellidos: string;
     avatarUrl: string | null;
 }
+
+// =============================================================================
+// TEMA DE COLOR — por módulo (default 'teal' = MP, comportamiento sin cambios)
+// =============================================================================
+
+export type ColorTemaComentario = 'teal' | 'blue' | 'sky';
+
+/** Clases literales (no interpoladas) para que el scanner de Tailwind las capture. */
+const TEMA_COMENTARIO: Record<ColorTemaComentario, {
+    texto: string;
+    textoHover: string;
+    focusBorder: string;
+    focusRing: string;
+    focusWithinBorder: string;
+    focusWithinRing: string;
+    botonBg: string;
+    botonBgHover: string;
+    badgeBg: string;
+    badgeTexto: string;
+}> = {
+    teal: {
+        texto: 'text-teal-700',
+        textoHover: 'lg:hover:text-teal-900',
+        focusBorder: 'focus:border-teal-500',
+        focusRing: 'focus:ring-teal-500/20',
+        focusWithinBorder: 'focus-within:border-teal-500',
+        focusWithinRing: 'focus-within:ring-teal-500/20',
+        botonBg: 'bg-teal-600',
+        botonBgHover: 'lg:hover:bg-teal-700',
+        badgeBg: 'bg-teal-100',
+        badgeTexto: 'text-teal-700',
+    },
+    blue: {
+        texto: 'text-blue-700',
+        textoHover: 'lg:hover:text-blue-900',
+        focusBorder: 'focus:border-blue-500',
+        focusRing: 'focus:ring-blue-500/20',
+        focusWithinBorder: 'focus-within:border-blue-500',
+        focusWithinRing: 'focus-within:ring-blue-500/20',
+        botonBg: 'bg-blue-600',
+        botonBgHover: 'lg:hover:bg-blue-700',
+        badgeBg: 'bg-blue-100',
+        badgeTexto: 'text-blue-700',
+    },
+    sky: {
+        texto: 'text-sky-700',
+        textoHover: 'lg:hover:text-sky-900',
+        focusBorder: 'focus:border-sky-500',
+        focusRing: 'focus:ring-sky-500/20',
+        focusWithinBorder: 'focus-within:border-sky-500',
+        focusWithinRing: 'focus-within:ring-sky-500/20',
+        botonBg: 'bg-sky-600',
+        botonBgHover: 'lg:hover:bg-sky-700',
+        badgeBg: 'bg-sky-100',
+        badgeTexto: 'text-sky-700',
+    },
+};
 
 // =============================================================================
 // AVATAR (clickeable → ModalImagenes; sin foto → perfil)
@@ -60,7 +117,7 @@ function AvatarComentario({
 }) {
     const navigate = useNavigate();
     const [modalAbierto, setModalAbierto] = useState(false);
-    const dim = tamano === 'sm' ? 'h-8 w-8' : 'h-9 w-9';
+    const dim = tamano === 'sm' ? 'h-9 w-9' : 'h-11 w-11';
     const inicial =
         ((nombre ?? '?').charAt(0) + (apellidos ?? '').charAt(0)).toUpperCase() || '?';
 
@@ -120,6 +177,7 @@ interface ComentarioFilaProps {
     /** Si se provee, muestra el botón "Responder" (solo en raíces). */
     onResponder?: () => void;
     tamanoAvatar?: 'sm' | 'md';
+    colorTema: ColorTemaComentario;
 }
 
 function ComentarioFila({
@@ -132,7 +190,9 @@ function ComentarioFila({
     onEliminar,
     onResponder,
     tamanoAvatar = 'md',
+    colorTema,
 }: ComentarioFilaProps) {
+    const tema = TEMA_COMENTARIO[colorTema];
     const [editando, setEditando] = useState(false);
     const [texto, setTexto] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -218,12 +278,12 @@ function ComentarioFila({
                                 data-testid={`comentario-menu-${comentario.id}`}
                                 aria-label="Más opciones"
                                 onClick={() => setMenuAbierto((v) => !v)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 active:bg-slate-300 lg:cursor-pointer lg:hover:bg-slate-300"
+                                className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 active:bg-slate-300 lg:cursor-pointer lg:hover:bg-slate-300"
                             >
                                 <MoreVertical className="h-5 w-5" strokeWidth={2} />
                             </button>
                             {menuAbierto && (
-                                <div className="absolute right-0 top-full z-20 mt-1 min-w-[150px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                <div className="absolute right-0 top-full z-20 mt-1 min-w-[190px] overflow-hidden rounded-xl border border-slate-300 bg-white py-1.5 shadow-lg">
                                     {puedeContactar && (
                                         <button
                                             type="button"
@@ -232,13 +292,13 @@ function ComentarioFila({
                                                 setMenuAbierto(false);
                                                 contactar();
                                             }}
-                                            className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
+                                            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[15px] font-semibold text-slate-700 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
                                         >
                                             <img
                                                 src="/IconoRojoChatYA.webp"
                                                 alt=""
                                                 aria-hidden="true"
-                                                className="h-6 w-auto shrink-0 object-contain"
+                                                className="h-7 w-auto shrink-0 object-contain"
                                             />
                                             Contactar
                                         </button>
@@ -251,9 +311,9 @@ function ComentarioFila({
                                                 setMenuAbierto(false);
                                                 iniciarEdicion();
                                             }}
-                                            className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
+                                            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[15px] font-semibold text-slate-700 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
                                         >
-                                            <Pencil className="h-4 w-4" strokeWidth={2.5} />
+                                            <Pencil className="h-[18px] w-[18px]" strokeWidth={2.5} />
                                             Editar
                                         </button>
                                     )}
@@ -265,9 +325,9 @@ function ComentarioFila({
                                                 setMenuAbierto(false);
                                                 onEliminar(comentario.id);
                                             }}
-                                            className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-rose-600 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
+                                            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[15px] font-semibold text-rose-600 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
                                         >
-                                            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                            <Trash2 className="h-[18px] w-[18px]" strokeWidth={2.5} />
                                             Eliminar
                                         </button>
                                     )}
@@ -289,7 +349,7 @@ function ComentarioFila({
                             editado={!!comentario.editadoAt && !editando}
                         />
                         {comentario.esVendedor && (
-                            <span className="rounded-full bg-teal-100 px-1.5 py-0.5 text-xs font-bold text-teal-700">
+                            <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${tema.badgeBg} ${tema.badgeTexto}`}>
                                 {etiquetaAutor}
                             </span>
                         )}
@@ -308,7 +368,7 @@ function ComentarioFila({
                                 rows={2}
                                 autoFocus
                                 disabled={guardando}
-                                className="w-full resize-none rounded-lg border-2 border-slate-300 bg-white px-2 py-1.5 text-base font-medium text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50"
+                                className={`w-full resize-none rounded-lg border-2 border-slate-300 bg-white px-2 py-1.5 text-base font-medium text-slate-800 ${tema.focusBorder} focus:outline-none focus:ring-2 ${tema.focusRing} disabled:opacity-50`}
                             />
                             {error && (
                                 <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-rose-600">
@@ -332,7 +392,7 @@ function ComentarioFila({
                             data-testid={`comentario-guardar-${comentario.id}`}
                             onClick={guardar}
                             disabled={guardando || texto.trim().length < TEXTO_MIN}
-                            className="text-teal-700 disabled:opacity-50 lg:cursor-pointer lg:hover:text-teal-900 lg:hover:underline"
+                            className={`${tema.texto} disabled:opacity-50 lg:cursor-pointer ${tema.textoHover} lg:hover:underline`}
                         >
                             {guardando ? 'Guardando…' : 'Guardar'}
                         </button>
@@ -359,7 +419,7 @@ function ComentarioFila({
                                 type="button"
                                 data-testid={`comentario-responder-${comentario.id}`}
                                 onClick={onResponder}
-                                className="ml-auto flex items-center gap-1 text-teal-700 lg:cursor-pointer lg:hover:text-teal-900 lg:hover:underline"
+                                className={`ml-auto flex items-center gap-1 ${tema.texto} lg:cursor-pointer ${tema.textoHover} lg:hover:underline`}
                             >
                                 <Reply className="h-3 w-3" strokeWidth={2.5} />
                                 Responder
@@ -381,12 +441,15 @@ function InputRespuesta({
     enviando,
     onEnviar,
     onCancelar,
+    colorTema,
 }: {
     usuarioActual: UsuarioComentario | null;
     enviando: boolean;
     onEnviar: (texto: string) => Promise<boolean>;
     onCancelar: () => void;
+    colorTema: ColorTemaComentario;
 }) {
+    const tema = TEMA_COMENTARIO[colorTema];
     const [texto, setTexto] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -414,7 +477,7 @@ function InputRespuesta({
                 tamano="sm"
             />
             <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-500/20">
+                <div className={`flex items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all ${tema.focusWithinBorder} focus-within:bg-white focus-within:ring-2 ${tema.focusWithinRing}`}>
                     <input
                         type="text"
                         data-testid="comentario-input-respuesta"
@@ -436,7 +499,7 @@ function InputRespuesta({
                         aria-label="Enviar respuesta"
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed lg:cursor-pointer ${
                             texto.trim().length >= TEXTO_MIN && !enviando
-                                ? 'bg-teal-600 text-white shadow-sm lg:hover:bg-teal-700'
+                                ? `${tema.botonBg} text-white shadow-sm ${tema.botonBgHover}`
                                 : 'bg-transparent text-slate-400'
                         }`}
                     >
@@ -491,6 +554,13 @@ export interface ComentarioItemProps {
     onEliminar: (id: string) => void;
     /** Crea una respuesta colgada de este hilo. Devuelve true si se publicó. */
     onResponder: (parentId: string, texto: string) => Promise<boolean>;
+    /** Acento de color del módulo. Default 'teal' (MP) — sin cambios visuales
+     *  si no se pasa. 'blue' en Negocios, 'sky' en Servicios. */
+    colorTema?: ColorTemaComentario;
+    /** Estilo Facebook (Negocios): sin card contenedor por hilo, respuestas
+     *  colapsadas detrás de "Ver N respuestas". Default false (MP/Servicios
+     *  siguen con card + respuestas siempre visibles, sin cambios). */
+    estiloFacebook?: boolean;
 }
 
 export function ComentarioItem({
@@ -504,13 +574,21 @@ export function ComentarioItem({
     onEditar,
     onEliminar,
     onResponder,
+    colorTema = 'teal',
+    estiloFacebook = false,
 }: ComentarioItemProps) {
     const [respondiendo, setRespondiendo] = useState(false);
+    // Estilo Facebook: respuestas colapsadas por default. MP/Servicios (no
+    // estiloFacebook) mantienen el comportamiento original — siempre visibles.
+    const [respuestasAbiertas, setRespuestasAbiertas] = useState(!estiloFacebook);
+    const tema = TEMA_COMENTARIO[colorTema];
+    const hayRespuestas = comentario.respuestas.length > 0;
+    const mostrarRespuestas = estiloFacebook ? respuestasAbiertas : hayRespuestas;
 
     return (
         <div
             data-testid={`hilo-comentario-${comentario.id}`}
-            className="rounded-xl border border-slate-300 bg-slate-50 p-3 lg:p-4"
+            className={estiloFacebook ? '' : 'rounded-xl border border-slate-300 bg-slate-50 p-3 lg:p-4'}
         >
             <ComentarioFila
                 comentario={comentario}
@@ -521,12 +599,26 @@ export function ComentarioItem({
                 onEditar={onEditar}
                 onEliminar={onEliminar}
                 onResponder={puedeComentar ? () => setRespondiendo((v) => !v) : undefined}
+                colorTema={colorTema}
             />
 
+            {/* "Ver N respuestas" — solo estilo Facebook, cuando están colapsadas. */}
+            {estiloFacebook && hayRespuestas && !respuestasAbiertas && (
+                <button
+                    type="button"
+                    data-testid={`comentario-ver-respuestas-${comentario.id}`}
+                    onClick={() => setRespuestasAbiertas(true)}
+                    className={`mt-1.5 ml-1 flex items-center gap-1 text-sm font-semibold ${tema.texto} lg:cursor-pointer lg:hover:underline`}
+                >
+                    <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
+                    Ver {comentario.respuestas.length} {comentario.respuestas.length === 1 ? 'respuesta' : 'respuestas'}
+                </button>
+            )}
+
             {/* Respuestas anidadas (1 nivel) — indentadas con un conector. */}
-            {(comentario.respuestas.length > 0 || respondiendo) && (
+            {(mostrarRespuestas || respondiendo) && (
                 <div className="mt-2 space-y-3 border-l-2 border-slate-200 pl-3 lg:pl-4">
-                    {comentario.respuestas.map((r) => (
+                    {mostrarRespuestas && comentario.respuestas.map((r) => (
                         <ComentarioFila
                             key={r.id}
                             comentario={r}
@@ -537,8 +629,21 @@ export function ComentarioItem({
                             onEditar={onEditar}
                             onEliminar={onEliminar}
                             tamanoAvatar="sm"
+                            colorTema={colorTema}
                         />
                     ))}
+
+                    {/* Colapsar de vuelta — solo estilo Facebook. */}
+                    {estiloFacebook && hayRespuestas && respuestasAbiertas && (
+                        <button
+                            type="button"
+                            onClick={() => setRespuestasAbiertas(false)}
+                            className={`flex items-center gap-1 text-sm font-semibold ${tema.texto} lg:cursor-pointer lg:hover:underline`}
+                        >
+                            <ChevronDown className="h-4 w-4 rotate-180" strokeWidth={2.5} />
+                            Ocultar respuestas
+                        </button>
+                    )}
 
                     {respondiendo && (
                         <div className="flex items-start gap-2">
@@ -557,6 +662,7 @@ export function ComentarioItem({
                                         return ok;
                                     }}
                                     onCancelar={() => setRespondiendo(false)}
+                                    colorTema={colorTema}
                                 />
                             </div>
                         </div>

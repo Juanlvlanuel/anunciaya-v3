@@ -1016,9 +1016,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     {distanciaKm !== null && (
                         <>
                             <div className="h-5 w-px bg-slate-400/50" />
-                            <div className="flex items-center gap-1.5">
-                                <Navigation className="w-5 h-5 text-blue-500" />
-                                <span className="text-sm font-bold text-blue-600">
+                            <div className="flex items-center gap-1.5 rounded-full bg-blue-100 px-2 py-0.5">
+                                <MapPin className="w-4 h-4 text-blue-700" />
+                                <span className="text-sm font-bold text-blue-700">
                                     {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)}m` : `${distanciaKm.toFixed(1)}km`}
                                 </span>
                             </div>
@@ -1244,9 +1244,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         {distanciaKm !== null && (
                                             <>
                                                 <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
-                                                <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:pl-2 @[96rem]:pl-4">
-                                                    <Navigation className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-500 animate-pulse" style={{ animationDuration: '2s' }} />
-                                                    <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-blue-600">
+                                                <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:ml-2 @[96rem]:ml-4 rounded-full bg-blue-100 @5xl:px-2 @5xl:py-1 @[96rem]:px-3 @[96rem]:py-1.5">
+                                                    <MapPin className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-700 animate-pulse" style={{ animationDuration: '2s' }} />
+                                                    <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-blue-700">
                                                         {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}
                                                     </span>
                                                 </div>

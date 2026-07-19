@@ -1,15 +1,14 @@
 /**
- * ComposerServicios.tsx (variante INLINE)
+ * ComposerServicios.tsx
  * =========================================
- * Composer de Servicios — vive INLINE en el feed (no es overlay/modal).
- * Inspirado en el composer de Facebook: una caja blanca con textarea
- * grande, fila de íconos "Agregar a tu publicación" y acordeones
- * individuales por cada campo secundario.
+ * Composer de Servicios — se renderiza dentro de un `ModalAdaptativo` (ver
+ * `ComposerSection.tsx`; hasta jul 2026 vivía inline en el feed). Inspirado
+ * en el composer de Facebook: una caja blanca con textarea grande, fila de
+ * íconos "Agregar a tu publicación" y acordeones individuales por cada
+ * campo secundario.
  *
- * Estados:
- *   - Colapsado → componente `<ComposerColapsado>` (pill).
- *   - Expandido → ESTE componente.
- *   - El orquestador `<ComposerSection>` decide cuál renderizar.
+ * El orquestador `<ComposerSection>` abre/cierra el modal que envuelve a
+ * ESTE componente (sin barra colapsada — el FAB es la única entrada).
  *
  * UX clave:
  *   - Textarea de título con `autoFocus` al abrirse.
@@ -65,6 +64,7 @@ import {
     useCrearPublicacionServicio,
     useEditarPublicacionServicio,
     usePublicacionServicio,
+    useEliminarFotoServicioHuerfana,
 } from '../../../hooks/queries/useServicios';
 import {
     construirPayloadCrear,
@@ -205,6 +205,24 @@ export function ComposerServicios({
         urlsSubidasEnSesion,
     });
 
+    // ─── Cancelar: limpia de R2 las fotos subidas en ESTA sesión que nunca
+    // se publicaron (evita huérfanas). Solo cubre `urlsSubidasEnSesion` —
+    // las fotos ya publicadas (edición) nunca entran a ese set. También las
+    // quita de `draft.fotos` para que el borrador persistido no quede
+    // apuntando a URLs que se acaban de borrar.
+    const eliminarFotoHuerfanaMutation = useEliminarFotoServicioHuerfana();
+    function handleCancelar() {
+        const urlsHuerfanas = Array.from(urlsSubidasEnSesion.current);
+        if (urlsHuerfanas.length > 0) {
+            urlsHuerfanas.forEach((url) => eliminarFotoHuerfanaMutation.mutate(url));
+            urlsSubidasEnSesion.current.clear();
+            actualizar((d) => ({
+                fotos: d.fotos.filter((f) => !urlsHuerfanas.includes(f)),
+            }));
+        }
+        onColapsar();
+    }
+
     // ─── Mutations ───────────────────────────────────────────────────
     const crearMutation = useCrearPublicacionServicio();
     const editarMutation = useEditarPublicacionServicio();
@@ -294,13 +312,15 @@ export function ComposerServicios({
     return (
         <div
             data-testid="composer-expandido"
-            className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden"
+            className="flex flex-1 min-h-0 flex-col rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden"
         >
-            {/* ── Header ──────────────────────────────────────────────
+            {/* ── Header (fijo — el body de abajo scrollea). `pt-11` en
+                móvil despeja el drag handle del ModalBottom (absolute,
+                ~44px) para que no se empalme con el avatar/título.
                 Avatar + título a la izquierda. En PC el toggle
                 Ofrezco/Solicito vive aquí mismo (al lado del título).
                 En móvil el toggle se renderiza en el body. X a la derecha. */}
-            <div className="flex items-center gap-3 px-3 py-3 lg:px-4 lg:py-4 border-b-2 border-slate-300">
+            <div className="shrink-0 flex items-center gap-3 px-3 pt-11 pb-3 lg:px-4 lg:py-4 border-b-2 border-slate-300">
                 <div className="flex items-center gap-3 min-w-0">
                     {avatarUsuario ? (
                         <img
@@ -358,7 +378,7 @@ export function ComposerServicios({
                     type="button"
                     aria-label="Cerrar composer"
                     data-testid="composer-cerrar"
-                    onClick={onColapsar}
+                    onClick={handleCancelar}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-slate-300 text-slate-500 hover:border-red-400 hover:bg-red-100 hover:text-red-600 lg:cursor-pointer"
                 >
                     <X className="h-5 w-5" strokeWidth={2.25} />
@@ -366,11 +386,11 @@ export function ComposerServicios({
             </div>
 
             {cargandoEdicion ? (
-                <div className="flex items-center justify-center py-16">
+                <div className="flex flex-1 items-center justify-center py-16">
                     <Spinner tamanio="lg" />
                 </div>
             ) : (
-                <div className="px-3 lg:px-5 py-3 lg:py-5">
+                <div className="flex-1 min-h-0 overflow-y-auto px-3 lg:px-5 py-3 lg:py-5">
                     {/* Toggle Ofrezco/Solicito — solo móvil, antes de
                         todo (en PC vive en el header arriba). */}
                     {!esEdicion && (
@@ -384,8 +404,10 @@ export function ComposerServicios({
                     )}
 
                     {/* Layout PC: 2 columnas (Fotos a la izquierda + Campos
-                        a la derecha). Móvil: stack vertical normal. */}
-                    <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-5">
+                        a la derecha). Móvil: stack vertical normal. Columna
+                        de fotos ensanchada (220→280/320px) ahora que el
+                        composer vive en un modal ancho, no en el feed. */}
+                    <div className="lg:grid lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr] lg:gap-5">
                         {/* ── Columna izquierda: ZonaFotos ─────────── */}
                         <div className="mb-3 lg:mb-0">
                             <ZonaFotos
@@ -401,53 +423,70 @@ export function ComposerServicios({
                         </div>
 
                         {/* ── Columna derecha: campos y detalles ───── */}
-                        <div className="space-y-3 min-w-0">
-                            {/* Título (autoFocus en creación) */}
-                            <CampoTitulo
-                                valor={draft.titulo}
-                                modo={draft.modo}
-                                autoFocus={!esEdicion}
-                                onCambio={(v) =>
-                                    actualizar({ titulo: v.slice(0, 80) })
-                                }
-                                error={errores.titulo}
-                            />
+                        <div className="min-w-0">
+                            {/* Spacer invisible (solo desktop, FUERA del
+                                space-y-3 de abajo para no correr Título en
+                                móvil): iguala la altura de la fila de label
+                                "Fotos · opcional · 0/12" de ZonaFotos para
+                                que el input de Título arranque al mismo
+                                nivel que el cuadrado de fotos (h-6 + mb-2). */}
+                            <div className="hidden lg:block lg:h-6 lg:mb-2" aria-hidden />
 
-                            {/* Descripción */}
-                            <CampoDescripcion
-                                valor={draft.descripcion}
-                                modo={draft.modo}
-                                onCambio={(v) =>
-                                    actualizar({
-                                        descripcion: v.slice(0, 500),
-                                    })
-                                }
-                                error={errores.descripcion}
-                            />
+                            <div className="space-y-3">
+                                {/* Título (autoFocus en creación) */}
+                                <CampoTitulo
+                                    valor={draft.titulo}
+                                    modo={draft.modo}
+                                    autoFocus={!esEdicion}
+                                    onCambio={(v) =>
+                                        actualizar({ titulo: v.slice(0, 80) })
+                                    }
+                                    error={errores.titulo}
+                                />
 
-                            {/* Hint moderación inline */}
-                            <ComposerHintModeracion
-                                texto={`${draft.titulo} ${draft.descripcion}`}
-                                onIrMarketplace={() => {
-                                    onColapsar();
-                                    // Composer inline MP: expandimos vía
-                                    // query param (réplica del flujo de
-                                    // Servicios). Reemplaza al wizard
-                                    // antiguo /marketplace/publicar.
-                                    navegar('/marketplace?crear=1');
-                                }}
-                            />
+                                {/* Descripción */}
+                                <CampoDescripcion
+                                    valor={draft.descripcion}
+                                    modo={draft.modo}
+                                    onCambio={(v) =>
+                                        actualizar({
+                                            descripcion: v.slice(0, 500),
+                                        })
+                                    }
+                                    error={errores.descripcion}
+                                />
+
+                                {/* Hint moderación inline */}
+                                <ComposerHintModeracion
+                                    texto={`${draft.titulo} ${draft.descripcion}`}
+                                    onIrMarketplace={() => {
+                                        handleCancelar();
+                                        // Composer inline MP: expandimos vía
+                                        // query param (réplica del flujo de
+                                        // Servicios). Reemplaza al wizard
+                                        // antiguo /marketplace/publicar.
+                                        navegar('/marketplace?crear=1');
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* ── Detalles (full width debajo del grid) + acordeón ── */}
+                    {/* ── Detalles: alineado con la columna de Título/
+                        Descripción (mismo ancho que la columna de fotos +
+                        gap, para que arranque justo debajo de Descripción) ── */}
                     <div className="mt-3 space-y-3">
-                        <FilaIconos
-                            modo={draft.modo}
-                            draft={draft}
-                            seccionAbierta={seccionAbierta}
-                            onAlternar={alternar}
-                        />
+                        <div className="flex items-start gap-3 lg:gap-5">
+                            <div className="hidden lg:block lg:w-[280px] 2xl:w-[320px] shrink-0" aria-hidden />
+                            <div className="flex-1 min-w-0">
+                                <FilaIconos
+                                    modo={draft.modo}
+                                    draft={draft}
+                                    seccionAbierta={seccionAbierta}
+                                    onAlternar={alternar}
+                                />
+                            </div>
+                        </div>
 
                     {/* ── Acordeón abierto (solo en PC; en móvil ver
                         el <ModalBottom> al final del JSX). ─────── */}
@@ -595,7 +634,7 @@ export function ComposerServicios({
                             <button
                                 type="button"
                                 data-testid="composer-btn-cancelar"
-                                onClick={onColapsar}
+                                onClick={handleCancelar}
                                 disabled={enviando}
                                 className="px-5 h-12 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-semibold text-[15px] hover:bg-slate-100 hover:border-slate-400 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -997,7 +1036,7 @@ function ZonaFotos({
             {/* Recuadro principal — móvil ratio 3:1 (compacto, no se
                 traga altura), PC cuadrado 1:1. Sin items: placeholder
                 clickeable. Con items: carrusel + controles overlay. */}
-            <div className="group relative aspect-[3/1] lg:aspect-square w-full rounded-xl overflow-hidden">
+            <div className="group relative aspect-[2/1] lg:aspect-square w-full rounded-xl overflow-hidden">
                 {totalItems === 0 ? (
                     <button
                         type="button"

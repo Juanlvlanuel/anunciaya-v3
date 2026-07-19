@@ -24,6 +24,7 @@ import negociosRoutes from './negocios.routes';
 import resenasRoutes from './resenas.routes';
 import articulosRoutes from './articulos.routes';
 import ofertasRoutes from './ofertas.routes';
+import negocioPublicacionesRoutes from './negocioPublicaciones.routes';
 import dashboardRoutes from './dashboard.routes';
 import alertasRoutes from './alertas.routes';
 import empleadosRoutes from './empleados.routes';
@@ -99,6 +100,9 @@ router.use('/articulos', articulosRoutes);
 
 // Rutas de ofertas
 router.use('/ofertas', ofertasRoutes);
+
+// Rutas del feed de publicaciones de negocio
+router.use('/negocio-publicaciones', negocioPublicacionesRoutes);
 
 // Rutas de votos (likes y guardados)
 router.use('/votos', votosRoutes);

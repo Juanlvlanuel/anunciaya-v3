@@ -2468,6 +2468,77 @@ export const serviciosResenas = pgTable("servicios_resenas", {
 ]);
 
 // ============================================================================
+// Negocios — Feed de publicaciones libres (Jul 2026)
+// ============================================================================
+// Contenido "todo tipo, libre" de negocios en modo Comercial (aviso, foto del
+// local, producto nuevo, evento) — NO reemplaza a Ofertas (descuentos
+// estructurados). Sin TTL (a diferencia de MarketPlace): se archiva manual.
+// Doc maestro: docs/arquitectura/Negocios.md.
+// Migración:   docs/migraciones/2026-07-XX-negocio-publicaciones.sql.
+
+export const negocioPublicaciones = pgTable("negocio_publicaciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	negocioId: uuid("negocio_id").notNull().references(() => negocios.id, { onDelete: 'cascade' }),
+	// Un post pertenece a UN local físico (a diferencia de Ofertas, que puede
+	// aplicar a varias sucursales) — NOT NULL.
+	sucursalId: uuid("sucursal_id").notNull().references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'cascade' }),
+	// Quién de la cuenta comercial publicó (dueño o gerente) — solo auditoría.
+	autorUsuarioId: uuid("autor_usuario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+
+	texto: text().notNull(),
+	// Precio simple, opcional, SIN moneda/estructura (a diferencia de MP).
+	precio: numeric({ precision: 10, scale: 2 }),
+
+	// Fotos (JSONB array de URLs en R2). Sin límite de producto; 40 es tope
+	// técnico de seguridad (validado también en Zod), no un límite de negocio.
+	fotos: jsonb().default(sql`'[]'::jsonb`).notNull(),
+	fotoPortadaIndex: smallint("foto_portada_index").default(0).notNull(),
+
+	// Ciudad desnormalizada desde negocio_sucursales.ciudad_id al crear — evita
+	// JOIN en el feed. Mismo trade-off que articulos_marketplace.ciudad_id: no
+	// se resincroniza si la sucursal cambia de ciudad después.
+	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
+
+	// Sin TTL: solo archivado manual.
+	estado: varchar({ length: 20 }).default('activa').notNull(),
+
+	totalVistas: integer("total_vistas").default(0).notNull(),
+
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_negocio_pub_sucursal").using("btree", table.sucursalId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_negocio_pub_negocio").using("btree", table.negocioId.asc().nullsLast()),
+	index("idx_negocio_pub_ciudad").using("btree", table.ciudadId.asc().nullsLast()).where(sql`ciudad_id IS NOT NULL AND deleted_at IS NULL`),
+	index("idx_negocio_pub_created").using("btree", table.createdAt.desc().nullsFirst()),
+	index("idx_negocio_pub_estado").using("btree", table.estado.asc().nullsLast()),
+	check("negocio_pub_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'archivada'::character varying])::text[])`),
+	check("negocio_pub_precio_check", sql`precio IS NULL OR precio >= 0`),
+	check("negocio_pub_fotos_array_check", sql`jsonb_typeof(fotos) = 'array'`),
+	check("negocio_pub_fotos_max_check", sql`jsonb_array_length(fotos) <= 40`),
+]);
+
+// ============================================================================
+// Negocios — Comentarios con hilos de 1 nivel (espejo de marketplace_comentarios)
+// ============================================================================
+
+export const negocioPublicacionesComentarios = pgTable("negocio_publicaciones_comentarios", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	publicacionId: uuid("publicacion_id").notNull().references(() => negocioPublicaciones.id, { onDelete: 'cascade' }),
+	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	// Auto-FK: una respuesta apunta a su comentario raíz.
+	parentId: uuid("parent_id").references((): AnyPgColumn => negocioPublicacionesComentarios.id, { onDelete: 'cascade' }),
+	texto: varchar({ length: 500 }).notNull(),
+	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_negocio_pub_comentarios_publicacion").using("btree", table.publicacionId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_negocio_pub_comentarios_parent").using("btree", table.parentId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+]);
+
+// ============================================================================
 // Servicios — Log de búsquedas (para populares en Sprint 6)
 // ============================================================================
 

@@ -6,15 +6,16 @@
  * UBICACIÓN: apps/web/src/pages/private/negocios/PaginaNegocios.tsx
  *
  * PROPÓSITO:
- * Página principal de la sección Negocios con diseño estándar (CardYA/Cupones/Guardados).
- * Mapa compacto arriba + grid de cards abajo (desktop).
- * Toggle lista/mapa en mobile.
+ * Página principal de la sección Negocios. Toggle Feed/Mapa (Feed por
+ * default): cards de negocio a la izquierda + feed de publicaciones de
+ * negocio a la derecha (desktop) / reel de negocios + feed apilados (móvil).
+ * Ver components/negocios/publicaciones/ para el feed.
  *
  * COLOR MARCA: Blue (#3b82f6 → #2563eb)
  * REGLA: Azul solo para acentos decorativos. Botones/chips/filtros en slate.
  */
 
-import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, type RefObject } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useDeferredValue, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
@@ -23,8 +24,8 @@ import { normalizarTexto } from '../../../utils/normalizarTexto';
 import { Mapa, Marker, Popup, useMap, type MapRef, type MarkerEvent } from '../../../components/mapa/Mapa';
 import { ChipsFiltros } from '../../../components/negocios/ChipsFiltros';
 import {
-  List,
   Map as MapIcon,
+  Newspaper,
   Plus,
   Minus,
   Locate,
@@ -60,21 +61,27 @@ import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
+import { FabPublicar } from '../../../components/ui/FabPublicar';
+import { ComposerSection as ComposerSectionNegocio } from '../../../components/negocios/publicaciones/composer/ComposerSection';
+import { FeedPublicacionesNegocio } from '../../../components/negocios/publicaciones/FeedPublicacionesNegocio';
+import { ReelNegociosFeed } from '../../../components/negocios/publicaciones/ReelNegociosFeed';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import useBreakpoint from '../../../hooks/useBreakpoint';
 import type { NegocioResumen } from '../../../types/negocios';
 
 // =============================================================================
 // CONSTANTES
 // =============================================================================
 
-type TabNegocios = 'lista' | 'mapa';
+type TabNegocios = 'feed' | 'mapa';
 
-const TABS_NEGOCIOS_DESKTOP: { id: TabNegocios; label: string; Icono: typeof List }[] = [
+const TABS_NEGOCIOS_DESKTOP: { id: TabNegocios; label: string; Icono: typeof Newspaper }[] = [
+  { id: 'feed', label: 'Feed', Icono: Newspaper },
   { id: 'mapa', label: 'Mapa', Icono: MapIcon },
-  { id: 'lista', label: 'Lista', Icono: List },
 ];
 
-const TABS_NEGOCIOS_MOBILE: { id: TabNegocios; label: string; Icono: typeof List }[] = [
-  { id: 'lista', label: 'Lista', Icono: List },
+const TABS_NEGOCIOS_MOBILE: { id: TabNegocios; label: string; Icono: typeof Newspaper }[] = [
+  { id: 'feed', label: 'Feed', Icono: Newspaper },
   { id: 'mapa', label: 'Mapa', Icono: MapIcon },
 ];
 
@@ -376,7 +383,7 @@ function MapaControlesZoom({ latitud, longitud }: { latitud: number | null; long
   const { current: map } = useMap();
 
   return (
-    <div className="absolute bottom-3 left-3 lg:left-auto lg:right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+    <div className="absolute bottom-3 left-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
       <button
         data-testid="btn-mapa-zoom-in"
         onPointerDown={(e) => { e.stopPropagation(); map?.zoomIn(); }}
@@ -544,7 +551,8 @@ export function PaginaNegocios() {
 
   // Estado
   const [negocioSeleccionadoId, setNegocioSeleccionadoId] = useState<string | null>(null);
-  const [tabActiva, setTabActiva] = useState<TabNegocios>(window.innerWidth >= 1024 ? 'mapa' : 'lista');
+  // Feed es el default en desktop y móvil por igual (reemplaza a Lista).
+  const [tabActiva, setTabActiva] = useState<TabNegocios>('feed');
   const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
   const inputBusquedaRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -733,9 +741,9 @@ export function PaginaNegocios() {
   // (ver `ChipsFiltros.tsx`).
 
 
-  // Auto-scroll al cambiar a lista en mobile
+  // Auto-scroll al cambiar a feed en mobile
   useEffect(() => {
-    if (tabActiva === 'lista' && negocioSeleccionadoId) {
+    if (tabActiva === 'feed' && negocioSeleccionadoId) {
       setTimeout(() => {
         cardRefs.current[negocioSeleccionadoId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 300);
@@ -746,6 +754,78 @@ export function PaginaNegocios() {
   // (overflow-y-auto fixed), NO en window. El store guarda esa ref.
   // En mobile con header propio, MainLayout pone null para que se use window.
   const mainScrollRef = useMainScrollStore(s => s.mainScrollRef);
+
+  // Columna de cards del tab Feed (escritorio) — FIJA por JS, no por CSS
+  // `sticky`. Con `sticky` había un "recorrido" perceptible: el elemento
+  // viaja en flujo normal hasta alcanzar su offset y ahí se pega, lo que se
+  // sentía como "la columna se mueve con el scroll". Al fijarla desde el
+  // primer pixel de scroll (`position: fixed` controlado por estado) no
+  // hay recorrido — pasa de "quieta arriba" a "quieta fija" sin viajar.
+  const cardsPlaceholderRef = useRef<HTMLDivElement>(null);
+  const [cardsLeft, setCardsLeft] = useState<number | null>(null);
+
+  // `useLayoutEffect` (síncrono, ANTES de que el navegador pinte) en vez de
+  // `useEffect`: la columna queda fija desde el primerísimo render, sin
+  // esperar a que el usuario empiece a scrollear. Con el interruptor
+  // anterior (fija solo tras detectar `scrollTop > 0`) quedaba un margen de
+  // unos pixeles de scroll normal mientras el listener alcanzaba a
+  // reaccionar — eso era el "todavía se mueve un poco" que quedaba. Ahora
+  // no hay interruptor: siempre está fija, así que no hay nada que activar.
+  useLayoutEffect(() => {
+    // Depende de `tabActiva`: el placeholder se desmonta/remonta al
+    // alternar Feed/Mapa (render condicional), así que hay que re-medir
+    // cada vez que vuelve a existir — un efecto con deps `[]` solo mediría
+    // la primera vez y quedaría con un `left` obsoleto tras ir y volver.
+    if (tabActiva !== 'feed') return;
+    const el = cardsPlaceholderRef.current;
+    if (!el) return;
+    const medir = () => setCardsLeft(el.getBoundingClientRect().left);
+    medir();
+    const observer = new ResizeObserver(medir);
+    observer.observe(el);
+    window.addEventListener('resize', medir);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', medir);
+    };
+  }, [tabActiva]);
+
+  // Auto-scroll vertical de la columna de cards (escritorio) — mismo
+  // espíritu que el carrusel automático del reel de Negocios en móvil
+  // (`ReelNegociosFeed.tsx`), pero vertical y con `scrollBy` normal en vez
+  // de Embla: Embla está pensado para "una slide a la vez" (basis-full),
+  // y acá se ven varias cards de golpe — lo que se quiere es que avance de
+  // a poco y regrese al inicio al llegar abajo. Pausa al hover (mismo
+  // criterio que `pausarHover` de `useCarruselRotativo`) y respeta
+  // `prefers-reduced-motion`.
+  useEffect(() => {
+    const el = cardsScrollRef.current;
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let pausado = false;
+    const onEnter = () => { pausado = true; };
+    const onLeave = () => { pausado = false; };
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mouseleave', onLeave);
+
+    const intervalo = window.setInterval(() => {
+      if (pausado) return;
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      if (scrollHeight <= clientHeight) return;
+      if (scrollTop + clientHeight >= scrollHeight - 4) {
+        el.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ top: clientHeight * 0.5, behavior: 'smooth' });
+      }
+    }, 3500);
+
+    return () => {
+      window.clearInterval(intervalo);
+      el.removeEventListener('mouseenter', onEnter);
+      el.removeEventListener('mouseleave', onLeave);
+    };
+  }, [tabActiva, negocios.length]);
 
   // Compresión sticky scroll-aware:
   // - Vista Mapa (desktop): scroll en el contenedor interno de cards.
@@ -767,9 +847,54 @@ export function PaginaNegocios() {
     disabled: tabActiva === 'mapa',
   });
 
+  // FAB "+ Publicar" — feed de publicaciones de negocio. Visible solo para
+  // negocios en modo Comercial (a diferencia de MP/Servicios, que son modo
+  // Personal). `verificarNegocio` ya resuelve lo mismo en el backend.
+  const { esEscritorio } = useBreakpoint();
+  const usuarioAuth = useAuthStore((s) => s.usuario);
+  const esModoComercialConNegocio =
+    usuarioAuth?.modoActivo === 'comercial' && !!usuarioAuth?.negocioId;
+  const handlePublicarNegocio = () => {
+    (mainScrollRef?.current ?? window).scrollTo({ top: 0, behavior: 'smooth' });
+    navigate('/negocios?crear=1', { replace: true });
+  };
+
+  // topPublicar arranca en 96 (guess) y se remide al alto real del header
+  // (`headerRef.current.bottom + 8`) — mismo patrón que MP/Servicios. Como
+  // FabPublicar ya trae `transition: top 300ms`, el salto de 96 → alto real
+  // produce el efecto de "entra desde arriba y baja" al montar.
+  const [topPublicar, setTopPublicar] = useState(96);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const medir = () => setTopPublicar(el.getBoundingClientRect().bottom + 8);
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(el);
+    window.addEventListener('resize', medir);
+    return () => {
+      observador.disconnect();
+      window.removeEventListener('resize', medir);
+    };
+  }, []);
+
+  // "Ver más" de una publicación del feed → página de detalle dedicada
+  // (no modal, a diferencia de MarketPlace).
+  const handleAbrirPublicacion = (publicacionId: string) => {
+    navigate(`/negocios/publicacion/${publicacionId}`);
+  };
+
   // Header de tamaño fijo (alineado al patrón de Ofertas/MarketPlace).
   // La lógica de compresión por scroll se eliminó — el header ya es lo
   // suficientemente delgado en su tamaño base.
+
+  // Borde inferior REAL del header en pantalla (`getBoundingClientRect().bottom`)
+  // — lo usa la columna de cards fija (ver `cardsFijas` más abajo). A
+  // diferencia de `offsetHeight` (que solo da el ALTO del header), esto ya
+  // incluye el offset entre el borde real del viewport y el propio `<main>`
+  // (el header vive `position: fixed` — un `top` calculado solo con el alto
+  // del header, sin ese offset, dejaba la columna metida por detrás).
+  const [headerBottom, setHeaderBottom] = useState(150);
 
   // ResizeObserver en el header: actualiza --negocios-header-h en tiempo real
   // mientras dura la transición CSS (300ms), no solo al inicio.
@@ -779,10 +904,26 @@ export function PaginaNegocios() {
     if (!el) return;
     const observer = new ResizeObserver(() => {
       document.documentElement.style.setProperty('--negocios-header-h', `${el.offsetHeight}px`);
+      setHeaderBottom(el.getBoundingClientRect().bottom);
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N negocios" +
+  // chips de filtros) al hacer scroll hacia abajo, dejando solo la fila
+  // fija (flecha + título + los 3 iconos de la derecha). A diferencia del
+  // patrón usual de hide-on-scroll (reaparece con cualquier scroll hacia
+  // arriba), acá solo se re-expande al llegar de vuelta hasta el tope —
+  // pedido explícito así por el usuario.
+  const [headerColapsado, setHeaderColapsado] = useState(false);
+  useEffect(() => {
+    const el = cuerpoRef.current;
+    if (!el) return;
+    const onScroll = () => setHeaderColapsado(el.scrollTop > 10);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [cuerpoRef]);
 
   // Sincronizar store al cambiar de tab. (react-map-gl reajusta el tamaño del
   // mapa con el contenedor vía ResizeObserver, así que ya no hace falta el
@@ -968,9 +1109,13 @@ export function PaginaNegocios() {
                           </button>
                         </div>
                       </div>
-                      {/* Subtítulo móvil decorativo */}
-                      <div className="pb-2 overflow-hidden">
-                        <div className="flex items-center justify-center gap-2.5">
+                      {/* Subtítulo móvil decorativo — colapsa al hacer scroll. */}
+                      <div
+                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                          headerColapsado ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
+                        }`}
+                      >
+                        <div className="pb-2 flex items-center justify-center gap-2.5">
                           <div
                             className="h-0.5 w-14 rounded-full"
                             style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
@@ -1081,10 +1226,17 @@ export function PaginaNegocios() {
 
                 {/* ── CHIPS FILTROS — solo móvil, scroll horizontal (mismo
                        patrón que Ofertas y MarketPlace). El popup "Ajustar
-                       búsqueda" se eliminó: los chips son inline ahora. ── */}
-                <div className="px-3 pb-3 lg:hidden">
-                  <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
+                       búsqueda" se eliminó: los chips son inline ahora.
+                       Colapsa al hacer scroll, igual que el subtítulo. ── */}
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out lg:hidden ${
+                    headerColapsado ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+                  }`}
+                >
+                  <div className="px-3 pb-3">
+                    <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
+                    </div>
                   </div>
                 </div>
 
@@ -1143,63 +1295,34 @@ export function PaginaNegocios() {
           document.body
         )}
 
-        {createPortal(
-          <div
-            data-testid="toggle-mapa-lista-flotante"
-            // z-40 (no z-50): debe quedar DEBAJO del ChatOverlay desktop
-            // (z-41) para que el chat lo tape al abrirse. z-50 lo dejaba
-            // visible por encima del overlay. z-40 sigue por encima del
-            // header sticky de Negocios (z-20). BottomNav también usa
-            // z-40 pero solo existe en móvil — sin conflicto en desktop.
-            className="hidden lg:flex fixed top-50 lg:right-70 2xl:right-94 z-40 items-center gap-1 rounded-full bg-black p-1.5 shadow-2xl ring-1 ring-white/15 backdrop-blur"
-          >
-            {TABS_NEGOCIOS_DESKTOP.map(({ id, label, Icono }) => {
-              const activo = tabActiva === id;
-              return (
-                <button
-                  key={id}
-                  data-testid={`toggle-flotante-${id}`}
-                  onClick={() => setTabActiva(id)}
-                  aria-pressed={activo}
-                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${activo
-                      ? 'bg-white text-blue-700 shadow-md'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                >
-                  <Icono className="w-4 h-4" strokeWidth={2.5} />
-                  {label}
-                  {id === 'lista' && negocios.length > 0 && (
-                    <span className={`text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ${activo ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                      }`}>
-                      {negocios.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>,
-          document.body
-        )}
-
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* FAB MÓVIL Mapa/Lista — botón circular flotante anclado al lado    */}
         {/* derecho a media pantalla. Muestra el icono del MODO OPUESTO al    */}
         {/* actual (señal visual de "click aquí para cambiar"). Solo móvil.   */}
+        {/* Oculto en Modo Comercial: el comerciante ya trae el FAB Publicar  */}
+        {/* como acción principal — 3 FABs juntos (flecha+toggle+publicar)   */}
+        {/* se sentía cargado, y cambiar de vista es un caso de uso poco     */}
+        {/* frecuente estando en modo "administrar mi negocio". Si quiere    */}
+        {/* navegar como cliente, para eso está el Modo Personal.            */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        {(() => {
+        {!esModoComercialConNegocio && (() => {
           const opuesta = TABS_NEGOCIOS_MOBILE.find((t) => t.id !== tabActiva);
           if (!opuesta) return null;
           const IconoOpuesta = opuesta.Icono;
           return createPortal(
             <button
               type="button"
-              data-testid="fab-toggle-mapa-lista-movil"
+              data-testid="fab-toggle-mapa-feed-movil"
               onClick={() => setTabActiva(opuesta.id)}
               aria-label={`Cambiar a vista ${opuesta.label}`}
               style={{
                 bottom: bottomNavVisible ? '5rem' : '1rem',
                 transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
               }}
+              // right-4: este toggle SOLO existe en Modo Personal (ver el
+              // `!esModoComercialConNegocio` que envuelve este bloque) — el
+              // FAB "Publicar" solo existe en Modo Comercial, así que nunca
+              // conviven. Va a la derecha, mismo lugar que ocuparía Publicar.
               className="lg:hidden fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 active:scale-95"
             >
               <IconoOpuesta className="w-6 h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
@@ -1229,32 +1352,16 @@ export function PaginaNegocios() {
           tabActiva === 'mapa' ? 'lg:py-3 2xl:py-3' : 'lg:py-6 2xl:py-8'
         }`}>
 
-          {/* ── MOBILE: Tab Lista ── */}
-          {tabActiva === 'lista' && (
-            <div className="lg:hidden" data-testid="negocios-lista-movil">
-              {loading && negocios.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                </div>
-              ) : negocios.length === 0 ? (
-                filtrosActivos() === 0 ? (
-                  <EstadoCiudadSinNegocios ciudad={nombreCiudad} />
-                ) : (
-                  <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
-                )
-              ) : (
-                <div className="space-y-4">
-                  {negocios.map((negocio) => (
-                    <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
-                      <CardNegocio
-                        negocio={negocio}
-                        seleccionado={negocio.sucursalId === negocioSeleccionadoId}
-                        onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* ── MOBILE: Tab Feed ── Reel de negocios arriba + feed de
+              publicaciones debajo, en un solo scroll vertical normal (no
+              fixed inset-0 como el tab Mapa). */}
+          {tabActiva === 'feed' && (
+            <div className="lg:hidden" data-testid="negocios-feed-movil">
+              <ReelNegociosFeed negocios={negocios} />
+              <FeedPublicacionesNegocio
+                ciudad={ciudadGps?.nombre ?? null}
+                onAbrirDetalle={handleAbrirPublicacion}
+              />
             </div>
           )}
 
@@ -1275,45 +1382,77 @@ export function PaginaNegocios() {
           {/* ── DESKTOP ── */}
           <div className="hidden lg:block" data-testid="negocios-desktop">
 
-            {/* Tab Lista: Grid de cards con ancho FIJO 300/340px (mismo
-                tamaño que la columna izq del tab Mapa). Usa `auto-fill`
-                para que entren las que quepan en el ancho disponible
-                (max-w-7xl). En lg → 3 cards/fila; en 2xl → 3 cards/fila;
-                en monitores muy anchos → 4+ cards/fila. */}
-            {tabActiva === 'lista' && (
-              <>
-                {loading && negocios.length === 0 ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-[repeat(auto-fill,300px)] 2xl:grid-cols-[repeat(auto-fill,340px)] gap-4 lg:gap-5 2xl:gap-6 justify-start">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
-                        <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
-                        <div className="p-3 space-y-2">
-                          <div className="h-4 bg-slate-200 rounded w-3/4" />
-                          <div className="h-3 bg-slate-200 rounded w-1/2" />
-                        </div>
+            {/* Tab Feed: Cards izquierda + feed de publicaciones derecha.
+                Mismo layout de 2 columnas que el tab Mapa (mismo ancho de
+                columna, mismos gaps) para que el ancho visible no salte al
+                alternar entre tabs. */}
+            {tabActiva === 'feed' && (
+              <div className="flex gap-5 2xl:gap-6 items-start">
+                {/* Placeholder `relative`: reserva el ancho/alto exactos de
+                    la columna en el flujo normal (para que el feed no salte)
+                    y sirve de referencia de posición para medir su `left`. */}
+                <div
+                  ref={cardsPlaceholderRef}
+                  className="relative w-[300px] 2xl:w-[340px] shrink-0"
+                  style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
+                >
+                  {/* Cards: SIEMPRE fija (no espera a que empieces a
+                      scrollear) — cero movimiento posible. `headerBottom` es
+                      el borde inferior REAL del header en pantalla
+                      (getBoundingClientRect, no solo su alto). */}
+                  <div
+                    ref={cardsScrollRef}
+                    className="negocios-cards-scroll w-[300px] 2xl:w-[340px] overflow-y-auto overflow-x-visible pr-1 z-10 lg:fixed"
+                    style={{
+                      top: `${headerBottom + 16}px`,
+                      left: cardsLeft !== null ? `${cardsLeft}px` : undefined,
+                      height: `calc(100vh - ${headerBottom + 16}px - 16px)`,
+                    }}
+                  >
+                    {loading && negocios.length === 0 ? (
+                      <div className="flex flex-col gap-5">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
+                            <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
+                            <div className="p-3 space-y-2">
+                              <div className="h-4 bg-slate-200 rounded w-3/4" />
+                              <div className="h-3 bg-slate-200 rounded w-1/2" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : negocios.length === 0 ? (
-                  filtrosActivos() === 0 ? (
-                    <EstadoCiudadSinNegocios ciudad={nombreCiudad} />
-                  ) : (
-                    <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
-                  )
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-[repeat(auto-fill,300px)] 2xl:grid-cols-[repeat(auto-fill,340px)] gap-4 lg:gap-5 2xl:gap-6 justify-start">
-                    {negocios.map((negocio) => (
-                      <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
-                        <CardNegocio
-                          negocio={negocio}
-                          seleccionado={negocio.sucursalId === negocioSeleccionadoId}
-                          onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
-                        />
+                    ) : negocios.length === 0 ? (
+                      filtrosActivos() === 0 ? (
+                        <EstadoCiudadSinNegocios ciudad={nombreCiudad} />
+                      ) : (
+                        <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
+                      )
+                    ) : (
+                      <div className="flex flex-col gap-4 2xl:gap-5 pb-4">
+                        {negocios.map((negocio) => (
+                          <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
+                            <CardNegocio
+                              negocio={negocio}
+                              seleccionado={negocio.sucursalId === negocioSeleccionadoId}
+                              onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </>
+                </div>
+
+                {/* Feed de publicaciones derecha — SIN scroll interno propio
+                    (a diferencia de antes): fluye como parte del documento y
+                    scrollea con el <main> global, mismo patrón que Home/Coyo. */}
+                <div className="flex-1 min-w-0 pr-1">
+                  <FeedPublicacionesNegocio
+                    ciudad={ciudadGps?.nombre ?? null}
+                    onAbrirDetalle={handleAbrirPublicacion}
+                  />
+                </div>
+              </div>
             )}
 
             {/* Tab Mapa: Cards izquierda + Mapa derecha.
@@ -1379,15 +1518,31 @@ export function PaginaNegocios() {
         </div>
 
         {/* Flecha "ir arriba".
-            · Modo lista: en móvil va a la IZQUIERDA (`left-4`) para no empalmarse
-              con el FAB de cambiar vista Mapa/Lista (esquina inferior derecha);
-              en PC vuelve al canal derecho (el toggle vive en el header).
+            · Modo feed: en móvil va a la IZQUIERDA (`left-4`) para no empalmarse
+              con el FAB de cambiar vista Mapa/Feed (esquina inferior derecha).
+              En PC ahora se ancla al borde derecho de la lista de cards —
+              mismo anclaje que el modo mapa (`cardsScrollRef`) — pero SIN
+              `scrollRef` explícito: el feed ya no tiene scroll interno propio,
+              así que cae al default (`<main>` global) y controla el feed.
             · Modo mapa (desktop): anclada al borde derecho de la lista de
-              cards y operando sobre su scroll interno (`cardsScrollRef`). */}
-        {tabActiva === 'lista' && (
+              cards y operando sobre SU scroll interno (`cardsScrollRef`,
+              pasado explícito como `scrollRef` — a diferencia del feed). */}
+        {tabActiva === 'feed' && (
           <BotonIrArriba
             testId="negocios-ir-arriba"
             right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[368px]"
+            // `anclarDerechaRef` SOLO en escritorio: el div de cards del tab
+            // feed vive dentro de un contenedor `hidden lg:block` — en móvil
+            // sigue montado en el DOM (solo oculto por CSS), así que su
+            // `getBoundingClientRect()` da puros ceros y manda la flecha a
+            // una posición inválida si se lo pasamos sin condición.
+            anclarDerechaRef={esEscritorio ? (cardsScrollRef as RefObject<HTMLElement | null>) : undefined}
+            anclaOffsetX={21}
+            apilarEscritorio={0}
+            // El FAB de toggle Mapa/Feed ahora vive en right-4 en móvil (no
+            // en left-4) — ya no comparte esquina con esta flecha en ningún
+            // modo, así que no hace falta apilar.
+            apilarMovil={0}
           />
         )}
         {tabActiva === 'mapa' && (
@@ -1399,6 +1554,52 @@ export function PaginaNegocios() {
             apilarEscritorio={0}  /* ← vertical: MÁS número = más ARRIBA (en rem sobre el fondo) */
           />
         )}
+
+        {/* Toggle Feed/Mapa circular — SOLO escritorio, reemplaza al pill
+            "Feed 20 / Mapa" flotante. Mismo estilo e ícono que el FAB móvil
+            (círculo oscuro, ícono del modo OPUESTO), anclado ABAJO a la
+            derecha. Visible en AMBOS modos (igual que el pill que
+            reemplaza) — a diferencia del toggle de móvil, este nunca se
+            ocultó en Modo Comercial; convive con el FAB "Publicar" porque
+            viven en alturas distintas (Publicar arriba, este abajo). */}
+        {(() => {
+          const opuesta = TABS_NEGOCIOS_DESKTOP.find((t) => t.id !== tabActiva);
+          if (!opuesta) return null;
+          const IconoOpuesta = opuesta.Icono;
+          return createPortal(
+            <button
+              type="button"
+              data-testid="toggle-mapa-feed-escritorio"
+              onClick={() => setTabActiva(opuesta.id)}
+              aria-label={`Cambiar a vista ${opuesta.label}`}
+              className="hidden lg:flex fixed bottom-4 right-4 lg:right-[330px] 2xl:right-[394px] z-30 h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 active:scale-95"
+            >
+              <IconoOpuesta className="w-6 h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
+            </button>,
+            document.body
+          );
+        })()}
+
+        {/* FAB "+ Publicar" — feed de publicaciones de negocio. Color blue
+            de la marca Negocios. Ver components/ui/FabPublicar.tsx.
+            Sin cambios de posición — sigue ANCLADO ARRIBA bajo el header en
+            PC (`topPublicar`, con su animación de entrada "baja desde
+            arriba" al montar). Solo el toggle Feed/Mapa se movió abajo. */}
+        {esModoComercialConNegocio && (
+          <FabPublicar
+            onClick={handlePublicarNegocio}
+            ariaLabel="Publicar en el feed de tu negocio"
+            claseColor="bg-linear-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30"
+            topPublicar={topPublicar}
+            esEscritorio={esEscritorio}
+            bottomNavVisible={bottomNavVisible}
+            labelConCardEscritorio
+          />
+        )}
+
+        {/* Composer de publicaciones de negocio — modal, sin barra inline
+            (nace directo con el patrón FAB-only). */}
+        <ComposerSectionNegocio />
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* DROPDOWNS GLOBALES (posición fixed)                              */}

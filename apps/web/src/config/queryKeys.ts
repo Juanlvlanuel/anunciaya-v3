@@ -161,6 +161,23 @@ export const queryKeys = {
       ['negocios', 'detalle', sucursalId] as const,
   },
 
+  // ─── Feed de Publicaciones de Negocio ──────────────────────────────────────
+  // Contenido "todo tipo, libre" de negocios en modo Comercial. Mismo patrón
+  // que `marketplace` (feed infinito con `ciudad` texto, no ciudadId — el
+  // backend resuelve el UUID vía resolverCiudadId).
+  negocioPublicaciones: {
+    all: () => ['negocio-publicaciones'] as const,
+    // `filtros` es deliberadamente ancho (mismos filtros del header de
+    // Negocios: cerca de ti, categoría, subcategorías, CardYA, a domicilio)
+    // para que cualquier cambio de filtro invalide/recachee el feed.
+    feed: (filtros: Record<string, unknown>) =>
+      ['negocio-publicaciones', 'feed', filtros] as const,
+    detalle: (publicacionId: string, filtros?: Record<string, unknown>) =>
+      ['negocio-publicaciones', 'detalle', publicacionId, filtros] as const,
+    comentarios: (publicacionId: string) =>
+      ['negocio-publicaciones', 'comentarios', publicacionId] as const,
+  },
+
   // ─── Sección pública — Feed de Ofertas ────────────────────────────────────
   // Distinto de `ofertas` (BS, CRUD por sucursal). El `nombre` permite
   // identificar bloques editoriales del feed: 'cerca', 'recientes',

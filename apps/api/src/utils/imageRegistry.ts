@@ -114,6 +114,12 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // vacantes). Mismo patrón que marketplace.
     { tabla: 'servicios_publicaciones', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos de publicación de Servicios (JSONB array de URLs)' },
 
+    // ─── Negocios — Feed de publicaciones ───
+    // Tabla `negocio_publicaciones` (Jul 2026). Campo `fotos` es JSONB array de
+    // URLs en R2, sin límite de producto (solo tope técnico de 40). Mismo
+    // patrón que marketplace/servicios.
+    { tabla: 'negocio_publicaciones', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos de publicación de Negocio (JSONB array de URLs)' },
+
     // ─── Vendedores y comisiones ───
     // Foto/comprobante del pago al vendedor (pieza E, liquidación). Carpeta R2 'comprobantes'.
     { tabla: 'pagos_vendedor', columna: 'comprobante_url', tipo: 'url', descripcion: 'Foto/comprobante del pago al vendedor' },

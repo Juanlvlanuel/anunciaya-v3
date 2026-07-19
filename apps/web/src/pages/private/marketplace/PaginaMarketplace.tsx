@@ -48,6 +48,7 @@ import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFe
 import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArticuloDetalle';
 import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
+import { FabPublicar } from '../../../components/ui/FabPublicar';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito, CategoriaMarketplace } from '../../../types/marketplace';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
@@ -890,47 +891,18 @@ export function PaginaMarketplace() {
                 <div className="h-24 lg:h-12" />
             </div>
 
-            {/* ════════════════════════════════════════════════════════════════
-                FAB "+ Publicar" — visible solo en modo personal (los negocios
-                no publican artículos P2P en MarketPlace). ESCRITORIO: anclado
-                arriba bajo el header (`topPublicar`). MÓVIL: abajo a la derecha
-                (sube a bottom-20 con el BottomNav, baja a bottom-4 al ocultarse).
-                Color teal de la marca MP, icono con animación rotate-pulse 2.4s.
-            ════════════════════════════════════════════════════════════════ */}
+            {/* FAB "+ Publicar" — visible solo en modo personal (los negocios
+                no publican artículos P2P en MarketPlace). Color teal de la
+                marca MP. Ver components/ui/FabPublicar.tsx. */}
             {esModoPersonal && (
-            <button
-                data-testid="fab-publicar"
-                onClick={handlePublicar}
-                aria-label="Publicar artículo"
-                style={{
-                    ...(esEscritorio ? { top: `${topPublicar}px` } : {}),
-                    transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1), bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
-                }}
-                className={`fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 lg:right-[330px] 2xl:right-[394px] ${
-                    esEscritorio ? '' : bottomNavVisible ? 'bottom-20' : 'bottom-4'
-                }`}
-            >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30 transition-transform hover:scale-105">
-                    <Plus
-                        className="h-6 w-6"
-                        strokeWidth={2.75}
-                        style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
-                    />
-                </span>
-                {/* Label "Publicar" — visible en móvil y desktop.
-                    Móvil: chip blanco translúcido con sombra para legibilidad
-                    sobre fotos del feed (fondos impredecibles).
-                    Desktop: texto plano sobre el fondo claro `bg-slate-100`. */}
-                <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:bg-transparent lg:px-0 lg:py-0 lg:text-base lg:shadow-none lg:backdrop-blur-none">
-                    Publicar
-                </span>
-                <style>{`
-                    @keyframes fab-publicar-pulse {
-                        0%, 100% { transform: rotate(0deg) scale(1); }
-                        50% { transform: rotate(90deg) scale(1.15); }
-                    }
-                `}</style>
-            </button>
+                <FabPublicar
+                    onClick={handlePublicar}
+                    ariaLabel="Publicar artículo"
+                    claseColor="bg-linear-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30"
+                    topPublicar={topPublicar}
+                    esEscritorio={esEscritorio}
+                    bottomNavVisible={bottomNavVisible}
+                />
             )}
 
             {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no

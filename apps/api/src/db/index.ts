@@ -5,15 +5,18 @@ import * as schema from './schemas/schema.js';
 
 const { Pool } = pg;
 
-// Pool de conexiones a PostgreSQL.
-// Límites conservadores para no saturar el pooler de Supabase (session mode, ~15 conexiones
-// TOTALES para todo el proyecto): pocas conexiones por proceso + liberación de las inactivas.
-// Así los reinicios del watcher (tsx) en dev no acumulan conexiones zombi.
+// Pool de conexiones a PostgreSQL — vía transaction pooler de Supabase (puerto 6543).
+// Límites conservadores para no saturar el pooler: pocas conexiones por proceso +
+// liberación de las inactivas. Así los reinicios del watcher (tsx) en dev no acumulan
+// conexiones zombi.
 const pool = new Pool({
   connectionString: getDatabaseUrl(),
   max: 5,                          // máx. conexiones por proceso (el default de pg es 10)
-  idleTimeoutMillis: 10_000,       // cierra conexiones inactivas a los 10 s
-  connectionTimeoutMillis: 10_000, // falla rápido si no hay conexión libre (en vez de colgarse)
+  idleTimeoutMillis: 30_000,       // cierra conexiones inactivas a los 30 s (evita reabrir
+                                    // conexión nueva cada vez que varios crons disparan casi
+                                    // juntos tras un rato de inactividad)
+  connectionTimeoutMillis: 20_000, // Supabase Free + transaction pooler puede tardar más de
+                                    // 10s en aceptar conexiones nuevas bajo ráfaga
 });
 
 // Bandera para mostrar mensaje solo una vez

@@ -1,7 +1,8 @@
 /**
- * ComposerMarketplace.tsx (variante INLINE)
+ * ComposerMarketplace.tsx
  * ===========================================
- * Composer de MarketPlace — vive INLINE en el feed (no es overlay/modal).
+ * Composer de MarketPlace — se renderiza dentro de un `ModalAdaptativo`
+ * (ver `ComposerSection.tsx`; hasta jul 2026 vivía inline en el feed).
  * Réplica 1:1 del `ComposerServicios` con el shape específico de MP:
  *
  *   - SIN toggle Ofrezco/Solicito (todo es "vender un artículo").
@@ -12,10 +13,8 @@
  *   - 4 confirmaciones legales (compactadas a 1 checkbox en UI).
  *   - Tonos teal en lugar de sky (identidad de MarketPlace).
  *
- * Estados:
- *   - Colapsado → componente `<ComposerColapsado>` MP (pill).
- *   - Expandido → ESTE componente.
- *   - El orquestador `<ComposerSection>` MP decide cuál renderizar.
+ * El orquestador `<ComposerSection>` MP abre/cierra el modal que envuelve
+ * a ESTE componente (sin barra colapsada — el FAB es la única entrada).
  *
  * Moderación en 2 niveles:
  *   - Inline hint debajo de la descripción mientras escribe (debounce 600ms)
@@ -70,6 +69,7 @@ import {
     useCrearArticulo,
     useActualizarArticulo,
     useCategoriasMarketplace,
+    useEliminarFotoMarketplaceHuerfana,
     type CrearArticuloPayload,
     type RespuestaModeracion,
 } from '../../../hooks/queries/useMarketplace';
@@ -192,6 +192,24 @@ export function ComposerMarketplace({
         onCambioFotos: (fotos) => actualizar({ fotos }),
         urlsSubidasEnSesion,
     });
+
+    // ─── Cancelar: limpia de R2 las fotos subidas en ESTA sesión que nunca
+    // se publicaron (evita huérfanas). Solo cubre `urlsSubidasEnSesion` —
+    // las fotos ya publicadas (edición) nunca entran a ese set. También las
+    // quita de `draft.fotos` para que el borrador persistido no quede
+    // apuntando a URLs que se acaban de borrar. */
+    const eliminarFotoHuerfanaMutation = useEliminarFotoMarketplaceHuerfana();
+    function handleCancelar() {
+        const urlsHuerfanas = Array.from(urlsSubidasEnSesion.current);
+        if (urlsHuerfanas.length > 0) {
+            urlsHuerfanas.forEach((url) => eliminarFotoHuerfanaMutation.mutate(url));
+            urlsSubidasEnSesion.current.clear();
+            actualizar((d) => ({
+                fotos: d.fotos.filter((f) => !urlsHuerfanas.includes(f)),
+            }));
+        }
+        onColapsar();
+    }
 
     // ─── Moderación post-publish (sugerencia suave) ──────────────────
     const [sugerencia, setSugerencia] = useState<{
@@ -317,10 +335,12 @@ export function ComposerMarketplace({
         <>
             <div
                 data-testid="composer-mp-expandido"
-                className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden"
+                className="flex flex-1 min-h-0 flex-col rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden"
             >
-                {/* ── Header ──────────────────────────────────────────── */}
-                <div className="flex items-center gap-3 px-3 py-3 lg:px-4 lg:py-4 border-b-2 border-slate-300">
+                {/* ── Header (fijo — el body de abajo scrollea). `pt-11` en
+                    móvil despeja el drag handle del ModalBottom (absolute,
+                    ~44px) para que no se empalme con el avatar/título. ── */}
+                <div className="shrink-0 flex items-center gap-3 px-3 pt-11 pb-3 lg:px-4 lg:py-4 border-b-2 border-slate-300">
                     <div className="flex items-center gap-3 min-w-0">
                         {avatarUsuario ? (
                             <img
@@ -378,7 +398,7 @@ export function ComposerMarketplace({
                         type="button"
                         aria-label="Cerrar composer"
                         data-testid="composer-mp-cerrar"
-                        onClick={onColapsar}
+                        onClick={handleCancelar}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-slate-300 text-slate-500 hover:border-red-400 hover:bg-red-100 hover:text-red-600 lg:cursor-pointer"
                     >
                         <X className="h-5 w-5" strokeWidth={2.25} />
@@ -386,11 +406,11 @@ export function ComposerMarketplace({
                 </div>
 
                 {cargandoEdicion ? (
-                    <div className="flex items-center justify-center py-16">
+                    <div className="flex flex-1 items-center justify-center py-16">
                         <Spinner tamanio="lg" />
                     </div>
                 ) : (
-                    <div className="px-3 lg:px-5 py-3 lg:py-5">
+                    <div className="flex-1 min-h-0 overflow-y-auto px-3 lg:px-5 py-3 lg:py-5">
                         {/* Toggle Vendo / Busco — SOLO móvil (en desktop vive en
                             el header). Evita apretar el título en pantallas chicas. */}
                         {!esEdicion && (
@@ -400,8 +420,10 @@ export function ComposerMarketplace({
                         )}
 
                         {/* Layout PC: 2 columnas (Fotos a la izquierda + Campos
-                            a la derecha). Móvil: stack vertical normal. */}
-                        <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-5">
+                            a la derecha). Móvil: stack vertical normal. Columna
+                            de fotos ensanchada (220→280/320px) ahora que el
+                            composer vive en un modal ancho, no en el feed. */}
+                        <div className="lg:grid lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr] lg:gap-5">
                             {/* ── Columna izquierda: ZonaFotos ─────────── */}
                             <div className="mb-3 lg:mb-0">
                                 <ZonaFotos
@@ -419,7 +441,16 @@ export function ComposerMarketplace({
                             </div>
 
                             {/* ── Columna derecha: campos y detalles ──── */}
-                            <div className="space-y-3 min-w-0">
+                            <div className="min-w-0">
+                                {/* Spacer invisible (solo desktop, FUERA del
+                                    space-y-3 de abajo para no correr Título en
+                                    móvil): iguala la altura de la fila de label
+                                    "Fotos · opcional · 0/12" de ZonaFotos para
+                                    que el input de Título arranque al mismo
+                                    nivel que el cuadrado de fotos (h-6 + mb-2). */}
+                                <div className="hidden lg:block lg:h-6 lg:mb-2" aria-hidden />
+
+                                <div className="space-y-3">
                                 {/* Título (autoFocus en creación) */}
                                 <CampoTitulo
                                     valor={draft.titulo}
@@ -445,39 +476,6 @@ export function ComposerMarketplace({
                                     error={errores.categoria}
                                 />
 
-                                {/* Precio (vendo) o Presupuesto + urgente (busco) */}
-                                {draft.modo === 'vendo' ? (
-                                    <CampoPrecio
-                                        valor={draft.precio}
-                                        onCambio={(v) =>
-                                            actualizar({
-                                                precio: v.replace(/[^\d]/g, ''),
-                                            })
-                                        }
-                                        error={errores.precio}
-                                    />
-                                ) : (
-                                    <CampoPresupuesto
-                                        min={draft.presupuestoMin}
-                                        max={draft.presupuestoMax}
-                                        urgente={draft.urgente}
-                                        onCambioMin={(v) =>
-                                            actualizar({
-                                                presupuestoMin: v.replace(/[^\d]/g, ''),
-                                            })
-                                        }
-                                        onCambioMax={(v) =>
-                                            actualizar({
-                                                presupuestoMax: v.replace(/[^\d]/g, ''),
-                                            })
-                                        }
-                                        onCambioUrgente={(v) =>
-                                            actualizar({ urgente: v })
-                                        }
-                                        error={errores.presupuesto}
-                                    />
-                                )}
-
                                 {/* Descripción */}
                                 <CampoDescripcion
                                     valor={draft.descripcion}
@@ -499,7 +497,7 @@ export function ComposerMarketplace({
                                     texto={`${draft.titulo} ${draft.descripcion}`}
                                     modo={draft.modo}
                                     onIrServicios={() => {
-                                        onColapsar();
+                                        handleCancelar();
                                         navegar('/servicios?crear=ofrezco');
                                     }}
                                     onCambiarABusco={() => {
@@ -507,16 +505,55 @@ export function ComposerMarketplace({
                                         setSeccionAbierta(null);
                                     }}
                                 />
+                                </div>
                             </div>
                         </div>
 
-                        {/* ── Detalles (full width debajo del grid) + acordeón ── */}
+                        {/* ── Precio + Detalles: misma línea, debajo de la
+                            descripción (full width bajo el grid) ── */}
                         <div className="mt-3 space-y-3">
-                            <FilaIconos
-                                draft={draft}
-                                seccionAbierta={seccionAbierta}
-                                onAlternar={alternar}
-                            />
+                            <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-5">
+                                <div className="lg:w-[280px] 2xl:w-[320px] shrink-0">
+                                    {draft.modo === 'vendo' ? (
+                                        <CampoPrecio
+                                            valor={draft.precio}
+                                            onCambio={(v) =>
+                                                actualizar({
+                                                    precio: v.replace(/[^\d]/g, ''),
+                                                })
+                                            }
+                                            error={errores.precio}
+                                        />
+                                    ) : (
+                                        <CampoPresupuesto
+                                            min={draft.presupuestoMin}
+                                            max={draft.presupuestoMax}
+                                            urgente={draft.urgente}
+                                            onCambioMin={(v) =>
+                                                actualizar({
+                                                    presupuestoMin: v.replace(/[^\d]/g, ''),
+                                                })
+                                            }
+                                            onCambioMax={(v) =>
+                                                actualizar({
+                                                    presupuestoMax: v.replace(/[^\d]/g, ''),
+                                                })
+                                            }
+                                            onCambioUrgente={(v) =>
+                                                actualizar({ urgente: v })
+                                            }
+                                            error={errores.presupuesto}
+                                        />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <FilaIconos
+                                        draft={draft}
+                                        seccionAbierta={seccionAbierta}
+                                        onAlternar={alternar}
+                                    />
+                                </div>
+                            </div>
 
                             {esEscritorio && seccionAbierta === 'condicion' && (
                                 <PanelCondicion
@@ -655,7 +692,7 @@ export function ComposerMarketplace({
                                     <button
                                         type="button"
                                         data-testid="composer-mp-btn-cancelar"
-                                        onClick={onColapsar}
+                                        onClick={handleCancelar}
                                         disabled={enviando}
                                         className="px-5 h-12 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-semibold text-[15px] hover:bg-slate-100 hover:border-slate-400 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -1212,7 +1249,7 @@ function ZonaFotos({
                 </span>
             </div>
 
-            <div className="group relative aspect-[3/1] lg:aspect-square w-full rounded-xl overflow-hidden">
+            <div className="group relative aspect-[2/1] lg:aspect-square w-full rounded-xl overflow-hidden">
                 {totalItems === 0 ? (
                     <button
                         type="button"
