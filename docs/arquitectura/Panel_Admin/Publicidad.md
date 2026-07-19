@@ -61,11 +61,11 @@ Hay **dos tamaños de pago** (rotan solos y se pausan al hover) y uno **de regal
 |---|---|---|---|
 | **Grande** (`patrocinadores`) | Banner grande, arriba | **4:5** vertical · 1080×1350 px | **Pago** — precio base, igual en cualquier ciudad |
 | **Chico** (`anuncios`) | Tarjeta chica, abajo | **3:2** horizontal · 1080×720 px | **Pago** — precio base |
-| **Fundadores** (`fundadores`) | Logos circulares **flotando** (sin card ni título) | Cuadrado 1:1 | **Regalo** — a los primeros **50** negocios de cada ciudad; el admin lo marca desde la **ficha del negocio** y aparece su **logo** |
+| **Fundadores** (`fundadores`) | Logos circulares **flotando** (sin card ni título) | Cuadrado 1:1 | **Regalo** — sin límite de negocios por ciudad; el admin lo marca desde la **ficha del negocio** y aparece su **logo** |
 
 Los 2 de pago tienen un **combo con descuento** (los **2 tamaños** juntos). Precios, descuento y umbrales los
 fija **solo el SuperAdmin**. **Fundadores NO se vende**: es un reconocimiento a los negocios pioneros —
-`negocios.es_fundador` (toggle en la ficha), cupo **50 por ciudad** (la de su sucursal principal); el carrusel
+`negocios.es_fundador` (toggle en la ficha), **sin cupo** por ciudad (la de su sucursal principal); el carrusel
 público arma los fundadores desde esos negocios usando su `logo_url`. Las proporciones son **fijas e idénticas**
 entre la columna y el wizard, para que el anunciante **diseñe a la medida** que se ocupa.
 

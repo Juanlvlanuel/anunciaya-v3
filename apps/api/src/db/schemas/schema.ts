@@ -215,7 +215,7 @@ export const negocios = pgTable("negocios", {
 	promocionado: boolean().default(false),
 	promocionExpira: timestamp("promocion_expira", { withTimezone: true, mode: 'string' }),
 	// Regalo de Publicidad: si es uno de los primeros negocios de su ciudad, su logo va al carrusel
-	// "Fundadores" (no se cobra). Lo marca el admin desde la ficha del negocio (cupo 50 por ciudad).
+	// "Fundadores" (no se cobra). Lo marca el admin desde la ficha del negocio (sin límite por ciudad).
 	esFundador: boolean("es_fundador").default(false).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),

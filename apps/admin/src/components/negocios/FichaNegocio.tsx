@@ -748,7 +748,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         titulo={n.esFundador ? 'Quitar Fundador' : 'Marcar como Fundador'}
         mensaje={n.esFundador
           ? 'El logo del negocio dejará de aparecer en el carrusel de Fundadores de su ciudad.'
-          : 'El logo del negocio aparecerá en el carrusel de Fundadores de su ciudad (regalo, sin costo). Cupo de 50 por ciudad; el negocio debe tener logo y sucursal principal.'}
+          : 'El logo del negocio aparecerá en el carrusel de Fundadores de su ciudad (regalo, sin costo). El negocio debe tener logo y sucursal principal.'}
         textoConfirmar={n.esFundador ? 'Quitar' : 'Marcar Fundador'}
         cargando={fundador.isPending}
         onConfirmar={() => fundador.mutate({ id: previo.id, esFundador: !n.esFundador }, { onSuccess: cerrarDialogo })}

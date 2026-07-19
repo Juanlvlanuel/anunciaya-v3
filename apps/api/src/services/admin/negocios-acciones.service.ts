@@ -241,15 +241,13 @@ export async function cambiarCorreoDueno(
 }
 
 // =============================================================================
-// MARCAR / QUITAR FUNDADOR (regalo de Publicidad — cupo 50 por ciudad)
+// MARCAR / QUITAR FUNDADOR (regalo de Publicidad — sin límite por ciudad)
 // =============================================================================
-
-const CUPO_FUNDADORES_POR_CIUDAD = 50;
 
 /**
  * Marca (o quita) a un negocio como FUNDADOR: su logo entra al carrusel "Fundadores" de la ciudad de su
  * sucursal principal. Es un regalo (no se cobra). Requiere que el negocio tenga logo y sucursal principal
- * con ciudad, y que la ciudad no haya llenado su cupo (50). super + gerente (alcance por región).
+ * con ciudad. super + gerente (alcance por región).
  */
 export async function marcarDesmarcarFundador(
     panel: UsuarioPanel,
@@ -278,16 +276,6 @@ export async function marcarDesmarcarFundador(
         }
         if (!info.ciudad_id) {
             return { ok: false, status: 409, mensaje: 'El negocio no tiene una sucursal principal con ciudad.' };
-        }
-        // Cupo: máximo N fundadores por ciudad (la de su sucursal principal).
-        const [{ usados }] = (await db.execute(sql`
-            SELECT count(*)::int AS usados
-            FROM negocios n
-            JOIN negocio_sucursales ns ON ns.negocio_id = n.id AND ns.es_principal = true
-            WHERE n.es_fundador = true AND ns.ciudad_id = ${info.ciudad_id}::uuid AND n.id <> ${negocioId}::uuid
-        `)).rows as Array<{ usados: number }>;
-        if (usados >= CUPO_FUNDADORES_POR_CIUDAD) {
-            return { ok: false, status: 409, mensaje: `Esta ciudad ya tiene ${CUPO_FUNDADORES_POR_CIUDAD} fundadores (cupo lleno).` };
         }
     }
 
