@@ -24,9 +24,11 @@ import {
     ChevronLeft,
     ChevronRight,
     ImageOff,
+    Pencil,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -190,6 +192,11 @@ export function CardArticuloFeed({
     );
     const iniciales = obtenerIniciales(articulo.vendedor.nombre, articulo.vendedor.apellidos);
 
+    // Editar inline: solo visible para el autor del artículo. Abre el mismo
+    // composer existente vía query param, sin lógica de edición nueva.
+    const usuarioId = useAuthStore((s) => s.usuario?.id ?? null);
+    const esMio = usuarioId !== null && usuarioId === articulo.vendedor.id;
+
     // Señal de actividad inline. Tipo:
     //  - 'viendo' / 'vistas24h' → texto descriptivo en teal.
     //  - 'guardados' → corazón rojo + número, sin texto (consistente con el
@@ -238,6 +245,11 @@ export function CardArticuloFeed({
 
     const irAlDetalle = useCallback(() => {
         irConCierre(`/marketplace/articulo/${articulo.id}`);
+    }, [irConCierre, articulo.id]);
+
+    const irAEditar = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        irConCierre(`/marketplace?editar=${articulo.id}`);
     }, [irConCierre, articulo.id]);
 
     const fotoAnterior = useCallback((e: React.MouseEvent) => {
@@ -416,6 +428,20 @@ export function CardArticuloFeed({
                         <MapPin className="w-3.5 h-3.5" />
                         {distancia}
                     </span>
+                )}
+
+                {/* Editar — solo visible para el autor del artículo. Abre el
+                    mismo composer de siempre. */}
+                {esMio && (
+                    <button
+                        type="button"
+                        data-testid={`card-feed-editar-${articulo.id}`}
+                        onClick={irAEditar}
+                        aria-label="Editar publicación"
+                        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-teal-700 lg:cursor-pointer lg:hover:bg-teal-100"
+                    >
+                        <Pencil className="h-[18px] w-[18px]" strokeWidth={2.25} />
+                    </button>
                 )}
             </header>
 

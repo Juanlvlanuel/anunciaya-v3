@@ -13,12 +13,13 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Store, ImageOff, MessageCircle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Store, ImageOff, MessageCircle, Pencil } from 'lucide-react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { formatearTiempoRelativo, formatearPrecio } from '../../../utils/marketplace';
 import { truncarTexto } from '../../../utils/truncarTexto';
 import { ModalImagenes } from '../../ui/ModalImagenes';
 import { ModalComentariosPublicacionNegocio } from './ModalComentariosPublicacionNegocio';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import type { PublicacionNegocioFeedItemConComentarios } from '../../../types/negocioPublicaciones';
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -58,8 +59,20 @@ export function CardPublicacionNegocioFeed({
     const textoCorto = truncarTexto(publicacion.texto, TEXTO_MAX_CHARS);
     const textoRecortado = textoCorto.length < publicacion.texto.length;
 
+    // Editar inline: solo visible para quien opera esa sucursal en modo
+    // comercial — mismo criterio de "sucursal activa" que ya usa el composer
+    // al crear (ComposerPublicacionNegocio.tsx). Abre el composer existente
+    // vía query param, sin lógica de edición nueva.
+    const usuario = useAuthStore((s) => s.usuario);
+    const sucursalUsuario = usuario?.sucursalActiva || usuario?.sucursalAsignada;
+    const esMia = usuario?.modoActivo === 'comercial' && sucursalUsuario === publicacion.sucursalId;
+
     function irAPerfilNegocio() {
         navigate(`/negocios/${publicacion.sucursalId}`);
+    }
+
+    function irAEditar() {
+        navigate(`/negocios?editar=${publicacion.id}`, { replace: true });
     }
 
     function anterior(e: React.MouseEvent) {
@@ -193,6 +206,20 @@ export function CardPublicacionNegocioFeed({
                         <MapPin className="w-3.5 h-3.5" />
                         {formatearDistancia(publicacion.distanciaKm)}
                     </span>
+                )}
+
+                {/* Editar — solo visible para quien opera esta sucursal en
+                    modo comercial. Abre el mismo composer de siempre. */}
+                {esMia && (
+                    <button
+                        type="button"
+                        data-testid={`card-publicacion-negocio-editar-${publicacion.id}`}
+                        onClick={irAEditar}
+                        aria-label="Editar publicación"
+                        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700 lg:cursor-pointer lg:hover:bg-blue-100"
+                    >
+                        <Pencil className="h-[18px] w-[18px]" strokeWidth={2.25} />
+                    </button>
                 )}
             </div>
 
