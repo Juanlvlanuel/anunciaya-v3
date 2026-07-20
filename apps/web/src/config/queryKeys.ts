@@ -178,6 +178,24 @@ export const queryKeys = {
       ['negocio-publicaciones', 'comentarios', publicacionId] as const,
   },
 
+  // ─── Business Studio — Publicaciones (administración de la sucursal) ─────
+  // Partición distinta de `negocioPublicaciones` (feed público, particiona
+  // por filtros geográficos): aquí particiona por sucursal + estado/búsqueda,
+  // mismo criterio que separar `vacantes` (BS) de `servicios` (público).
+  negocioPublicacionesBS: {
+    all: () => ['negocio-publicaciones-bs'] as const,
+    lista: (
+      sucursalId: string,
+      filtros: {
+        estado?: 'activa' | 'archivada';
+        busqueda?: string;
+        pagina: number;
+        limite: number;
+      },
+    ) => ['negocio-publicaciones-bs', 'lista', sucursalId, filtros] as const,
+    kpis: (sucursalId: string) => ['negocio-publicaciones-bs', 'kpis', sucursalId] as const,
+  },
+
   // ─── Sección pública — Feed de Ofertas ────────────────────────────────────
   // Distinto de `ofertas` (BS, CRUD por sucursal). El `nombre` permite
   // identificar bloques editoriales del feed: 'cerca', 'recientes',

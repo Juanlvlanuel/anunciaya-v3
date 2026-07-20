@@ -22,6 +22,8 @@ import {
     registrarVistaPublicacion,
     generarUrlUploadImagenNegocioPublicacion,
     eliminarFotoNegocioPublicacionSiHuerfana,
+    listarPublicacionesNegocioBS,
+    obtenerKpisPublicacionesNegocio,
 } from '../services/negocioPublicaciones.service.js';
 import {
     listarComentarios,
@@ -34,6 +36,7 @@ import {
     actualizarPublicacionSchema,
     feedQuerySchema,
     detalleQuerySchema,
+    listadoBSQuerySchema,
     uploadImagenSchema,
     crearComentarioSchema,
     editarComentarioSchema,
@@ -259,6 +262,75 @@ export async function deletePublicacion(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al archivar la publicación',
+        });
+    }
+}
+
+/**
+ * GET /api/negocio-publicaciones/mias
+ * "Mis publicaciones" — listado de administración de la sucursal activa
+ * (incluye archivadas, sin filtros de geolocalización/elegibilidad).
+ * Query: estado?, busqueda?, pagina, limite, sucursalId (inyectado por el
+ * interceptor Axios en modo comercial).
+ */
+export async function getMisPublicaciones(req: Request, res: Response) {
+    try {
+        const validacion = listadoBSQuerySchema.safeParse(req.query);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query inválida',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const negocioId = obtenerNegocioId(req);
+        const sucursalId = req.query.sucursalId as string | undefined;
+        if (!negocioId || !sucursalId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Falta el negocio o la sucursal',
+            });
+        }
+
+        const resultado = await listarPublicacionesNegocioBS({
+            negocioId,
+            sucursalId,
+            ...validacion.data,
+        });
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getMisPublicaciones (negocioPublicaciones):', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener tus publicaciones',
+        });
+    }
+}
+
+/**
+ * GET /api/negocio-publicaciones/kpis
+ * KPIs de la sucursal activa (total, activas, archivadas, vistas, comentarios).
+ * Query: sucursalId (inyectado por el interceptor Axios en modo comercial).
+ */
+export async function getKpisPublicaciones(req: Request, res: Response) {
+    try {
+        const negocioId = obtenerNegocioId(req);
+        const sucursalId = req.query.sucursalId as string | undefined;
+        if (!negocioId || !sucursalId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Falta el negocio o la sucursal',
+            });
+        }
+
+        const resultado = await obtenerKpisPublicacionesNegocio(negocioId, sucursalId);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getKpisPublicaciones (negocioPublicaciones):', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener los KPIs',
         });
     }
 }

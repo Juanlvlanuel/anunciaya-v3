@@ -28,6 +28,8 @@ import {
     postCrearComentario,
     putEditarComentario,
     deleteComentario,
+    getMisPublicaciones,
+    getKpisPublicaciones,
 } from '../controllers/negocioPublicaciones.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -95,6 +97,15 @@ router.delete('/comentarios/:id', verificarToken, deleteComentario);
  * Sin auth requerida.
  */
 router.post('/:id/vista', postRegistrarVista);
+
+/**
+ * GET /api/negocio-publicaciones/mias
+ * GET /api/negocio-publicaciones/kpis
+ * "Mis publicaciones" (Business Studio). Declaradas ANTES de `GET /:id`
+ * para evitar que Express las capture como si "mias"/"kpis" fueran un :id.
+ */
+router.get('/mias', verificarToken, verificarNegocio, validarAccesoSucursal, getMisPublicaciones);
+router.get('/kpis', verificarToken, verificarNegocio, validarAccesoSucursal, getKpisPublicaciones);
 
 /**
  * GET /api/negocio-publicaciones/:id

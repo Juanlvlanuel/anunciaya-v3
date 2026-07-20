@@ -13,7 +13,7 @@
  * Ubicación: apps/web/src/hooks/useComposerNegocioPublicacion.ts
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const NAMESPACE_DEFAULT = 'v1';
 
@@ -82,6 +82,21 @@ export function draftEstaIntacto(d: ComposerNegocioPublicacionDraft): boolean {
     return d.texto === '' && d.precio === '' && d.fotos.length === 0;
 }
 
+/** Compara dos drafts campo a campo (usado para detectar cambios reales en
+ *  modo edición, donde el draft nace prellenado y nunca está "vacío"). */
+function draftsIguales(
+    a: ComposerNegocioPublicacionDraft,
+    b: ComposerNegocioPublicacionDraft,
+): boolean {
+    return (
+        a.texto === b.texto &&
+        a.precio === b.precio &&
+        a.fotoPortadaIndex === b.fotoPortadaIndex &&
+        a.fotos.length === b.fotos.length &&
+        a.fotos.every((url, i) => url === b.fotos[i])
+    );
+}
+
 export type CampoErrorComposerNegocio = 'texto' | 'precio';
 export type ErroresComposerNegocio = Partial<Record<CampoErrorComposerNegocio, string>>;
 
@@ -139,6 +154,12 @@ export function useComposerNegocioPublicacion(opts: UseComposerNegocioPublicacio
         cargarDraft(ns),
     );
 
+    // "Base de comparación" para detectar cambios reales: en creación es el
+    // draft vacío (DRAFT_INICIAL); en edición, `hidratarDesdePublicacion` la
+    // mueve al contenido original de la publicación — así el composer de
+    // edición no confunde "llegó prellenado" con "el usuario cambió algo".
+    const draftBaseRef = useRef<ComposerNegocioPublicacionDraft>(DRAFT_INICIAL);
+
     useEffect(() => {
         guardarDraft(ns, draft);
     }, [draft, ns]);
@@ -164,7 +185,11 @@ export function useComposerNegocioPublicacion(opts: UseComposerNegocioPublicacio
 
     const hidratarDesdePublicacion = useCallback(
         (d: Partial<ComposerNegocioPublicacionDraft>) => {
-            setDraft((prev) => ({ ...prev, ...d }));
+            setDraft((prev) => {
+                const nuevo = { ...prev, ...d };
+                draftBaseRef.current = nuevo;
+                return nuevo;
+            });
         },
         [],
     );
@@ -179,7 +204,7 @@ export function useComposerNegocioPublicacion(opts: UseComposerNegocioPublicacio
         errores: validacion.errores,
         valido: validacion.valido,
         mensajeBoton: validacion.mensajeBoton,
-        estaIntacto: draftEstaIntacto(draft),
+        estaIntacto: draftsIguales(draft, draftBaseRef.current),
     };
 }
 

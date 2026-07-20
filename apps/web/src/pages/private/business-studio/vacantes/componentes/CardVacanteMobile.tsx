@@ -60,8 +60,8 @@ export function CardVacanteMobile({ vacante, onClick }: CardVacanteMobileProps) 
                 <span className="text-sm font-bold text-slate-900 tabular-nums whitespace-nowrap">
                     {formatearPrecioVacante(vacante.precio, vacante.tipoEmpleo)}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-sky-100 text-sky-700">
-                    <MessageCircle className="w-3 h-3" strokeWidth={2} />
+                <span className="flex items-center gap-1.5 text-lg font-semibold text-slate-600">
+                    <MessageCircle className="w-6 h-6" />
                     {vacante.totalMensajes}
                 </span>
             </div>

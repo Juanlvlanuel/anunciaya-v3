@@ -24,6 +24,7 @@ const MODULOS_BS = [
   { nombre: 'Clientes', ruta: '/business-studio/clientes' },
   { nombre: 'Opiniones', ruta: '/business-studio/opiniones' },
   { nombre: 'Alertas', ruta: '/business-studio/alertas' },
+  { nombre: 'Publicaciones', ruta: '/business-studio/publicaciones' },
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
   { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
   { nombre: 'Puntos', ruta: '/business-studio/puntos' },

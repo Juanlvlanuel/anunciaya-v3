@@ -20,7 +20,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Store, ChevronLeft, ChevronRight, X, ChartNoAxesCombined,
   LayoutDashboard, Receipt, Users, MessageSquare, ShoppingBag, Tag,
-  UserCog, BarChart3, User, Coins,
+  UserCog, BarChart3, User, Coins, Newspaper,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
@@ -49,6 +49,7 @@ const MODULOS_BS = [
   { nombre: 'Clientes', ruta: '/business-studio/clientes' },
   { nombre: 'Opiniones', ruta: '/business-studio/opiniones' },
   { nombre: 'Alertas', ruta: '/business-studio/alertas' },
+  { nombre: 'Publicaciones', ruta: '/business-studio/publicaciones' },
   { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
   { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
   { nombre: 'Puntos y Recompensas', ruta: '/business-studio/puntos' },
@@ -69,6 +70,7 @@ function obtenerIconoModulo(pathname: string): ModuloIcono {
   if (pathname.includes('/clientes')) return Users;
   if (pathname.includes('/opiniones')) return MessageSquare;
   if (pathname.includes('/alertas')) return Bell;
+  if (pathname.includes('/publicaciones')) return Newspaper;
   if (pathname.includes('/catalogo')) return ShoppingBag;
   if (pathname.includes('/ofertas')) return Tag;
   if (pathname.includes('/puntos')) return Coins;
@@ -86,6 +88,7 @@ function obtenerNombreModulo(pathname: string): string {
   if (pathname.includes('/clientes')) return 'Clientes';
   if (pathname.includes('/opiniones')) return 'Opiniones';
   if (pathname.includes('/alertas')) return 'Alertas';
+  if (pathname.includes('/publicaciones')) return 'Publicaciones';
   if (pathname.includes('/catalogo')) return 'Catálogo';
   if (pathname.includes('/ofertas')) return 'Promociones';
   if (pathname.includes('/puntos')) return 'Puntos';

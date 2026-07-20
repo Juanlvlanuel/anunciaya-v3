@@ -1,18 +1,18 @@
 /**
- * KpiCardsVacantes.tsx
- * ======================
- * 4 cards de KPIs del módulo Vacantes (Total / Activas / Por expirar /
- * Conversaciones). Diseñadas para colocarse en el header de la página.
+ * KpiCardsPublicaciones.tsx
+ * ===========================
+ * 4 cards de KPIs del módulo Publicaciones (Total / Activas / Archivadas /
+ * Vistas). Calca `KpiCardsVacantes.tsx`.
  *
- * Ubicación: apps/web/src/pages/private/business-studio/vacantes/componentes/KpiCardsVacantes.tsx
+ * Ubicación: apps/web/src/pages/private/business-studio/publicaciones/componentes/KpiCardsPublicaciones.tsx
  */
 
-import { Briefcase, CheckCircle2, Clock, MessageCircle } from 'lucide-react';
+import { Newspaper, CheckCircle2, Archive, Eye } from 'lucide-react';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';
-import type { KpisVacantes } from '../../../../../types/servicios';
+import type { KpisPublicacionesNegocio } from '../../../../../types/negocioPublicaciones';
 
-interface KpiCardsVacantesProps {
-    kpis: KpisVacantes | null;
+interface KpiCardsPublicacionesProps {
+    kpis: KpisPublicacionesNegocio | null;
 }
 
 type ConfigKpi = {
@@ -27,18 +27,18 @@ type ConfigKpi = {
     testId: string;
 };
 
-export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
+export function KpiCardsPublicaciones({ kpis }: KpiCardsPublicacionesProps) {
     const cfg: ConfigKpi[] = [
         {
             label: 'Total',
             valor: kpis?.total ?? 0,
-            icono: <Briefcase className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-700" />,
+            icono: <Newspaper className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-700" />,
             grad: 'linear-gradient(135deg, #f1f5f9, #fff)',
             iconoGrad: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
             iconoShadow: 'rgba(100,116,139,0.25)',
             borde: '#94a3b8',
             texto: 'text-slate-700',
-            testId: 'kpi-vacantes-total',
+            testId: 'kpi-publicaciones-total',
         },
         {
             label: 'Activas',
@@ -49,29 +49,29 @@ export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
             iconoShadow: 'rgba(16,185,129,0.25)',
             borde: '#6ee7b7',
             texto: 'text-emerald-700',
-            testId: 'kpi-vacantes-activas',
+            testId: 'kpi-publicaciones-activas',
         },
         {
-            label: 'Por expirar',
-            valor: kpis?.porExpirar ?? 0,
-            icono: <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-amber-700" />,
-            grad: 'linear-gradient(135deg, #fef3c7, #fff)',
-            iconoGrad: 'linear-gradient(135deg, #fcd34d, #fbbf24)',
-            iconoShadow: 'rgba(245,158,11,0.25)',
-            borde: '#fbbf24',
-            texto: 'text-amber-700',
-            testId: 'kpi-vacantes-por-expirar',
+            label: 'Archivadas',
+            valor: kpis?.archivadas ?? 0,
+            icono: <Archive className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-700" />,
+            grad: 'linear-gradient(135deg, #f8fafc, #fff)',
+            iconoGrad: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+            iconoShadow: 'rgba(100,116,139,0.2)',
+            borde: '#cbd5e1',
+            texto: 'text-slate-600',
+            testId: 'kpi-publicaciones-archivadas',
         },
         {
-            label: 'Chats',
-            valor: kpis?.conversaciones ?? 0,
-            icono: <MessageCircle className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-violet-700" />,
+            label: 'Vistas',
+            valor: kpis?.totalVistas ?? 0,
+            icono: <Eye className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-violet-700" />,
             grad: 'linear-gradient(135deg, #f5f3ff, #fff)',
             iconoGrad: 'linear-gradient(135deg, #c4b5fd, #a78bfa)',
             iconoShadow: 'rgba(124,58,237,0.25)',
             borde: '#a78bfa',
             texto: 'text-violet-700',
-            testId: 'kpi-vacantes-conversaciones',
+            testId: 'kpi-publicaciones-vistas',
         },
     ];
 
@@ -79,7 +79,7 @@ export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
         <CarouselKPI className="mt-5 lg:mt-0 lg:flex-1">
             <div
                 className="flex justify-between lg:justify-end gap-2"
-                data-testid="kpis-vacantes"
+                data-testid="kpis-publicaciones"
             >
                 {cfg.map((c) => (
                     <div

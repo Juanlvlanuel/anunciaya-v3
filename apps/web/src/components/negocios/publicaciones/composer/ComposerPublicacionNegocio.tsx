@@ -23,9 +23,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X, Camera, Plus, Loader2, Image as ImageIcon, Tag, Copy, Trash2, Check } from 'lucide-react';
+import { X, Camera, Loader2, Image as ImageIcon, Tag, Copy, Trash2, Check } from 'lucide-react';
 import { Store } from 'lucide-react';
 import { ModalAdaptativo } from '../../../ui/ModalAdaptativo';
+import { ModalImagenes } from '../../../ui/ModalImagenes';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useNegocioPerfil } from '../../../../hooks/queries/useNegocios';
 import {
@@ -104,6 +105,9 @@ export function ComposerPublicacionNegocio({
     // Precio — revelado progresivo (chip "Precio" lo abre, como Instagram/Ubicación).
     const [precioAbierto, setPrecioAbierto] = useState(false);
     const mostrarPrecio = precioAbierto || draft.precio.trim() !== '';
+
+    // ─── Ver foto completa (mismo ModalImagenes de la Galería de Mi Perfil) ─
+    const [indiceImagenAbierta, setIndiceImagenAbierta] = useState<number | null>(null);
 
     // ─── Confirmación al cerrar con cambios sin guardar ────────────────────
     const [confirmarSalirAbierto, setConfirmarSalirAbierto] = useState(false);
@@ -289,18 +293,28 @@ export function ComposerPublicacionNegocio({
 
                         {/* Fotos — grid de 3 por fila, sin límite de producto. */}
                         {(draft.fotos.length > 0 || fotosUploader.previews.length > 0) && (
-                            <div className="mt-3 grid grid-cols-3 gap-2">
+                            <div className="mt-3 grid grid-cols-3 lg:grid-cols-5 gap-2">
                                 {draft.fotos.map((url, i) => (
                                     <div key={url} className="relative aspect-square rounded-xl overflow-hidden group">
-                                        <img src={url} alt="" className="h-full w-full object-cover" />
-                                        <button
-                                            type="button"
-                                            onClick={() => fotosUploader.eliminar(i)}
-                                            aria-label="Quitar foto"
-                                            className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white lg:cursor-pointer"
+                                        <img
+                                            src={url}
+                                            alt=""
+                                            onClick={() => setIndiceImagenAbierta(i)}
+                                            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110 lg:cursor-pointer"
+                                        />
+                                        <div
+                                            className="absolute bottom-0 inset-x-0 flex items-center justify-end py-1.5 px-1.5"
+                                            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}
                                         >
-                                            <X className="h-4 w-4" />
-                                        </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); fotosUploader.eliminar(i); }}
+                                                aria-label="Quitar foto"
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 lg:cursor-pointer active:scale-95 transition-colors"
+                                            >
+                                                <Trash2 className="w-5 h-5 text-white" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                                 {fotosUploader.previews.map((p) => (
@@ -379,20 +393,6 @@ export function ComposerPublicacionNegocio({
                                     Precio
                                 </button>
                             )}
-
-                            {/* Botón "Agregar" de refuerzo cuando ya hay fotos —
-                                mismo target que el chip, doble entrada como en
-                                el composer original. */}
-                            {draft.fotos.length > 0 && !mostrarPrecio && (
-                                <button
-                                    type="button"
-                                    aria-label="Agregar más fotos"
-                                    onClick={fotosUploader.abrirGaleria}
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300 text-slate-500 lg:cursor-pointer lg:hover:border-blue-500 lg:hover:text-blue-700"
-                                >
-                                    <Plus className="h-4 w-4" strokeWidth={2} />
-                                </button>
-                            )}
                         </div>
                         {errores.precio && (
                             <p className="mt-1.5 text-[13px] text-red-600 font-semibold">{errores.precio}</p>
@@ -400,6 +400,14 @@ export function ComposerPublicacionNegocio({
                     </div>
                 </form>
             )}
+
+            {/* ── Ver foto completa ── */}
+            <ModalImagenes
+                images={draft.fotos}
+                initialIndex={indiceImagenAbierta ?? 0}
+                isOpen={indiceImagenAbierta !== null}
+                onClose={() => setIndiceImagenAbierta(null)}
+            />
 
             {/* ── Confirmación al cerrar con cambios sin guardar ── */}
             <ModalAdaptativo

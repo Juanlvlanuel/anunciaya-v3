@@ -138,10 +138,11 @@ export function ComposerSection() {
         <ModalAdaptativo
             abierto={expandido}
             onCerrar={onIntentarCerrar}
-            ancho="wide"
+            ancho="full"
             paddingContenido="none"
             sinScrollInterno
             mostrarHeader={false}
+            className="h-[560px] lg:h-[600px] 2xl:h-[660px]"
         >
             {composer}
         </ModalAdaptativo>

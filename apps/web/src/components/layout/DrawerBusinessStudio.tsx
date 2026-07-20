@@ -30,6 +30,7 @@ import {
     Building2,
     Coins,
     MessageSquare,
+    Newspaper,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
@@ -71,6 +72,7 @@ const opcionesMenu = [
     { id: 'alertas', label: 'Alertas', icono: Bell, ruta: '/business-studio/alertas' },
 
     // =========== CATÁLOGO & PROMOCIONES ===========
+    { id: 'publicaciones', label: 'Publicaciones', icono: Newspaper, ruta: '/business-studio/publicaciones' },
     { id: 'catalogo', label: 'Catálogo', icono: ShoppingBag, ruta: '/business-studio/catalogo' },
     { id: 'ofertas', label: 'Promociones', icono: Tag, ruta: '/business-studio/ofertas' },
 

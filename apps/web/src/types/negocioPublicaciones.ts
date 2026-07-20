@@ -52,3 +52,23 @@ export interface RespuestaFeedPublicacionesNegocio {
     publicaciones: PublicacionNegocioFeedItemConComentarios[];
     hayMas: boolean;
 }
+
+/** Fila del listado de administración en Business Studio ("mis publicaciones"). */
+export interface PublicacionNegocioBSRow extends PublicacionNegocioFeedItem {
+    estado: 'activa' | 'archivada';
+    updatedAt: string;
+    totalComentarios: number;
+}
+
+export interface RespuestaListadoPublicacionesBS {
+    publicaciones: PublicacionNegocioBSRow[];
+    total: number;
+}
+
+export interface KpisPublicacionesNegocio {
+    total: number;
+    activas: number;
+    archivadas: number;
+    totalVistas: number;
+    totalComentarios: number;
+}

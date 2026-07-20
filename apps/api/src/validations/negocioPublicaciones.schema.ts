@@ -121,6 +121,19 @@ export const detalleQuerySchema = z.object({
 export type DetalleQueryInput = z.infer<typeof detalleQuerySchema>;
 
 // =============================================================================
+// LISTADO BUSINESS STUDIO — "Mis publicaciones" (admin de la sucursal, incluye archivadas)
+// =============================================================================
+
+export const listadoBSQuerySchema = z.object({
+    estado: z.enum(['activa', 'archivada']).optional(),
+    busqueda: z.string().trim().max(200).optional(),
+    pagina: z.coerce.number().int().min(1).default(1),
+    limite: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type ListadoBSQueryInput = z.infer<typeof listadoBSQuerySchema>;
+
+// =============================================================================
 // UPLOAD DE IMAGEN
 // =============================================================================
 
@@ -177,6 +190,7 @@ export default {
     crearPublicacionSchema,
     actualizarPublicacionSchema,
     feedQuerySchema,
+    listadoBSQuerySchema,
     uploadImagenSchema,
     crearComentarioSchema,
     editarComentarioSchema,

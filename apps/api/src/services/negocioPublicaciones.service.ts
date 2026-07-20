@@ -412,7 +412,7 @@ export async function obtenerPublicacion(
             FROM negocio_publicaciones p
             INNER JOIN negocio_sucursales s ON s.id = p.sucursal_id
             LEFT JOIN ciudades c ON c.id = p.ciudad_id
-            WHERE p.id = ${id} AND p.deleted_at IS NULL
+            WHERE p.id = ${id} AND p.deleted_at IS NULL AND p.estado != 'archivada'
             LIMIT 1
         `);
 
@@ -500,7 +500,7 @@ export async function archivarPublicacion(
 
         await db.execute(sql`
             UPDATE negocio_publicaciones
-            SET estado = 'archivada', deleted_at = NOW(), updated_at = NOW()
+            SET estado = 'archivada', updated_at = NOW()
             WHERE id = ${id}
         `);
 
@@ -523,7 +523,7 @@ export async function registrarVistaPublicacion(id: string): Promise<{ success: 
             db.execute(sql`
                 UPDATE negocio_publicaciones
                 SET total_vistas = total_vistas + 1
-                WHERE id = ${id} AND deleted_at IS NULL
+                WHERE id = ${id} AND deleted_at IS NULL AND estado != 'archivada'
             `),
             redis.incr(vistas24hKey),
         ]);
@@ -535,6 +535,152 @@ export async function registrarVistaPublicacion(id: string): Promise<{ success: 
         return { success: true };
     } catch (error) {
         console.error('Error al registrar vista de publicación de negocio:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
+// LISTADO BUSINESS STUDIO — "Mis publicaciones" (admin de la sucursal)
+// =============================================================================
+
+/**
+ * A diferencia de `obtenerFeedPublicacionesNegocio` (feed público, exige
+ * geolocalización + elegibilidad de negocio activo), este listado es el
+ * panel del dueño: trae TODO lo suyo (activas y archivadas) sin importar si
+ * el negocio o la sucursal están desactivados.
+ */
+interface OpcionesListadoBS {
+    negocioId: string;
+    sucursalId: string;
+    estado?: 'activa' | 'archivada';
+    busqueda?: string;
+    pagina: number;
+    limite: number;
+}
+
+export interface PublicacionBSRow extends PublicacionFeedItem {
+    estado: 'activa' | 'archivada';
+    updatedAt: string;
+    totalComentarios: number;
+}
+
+interface RawPublicacionBSRow extends RawPublicacionRow {
+    total_comentarios: number;
+    total_filas: number;
+}
+
+function mapearFilaBS(row: RawPublicacionBSRow): PublicacionBSRow {
+    return {
+        ...mapearFilaFeed(row),
+        estado: row.estado as 'activa' | 'archivada',
+        updatedAt: row.updated_at as string,
+        totalComentarios: row.total_comentarios ?? 0,
+    };
+}
+
+export async function listarPublicacionesNegocioBS(
+    opciones: OpcionesListadoBS
+): Promise<{ success: boolean; data: { publicaciones: PublicacionBSRow[]; total: number } }> {
+    try {
+        const { negocioId, sucursalId, estado, busqueda, pagina, limite } = opciones;
+        const offset = (pagina - 1) * limite;
+
+        const filtroEstado = estado ? sql`AND p.estado = ${estado}` : sql``;
+        const filtroBusqueda = busqueda
+            ? sql`AND LOWER(unaccent(p.texto)) LIKE LOWER(unaccent(${'%' + busqueda + '%'}))`
+            : sql``;
+
+        const resultado = await db.execute(sql`
+            SELECT
+                p.id, p.negocio_id, p.sucursal_id, p.texto, p.precio, p.fotos,
+                p.foto_portada_index, p.estado, p.total_vistas, p.created_at, p.updated_at,
+                s.nombre AS sucursal_nombre, s.foto_perfil AS sucursal_avatar_url,
+                c.nombre AS ciudad_nombre,
+                COALESCE(cq.total, 0) AS total_comentarios,
+                COUNT(*) OVER() AS total_filas
+            FROM negocio_publicaciones p
+            INNER JOIN negocio_sucursales s ON s.id = p.sucursal_id
+            LEFT JOIN ciudades c ON c.id = p.ciudad_id
+            LEFT JOIN (
+                SELECT publicacion_id, COUNT(*)::int AS total
+                FROM negocio_publicaciones_comentarios
+                WHERE deleted_at IS NULL
+                GROUP BY publicacion_id
+            ) cq ON cq.publicacion_id = p.id
+            WHERE p.negocio_id = ${negocioId}
+              AND p.sucursal_id = ${sucursalId}
+              AND p.deleted_at IS NULL
+              ${filtroEstado}
+              ${filtroBusqueda}
+            ORDER BY p.created_at DESC
+            LIMIT ${limite} OFFSET ${offset}
+        `);
+
+        const filas = resultado.rows as unknown as RawPublicacionBSRow[];
+        const total = filas.length > 0 ? Number(filas[0].total_filas) : 0;
+        const publicaciones = filas.map(mapearFilaBS);
+
+        return { success: true, data: { publicaciones, total } };
+    } catch (error) {
+        console.error('Error al listar publicaciones de negocio (BS):', error);
+        throw error;
+    }
+}
+
+// =============================================================================
+// KPIs BUSINESS STUDIO
+// =============================================================================
+
+export interface KpisPublicacionesNegocio {
+    total: number;
+    activas: number;
+    archivadas: number;
+    totalVistas: number;
+    totalComentarios: number;
+}
+
+export async function obtenerKpisPublicacionesNegocio(
+    negocioId: string,
+    sucursalId: string
+): Promise<{ success: boolean; data: KpisPublicacionesNegocio }> {
+    try {
+        const resultado = await db.execute(sql`
+            SELECT
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE p.estado = 'activa')::int AS activas,
+                COUNT(*) FILTER (WHERE p.estado = 'archivada')::int AS archivadas,
+                COALESCE(SUM(p.total_vistas), 0)::int AS total_vistas,
+                COALESCE((
+                    SELECT COUNT(*)
+                    FROM negocio_publicaciones_comentarios c
+                    INNER JOIN negocio_publicaciones pp ON pp.id = c.publicacion_id
+                    WHERE pp.negocio_id = ${negocioId} AND pp.sucursal_id = ${sucursalId}
+                      AND pp.deleted_at IS NULL AND c.deleted_at IS NULL
+                ), 0)::int AS total_comentarios
+            FROM negocio_publicaciones p
+            WHERE p.negocio_id = ${negocioId} AND p.sucursal_id = ${sucursalId} AND p.deleted_at IS NULL
+        `);
+
+        const fila = resultado.rows[0] as {
+            total: number;
+            activas: number;
+            archivadas: number;
+            total_vistas: number;
+            total_comentarios: number;
+        };
+
+        return {
+            success: true,
+            data: {
+                total: fila.total,
+                activas: fila.activas,
+                archivadas: fila.archivadas,
+                totalVistas: fila.total_vistas,
+                totalComentarios: fila.total_comentarios,
+            },
+        };
+    } catch (error) {
+        console.error('Error al obtener KPIs de publicaciones de negocio:', error);
         throw error;
     }
 }

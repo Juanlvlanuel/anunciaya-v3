@@ -105,6 +105,10 @@ Servicios/Negocios), `pages/private/negocios/PaginaPublicacionNegocio.tsx`,
 `pages/private/negocios/PaginaNegocios.tsx` (toggle Feed/Mapa + layouts +
 FAB + composer), `router/index.tsx` (rutas nuevas).
 
+> **Gestión desde Business Studio** (crear/editar/archivar/KPIs, admin de
+> "mis publicaciones" por sucursal) se documenta en
+> `docs/arquitectura/Business_Studio.md` § Publicaciones.
+
 ## 🆕 v3.2 — Overlay de buscador con sugerencias en vivo (14 May 2026)
 
 Replicación sobria del patrón canónico del MarketPlace (ver `docs/arquitectura/MarketPlace.md` §P5):

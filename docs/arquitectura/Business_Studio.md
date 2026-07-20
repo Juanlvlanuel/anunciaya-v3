@@ -34,7 +34,7 @@ Este documento describe la **arquitectura conceptual** del sistema Business Stud
 2. [¿Para qué sirve?](#para-qué-sirve)
 3. [¿Quién lo usa?](#quién-lo-usa)
 4. [Arquitectura del Sistema](#arquitectura-del-sistema)
-5. [Los 13 Módulos](#los-13-módulos)
+5. [Los 14 Módulos](#los-14-módulos)
 6. [Sistema de Sucursales](#sistema-de-sucursales)
 7. [Servicio Centralizado](#servicio-centralizado)
 8. [Panel de Preview](#panel-de-preview)
@@ -162,19 +162,19 @@ Si onboarding_completado = true → Business Studio Dashboard
 ```
 
 **Componentes principales:**
-- `MenuBusinessStudio.tsx` - Navegación lateral con 13 opciones
+- `MenuBusinessStudio.tsx` - Navegación lateral con 14 opciones
 - `SelectorSucursalesInline.tsx` - Cambiar entre sucursales (dueños)
 - `PanelPreviewNegocio.tsx` - Preview en vivo del negocio
 
 ---
 
-## 📦 Los 13 Módulos
+## 📦 Los 14 Módulos
 
 > ✅ **VERIFICADO:** Contra `MenuBusinessStudio.tsx` y `router/index.tsx`.
 
 ### Organización del Menú
 
-Los 13 módulos están organizados en 5 secciones lógicas:
+Los 14 módulos están organizados en 5 secciones lógicas:
 
 #### 1. Operación Diaria (5 módulos)
 
@@ -186,37 +186,38 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 | 4 | Opiniones | `/business-studio/opiniones` | MessageSquare | ✅ 100% |
 | 5 | Alertas | `/business-studio/alertas` | Bell | ✅ 100% |
 
-#### 2. Catálogo & Promociones (2 módulos)
+#### 2. Catálogo & Promociones (3 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 6 | Catálogo | `/business-studio/catalogo` | ShoppingBag | ✅ 100% |
-| 7 | Promociones | `/business-studio/ofertas` | Tag | ✅ 100% (Ofertas + Cupones unificados) |
+| 6 | Publicaciones | `/business-studio/publicaciones` | Newspaper | ✅ Completo — alimenta el feed público de Negocios |
+| 7 | Catálogo | `/business-studio/catalogo` | ShoppingBag | ✅ 100% |
+| 8 | Promociones | `/business-studio/ofertas` | Tag | ✅ 100% (Ofertas + Cupones unificados) |
 
 #### 3. Engagement & Recompensas (1 módulo)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 8 | Puntos y Recompensas | `/business-studio/puntos` | Coins | ✅ 100% |
+| 9 | Puntos y Recompensas | `/business-studio/puntos` | Coins | ✅ 100% |
 
 #### 4. Recursos Humanos (2 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 9 | Empleados | `/business-studio/empleados` | UserCog | ✅ 100% |
-| 10 | Vacantes | `/business-studio/vacantes` | Briefcase | ✅ Completo — alimenta sección pública Servicios |
+| 10 | Empleados | `/business-studio/empleados` | UserCog | ✅ 100% |
+| 11 | Vacantes | `/business-studio/vacantes` | Briefcase | ✅ Completo — alimenta sección pública Servicios |
 
 #### 5. Análisis & Configuración (3 módulos)
 
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
-| 11 | Reportes | `/business-studio/reportes` | FileBarChart | ✅ Completo |
-| 12 | Sucursales | `/business-studio/sucursales` | Building2 | ✅ Completo |
-| 13 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
+| 12 | Reportes | `/business-studio/reportes` | FileBarChart | ✅ Completo |
+| 13 | Sucursales | `/business-studio/sucursales` | Building2 | ✅ Completo |
+| 14 | Mi Perfil | `/business-studio/perfil` | User | ✅ 100% |
 
 ---
 
-## ✅ Módulos Completados (13/13)
+## ✅ Módulos Completados (14/14)
 
 ### 1. Dashboard ✅
 
@@ -552,9 +553,34 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 
 ---
 
+### Publicaciones ✅
+
+**Ruta:** `/business-studio/publicaciones`
+**Completado:** 20 Julio 2026
+
+**Funcionalidad:**
+- Administración de las publicaciones libres del feed de Negocios ("todo tipo, libre": avisos, fotos del local, producto nuevo, evento) creado en `docs/arquitectura/Negocios.md` §v3.3
+- KPIs (Total, Activas, Archivadas, Vistas)
+- Listado filtrado por sucursal activa con tabs (Todas/Activas/Archivadas) + búsqueda, incluye archivadas (a diferencia del feed público)
+- Crear/editar reusan el composer del feed público (`ComposerPublicacionNegocio` vía `ComposerSection`, montado con `?crear=1`/`?editar=<id>`) — sin slideover propio
+- Archivar (soft manual, sin TTL): confirmación → `estado='archivada'`, desaparece del feed público y del detalle público
+- Acción "Ver en el feed público" abre `/p/negocio-post/:id` en pestaña nueva
+
+**Backend:** extiende `negocioPublicaciones.routes/controller/service.ts` (no un módulo `business-studio/` aparte) — reusa el CRUD existente (`crearPublicacion`, `actualizarPublicacion`, `archivarPublicacion`) y agrega:
+- `GET /api/negocio-publicaciones/mias` — listado de administración (incluye archivadas, sin geolocalización)
+- `GET /api/negocio-publicaciones/kpis` — KPIs de la sucursal
+
+**Fix asociado:** `archivarPublicacion` dejó de setear `deleted_at` (solo `estado='archivada'`) para que el listado de administración pueda seguir mostrando publicaciones archivadas; como blindaje, `obtenerPublicacion` (detalle público) y `registrarVistaPublicacion` ahora excluyen explícitamente `estado='archivada'`.
+
+**Componentes:** `pages/private/business-studio/publicaciones/` (`PaginaPublicaciones.tsx` + `componentes/KpiCardsPublicaciones.tsx`, `TablaPublicaciones.tsx`, `CardPublicacionMobile.tsx`, `PublicacionesEmpty.tsx`, `PublicacionAtoms.tsx`)
+
+**Estado React Query:** `hooks/queries/useNegocioPublicacionesBS.ts` (`useMisPublicacionesNegocioBS`, `useKpisPublicacionesNegocioBS`); mutaciones de crear/editar/archivar viven en `useNegocioPublicaciones.ts` (compartidas con el feed público, invalidan ambos bloques de `queryKeys`)
+
+---
+
 ### Módulos Pendientes
 
-Ninguno (13/13). **Vacantes** ✅ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios** (CRUD + KPIs + filtros; `pages/private/business-studio/vacantes/`, backend `vacantes.routes/controller/service`).
+Ninguno (14/14). **Vacantes** ✅ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios** (CRUD + KPIs + filtros; `pages/private/business-studio/vacantes/`, backend `vacantes.routes/controller/service`).
 
 ---
 
@@ -1057,7 +1083,7 @@ export async function actualizarInfoGeneral() { ... }
 
 **Última verificación documental:** 23 Junio 2026
 
-**Módulos completados:** 13/13 ✅
+**Módulos completados:** 14/14 ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
@@ -1071,10 +1097,11 @@ export async function actualizarInfoGeneral() { ... }
 - Reportes (12/04/2026)
 - Sucursales (16/04/2026)
 - Vacantes (17/05/2026 — alimenta sección pública Servicios)
+- Publicaciones (20/07/2026 — alimenta el feed público de Negocios)
 
-**Módulos pendientes:** ninguno (0/13)
+**Módulos pendientes:** ninguno (0/14)
 
-**Progreso:** 13/13 módulos = 100%
+**Progreso:** 14/14 módulos = 100%
 
 **Datos del servidor:** todos los módulos BS usan React Query
 - Datos del servidor en `hooks/queries/`

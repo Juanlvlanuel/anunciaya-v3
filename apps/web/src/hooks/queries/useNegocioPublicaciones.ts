@@ -209,6 +209,7 @@ export function useCrearPublicacionNegocio() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.negocioPublicaciones.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.negocioPublicacionesBS.all() });
         },
     });
 }
@@ -229,6 +230,7 @@ export function useActualizarPublicacionNegocio() {
                 queryKey: queryKeys.negocioPublicaciones.detalle(variables.publicacionId),
             });
             queryClient.invalidateQueries({ queryKey: queryKeys.negocioPublicaciones.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.negocioPublicacionesBS.all() });
         },
     });
 }
@@ -250,6 +252,7 @@ export function useArchivarPublicacionNegocio() {
                 queryKey: queryKeys.negocioPublicaciones.detalle(variables.publicacionId),
             });
             queryClient.invalidateQueries({ queryKey: queryKeys.negocioPublicaciones.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.negocioPublicacionesBS.all() });
         },
     });
 }
