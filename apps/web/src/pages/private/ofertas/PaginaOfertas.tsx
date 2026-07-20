@@ -101,6 +101,20 @@ export default function PaginaOfertas() {
   const chipActivo = useFiltrosOfertasStore((s) => s.chipActivo);
   const setChipActivo = useFiltrosOfertasStore((s) => s.setChipActivo);
 
+  // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N ofertas" +
+  // chips situacionales) al hacer scroll hacia abajo, dejando solo la fila
+  // fija (flecha + título + buscar/notif/menú) — mismo patrón que
+  // PaginaNegocios.tsx/PaginaMarketplace.tsx. Solo se re-expande al volver
+  // hasta el tope (no con cualquier scroll hacia arriba).
+  const [headerColapsado, setHeaderColapsado] = useState(false);
+  useEffect(() => {
+    const el = cuerpoRef.current;
+    if (!el) return;
+    const onScroll = () => setHeaderColapsado(el.scrollTop > 10);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [cuerpoRef]);
+
   // Cleanup al unmount: resetea filtros locales (chip) y limpia el buscador
   // GLOBAL del Navbar para no contaminar las otras secciones.
   useEffect(() => {
@@ -379,6 +393,7 @@ export default function PaginaOfertas() {
             <HeaderOfertas
               totalOfertas={ofertas.length}
               ciudad={ciudadNombre}
+              headerColapsado={headerColapsado}
             />
           </div>
         </div>

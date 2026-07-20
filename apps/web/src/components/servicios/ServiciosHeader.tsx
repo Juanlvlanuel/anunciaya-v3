@@ -70,6 +70,9 @@ interface ServiciosHeaderProps {
      *  Ej: "Servicio personal · Juan Manuel". Si es null, no se renderiza el
      *  subtítulo decorativo en mobile. */
     subtituloMobile?: React.ReactNode;
+    /** Colapsa el subtítulo + tabs móviles al hacer scroll (solo variante='feed';
+     *  ver PaginaServicios). */
+    headerColapsado?: boolean;
 }
 
 export function ServiciosHeader({
@@ -85,6 +88,7 @@ export function ServiciosHeader({
     slotDerecho,
     breadcrumb,
     subtituloMobile,
+    headerColapsado = false,
 }: ServiciosHeaderProps) {
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
@@ -239,10 +243,15 @@ export function ServiciosHeader({
                                 null
                             )}
 
-                            {/* Subtítulo decorativo — contenido contextual */}
+                            {/* Subtítulo decorativo — contenido contextual.
+                                Colapsa al hacer scroll (variante='feed'). */}
                             {(esFeed || subtituloMobile) && (
-                                <div className="pb-2 overflow-hidden">
-                                    <div className="flex items-center justify-center gap-2.5">
+                                <div
+                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                        headerColapsado ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
+                                    }`}
+                                >
+                                    <div className="pb-2 flex items-center justify-center gap-2.5">
                                         <div
                                             className="h-0.5 w-14 rounded-full"
                                             style={{
@@ -288,15 +297,22 @@ export function ServiciosHeader({
                             )}
 
                             {/* Tabs (Servicios / Solicitudes / Vacantes) — solo
-                                variante='feed' en mobile, estilo dark. */}
+                                variante='feed' en mobile, estilo dark. Colapsa
+                                al hacer scroll, igual que el subtítulo. */}
                             {esFeed && tabActiva && onTabChange && (
-                                <div className="pl-3 pb-3">
-                                    <TabsServicios
-                                        activa={tabActiva}
-                                        onChange={onTabChange}
-                                        conteos={conteosPorTab}
-                                        variant="dark"
-                                    />
+                                <div
+                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                        headerColapsado ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+                                    }`}
+                                >
+                                    <div className="pl-3 pb-3">
+                                        <TabsServicios
+                                            activa={tabActiva}
+                                            onChange={onTabChange}
+                                            conteos={conteosPorTab}
+                                            variant="dark"
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>

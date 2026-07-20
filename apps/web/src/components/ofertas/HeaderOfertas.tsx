@@ -53,6 +53,8 @@ import {
 interface HeaderOfertasProps {
   totalOfertas: number;
   ciudad: string;
+  /** Colapsa el subtítulo + chips móviles al hacer scroll (ver PaginaOfertas). */
+  headerColapsado?: boolean;
 }
 
 // Chips situacionales visibles (orden alineado a MarketPlace y Negocios).
@@ -69,6 +71,7 @@ const CHIPS: { id: ChipSituacional; label: string; icono?: IconoComponente }[] =
 export default function HeaderOfertas({
   totalOfertas,
   ciudad,
+  headerColapsado = false,
 }: HeaderOfertasProps) {
   // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
   const handleVolver = useVolverAtras('/inicio');
@@ -226,9 +229,13 @@ export default function HeaderOfertas({
             null
           )}
 
-          {/* Subtítulo móvil decorativo */}
-          <div className="pb-2 overflow-hidden">
-            <div className="flex items-center justify-center gap-2.5">
+          {/* Subtítulo móvil decorativo — colapsa al hacer scroll. */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              headerColapsado ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
+            }`}
+          >
+            <div className="pb-2 flex items-center justify-center gap-2.5">
               <div
                 className="h-0.5 w-14 rounded-full"
                 style={{
@@ -347,27 +354,33 @@ export default function HeaderOfertas({
         {/* MÓVIL — Fila de CTAs + chips situacionales                     */}
         {/* En desktop estos chips ya viven dentro del header (fila 1).     */}
         {/* ══════════════════════════════════════════════════════════════ */}
-        <div className="px-3 pb-3 lg:hidden">
-          <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {CHIPS.map(({ id, label, icono: Icono }) => {
-              const activo = chipActivo === id;
-              return (
-                <button
-                  key={id}
-                  data-testid={`chip-situacional-movil-${id}`}
-                  onClick={() => setChipActivo(id)}
-                  className={[
-                    'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
-                    activo
-                      ? 'bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20'
-                      : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-amber-400/60',
-                  ].join(' ')}
-                >
-                  {Icono && <Icono className="w-4 h-4" strokeWidth={2.5} />}
-                  {label}
-                </button>
-              );
-            })}
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-in-out lg:hidden ${
+            headerColapsado ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+          }`}
+        >
+          <div className="px-3 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {CHIPS.map(({ id, label, icono: Icono }) => {
+                const activo = chipActivo === id;
+                return (
+                  <button
+                    key={id}
+                    data-testid={`chip-situacional-movil-${id}`}
+                    onClick={() => setChipActivo(id)}
+                    className={[
+                      'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                      activo
+                        ? 'bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20'
+                        : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-amber-400/60',
+                    ].join(' ')}
+                  >
+                    {Icono && <Icono className="w-4 h-4" strokeWidth={2.5} />}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

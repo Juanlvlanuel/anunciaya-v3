@@ -111,6 +111,20 @@ export function PaginaServicios() {
     const cuerpoRef = useScrollAppShell();
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
 
+    // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N publicaciones"
+    // + tabs Servicios/Solicitudes/Vacantes) al hacer scroll hacia abajo,
+    // dejando solo la fila fija (back + logo + buscar/notif/menú) — mismo
+    // patrón que PaginaNegocios.tsx/PaginaMarketplace.tsx/PaginaOfertas.tsx.
+    // Solo se re-expande al volver hasta el tope.
+    const [headerColapsado, setHeaderColapsado] = useState(false);
+    useEffect(() => {
+        const el = cuerpoRef.current;
+        if (!el) return;
+        const onScroll = () => setHeaderColapsado(el.scrollTop > 10);
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [cuerpoRef]);
+
     // ─── Stores ────────────────────────────────────────────────────────────
     // CRÍTICO: la ciudad se lee del mismo store que usa el Navbar global
     // (`useGpsStore.ciudad.nombre`) para mantener consistencia con MarketPlace
@@ -504,6 +518,7 @@ export function PaginaServicios() {
                 tabActiva={tabActiva}
                 onTabChange={setTabActiva}
                 conteosPorTab={conteosPorTab}
+                headerColapsado={headerColapsado}
             />
 
             {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
