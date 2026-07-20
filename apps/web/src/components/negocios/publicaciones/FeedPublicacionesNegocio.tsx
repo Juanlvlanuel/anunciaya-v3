@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Newspaper, Sparkles, Plus } from 'lucide-react';
+import { Loader2, Newspaper, Sparkles, Plus, Store } from 'lucide-react';
 import { useFeedNegocioPublicaciones } from '../../../hooks/queries/useNegocioPublicaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
@@ -43,7 +43,7 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
 
     // Mismos filtros que consume `useNegociosLista()` para la lista de
     // negocios — el feed de publicaciones se filtra igual.
-    const { categoria, subcategorias, distancia, cercaDeMi, soloCardya, aDomicilio } =
+    const { categoria, subcategorias, distancia, cercaDeMi, soloCardya, aDomicilio, filtrosActivos, limpiarFiltros } =
         useFiltrosNegociosStore();
     const { latitud, longitud } = useGpsStore();
 
@@ -111,6 +111,13 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
     }
 
     if (publicaciones.length === 0) {
+        // Dos casos bien distintos (mismo criterio que la lista de negocios,
+        // `EstadoCiudadSinNegocios`/`EstadoFiltroSinNegocios`):
+        //  - Hay filtros activos y no matchean nada → "sin coincidencias",
+        //    con CTA para limpiarlos. NO es lo mismo que "no hay publicaciones".
+        //  - Sin filtros, la ciudad realmente no tiene publicaciones aún.
+        const hayFiltros = filtrosActivos() > 0;
+
         return (
             <div
                 className="relative mt-8 flex flex-col items-center px-6 text-center lg:mt-16"
@@ -143,39 +150,62 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
                         className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
                         style={{ background: 'linear-gradient(135deg, #60a5fa, #2563eb)' }}
                     >
-                        <Newspaper className="h-11 w-11 text-white" strokeWidth={2} />
+                        {hayFiltros ? (
+                            <Store className="h-11 w-11 text-white" strokeWidth={2} />
+                        ) : (
+                            <Newspaper className="h-11 w-11 text-white" strokeWidth={2} />
+                        )}
                     </div>
                 </div>
 
-                <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
-                    ¡Sé el primero!
-                </h3>
-                <p className="max-w-sm text-base text-slate-600">
-                    {puedePublicar ? (
-                        <>
+                {hayFiltros ? (
+                    <>
+                        <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                            Sin coincidencias
+                        </h3>
+                        <p className="mb-6 max-w-sm text-base text-slate-600">
+                            No hay publicaciones con estos filtros.
+                        </p>
+                        <button
+                            type="button"
+                            data-testid="btn-limpiar-filtros-feed-negocio"
+                            onClick={limpiarFiltros}
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-blue-500 to-blue-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
+                        >
+                            <Newspaper className="h-4 w-4" strokeWidth={2.5} />
+                            Ver todas las publicaciones
+                        </button>
+                    </>
+                ) : puedePublicar ? (
+                    <>
+                        <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                            ¡Sé el primero!
+                        </h3>
+                        <p className="max-w-sm text-base text-slate-600">
                             Aún no hay publicaciones en{' '}
                             <span className="font-bold text-slate-900">{ciudad ?? 'tu zona'}</span>.
-                            Publica algo y dale vida al feed de tu negocio.
-                        </>
-                    ) : (
-                        <>
-                            Aún no hay publicaciones en{' '}
-                            <span className="font-bold text-slate-900">{ciudad ?? 'tu zona'}</span>.
-                            Los negocios de tu ciudad las verán aquí en cuanto publiquen.
-                        </>
-                    )}
-                </p>
-
-                {puedePublicar && (
-                    <button
-                        type="button"
-                        data-testid="btn-publicar-empty-state-negocio"
-                        onClick={handlePublicar}
-                        className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        Publicar primera publicación
-                    </button>
+                        </p>
+                        <button
+                            type="button"
+                            data-testid="btn-publicar-empty-state-negocio"
+                            onClick={handlePublicar}
+                            className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
+                        >
+                            <Plus className="h-4 w-4" strokeWidth={2.5} />
+                            Publicar primera publicación
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                            Aún no hay publicaciones
+                        </h3>
+                        <p className="max-w-sm text-base text-slate-600">
+                            En{' '}
+                            <span className="font-bold text-slate-900">{ciudad ?? 'tu zona'}</span>{' '}
+                            — vuelve pronto.
+                        </p>
+                    </>
                 )}
             </div>
         );

@@ -23,7 +23,7 @@
  * Ubicación: apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
@@ -43,9 +43,9 @@ import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useMarketplaceFeed, useFeedInfinitoMarketplace, useCategoriasMarketplace } from '../../../hooks/queries/useMarketplace';
 import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFeed';
+import { CardArticulo } from '../../../components/marketplace/CardArticulo';
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
-import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArticuloDetalle';
 import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
@@ -56,6 +56,16 @@ import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+
+// Canaleta + barra de scroll de la columna "Recién publicado" — misma
+// estética que `.negocios-cards-scroll` en PaginaNegocios.tsx (thumb gris,
+// track transparente, sin flechas).
+const MARKETPLACE_CARDS_SCROLL_STYLES = `
+  .marketplace-cards-scroll::-webkit-scrollbar { width: 12px; }
+  .marketplace-cards-scroll::-webkit-scrollbar-track { background: transparent; }
+  .marketplace-cards-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
+  .marketplace-cards-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+`;
 
 export function PaginaMarketplace() {
     // ─── Stores ────────────────────────────────────────────────────────────────
@@ -84,10 +94,17 @@ export function PaginaMarketplace() {
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
     const headerRef = useRef<HTMLDivElement>(null);
     const [topPublicar, setTopPublicar] = useState(96);
+    // Borde inferior real del header (getBoundingClientRect, no solo su alto)
+    // — mismo criterio que PaginaNegocios.tsx para la columna de cards fija.
+    const [headerBottom, setHeaderBottom] = useState(150);
     useEffect(() => {
         const el = headerRef.current;
         if (!el) return;
-        const medir = () => setTopPublicar(el.getBoundingClientRect().bottom + 8);
+        const medir = () => {
+            const rect = el.getBoundingClientRect();
+            setTopPublicar(rect.bottom + 8);
+            setHeaderBottom(rect.bottom);
+        };
         medir();
         const observador = new ResizeObserver(medir);
         observador.observe(el);
@@ -101,15 +118,6 @@ export function PaginaMarketplace() {
     // Notificaciones — botón Bell en el header móvil (entre buscar y menú).
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
-
-    // Modal de detalle del artículo (overlay tipo Facebook). Se abre al
-    // hacer click en "Ver N preguntas más" desde la card del feed. Guardamos
-    // SOLO el id (no el snapshot) para que el modal derive el artículo desde
-    // el cache de React Query en cada render — así el corazón y el
-    // `totalGuardados` se mantienen sincronizados con el feed cuando el
-    // usuario hace toggle de guardado en cualquiera de los dos lados.
-    const [articuloModalId, setArticuloModalId] = useState<string | null>(null);
-    const handleCerrarModal = useCallback(() => setArticuloModalId(null), []);
 
     // ─── React Query ───────────────────────────────────────────────────────────
 
@@ -160,27 +168,25 @@ export function PaginaMarketplace() {
         [dataFeedInfinito]
     );
 
-    // Artículo del modal — derivado del cache, no de un snapshot. Esto
-    // garantiza que cualquier optimistic update del feed (ej. toggle de
-    // guardado desde la card o desde dentro del modal) se refleja al
-    // instante en ambos lados.
-    const articuloModal = useMemo(
-        () =>
-            articuloModalId
-                ? articulosFeed.find((a) => a.id === articuloModalId) ?? null
-                : null,
-        [articuloModalId, articulosFeed]
-    );
+    // Reel "Recién publicado" — SIEMPRE visible sin importar el filtro de
+    // orden (Recientes/Más vistos) ni de categoría activos en el feed
+    // principal: usa su propia query fija (orden='recientes', sin categoría),
+    // independiente de `articulosFeed`. Cuando el filtro activo del usuario
+    // coincide con estos mismos parámetros, React Query comparte la
+    // queryKey y no dispara una request extra. Solo se oculta en modo
+    // "busco" — "recién publicado en venta" no aplica a solicitudes.
+    const { data: dataReel } = useFeedInfinitoMarketplace({
+        ciudad,
+        lat: latitud,
+        lng: longitud,
+        orden: 'recientes',
+        modo: 'vendo',
+        limite: 12,
+    });
 
-    // Reel: usa los primeros ~12 artículos recientes del feed infinito SOLO
-    // cuando el orden activo es "recientes" (decisión: el reel desaparece al
-    // filtrar). Si ya tenemos cargados <12, usamos los que haya.
     const articulosReel = useMemo(
-        () =>
-            modoFeed === 'vendo' && orden === 'recientes'
-                ? articulosFeed.slice(0, 12)
-                : [],
-        [modoFeed, orden, articulosFeed]
+        () => (modoFeed === 'vendo' ? (dataReel?.pages[0]?.articulos ?? []).slice(0, 12) : []),
+        [modoFeed, dataReel]
     );
 
     // El feed grande muestra TODOS los artículos, incluso los que están en el
@@ -189,6 +195,85 @@ export function PaginaMarketplace() {
     // distintos. Sin esto, la mayoría del catálogo quedaba atrapado en el reel
     // y el feed grande se sentía vacío después de pocas cards.
     const articulosFeedSinReel = articulosFeed;
+
+    // ─── Columna de "Recién publicado" fija (escritorio) — mismo patrón que
+    // la columna de cards de PaginaNegocios.tsx: FIJA por JS desde el primer
+    // render (sin `position: sticky`, sin recorrido perceptible), con
+    // auto-scroll vertical y pausa al hover. Reemplaza el reel horizontal de
+    // arriba en escritorio (el reel sigue igual en móvil). ──────────────────
+    const cardsScrollRef = useRef<HTMLDivElement>(null);
+    const cardsPlaceholderRef = useRef<HTMLDivElement>(null);
+    const [cardsLeft, setCardsLeft] = useState<number | null>(null);
+    // Título "Recién publicado" — vive FUERA del contenedor con scroll (ver
+    // JSX) para que no se oculte al avanzar el auto-scroll/carrusel. Se mide
+    // su alto real para restarlo de la altura del área scrolleable de abajo.
+    const cardsHeadingRef = useRef<HTMLHeadingElement>(null);
+    const [cardsHeadingAlto, setCardsHeadingAlto] = useState(32);
+
+    // Depende de si la columna existe (`orden`/`articulosReel.length`): se
+    // monta/desmonta según el filtro activo, así que hay que re-medir cada
+    // vez que vuelve a existir — con deps `[]` solo mediría la primera vez.
+    const hayColumnaCards = articulosReel.length > 0;
+    // Re-medir también cuando cambia el largo del feed filtrado (no solo al
+    // montar/cambiar hayColumnaCards): filtrar por categoría puede achicar
+    // la lista lo suficiente para que desaparezca el scrollbar vertical de
+    // la página — eso corre el contenido centrado (`mx-auto`) unos px hacia
+    // la derecha, pero un `ResizeObserver` sobre el propio placeholder NO lo
+    // detecta (su ancho no cambia, solo su posición X). Sin este dep la
+    // columna se quedaba desplazada tras filtrar y no había ningún evento
+    // que la volviera a alinear.
+    useLayoutEffect(() => {
+        const el = cardsPlaceholderRef.current;
+        if (!el) return;
+        const medir = () => setCardsLeft(el.getBoundingClientRect().left);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        window.addEventListener('resize', medir);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', medir);
+        };
+    }, [hayColumnaCards, articulosFeedSinReel.length]);
+
+    useLayoutEffect(() => {
+        const el = cardsHeadingRef.current;
+        if (!el) return;
+        const medir = () => setCardsHeadingAlto(el.getBoundingClientRect().height);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [hayColumnaCards]);
+
+    useEffect(() => {
+        const el = cardsScrollRef.current;
+        if (!el) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        let pausado = false;
+        const onEnter = () => { pausado = true; };
+        const onLeave = () => { pausado = false; };
+        el.addEventListener('mouseenter', onEnter);
+        el.addEventListener('mouseleave', onLeave);
+
+        const intervalo = window.setInterval(() => {
+            if (pausado) return;
+            const { scrollTop, scrollHeight, clientHeight } = el;
+            if (scrollHeight <= clientHeight) return;
+            if (scrollTop + clientHeight >= scrollHeight - 4) {
+                el.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                el.scrollBy({ top: clientHeight * 0.5, behavior: 'smooth' });
+            }
+        }, 3500);
+
+        return () => {
+            window.clearInterval(intervalo);
+            el.removeEventListener('mouseenter', onEnter);
+            el.removeEventListener('mouseleave', onLeave);
+        };
+    }, [hayColumnaCards]);
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
@@ -234,6 +319,20 @@ export function PaginaMarketplace() {
 
     const cuerpoRef = useScrollAppShell();
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+
+    // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N publicaciones"
+    // + chips de filtros) al hacer scroll hacia abajo, dejando solo la fila
+    // fija (flecha + logo + buscar/notif/menú) — mismo patrón que
+    // PaginaNegocios.tsx. Solo se re-expande al volver hasta el tope.
+    const [headerColapsado, setHeaderColapsado] = useState(false);
+    useEffect(() => {
+        const el = cuerpoRef.current;
+        if (!el) return;
+        const onScroll = () => setHeaderColapsado(el.scrollTop > 10);
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [cuerpoRef]);
+
     const handlePublicar = () => {
         // Composer inline: scroll arriba + expandir vía query param, pasando el
         // modo del feed activo (`vendo`/`busco`) para preseleccionar el toggle
@@ -333,6 +432,7 @@ export function PaginaMarketplace() {
 
     return (
         <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
+            <style>{MARKETPLACE_CARDS_SCROLL_STYLES}</style>
             {/* ════════════════════════════════════════════════════════════════
                 HEADER — móvil: bloque fijo (shrink-0) FUERA del scroll; desktop: sticky
             ════════════════════════════════════════════════════════════════ */}
@@ -451,9 +551,14 @@ export function PaginaMarketplace() {
                                     // del overlay. Ver bloque `createPortal` más abajo.
                                     null
                                 )}
-                                {/* Subtítulo decorativo — ciudad + total al estilo Ofertas */}
-                                <div className="pb-2 overflow-hidden">
-                                    <div className="flex items-center justify-center gap-2.5">
+                                {/* Subtítulo decorativo — ciudad + total al estilo Ofertas.
+                                    Colapsa al hacer scroll (igual que Negocios). */}
+                                <div
+                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                        headerColapsado ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
+                                    }`}
+                                >
+                                    <div className="pb-2 flex items-center justify-center gap-2.5">
                                         <div
                                             className="h-0.5 w-14 rounded-full"
                                             style={{
@@ -490,18 +595,25 @@ export function PaginaMarketplace() {
 
                                 {/* Chips de filtros — dentro del header dark
                                     (mismo patrón que Negocios y Ofertas en
-                                    móvil). Scroll horizontal sin scrollbar. */}
-                                <div className="px-3 pb-3">
-                                    <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                        <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
-                                        {/* Chips de orden (Recientes/Más vistos) ocultos en
-                                            móvil por espacio; el orden queda en "recientes".
-                                            En desktop siguen visibles. */}
-                                        <DropdownCategoriaFeed
-                                            categorias={categoriasMP}
-                                            valor={categoriaFeed}
-                                            onCambio={setCategoriaFeed}
-                                        />
+                                    móvil). Scroll horizontal sin scrollbar.
+                                    Colapsa al hacer scroll, igual que el subtítulo. */}
+                                <div
+                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                        headerColapsado ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+                                    }`}
+                                >
+                                    <div className="px-3 pb-3">
+                                        <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                            <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
+                                            {/* Chips de orden (Recientes/Más vistos) ocultos en
+                                                móvil por espacio; el orden queda en "recientes".
+                                                En desktop siguen visibles. */}
+                                            <DropdownCategoriaFeed
+                                                categorias={categoriasMP}
+                                                valor={categoriaFeed}
+                                                onCambio={setCategoriaFeed}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -594,13 +706,12 @@ export function PaginaMarketplace() {
             {/* ════════════════════════════════════════════════════════════════
                 CONTENIDO
 
-                TODO el contenido se acota a `lg:max-w-[920px]` (mismo ancho
-                que el feed de cards estilo Facebook + el composer + el reel).
-                Solo el header sticky negro de arriba mantiene `max-w-7xl`.
-                Reels, composer y feed heredan este ancho del padre — los
-                wrappers internos `max-w-[920px]` se eliminaron por redundantes.
+                Ancho fijo igual a Negocios (`max-w-[940px]` lg / `[1068px]`
+                2xl = 3 cards de 300/340px + 2 gaps) — mismo layout en ambas
+                secciones. Solo el header sticky negro de arriba mantiene
+                `max-w-7xl`. Reels, composer y feed heredan este ancho.
             ════════════════════════════════════════════════════════════════ */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[920px] lg:px-4">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0">
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque
@@ -741,65 +852,144 @@ export function PaginaMarketplace() {
                 )}
 
                 {/* ════════════════════════════════════════════════════════════════
-                    FEED v1.2 — REEL + CHIPS + FEED INFINITO ESTILO FACEBOOK
+                    FEED v1.2 — MÓVIL: reel horizontal + feed apilado (sin
+                    cambios). ESCRITORIO: columna "Recién publicado" FIJA a la
+                    izquierda (mismo mecanismo que la columna de cards de
+                    Negocios — sin `position: sticky`, fija desde el primer
+                    render, auto-scroll con pausa al hover) + feed a la
+                    derecha, sin scroll interno propio (fluye con <main>).
                 ════════════════════════════════════════════════════════════════ */}
                 {!isLoading && !isError && articulosFeed.length > 0 && (
                     <>
-                        {/* Reel: solo se muestra cuando NO hay filtros activos
-                            (orden=recientes). Decisión Juan: el reel solo vive
-                            en el "home" del marketplace. Hereda el ancho del
-                            container padre (920px) — sin wrapper extra. */}
-                        {orden === 'recientes' && articulosReel.length > 0 && (
-                            <div className="mt-2 lg:mt-4">
-                                <ReelMarketplace articulos={articulosReel} />
+                        {/* ── MÓVIL ── Cards con inset `px-3` y separación
+                            `space-y-3` — antes iban de borde a borde sin
+                            padding de página (a diferencia de Negocios, que
+                            lo hereda del `p-4` de su `cuerpoRef`). El reel
+                            replica el mismo mecanismo que `ReelNegociosFeed`:
+                            SU contenedor con scroll no lleva `px-*` propio
+                            (`-mx-1 px-1`, neto ~0), el inset real lo da este
+                            wrapper NO scrolleable de afuera (`px-4`, mismo
+                            valor que el `p-4` de página de Negocios). */}
+                        <div className="lg:hidden">
+                            {articulosReel.length > 0 && (
+                                <div className="mt-2 px-4">
+                                    <ReelMarketplace articulos={articulosReel} />
+                                </div>
+                            )}
+                            <div className="space-y-3 px-3">
+                                {articulosFeedSinReel.map((articulo) => (
+                                    <CardArticuloFeed
+                                        key={articulo.id}
+                                        articulo={articulo}
+                                    />
+                                ))}
                             </div>
-                        )}
+                        </div>
 
-                        {/* Feed infinito: cards grandes estilo Facebook.
-                            Móvil → full-width sin gap, separador inferior por card.
-                            Desktop → hereda ancho del container padre (920px). */}
-                        <div className="space-y-2 lg:space-y-4 lg:py-2">
-                            {articulosFeedSinReel.map((articulo) => (
-                                <CardArticuloFeed
-                                    key={articulo.id}
-                                    articulo={articulo}
-                                    onAbrirDetalle={() => setArticuloModalId(articulo.id)}
-                                />
-                            ))}
-
-                            {/* Sentinel para IntersectionObserver — dispara
-                                fetchNextPage cuando entra en viewport. */}
-                            {hasNextPage && (
+                        {/* ── ESCRITORIO ── */}
+                        <div className="hidden lg:flex lg:mt-4 lg:items-start lg:gap-5 2xl:gap-6">
+                            {hayColumnaCards && (
                                 <div
-                                    ref={sentinelRef}
-                                    className="flex items-center justify-center py-8"
+                                    ref={cardsPlaceholderRef}
+                                    className="relative w-[300px] 2xl:w-[340px] shrink-0"
+                                    style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
                                 >
-                                    {isFetchingNextPage ? (
-                                        <Loader2
-                                            className="h-6 w-6 animate-spin text-slate-500"
-                                            strokeWidth={2}
-                                        />
-                                    ) : (
-                                        <div className="h-1 w-1" /> /* spacer */
-                                    )}
+                                    <div
+                                        className="w-[300px] 2xl:w-[340px] z-10 lg:fixed"
+                                        style={{
+                                            top: `${headerBottom + 16}px`,
+                                            left: cardsLeft !== null ? `${cardsLeft}px` : undefined,
+                                        }}
+                                    >
+                                        {/* Título FUERA del contenedor con scroll — así no
+                                            se oculta cuando el auto-scroll avanza el carrusel. */}
+                                        <h3
+                                            ref={cardsHeadingRef}
+                                            className="px-1 pb-2 text-sm font-bold uppercase tracking-wide text-slate-600"
+                                        >
+                                            Recién publicado
+                                        </h3>
+                                        <div
+                                            ref={cardsScrollRef}
+                                            className="marketplace-cards-scroll overflow-y-auto overflow-x-visible pr-1"
+                                            style={{ height: `calc(100vh - ${headerBottom + 16 + cardsHeadingAlto}px - 16px)` }}
+                                        >
+                                            <div className="flex flex-col gap-4 2xl:gap-5 pb-4">
+                                                {articulosReel.map((articulo) => (
+                                                    <CardArticulo
+                                                        key={articulo.id}
+                                                        articulo={articulo}
+                                                        variant="glass"
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
-                            {!hasNextPage && articulosFeedSinReel.length > 0 && (
-                                <p className="py-6 text-center text-sm font-medium text-slate-600">
-                                    No hay más publicaciones
-                                </p>
-                            )}
+                            {/* Sin columna "Recién publicado" (orden ≠ recientes, o
+                                modo "busco"): la card NO se estira a lo ancho del
+                                contenedor completo — mantiene el mismo ancho que
+                                tendría junto a la columna (940-300-20 / 1068-340-24)
+                                y se centra horizontalmente. */}
+                            <div
+                                className={
+                                    hayColumnaCards
+                                        ? 'min-w-0 flex-1'
+                                        : 'mx-auto w-full max-w-[620px] 2xl:max-w-[704px]'
+                                }
+                            >
+                                <div className="space-y-4 py-2">
+                                    {articulosFeedSinReel.map((articulo) => (
+                                        <CardArticuloFeed
+                                            key={articulo.id}
+                                            articulo={articulo}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Sentinel + fin de feed — compartido entre ambos
+                            layouts (el que está oculto vía `hidden`/`lg:hidden`
+                            no ocupa espacio en el documento, así este queda
+                            posicionado justo después del que sí se ve). */}
+                        {hasNextPage && (
+                            <div
+                                ref={sentinelRef}
+                                className="flex items-center justify-center py-8"
+                            >
+                                {isFetchingNextPage ? (
+                                    <Loader2
+                                        className="h-6 w-6 animate-spin text-slate-500"
+                                        strokeWidth={2}
+                                    />
+                                ) : (
+                                    <div className="h-1 w-1" /> /* spacer */
+                                )}
+                            </div>
+                        )}
+
+                        {!hasNextPage && articulosFeedSinReel.length > 0 && (
+                            <p className="py-6 text-center text-sm font-medium text-slate-600">
+                                No hay más publicaciones
+                            </p>
+                        )}
                     </>
                 )}
 
-                {/* Estado: vacío total — invitación dinámica a publicar (sin card) */}
+                {/* Estado: vacío total. Dos casos bien distintos (mismo criterio
+                    que el feed de publicaciones de Negocios):
+                     - Hay categoría filtrada y no matchea nada → "sin
+                       coincidencias", CTA para limpiar el filtro. NO es lo
+                       mismo que "no hay artículos".
+                     - Sin filtro de categoría, la ciudad/modo realmente no
+                       tiene artículos aún → invitación a publicar. */}
                 {!isLoading &&
                     !isError &&
-                    data &&
-                    recientes.length === 0 &&
-                    cercanos.length === 0 && (
+                    dataFeedInfinito &&
+                    articulosFeed.length === 0 && (
                         <div className="relative mt-12 flex flex-col items-center px-6 text-center lg:mt-20">
                             {/* Sparkles decorativos */}
                             <Sparkles
@@ -837,26 +1027,47 @@ export function PaginaMarketplace() {
                                 </div>
                             </div>
 
-                            <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
-                                ¡Sé el primero!
-                            </h3>
-                            <p className="max-w-sm text-base text-slate-600">
-                                Aún no hay artículos en{' '}
-                                <span className="font-bold text-slate-900">
-                                    {ciudad ?? 'tu zona'}
-                                </span>
-                                . Publica algo y empieza a vender hoy mismo.
-                            </p>
+                            {categoriaFeed !== null ? (
+                                <>
+                                    <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                                        Sin coincidencias
+                                    </h3>
+                                    <p className="mb-6 max-w-sm text-base text-slate-600">
+                                        No hay artículos con esta categoría.
+                                    </p>
+                                    <button
+                                        data-testid="btn-limpiar-categoria-empty-state"
+                                        onClick={() => setCategoriaFeed(null)}
+                                        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-teal-500 to-teal-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
+                                    >
+                                        <ShoppingCart className="h-4 w-4" strokeWidth={2.5} />
+                                        Ver todos los artículos
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                                        ¡Sé el primero!
+                                    </h3>
+                                    <p className="max-w-sm text-base text-slate-600">
+                                        Aún no hay {modoFeed === 'busco' ? 'búsquedas' : 'artículos'} en{' '}
+                                        <span className="font-bold text-slate-900">
+                                            {ciudad ?? 'tu zona'}
+                                        </span>
+                                        .
+                                    </p>
 
-                            {/* CTA inline para desktop (donde no hay FAB visible al hacer scroll) */}
-                            <button
-                                data-testid="btn-publicar-empty-state"
-                                onClick={handlePublicar}
-                                className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
-                            >
-                                <Plus className="h-4 w-4" strokeWidth={2.5} />
-                                Publicar primer artículo
-                            </button>
+                                    {/* CTA inline para desktop (donde no hay FAB visible al hacer scroll) */}
+                                    <button
+                                        data-testid="btn-publicar-empty-state"
+                                        onClick={handlePublicar}
+                                        className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
+                                    >
+                                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                                        Publicar primer artículo
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -902,6 +1113,7 @@ export function PaginaMarketplace() {
                     topPublicar={topPublicar}
                     esEscritorio={esEscritorio}
                     bottomNavVisible={bottomNavVisible}
+                    labelConCardEscritorio
                 />
             )}
 
@@ -963,13 +1175,6 @@ export function PaginaMarketplace() {
                 </div>,
                 document.body
             )}
-
-            {/* Modal de detalle del artículo (estilo Facebook) — se abre al
-                hacer click en "Ver N preguntas más" desde la card del feed. */}
-            <ModalArticuloDetalle
-                articulo={articuloModal}
-                onClose={handleCerrarModal}
-            />
         </div>
     );
 }

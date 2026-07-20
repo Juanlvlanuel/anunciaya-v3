@@ -21,7 +21,8 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { ImageOff, Users } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ImageOff, Users, ChevronRight, Pencil } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
@@ -33,6 +34,11 @@ const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 import { useGuardados } from '../../hooks/useGuardados';
 import { useSaveBubble } from '../../hooks/useSaveBubble';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { useIniciarChatMarketplace } from '../../hooks/useIniciarChatMarketplace';
+import { api } from '../../services/api';
+import { queryKeys } from '../../config/queryKeys';
+import { notificar } from '../../utils/notificaciones';
 import {
     formatearDistancia,
     formatearTiempoRelativo,
@@ -40,16 +46,18 @@ import {
     obtenerFotoPortada,
     formatearPrecio,
 } from '../../utils/marketplace';
-import type { ArticuloFeed } from '../../types/marketplace';
+import type { ArticuloFeed, ArticuloMarketplaceDetalle } from '../../types/marketplace';
 
 interface CardArticuloProps {
     articulo: ArticuloFeed;
     /**
-     * Variante de altura. Por defecto 'feed' (aspect 1:1). En contextos
-     * donde se necesita una grilla más densa con menos altura por card
-     * (perfil de usuario, módulos de listado), usar 'compacta' (aspect 4:3).
+     * Variante de altura/estilo. Por defecto 'feed' (aspect 1:1). 'compacta'
+     * para grillas densas (perfil de usuario). 'glass' — foto grande con
+     * texto encima (mismo estilo "todo sobre la imagen" que `CardNegocio`
+     * en la columna fija de escritorio), incluye ícono ChatYA de contacto
+     * rápido — pensado para la columna "Recién publicado" de MarketPlace.
      */
-    variant?: 'feed' | 'compacta';
+    variant?: 'feed' | 'compacta' | 'glass';
     /**
      * Clases Tailwind opcionales para fijar la altura total del card (ej.
      * `h-[280px] lg:h-[340px]`). Cuando se pasa, el componente abandona el
@@ -133,6 +141,49 @@ export function CardArticulo({
         navigate(`/marketplace/articulo/${articulo.id}`);
     };
 
+    // ─── ChatYA (solo variant='glass') — mismo patrón que
+    // `CardArticuloGuardado`: el tipo del feed (`ArticuloFeed`) no trae los
+    // datos completos del vendedor que pide `useIniciarChatMarketplace`
+    // (teléfono, ciudad, etc.), así que se hace fetch on-demand del detalle
+    // al presionar el ícono — React Query cachea, así que un segundo click
+    // no vuelve a pegarle al backend. ──────────────────────────────────────
+    const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
+    const qc = useQueryClient();
+    const iniciarChatMarketplace = useIniciarChatMarketplace();
+    const mostrarChatYA = !!articulo.usuarioId && usuarioActualId !== articulo.usuarioId;
+    // Es tu propia publicación — ChatYA no aplica (no te contactas a ti
+    // mismo). En su lugar mostramos un acceso directo a editar, para que
+    // ese espacio de la barra de vidrio no quede vacío/raro.
+    const esPropia = !!articulo.usuarioId && usuarioActualId === articulo.usuarioId;
+    const handleEditarPropia = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigate(`/marketplace?editar=${articulo.id}`);
+    };
+    const handleChatYA = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        try {
+            const detalle = await qc.fetchQuery({
+                queryKey: queryKeys.marketplace.articulo(articulo.id),
+                queryFn: async (): Promise<ArticuloMarketplaceDetalle | null> => {
+                    const response = await api.get<{
+                        success: boolean;
+                        data: ArticuloMarketplaceDetalle;
+                    }>(`/marketplace/articulos/${articulo.id}`);
+                    return response.data.success ? response.data.data : null;
+                },
+                staleTime: 60 * 1000,
+            });
+            if (!detalle) {
+                notificar.error('No se pudo cargar el artículo');
+                return;
+            }
+            await iniciarChatMarketplace(detalle);
+        } catch {
+            notificar.error('No se pudo iniciar el chat');
+        }
+    };
+
     const { triggerSaveBubble, saveBubble } = useSaveBubble();
     const handleClickGuardar = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -142,6 +193,152 @@ export function CardArticulo({
         triggerSaveBubble(e, guardado ? 'unsave' : 'save');
         toggleGuardado();
     };
+
+    // ── Variant 'glass' — "todo sobre la imagen", mismo estilo que
+    // `CardNegocio` en la columna fija de escritorio: foto grande de fondo,
+    // gradiente para legibilidad, solo título + precio encima (no toda la
+    // info del artículo), y una barra de vidrio abajo con ChatYA de
+    // contacto rápido + botón "Ver". ─────────────────────────────────────
+    if (variant === 'glass') {
+        return (
+            <>
+                {saveBubble}
+                <article
+                    data-testid={`card-articulo-${articulo.id}`}
+                    onClick={handleClickCard}
+                    className="group relative h-60 @[96rem]:h-[220px] w-full cursor-pointer overflow-hidden rounded-2xl shadow-md transition-shadow duration-300 lg:hover:shadow-xl"
+                >
+                    <div className="absolute inset-0 bg-slate-200">
+                        {fotoPortada ? (
+                            <img
+                                src={fotoPortada}
+                                alt={articulo.titulo}
+                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                loading="lazy"
+                            />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+                                <ImageOff className="h-10 w-10" strokeWidth={1.5} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Gradiente — legibilidad del texto sobre la foto (mismo
+                        criterio que CardNegocio). */}
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.45) 32%, rgba(0,0,0,0.08) 55%, transparent 72%)',
+                        }}
+                    />
+
+                    {esNuevo && (
+                        <span
+                            data-testid={`badge-recien-${articulo.id}`}
+                            className="absolute left-2 top-2 z-10 inline-flex items-center rounded-md bg-teal-500 px-1.5 py-0.5 text-[10px] 2xl:text-xs font-bold uppercase tracking-wide text-white shadow-sm"
+                        >
+                            Recién
+                        </span>
+                    )}
+
+                    {!ocultarBotonGuardar && (
+                        <button
+                            type="button"
+                            data-testid={`btn-guardar-${articulo.id}`}
+                            onClick={handleClickGuardar}
+                            disabled={loading}
+                            aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
+                            aria-pressed={guardado}
+                            className={`absolute right-1.5 top-1.5 z-10 flex h-[38px] w-[38px] cursor-pointer items-center justify-center rounded-full backdrop-blur-[10px] overflow-visible disabled:opacity-50 ${
+                                guardado
+                                    ? 'border-2 border-amber-500 bg-white'
+                                    : 'border border-white/10 bg-black/25'
+                            }`}
+                        >
+                            {guardado && (
+                                <span
+                                    aria-hidden
+                                    className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
+                                    style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                                />
+                            )}
+                            <Icon
+                                icon={ICONOS.guardar}
+                                className="w-5 h-5"
+                                style={{ color: guardado ? '#f59e0b' : 'white' }}
+                            />
+                        </button>
+                    )}
+
+                    {/* Texto + barra de contacto — absolutos abajo, sobre el gradiente. */}
+                    <div className="absolute bottom-[3px] left-0 right-0 z-10 px-3 pb-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-white drop-shadow-md">
+                                {articulo.titulo}
+                            </span>
+                            {/* Badge de precio — acento teal de marca (no solo
+                                texto blanco), le da personalidad propia frente
+                                al título neutro. */}
+                            <span
+                                className="shrink-0 rounded-full px-2.5 py-1 text-sm font-extrabold text-white shadow-sm"
+                                style={{ background: 'linear-gradient(135deg, #2dd4bf, #0d9488)' }}
+                            >
+                                {formatearPrecio(articulo.precio)}
+                                {articulo.unidadVenta && (
+                                    <span className="ml-0.5 text-xs font-semibold text-white/85">
+                                        {articulo.unidadVenta}
+                                    </span>
+                                )}
+                            </span>
+                        </div>
+
+                        {/* Barra de vidrio — ChatYA (contacto rápido) + Ver.
+                            Padding/tamaños calcados 1:1 de CardNegocio. */}
+                        <div className="mt-1 flex items-center justify-between rounded-[14px] border border-white/12 bg-white/10 py-1.5 pl-3.5 pr-[5px] backdrop-blur-xl">
+                            <div className="flex items-center gap-2">
+                                {mostrarChatYA && (
+                                    <button
+                                        type="button"
+                                        data-testid={`btn-chatya-${articulo.id}`}
+                                        onClick={handleChatYA}
+                                        aria-label="Contactar por ChatYA"
+                                        className="flex cursor-pointer items-center border-0 bg-transparent p-0 active:opacity-70"
+                                    >
+                                        <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto" />
+                                    </button>
+                                )}
+                                {/* Es tuya — ChatYA no aplica; en su lugar,
+                                    acceso directo a editar (mismo destino que
+                                    "Mis Publicaciones" → Editar). */}
+                                {esPropia && (
+                                    <button
+                                        type="button"
+                                        data-testid={`btn-editar-propia-${articulo.id}`}
+                                        onClick={handleEditarPropia}
+                                        aria-label="Ver o editar tu publicación"
+                                        className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-bold text-white active:opacity-70"
+                                    >
+                                        <Pencil className="h-4 w-4" strokeWidth={2.5} />
+                                        Editar
+                                    </button>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                data-testid={`btn-ver-${articulo.id}`}
+                                onClick={(e) => { e.stopPropagation(); handleClickCard(); }}
+                                className="flex cursor-pointer items-center gap-1 rounded-[10px] border-0 px-3.5 py-[7px] text-[13px] font-bold text-white active:scale-95 transition-transform"
+                                style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', boxShadow: '0 3px 14px rgba(15,23,42,0.50)' }}
+                            >
+                                Ver
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            </>
+        );
+    }
 
     return (
         <>

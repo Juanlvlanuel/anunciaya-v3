@@ -1449,6 +1449,15 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
 /* Sin las flechas del scrollbar global (se veían anticuadas en el rail). */
 .mp-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
+/* Canaleta + barra de scroll discreta — misma receta que
+   `.negocios-cards-scroll`/`.marketplace-cards-scroll` (columna "Recién
+   publicado" del feed), pero GLOBAL para poder reusarla en cualquier
+   página sin reinyectar el mismo <style> por componente. */
+.scroll-discreto::-webkit-scrollbar { width: 12px; }
+.scroll-discreto::-webkit-scrollbar-track { background: transparent; }
+.scroll-discreto::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
+.scroll-discreto::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
 /* Carrusel "Coyo encontró esto" — barra VISIBLE en desktop (track con canal
    propio + thumb sólido) para que se note que hay más tarjetas a la derecha.
    En móvil se oculta y se desliza con el dedo (ver media query de móvil). */

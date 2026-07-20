@@ -131,9 +131,14 @@ export function PaginaPublicacionNegocio() {
                 `PaginaArticuloMarketplace.tsx` de MP para el mismo problema). */}
             <div
                 ref={cuerpoRef}
-                className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3 pb-[150px] lg:flex-none lg:overflow-visible lg:py-8 lg:mx-auto lg:max-w-[720px] lg:px-4"
+                className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3 pb-[150px] lg:flex-none lg:overflow-visible lg:py-8 lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-4"
             >
-                <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-5">
+                {/* `DetallePublicacionNegocioContenido` pone su propia card
+                    en móvil (unificada) y en escritorio (2 columnas
+                    independientes — izquierda fija + comentarios que
+                    fluyen) — la página ya no envuelve nada con su propia
+                    card. */}
+                <div className="mx-3 lg:mx-0">
                     <DetallePublicacionNegocioContenido publicacionId={publicacion.id} />
                 </div>
             </div>

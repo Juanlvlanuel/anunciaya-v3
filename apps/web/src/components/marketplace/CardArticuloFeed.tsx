@@ -24,9 +24,6 @@ import {
     ChevronLeft,
     ChevronRight,
     ImageOff,
-    Send,
-    Loader2,
-    AlertCircle,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
@@ -37,23 +34,15 @@ const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
-import { useGuardados } from '../../hooks/useGuardados';
-import { useSaveBubble } from '../../hooks/useSaveBubble';
-import {
-    useCrearComentario,
-    useEditarComentario,
-    useEliminarComentario,
-} from '../../hooks/queries/useMarketplace';
-import { useAuthStore } from '../../stores/useAuthStore';
 import {
     formatearDistancia,
     formatearTiempoRelativo,
     etiquetaPrecioArticulo,
 } from '../../utils/marketplace';
+import { truncarTexto } from '../../utils/truncarTexto';
 import { ModalImagenes } from '../ui/ModalImagenes';
-import Tooltip from '../ui/Tooltip';
-import { ComentarioItem, type UsuarioComentario } from './ComentarioItem';
-import { notificar } from '../../utils/notificaciones';
+import { SeccionComentariosMarketplace } from './SeccionComentariosMarketplace';
+import { ModalComentariosMarketplace } from './ModalComentariosMarketplace';
 import type { ArticuloFeedInfinito } from '../../types/marketplace';
 
 // =============================================================================
@@ -62,15 +51,6 @@ import type { ArticuloFeedInfinito } from '../../types/marketplace';
 
 interface CardArticuloFeedProps {
     articulo: ArticuloFeedInfinito;
-    /** Callback opcional cuando el usuario hace click en "Hacer pregunta" sin sesión. */
-    onAuthRequerido?: () => void;
-    /**
-     * Callback opcional al hacer click en "Ver N preguntas más". Si se provee,
-     * se llama y el padre decide qué hacer (típicamente abrir un modal con el
-     * artículo). Si NO se provee, el botón cae al comportamiento previo
-     * (expandir inline) — útil cuando ya estamos dentro del modal.
-     */
-    onAbrirDetalle?: () => void;
     /**
      * Cuando true, la card se renderiza para vivir dentro del modal:
      *  - El article ocupa toda la altura del contenedor (`h-full flex-col`).
@@ -139,8 +119,11 @@ const ETIQUETA_CONDICION: Record<string, string> = {
     para_reparar: 'Para reparar',
 };
 
-const TEXTO_MIN = 2;
-const TEXTO_MAX = 500;
+// Tope de caracteres para la descripción recortada — "Ver más" se agrega
+// como texto real dentro del mismo párrafo (no `line-clamp` + overlay
+// flotante), así se siente continuación de la oración. ~2 líneas en el
+// ancho típico de la card.
+const DESCRIPCION_MAX_CHARS = 100;
 
 function obtenerIniciales(nombre: string, apellidos: string): string {
     const n = (nombre ?? '').trim().charAt(0).toUpperCase();
@@ -154,34 +137,18 @@ function obtenerIniciales(nombre: string, apellidos: string): string {
 
 export function CardArticuloFeed({
     articulo,
-    onAuthRequerido,
-    onAbrirDetalle,
     modoModal = false,
     onAntesDeNavegar,
     ocultarThumbnailsLaterales = false,
     claseAspectoGaleria,
 }: CardArticuloFeedProps) {
     const navigate = useNavigate();
-    const usuario = useAuthStore((s) => s.usuario);
-    const modoActivo = usuario?.modoActivo ?? 'personal';
-
-    const { guardado, loading, toggleGuardado } = useGuardados({
-        entityType: 'articulo_marketplace',
-        entityId: articulo.id,
-        // Estado inicial desde el feed — para que el corazón salga relleno al
-        // cargar la página si el usuario ya tenía guardado este artículo.
-        initialGuardado: articulo.guardado,
-    });
 
     // `articulo.totalGuardados` ya viene actualizado del cache de React Query:
     // `useGuardados` aplica el optimistic update sobre el feed/detalle/perfil
     // del vendedor, así que cualquier render derivado (incluido el modal
     // estilo Facebook) ve el conteo correcto sin lógica local de delta.
     const totalGuardadosLocal = articulo.totalGuardados;
-
-    const crearComentario = useCrearComentario();
-    const editarComentario = useEditarComentario();
-    const eliminarComentario = useEliminarComentario();
 
     // ─── Estado local ────────────────────────────────────────────────────────
     const [indiceFoto, setIndiceFoto] = useState(articulo.fotoPortadaIndex ?? 0);
@@ -201,15 +168,7 @@ export function CardArticuloFeed({
         setIndiceFoto(articulo.fotoPortadaIndex ?? 0);
     }, [articulo.fotoPortadaIndex]);
     const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
-    const [descripcionExpandida, setDescripcionExpandida] = useState(false);
-    const [textoComentario, setTextoComentario] = useState('');
-    const [errorComentario, setErrorComentario] = useState<string | null>(null);
-
-    /** Estado para animar el heart al click + popup flotante (patrón CardNegocio). */
-    const heartButtonRef = useRef<HTMLButtonElement>(null);
-    const [heartBounce, setHeartBounce] = useState(false);
-    // Bubble flotante "¡Guardado!" / "Quitado" centralizado en hook.
-    const { triggerSaveBubble, saveBubble } = useSaveBubble();
+    const [comentariosAbierto, setComentariosAbierto] = useState(false);
 
     // ─── Derivados ───────────────────────────────────────────────────────────
     const fotos = articulo.fotos ?? [];
@@ -220,36 +179,16 @@ export function CardArticuloFeed({
     const condicionLabel = articulo.condicion
         ? (ETIQUETA_CONDICION[articulo.condicion] ?? articulo.condicion)
         : null;
+    const descripcionCorta = articulo.descripcion
+        ? truncarTexto(articulo.descripcion, DESCRIPCION_MAX_CHARS)
+        : '';
+    const descripcionRecortada = descripcionCorta.length < (articulo.descripcion?.length ?? 0);
 
     const nombreVendedor = useMemo(
         () => `${articulo.vendedor.nombre} ${articulo.vendedor.apellidos}`.trim(),
         [articulo.vendedor.nombre, articulo.vendedor.apellidos]
     );
     const iniciales = obtenerIniciales(articulo.vendedor.nombre, articulo.vendedor.apellidos);
-
-    // Modo Comercial: bloqueado para comentar (regla del marketplace).
-    const enModoComercial = modoActivo === 'comercial';
-    // El usuario puede comentar si está autenticado en modo personal. El dueño
-    // también puede (sus comentarios llevan la etiqueta "Vendedor").
-    const puedeComentar = !!usuario && !enModoComercial;
-
-    const usuarioActual: UsuarioComentario | null = usuario
-        ? {
-              id: usuario.id,
-              nombre: usuario.nombre ?? '',
-              apellidos: usuario.apellidos ?? '',
-              avatarUrl: usuario.avatarUrl ?? null,
-          }
-        : null;
-
-    // Comentarios del feed (árbol de 1 nivel). Inline mostramos los primeros N
-    // hilos; el resto se ve con "Ver más" (abre el modal/detalle). En modoModal
-    // se muestran todos.
-    const comentarios = articulo.topComentarios ?? [];
-    const MAX_INLINE = 2;
-    const comentariosInline = modoModal ? comentarios : comentarios.slice(0, MAX_INLINE);
-    const hayMasContenido = !modoModal && comentarios.length > MAX_INLINE;
-
 
     // Señal de actividad inline. Tipo:
     //  - 'viendo' / 'vistas24h' → texto descriptivo en teal.
@@ -403,20 +342,6 @@ export function CardArticuloFeed({
         ? (indiceFoto === fotos.length - 1 ? 0 : indiceFoto + 1)
         : 0;
 
-    const handleToggleGuardado = useCallback(
-        (e: React.MouseEvent) => {
-            e.stopPropagation();
-            // Bubble flotante "¡Guardado!" / "Quitado" — usa el hook
-            // centralizado `useSaveBubble` para mantener consistencia
-            // cross-módulo con CardNegocio, CardArticulo, etc.
-            triggerSaveBubble(e, guardado ? 'unsave' : 'save');
-            setHeartBounce(true);
-            toggleGuardado();
-            setTimeout(() => setHeartBounce(false), 500);
-        },
-        [toggleGuardado, guardado, triggerSaveBubble]
-    );
-
     const handleAvatarClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         if (articulo.vendedor.avatarUrl) {
@@ -427,93 +352,20 @@ export function CardArticuloFeed({
         }
     }, [articulo.vendedor.avatarUrl, irAlPerfilVendedor]);
 
-    /** Extrae { status, mensaje } de un error de Axios. */
-    const leerError = (e: unknown) => {
-        const err = e as { response?: { status?: number; data?: { message?: string } } };
-        return { status: err?.response?.status, mensaje: err?.response?.data?.message };
-    };
-
-    // Crear comentario raíz (input del feed).
-    const handleEnviarComentario = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault();
-            const limpio = textoComentario.trim();
-
-            if (!usuario) {
-                if (onAuthRequerido) onAuthRequerido();
-                else notificar.info('Inicia sesión para comentar');
-                return;
-            }
-            if (limpio.length < TEXTO_MIN) {
-                setErrorComentario(`Escribe al menos ${TEXTO_MIN} caracteres`);
-                return;
-            }
-            setErrorComentario(null);
-            try {
-                await crearComentario.mutateAsync({ articuloId: articulo.id, texto: limpio });
-                setTextoComentario('');
-            } catch (err) {
-                const { status, mensaje } = leerError(err);
-                if (status === 422) setErrorComentario(mensaje ?? 'Contenido no permitido');
-                else setErrorComentario(mensaje ?? 'No se pudo publicar el comentario');
-            }
-        },
-        [textoComentario, usuario, onAuthRequerido, crearComentario, articulo.id]
-    );
-
-    // Responder a un hilo (lo dispara ComentarioItem).
-    const handleResponderComentario = useCallback(
-        async (parentId: string, texto: string): Promise<boolean> => {
-            try {
-                await crearComentario.mutateAsync({ articuloId: articulo.id, texto, parentId });
-                return true;
-            } catch (err) {
-                notificar.error(leerError(err).mensaje ?? 'No se pudo publicar la respuesta');
-                return false;
-            }
-        },
-        [crearComentario, articulo.id]
-    );
-
-    const handleEditarComentario = useCallback(
-        async (id: string, texto: string): Promise<boolean> => {
-            try {
-                await editarComentario.mutateAsync({ comentarioId: id, articuloId: articulo.id, texto });
-                notificar.exito('Comentario actualizado');
-                return true;
-            } catch (err) {
-                notificar.error(leerError(err).mensaje ?? 'No se pudo guardar');
-                return false;
-            }
-        },
-        [editarComentario, articulo.id]
-    );
-
-    const handleEliminarComentario = useCallback(
-        (id: string) => {
-            if (!confirm('¿Eliminar este comentario?')) return;
-            eliminarComentario.mutate(
-                { comentarioId: id, articuloId: articulo.id },
-                {
-                    onSuccess: () => notificar.exito('Comentario eliminado'),
-                    onError: () => notificar.error('No se pudo eliminar el comentario'),
-                }
-            );
-        },
-        [eliminarComentario, articulo.id]
-    );
-
     // =========================================================================
     // RENDER
     // =========================================================================
     return (
         <article
             data-testid={`card-articulo-feed-${articulo.id}`}
-            className={`overflow-hidden bg-white lg:rounded-xl lg:border-2 lg:border-slate-300 lg:shadow-sm ${
-                modoModal ? 'flex h-full flex-col rounded-xl border-2 border-slate-300 shadow-sm' : ''
+            className={`overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] ${
+                modoModal ? 'flex h-full flex-col' : ''
             }`}
         >
-            {/* ─── HEADER: avatar + vendedor + tiempo ─────────────────────── */}
+            {/* ─── HEADER: avatar + vendedor (chevron afordance) + tiempo +
+                distancia (badge) + guardar — mismo patrón visual que
+                CardPublicacionNegocioFeed (avatar grande, nombre extrabold
+                con chevron animado, badge de distancia aparte). ─────────── */}
             <header className={`flex items-center gap-3 px-4 ${modoModal ? 'py-2' : 'py-3'}`}>
                 <button
                     type="button"
@@ -526,71 +378,45 @@ export function CardArticuloFeed({
                         <img
                             src={articulo.vendedor.avatarUrl}
                             alt={nombreVendedor}
-                            className="h-10 w-10 rounded-full object-cover ring-2 ring-slate-200"
+                            className="h-14 w-14 rounded-full object-cover ring-2 ring-slate-200"
                         />
                     ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-sm font-bold text-white ring-2 ring-slate-200">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-base font-bold text-white ring-2 ring-slate-200">
                             {iniciales}
                         </div>
                     )}
                 </button>
 
-                <div className="min-w-0 flex-1">
-                    <button
-                        type="button"
-                        data-testid={`card-feed-nombre-${articulo.id}`}
-                        onClick={irAlPerfilVendedor}
-                        className="block truncate text-left text-base font-bold text-slate-900 leading-tight lg:cursor-pointer lg:hover:underline"
-                    >
-                        {nombreVendedor}
-                    </button>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                        <span className="truncate">{articulo.ciudad}</span>
-                        <span className="h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
-                        <span className="shrink-0">hace {tiempo}</span>
-                    </p>
-                </div>
-
-                <Tooltip
-                    text={guardado ? 'Quitar de guardados' : 'Guardar publicación'}
-                    position="bottom"
-                    className="hidden lg:block"
+                <button
+                    type="button"
+                    onClick={irAlPerfilVendedor}
+                    className="min-w-0 flex-1 text-left lg:cursor-pointer"
                 >
-                    <button
-                        ref={heartButtonRef}
-                        type="button"
-                        data-testid={`card-feed-guardar-${articulo.id}`}
-                        onClick={handleToggleGuardado}
-                        disabled={loading}
-                        aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
-                        className={`relative shrink-0 grid place-items-center w-[38px] h-[38px] rounded-full bg-white overflow-visible disabled:opacity-50 transition-transform duration-200 lg:cursor-pointer lg:hover:scale-110 active:opacity-70 ${
-                            guardado
-                                ? 'border-2 border-amber-500'
-                                : 'border-2 border-slate-300'
-                        }`}
-                        style={{
-                            animation: heartBounce
-                                ? 'feedHeartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)'
-                                : undefined,
-                        }}
-                    >
-                        {/* Pulse ring amber respirando cuando guardado —
-                            mismo patrón cross-módulo que CardNegocio,
-                            CardArticulo y BookmarkGlass. */}
-                        {guardado && (
-                            <span
-                                aria-hidden
-                                className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
-                                style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
-                            />
-                        )}
-                        <Icon
-                            icon={ICONOS.guardar}
-                            className="h-5 w-5"
-                            style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
-                        />
-                    </button>
-                </Tooltip>
+                    <div className="flex items-center gap-1.5 leading-tight">
+                        <span
+                            data-testid={`card-feed-nombre-${articulo.id}`}
+                            className="truncate text-[17px] font-extrabold text-slate-900 lg:hover:underline"
+                        >
+                            {nombreVendedor}
+                        </span>
+                        <ChevronRight className="h-5 w-5 shrink-0 text-teal-600 animate-bounceX" strokeWidth={2.5} />
+                    </div>
+                    <div className="mt-1 text-sm text-slate-600 font-semibold">
+                        {tiempo}
+                    </div>
+                </button>
+
+                {/* Distancia — badge aparte a la orilla derecha, en teal
+                    (color de marca de MarketPlace), igual criterio que el
+                    badge azul de Negocios. */}
+                {/* Guardar — quitado del feed (móvil y escritorio) a pedido:
+                    sigue disponible dentro del detalle del artículo. */}
+                {distancia && (
+                    <span className="shrink-0 flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-1 text-sm font-bold text-teal-700">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {distancia}
+                    </span>
+                )}
             </header>
 
             {/* ─── CUERPO: título + precio + descripción ──────────────────── */}
@@ -609,11 +435,11 @@ export function CardArticuloFeed({
                         {articulo.titulo}
                     </button>
                 </h3>
-                {/* Precio + chips (unidad de venta, acepta ofertas, condición).
-                    El precio usa `text-teal-700` — color de marca del MarketPlace,
-                    diferenciado del negro del título pero sin caer en verde
-                    "oferta/descuento" payaso. */}
-                <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
+                {/* Precio — protagonista en su propia línea, sin competir con
+                    chips de estado. Solo lleva junto lo directamente ligado
+                    al precio: "Se busca" (prefijo del modo) o la unidad de
+                    venta. El resto de los chips baja a su propia fila. */}
+                <div className="mt-1.5 flex items-baseline gap-2">
                     {articulo.modo === 'busco' && (
                         <span className="self-center rounded-md bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-700">
                             Se busca
@@ -622,47 +448,69 @@ export function CardArticuloFeed({
                     <span className="text-2xl font-extrabold text-teal-700">
                         {etiquetaPrecioArticulo(articulo)}
                     </span>
-                    {articulo.modo === 'busco'
-                        ? articulo.urgente && (
-                              <span className="self-center rounded-md bg-red-100 px-2 py-0.5 text-sm font-bold text-red-600">
-                                  Urgente
-                              </span>
-                          )
-                        : (
-                              <>
-                                  {articulo.unidadVenta && (
-                                      <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
-                                          {articulo.unidadVenta}
-                                      </span>
-                                  )}
-                                  {articulo.aceptaOfertas && (
-                                      <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
-                                          Acepta ofertas
-                                      </span>
-                                  )}
-                                  {condicionLabel && (
-                                      <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
-                                          {condicionLabel}
-                                      </span>
-                                  )}
-                              </>
-                          )}
-                </div>
-                {articulo.categoriaNombre && (
-                    <div className="mt-1.5">
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-sm font-medium text-slate-500">
-                            {articulo.categoriaNombre}
+                    {articulo.modo !== 'busco' && articulo.unidadVenta && (
+                        <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
+                            {articulo.unidadVenta}
                         </span>
+                    )}
+                </div>
+
+                {/* Chips secundarios — categoría + estado, todos en UNA fila
+                    (antes la categoría vivía sola en su propia línea,
+                    desperdiciando espacio horizontal). */}
+                {(articulo.categoriaNombre
+                    || condicionLabel
+                    || articulo.aceptaOfertas
+                    || (articulo.modo === 'busco' && articulo.urgente)) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {articulo.categoriaNombre && (
+                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-sm font-medium text-slate-500">
+                                {articulo.categoriaNombre}
+                            </span>
+                        )}
+                        {articulo.modo === 'busco'
+                            ? articulo.urgente && (
+                                  <span className="rounded-md bg-red-100 px-2 py-0.5 text-sm font-bold text-red-600">
+                                      Urgente
+                                  </span>
+                              )
+                            : (
+                                  <>
+                                      {articulo.aceptaOfertas && (
+                                          <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
+                                              Acepta ofertas
+                                          </span>
+                                      )}
+                                      {condicionLabel && (
+                                          <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                                              {condicionLabel}
+                                          </span>
+                                      )}
+                                  </>
+                              )}
                     </div>
                 )}
+
+                {/* Descripción — más separación arriba (mt-2.5) para marcar
+                    el corte entre el bloque de datos (título/precio/chips)
+                    y el texto libre. "Ver más" es texto REAL dentro del
+                    mismo párrafo (recorte por caracteres, no `line-clamp` +
+                    overlay flotante) — se lee como continuación de la
+                    oración, no como un elemento aparte. Siempre visible
+                    (CTA al detalle), aunque el texto sea corto y no haga
+                    falta recortarlo con "…". */}
                 {articulo.descripcion && !modoModal && (
-                    <p
-                        className={`mt-1.5 text-base font-medium leading-relaxed text-slate-600 ${
-                            descripcionExpandida ? '' : 'line-clamp-3'
-                        }`}
-                        onClick={() => setDescripcionExpandida((v) => !v)}
-                    >
-                        {articulo.descripcion}
+                    <p className="mt-2.5 text-base font-medium leading-relaxed text-slate-600">
+                        {descripcionCorta}
+                        {descripcionRecortada ? '… ' : ' '}
+                        <button
+                            type="button"
+                            data-testid={`card-feed-ver-mas-${articulo.id}`}
+                            onClick={irAlDetalle}
+                            className="font-semibold text-teal-700 lg:cursor-pointer lg:hover:underline"
+                        >
+                            Ver más
+                        </button>
                     </p>
                 )}
             </div>
@@ -745,23 +593,26 @@ export function CardArticuloFeed({
                     {/* Flechas (solo desktop con multi-imagen) */}
                     {tieneMultiples && (
                         <>
+                            {/* Estilo dark uniforme — mismo criterio que
+                                CardPublicacionNegocioFeed/GaleriaArticulo/
+                                GaleriaPublicacionNegocio. */}
                             <button
                                 type="button"
                                 onClick={fotoAnterior}
                                 data-testid={`card-feed-foto-prev-${articulo.id}`}
                                 aria-label="Foto anterior"
-                                className="absolute left-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md opacity-0 transition-all group-hover/galeria:opacity-100 lg:flex lg:cursor-pointer lg:hover:scale-105"
+                                className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover/galeria:opacity-100 lg:flex lg:cursor-pointer"
                             >
-                                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
                             </button>
                             <button
                                 type="button"
                                 onClick={fotoSiguiente}
                                 data-testid={`card-feed-foto-next-${articulo.id}`}
                                 aria-label="Foto siguiente"
-                                className="absolute right-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md opacity-0 transition-all group-hover/galeria:opacity-100 lg:flex lg:cursor-pointer lg:hover:scale-105"
+                                className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover/galeria:opacity-100 lg:flex lg:cursor-pointer"
                             >
-                                <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
+                                <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                             </button>
 
                             {/* Contador de foto (esquina inf der) */}
@@ -815,38 +666,46 @@ export function CardArticuloFeed({
                 )}
             </div>
 
-            {/* ─── FOOTER: métricas básicas + señal social ────────────────── */}
-            {/* Izquierda: distancia · preguntas · vistas (siempre visibles).  */}
-            {/* Derecha: señal social en teal (viendo / vistas hoy / guardados */}
-            {/* — solo cuando supera el umbral). NO reemplaza a vistas totales. */}
+            {/* ─── FOOTER: comentarios · vistas + señal social ────────────────
+                Distancia ya vive en el badge del header — footer limpio,
+                mismo criterio que CardPublicacionNegocioFeed. Íconos h-6 w-6
+                (bump desde h-5 w-5) para igualar el peso visual. ──────────── */}
             <div className={`flex items-center justify-between gap-3 px-4 text-base font-medium text-slate-600 ${modoModal ? 'py-2' : 'py-3'}`}>
                 <div className="flex items-center gap-3">
-                    {distancia && (
+                    {/* Comentarios — clickeable, abre el modal con TODOS
+                        (mismo patrón que CardPublicacionNegocioFeed). En
+                        modoModal ya están visibles debajo, así que no repite
+                        el modal ahí — solo informativo. */}
+                    {modoModal ? (
                         <span className="flex items-center gap-1.5">
-                            <MapPin className="h-5 w-5 shrink-0" strokeWidth={2} />
-                            {distancia}
+                            <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2} />
+                            {articulo.totalComentarios}
                         </span>
+                    ) : (
+                        <button
+                            type="button"
+                            data-testid={`card-feed-abrir-comentarios-${articulo.id}`}
+                            onClick={() => setComentariosAbierto(true)}
+                            aria-label="Ver comentarios"
+                            className="flex items-center gap-1.5 lg:cursor-pointer lg:hover:text-slate-800"
+                        >
+                            <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2} />
+                            {articulo.totalComentarios}
+                        </button>
                     )}
-                    {(articulo.totalComentarios ?? 0) > 0 && (
-                        <>
-                            {distancia && <span className="text-slate-400" aria-hidden>·</span>}
-                            <span className="flex items-center gap-1.5">
-                                <MessageCircle className="h-5 w-5 shrink-0" strokeWidth={2} />
-                                {articulo.totalComentarios}
-                            </span>
-                        </>
-                    )}
-                    {(distancia || (articulo.totalComentarios ?? 0) > 0) && (
-                        <span className="text-slate-400" aria-hidden>·</span>
-                    )}
+                    <span className="text-slate-400" aria-hidden>·</span>
                     <span className="flex items-center gap-1.5">
-                        <Eye className="h-5 w-5 shrink-0" strokeWidth={2} />
+                        <Eye className="h-6 w-6 shrink-0" strokeWidth={2} />
                         {articulo.totalVistas}
                     </span>
                 </div>
                 {senalActividad && senalActividad.tipo === 'guardados' && (
                     <span className="flex items-center gap-1.5 font-semibold text-slate-600">
-                        <Bookmark className="h-5 w-5 shrink-0" strokeWidth={2.5} fill="currentColor" />
+                        {/* Sin `fill` — ICONOS.guardar es el ícono Archive (con
+                            detalles internos); relleno sólido + trazo grueso lo
+                            volvía una mancha ilegible a este tamaño. Contorno
+                            limpio, igual criterio que MessageCircle/Eye. */}
+                        <Bookmark className="h-6 w-6 shrink-0" strokeWidth={2} />
                         {senalActividad.total}
                     </span>
                 )}
@@ -858,139 +717,19 @@ export function CardArticuloFeed({
                 )}
             </div>
 
-            {/* ─── COMENTARIOS INLINE (hilos de 1 nivel) ──────────────────────
-                En modoModal esta zona es la única scrolleable; el input vive
-                fijo abajo. Inline mostramos los primeros hilos; "Ver más" abre
-                el detalle/modal con todo. */}
-            <div className={modoModal ? 'flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-3' : 'px-4 py-3'}>
-                {comentariosInline.length > 0 && (
-                    <div className="space-y-3">
-                        {comentariosInline.map((c) => (
-                            <ComentarioItem
-                                key={c.id}
-                                comentario={c}
-                                vendedorId={articulo.vendedor.id}
-                                usuarioActual={usuarioActual}
-                                puedeComentar={puedeComentar}
-                                enviandoRespuesta={crearComentario.isPending}
-                                onEditar={handleEditarComentario}
-                                onEliminar={handleEliminarComentario}
-                                onResponder={handleResponderComentario}
-                            />
-                        ))}
-
-                        {/* "Ver más" — abre el modal/detalle si hay más hilos
-                            de los que caben inline. */}
-                        {hayMasContenido && (
-                            <button
-                                type="button"
-                                data-testid={`card-feed-ver-mas-comentarios-${articulo.id}`}
-                                onClick={() => {
-                                    if (onAbrirDetalle) onAbrirDetalle();
-                                    else irAlDetalle();
-                                }}
-                                className="text-sm font-semibold text-teal-700 lg:cursor-pointer lg:hover:underline"
-                            >
-                                Ver más
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* ─── INPUT + AVISO COMERCIAL (zona fija en modoModal) ────────── */}
-            {(puedeComentar || enModoComercial) && (
-                <div
-                    className={
-                        modoModal
-                            ? 'shrink-0 border-t border-slate-200 bg-white px-4 py-3'
-                            : `px-4 ${comentarios.length > 0 ? 'pb-3' : 'pt-3 pb-3'}`
-                    }
-                >
-                {puedeComentar && (
-                    <form onSubmit={handleEnviarComentario}>
-                        <div className="flex items-center gap-2.5">
-                            {/* Avatar del usuario actual */}
-                            {usuario && usuario.avatarUrl ? (
-                                <img
-                                    src={usuario.avatarUrl}
-                                    alt=""
-                                    aria-hidden="true"
-                                    className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
-                                />
-                            ) : (
-                                <div
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-md ring-2 ring-slate-200"
-                                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
-                                    aria-hidden="true"
-                                >
-                                    {((usuario?.nombre ?? '?').charAt(0) +
-                                        (usuario?.apellidos ?? '').charAt(0)).toUpperCase()}
-                                </div>
-                            )}
-
-                            <div className="flex flex-1 items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-500/20">
-                                <input
-                                    type="text"
-                                    data-testid={`card-feed-input-comentario-${articulo.id}`}
-                                    value={textoComentario}
-                                    onChange={(e) => {
-                                        setTextoComentario(e.target.value);
-                                        if (errorComentario) setErrorComentario(null);
-                                    }}
-                                    placeholder="Escribe un comentario…"
-                                    maxLength={TEXTO_MAX}
-                                    disabled={crearComentario.isPending}
-                                    className="flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
-                                />
-                                <button
-                                    type="submit"
-                                    data-testid={`card-feed-enviar-comentario-${articulo.id}`}
-                                    disabled={
-                                        crearComentario.isPending ||
-                                        textoComentario.trim().length < TEXTO_MIN
-                                    }
-                                    aria-label="Publicar comentario"
-                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed lg:cursor-pointer ${
-                                        textoComentario.trim().length >= TEXTO_MIN && !crearComentario.isPending
-                                            ? 'bg-teal-600 text-white shadow-sm lg:hover:bg-teal-700'
-                                            : 'bg-transparent text-slate-400'
-                                    }`}
-                                >
-                                    {crearComentario.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
-                                    ) : (
-                                        <Send className="h-4 w-4" strokeWidth={2.5} />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mt-1 flex items-center justify-between px-3 text-sm">
-                            {errorComentario ? (
-                                <span className="flex items-center gap-1 text-rose-600">
-                                    <AlertCircle className="h-3.5 w-3.5" strokeWidth={2.5} />
-                                    {errorComentario}
-                                </span>
-                            ) : (
-                                <span className="text-slate-600">
-                                    {textoComentario.length > 0
-                                        ? `${textoComentario.length}/${TEXTO_MAX}`
-                                        : ''}
-                                </span>
-                            )}
-                        </div>
-                    </form>
-                )}
-
-                {/* Modo Comercial — bloqueado */}
-                {enModoComercial && (
-                    <div
-                        className={`rounded-xl border-2 border-amber-300 bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 ${puedeComentar ? 'mt-3' : ''}`}
-                    >
-                        Cambia a modo Personal para comentar en MarketPlace.
-                    </div>
-                )}
+            {/* ─── COMENTARIOS (solo en modoModal) — sin vista previa inline
+                en el feed normal (mismo criterio que CardPublicacionNegocioFeed):
+                el ícono de comentarios del footer abre `ModalComentariosMarketplace`
+                con TODOS los comentarios. En modoModal (dentro de
+                `ModalArticuloDetalle`) se reusa el mismo componente compartido
+                que usa el modal, para no duplicar la lógica de comentarios en
+                dos sitios. ─────────────────────────────────────────────────── */}
+            {modoModal && (
+                <div className="flex-1 min-h-0 px-4 pt-3 pb-3">
+                    <SeccionComentariosMarketplace
+                        articuloId={articulo.id}
+                        vendedorId={articulo.vendedor.id}
+                    />
                 </div>
             )}
 
@@ -1004,11 +743,15 @@ export function CardArticuloFeed({
                 />
             )}
 
-            {/* Bubble "¡Guardado!" / "Quitado" vía useSaveBubble — mismo
-                patrón unificado que CardNegocio, CardArticulo y BookmarkGlass.
-                El portal vive dentro del article para que se desmonte si
-                el card se quita del DOM. */}
-            {saveBubble}
+            {/* ─── MODAL COMENTARIOS (solo feed, no modoModal) ────────────── */}
+            {!modoModal && comentariosAbierto && (
+                <ModalComentariosMarketplace
+                    abierto={comentariosAbierto}
+                    onCerrar={() => setComentariosAbierto(false)}
+                    articuloId={articulo.id}
+                    vendedorId={articulo.vendedor.id}
+                />
+            )}
         </article>
     );
 }

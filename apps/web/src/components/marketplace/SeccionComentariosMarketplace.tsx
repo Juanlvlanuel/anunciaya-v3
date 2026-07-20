@@ -1,55 +1,60 @@
 /**
- * SeccionComentariosPublicacionNegocio.tsx
- * ============================================
- * Sección de comentarios estilo Facebook para una publicación de negocio:
+ * SeccionComentariosMarketplace.tsx
+ * ===================================
+ * Sección de comentarios estilo Facebook para un artículo de MarketPlace:
  * lista plana (sin card contenedor por hilo, respuestas colapsadas detrás de
  * "Ver N respuestas") + input inferior sin avatar ("Comentar como {nombre}").
- * Acento azul (`colorTema="blue"`) — tema de Negocios.
+ * Acento teal (`colorTema="teal"`) — tema de MarketPlace.
  *
  * Compartida entre:
- *  - `ModalComentariosPublicacionNegocio.tsx` (modal full-screen abierto
- *    desde el ícono de comentarios del feed).
- *  - `DetallePublicacionNegocioContenido.tsx` (página de detalle).
+ *  - `ModalComentariosMarketplace.tsx` (modal full-screen abierto desde el
+ *    ícono de comentarios del feed).
+ *  - `ModalArticuloDetalle.tsx` / página de detalle, si adopta el mismo modal.
  *
- * Encapsula TODO el data-fetching de comentarios a partir de un
- * `publicacionId` — el caller solo decide dónde se monta.
+ * Encapsula TODO el data-fetching de comentarios a partir de un `articuloId`
+ * — el caller solo decide dónde se monta. Reusa los mismos hooks que ya
+ * usaba `CardArticuloFeed` inline (`useComentariosArticulo`,
+ * `useCrearComentario`, `useEditarComentario`, `useEliminarComentario`).
  *
- * Ubicación: apps/web/src/components/negocios/publicaciones/SeccionComentariosPublicacionNegocio.tsx
+ * Ubicación: apps/web/src/components/marketplace/SeccionComentariosMarketplace.tsx
  */
 
 import { useCallback, useState } from 'react';
 import { Send, Loader2, AlertCircle } from 'lucide-react';
-import { ComentarioItem, type UsuarioComentario } from '../../marketplace/ComentarioItem';
-import { useAuthStore } from '../../../stores/useAuthStore';
-import { notificar } from '../../../utils/notificaciones';
+import { ComentarioItem, type UsuarioComentario } from './ComentarioItem';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { notificar } from '../../utils/notificaciones';
 import {
-    useComentariosPublicacionNegocio,
-    useCrearComentarioNegocio,
-    useEditarComentarioNegocio,
-    useEliminarComentarioNegocio,
-} from '../../../hooks/queries/useNegocioPublicaciones';
+    useComentariosArticulo,
+    useCrearComentario,
+    useEditarComentario,
+    useEliminarComentario,
+} from '../../hooks/queries/useMarketplace';
 
 const TEXTO_MIN = 2;
 const TEXTO_MAX = 500;
 
-interface SeccionComentariosPublicacionNegocioProps {
-    publicacionId: string;
-    /** negocioId de la publicación — habilita moderación si el usuario es dueño/gerente. */
-    negocioId?: string;
-    /** Fallback de moderación cuando el usuario no es dueño del negocio (ver detalle). */
-    autorUsuarioId?: string;
+interface SeccionComentariosMarketplaceProps {
+    articuloId: string;
+    /** id del vendedor del artículo — habilita la etiqueta "Vendedor" en sus comentarios. */
+    vendedorId: string;
 }
 
-export function SeccionComentariosPublicacionNegocio({
-    publicacionId,
-    negocioId,
-    autorUsuarioId,
-}: SeccionComentariosPublicacionNegocioProps) {
+export function SeccionComentariosMarketplace({
+    articuloId,
+    vendedorId,
+}: SeccionComentariosMarketplaceProps) {
     const usuario = useAuthStore((s) => s.usuario);
-    const { data: comentarios = [], isLoading } = useComentariosPublicacionNegocio(publicacionId);
-    const crearComentario = useCrearComentarioNegocio();
-    const editarComentario = useEditarComentarioNegocio();
-    const eliminarComentario = useEliminarComentarioNegocio();
+    const modoActivo = usuario?.modoActivo ?? 'personal';
+    // Modo Comercial: bloqueado para comentar (regla del marketplace, igual
+    // que la vista previa inline que reemplaza esta sección).
+    const enModoComercial = modoActivo === 'comercial';
+    const puedeComentar = !!usuario && !enModoComercial;
+
+    const { data: comentarios = [], isLoading } = useComentariosArticulo(articuloId);
+    const crearComentario = useCrearComentario();
+    const editarComentario = useEditarComentario();
+    const eliminarComentario = useEliminarComentario();
 
     const [textoComentario, setTextoComentario] = useState('');
     const [errorComentario, setErrorComentario] = useState<string | null>(null);
@@ -62,14 +67,6 @@ export function SeccionComentariosPublicacionNegocio({
               avatarUrl: usuario.avatarUrl ?? null,
           }
         : null;
-
-    // Cualquier usuario logueado puede comentar/moderar (sin restricción de
-    // modo, a diferencia de MarketPlace). Si es dueño/gerente del negocio de
-    // esta publicación, "se hace pasar" por el vendedor para que el botón
-    // eliminar aparezca también sobre comentarios ajenos (ComentarioItem solo
-    // compara un único id — el backend igual valida pertenencia al negocio).
-    const esPropioNegocio = !!usuario?.negocioId && usuario.negocioId === negocioId;
-    const vendedorIdParaUI = esPropioNegocio ? (usuario?.id ?? '') : (autorUsuarioId ?? '');
 
     const leerError = (e: unknown) => {
         const err = e as { response?: { status?: number; data?: { message?: string } } };
@@ -90,7 +87,7 @@ export function SeccionComentariosPublicacionNegocio({
             }
             setErrorComentario(null);
             try {
-                await crearComentario.mutateAsync({ publicacionId, texto: limpio });
+                await crearComentario.mutateAsync({ articuloId, texto: limpio });
                 setTextoComentario('');
             } catch (err) {
                 const { status, mensaje } = leerError(err);
@@ -98,26 +95,26 @@ export function SeccionComentariosPublicacionNegocio({
                 else setErrorComentario(mensaje ?? 'No se pudo publicar el comentario');
             }
         },
-        [textoComentario, usuario, crearComentario, publicacionId]
+        [textoComentario, usuario, crearComentario, articuloId]
     );
 
     const handleResponder = useCallback(
         async (parentId: string, texto: string): Promise<boolean> => {
             try {
-                await crearComentario.mutateAsync({ publicacionId, texto, parentId });
+                await crearComentario.mutateAsync({ articuloId, texto, parentId });
                 return true;
             } catch (err) {
                 notificar.error(leerError(err).mensaje ?? 'No se pudo publicar la respuesta');
                 return false;
             }
         },
-        [crearComentario, publicacionId]
+        [crearComentario, articuloId]
     );
 
     const handleEditar = useCallback(
         async (id: string, texto: string): Promise<boolean> => {
             try {
-                await editarComentario.mutateAsync({ comentarioId: id, publicacionId, texto });
+                await editarComentario.mutateAsync({ comentarioId: id, articuloId, texto });
                 notificar.exito('Comentario actualizado');
                 return true;
             } catch (err) {
@@ -125,30 +122,30 @@ export function SeccionComentariosPublicacionNegocio({
                 return false;
             }
         },
-        [editarComentario, publicacionId]
+        [editarComentario, articuloId]
     );
 
     const handleEliminar = useCallback(
         (id: string) => {
             if (!confirm('¿Eliminar este comentario?')) return;
             eliminarComentario.mutate(
-                { comentarioId: id, publicacionId },
+                { comentarioId: id, articuloId },
                 {
                     onSuccess: () => notificar.exito('Comentario eliminado'),
                     onError: () => notificar.error('No se pudo eliminar el comentario'),
                 }
             );
         },
-        [eliminarComentario, publicacionId]
+        [eliminarComentario, articuloId]
     );
 
     return (
-        <div className="flex h-full min-h-0 flex-col" data-testid="seccion-comentarios-publicacion-negocio">
+        <div className="flex h-full min-h-0 flex-col" data-testid="seccion-comentarios-marketplace">
             {/* Lista — sin card por hilo, respuestas colapsadas (estiloFacebook). */}
-            <div className="scroll-discreto flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
                 {isLoading && (
                     <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                        <Loader2 className="w-6 h-6 text-teal-500 animate-spin" />
                     </div>
                 )}
                 {!isLoading && comentarios.length === 0 && (
@@ -160,46 +157,45 @@ export function SeccionComentariosPublicacionNegocio({
                     <ComentarioItem
                         key={comentario.id}
                         comentario={comentario}
-                        vendedorId={vendedorIdParaUI}
+                        vendedorId={vendedorId}
                         usuarioActual={usuarioActual}
-                        etiquetaAutor="Negocio"
-                        puedeComentar={!!usuario}
+                        puedeComentar={puedeComentar}
                         enviandoRespuesta={crearComentario.isPending}
                         onEditar={handleEditar}
                         onEliminar={handleEliminar}
                         onResponder={handleResponder}
-                        colorTema="blue"
+                        colorTema="teal"
                         estiloFacebook
                     />
                 ))}
             </div>
 
             {/* Input estilo Facebook — sin avatar, "Comentar como {nombre}". */}
-            {usuario ? (
+            {puedeComentar ? (
                 <div className="shrink-0 pt-3">
                     <form onSubmit={handleEnviarComentario}>
-                        <div className="flex items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
+                        <div className="flex items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-500/20">
                             <input
                                 type="text"
-                                data-testid="input-comentario-negocio-facebook"
+                                data-testid="input-comentario-marketplace-facebook"
                                 value={textoComentario}
                                 onChange={(e) => {
                                     setTextoComentario(e.target.value);
                                     if (errorComentario) setErrorComentario(null);
                                 }}
-                                placeholder={`Comentar como ${usuario.nombre ?? 'tú'}…`}
+                                placeholder={`Comentar como ${usuario?.nombre ?? 'tú'}…`}
                                 maxLength={TEXTO_MAX}
                                 disabled={crearComentario.isPending}
                                 className="flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
                             />
                             <button
                                 type="submit"
-                                data-testid="enviar-comentario-negocio-facebook"
+                                data-testid="enviar-comentario-marketplace-facebook"
                                 disabled={crearComentario.isPending || textoComentario.trim().length < TEXTO_MIN}
                                 aria-label="Publicar comentario"
                                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed lg:cursor-pointer ${
                                     textoComentario.trim().length >= TEXTO_MIN && !crearComentario.isPending
-                                        ? 'bg-blue-600 text-white shadow-sm lg:hover:bg-blue-700'
+                                        ? 'bg-teal-600 text-white shadow-sm lg:hover:bg-teal-700'
                                         : 'bg-transparent text-slate-400'
                                 }`}
                             >
@@ -220,11 +216,13 @@ export function SeccionComentariosPublicacionNegocio({
                 </div>
             ) : (
                 <p className="shrink-0 pt-3 text-sm text-slate-600 text-center">
-                    Inicia sesión para comentar.
+                    {enModoComercial
+                        ? 'Cambia a modo Personal para comentar en MarketPlace.'
+                        : 'Inicia sesión para comentar.'}
                 </p>
             )}
         </div>
     );
 }
 
-export default SeccionComentariosPublicacionNegocio;
+export default SeccionComentariosMarketplace;

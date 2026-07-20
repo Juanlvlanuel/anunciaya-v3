@@ -482,10 +482,12 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
           style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite', animationPlayState: esVisible ? 'running' : 'paused' }}
         />
       )}
+      {/* Sin `fill` — mismo criterio que el resto: ThumbsUp con relleno
+          sólido se ve manchado a este tamaño, solo contorno + color. */}
       <Icon
         icon={ICONOS.like}
         className={iconSize}
-        fill={liked ? 'currentColor' : 'none'}
+        fill="none"
         style={{ color: liked ? '#3b82f6' : 'rgba(255,255,255,0.9)' }}
       />
     </button>
@@ -694,7 +696,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
               + px-2 py-1) para coherencia entre módulos. */}
           {distanciaTexto && (
             <div className="flex items-center gap-1 shrink-0 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-              <Icon icon={ICONOS.distancia} className="w-3 h-3" style={{ color: 'white' }} />
+              <Icon icon={ICONOS.ubicacion} className="w-3 h-3" style={{ color: 'white' }} />
               <span className="text-[11px] font-bold text-white">{distanciaTexto}</span>
             </div>
           )}

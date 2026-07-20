@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Store, ImageOff, MessageCircle } from 'lucide-react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { formatearTiempoRelativo, formatearPrecio } from '../../../utils/marketplace';
+import { truncarTexto } from '../../../utils/truncarTexto';
 import { ModalImagenes } from '../../ui/ModalImagenes';
 import { ModalComentariosPublicacionNegocio } from './ModalComentariosPublicacionNegocio';
 import type { PublicacionNegocioFeedItemConComentarios } from '../../../types/negocioPublicaciones';
@@ -29,13 +30,17 @@ function formatearDistancia(km: number): string {
     return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
+// Tope de caracteres para el texto recortado — "Ver más" se agrega como
+// texto real dentro del mismo párrafo (no `line-clamp` + overlay flotante),
+// mismo criterio que CardArticuloFeed de MarketPlace. ~3 líneas en el ancho
+// típico de la card.
+const TEXTO_MAX_CHARS = 150;
+
 interface CardPublicacionNegocioFeedProps {
     publicacion: PublicacionNegocioFeedItemConComentarios;
     /** Navega a la página de detalle (`/negocios/publicacion/:id`). */
     onAbrirDetalle: (id: string) => void;
 }
-
-const TEXTO_MAX_LINEAS = 3;
 
 export function CardPublicacionNegocioFeed({
     publicacion,
@@ -50,6 +55,8 @@ export function CardPublicacionNegocioFeed({
     const fotos = publicacion.fotos ?? [];
     const tieneMultiples = fotos.length > 1;
     const tiempo = formatearTiempoRelativo(publicacion.createdAt);
+    const textoCorto = truncarTexto(publicacion.texto, TEXTO_MAX_CHARS);
+    const textoRecortado = textoCorto.length < publicacion.texto.length;
 
     function irAPerfilNegocio() {
         navigate(`/negocios/${publicacion.sucursalId}`);
@@ -135,7 +142,7 @@ export function CardPublicacionNegocioFeed({
     return (
         <article
             data-testid={`card-publicacion-negocio-${publicacion.id}`}
-            className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden"
+            className="rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] overflow-hidden"
         >
             {/* ── Header: logo (click → expande) + nombre (click → perfil) + distancia + tiempo ── */}
             <div className="flex items-center gap-3 px-3 py-3 lg:px-4 lg:py-4">
@@ -189,30 +196,27 @@ export function CardPublicacionNegocioFeed({
                 )}
             </div>
 
-            {/* ── Texto — clickeable a pantalla completa; "Ver publicación"
-                hace explícito el affordance (mismo estilo que "Ver más" de
-                comentarios, más abajo). ── */}
-            <button
-                type="button"
-                onClick={() => onAbrirDetalle(publicacion.id)}
-                className={`block w-full px-3 lg:px-4 text-left lg:cursor-pointer ${publicacion.precio ? 'pb-1' : 'pb-3'}`}
-            >
-                <p
-                    className="text-[15px] font-medium text-slate-800 leading-relaxed whitespace-pre-wrap"
-                    style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: TEXTO_MAX_LINEAS,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                    }}
-                >
-                    {publicacion.texto}
+            {/* ── Texto — "Ver más" es texto REAL dentro del mismo párrafo
+                (recorte por caracteres, no `line-clamp` + overlay flotante)
+                — se lee como continuación de la oración, no como un
+                elemento aparte. Mismo criterio que CardArticuloFeed de
+                MarketPlace (mismo texto "Ver más", acento temático propio:
+                azul acá, teal en MP). Siempre visible (CTA al detalle),
+                aunque el texto sea corto y no haga falta recortarlo con
+                "…". ── */}
+            <div className={`px-3 lg:px-4 ${publicacion.precio ? 'pb-1' : 'pb-3'}`}>
+                <p className="whitespace-pre-wrap text-[15px] font-medium leading-relaxed text-slate-800">
+                    {textoCorto}
+                    {textoRecortado ? '… ' : ' '}
+                    <button
+                        type="button"
+                        onClick={() => onAbrirDetalle(publicacion.id)}
+                        className="font-semibold text-blue-600 lg:cursor-pointer lg:hover:underline"
+                    >
+                        Ver más
+                    </button>
                 </p>
-                <span className="mt-1.5 inline-flex items-center gap-0.5 text-sm font-semibold text-blue-600">
-                    Ver publicación
-                    <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
-            </button>
+            </div>
 
             {/* ── Precio — dato comercial principal, aparte de las métricas
                 del footer (mismo criterio que el precio de MP). ── */}
@@ -274,17 +278,17 @@ export function CardPublicacionNegocioFeed({
                                 type="button"
                                 onClick={anterior}
                                 aria-label="Foto anterior"
-                                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity lg:cursor-pointer"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity lg:cursor-pointer"
                             >
-                                <ChevronLeft className="h-5 w-5" />
+                                <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
                             </button>
                             <button
                                 type="button"
                                 onClick={siguiente}
                                 aria-label="Foto siguiente"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity lg:cursor-pointer"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity lg:cursor-pointer"
                             >
-                                <ChevronRight className="h-5 w-5" />
+                                <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                             </button>
                             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1">
                                 {fotos.map((_, i) => (

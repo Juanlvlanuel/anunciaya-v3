@@ -165,9 +165,11 @@ export function GaleriaArticulo({
                 DESKTOP — Foto principal con flechas overlay para navegar
                 entre fotos (prev/next). Las flechas son siblings del
                 `<button>` de la imagen (no hijos), así su click no
-                propaga al wrapper que abre el lightbox.
+                propaga al wrapper que abre el lightbox. `group` en el
+                wrapper (no en el botón de la foto) para que el hover sobre
+                CUALQUIER parte (foto o flechas) las revele.
             ═══════════════════════════════════════════════════════════════ */}
-            <div className="relative hidden lg:block">
+            <div className="group relative hidden lg:block">
                 <button
                     data-testid="img-principal"
                     onClick={() => abrirLightbox(indiceActual)}
@@ -194,7 +196,7 @@ export function GaleriaArticulo({
                             data-testid="btn-foto-anterior"
                             onClick={irAnterior}
                             aria-label="Foto anterior"
-                            className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg backdrop-blur-sm transition-all hover:bg-white hover:scale-110 active:scale-95"
+                            className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
                         >
                             <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
                         </button>
@@ -203,7 +205,7 @@ export function GaleriaArticulo({
                             data-testid="btn-foto-siguiente"
                             onClick={irSiguiente}
                             aria-label="Foto siguiente"
-                            className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg backdrop-blur-sm transition-all hover:bg-white hover:scale-110 active:scale-95"
+                            className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
                         >
                             <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                         </button>

@@ -6,6 +6,16 @@
  * precio, galería swipeable de fotos, vistas y comentarios estilo Facebook
  * (reusa `SeccionComentariosPublicacionNegocio`).
  *
+ * Layout:
+ *  - Móvil: una sola card apilada (header → texto → precio → galería →
+ *    vistas → comentarios), sin cambios respecto al diseño original.
+ *  - Escritorio: 2 columnas independientes en flujo normal (sin
+ *    `position:fixed`/`sticky`). La columna de comentarios tiene alto FIJO
+ *    (`h-[700px]`) tanto vacía como llena — no se achica ni se agranda
+ *    según el número de comentarios — con scroll interno propio
+ *    (`SeccionComentariosPublicacionNegocio` ya trae `h-full flex flex-col`
+ *    para esto: lista scrolleable arriba, input pegado abajo).
+ *
  * Encapsula el data-fetching de la publicación a partir de un solo
  * `publicacionId` — el caller solo pone el chrome alrededor (página privada,
  * página pública). Los comentarios los resuelve `SeccionComentariosPublicacionNegocio`
@@ -33,6 +43,8 @@ import { usePublicacionNegocio } from '../../../hooks/queries/useNegocioPublicac
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+
+const TARJETA_CLASES = 'rounded-xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]';
 
 /** Mismo formato que CardPublicacionNegocioFeed/CardNegocio: metros si es <1km. */
 function formatearDistancia(km: number): string {
@@ -63,8 +75,8 @@ export function DetallePublicacionNegocioContenido({
     const fotos = publicacion.fotos ?? [];
     const tiempo = formatearTiempoRelativo(publicacion.createdAt);
 
-    return (
-        <div className="space-y-4" data-testid="detalle-publicacion-negocio">
+    const contenidoIzquierda = (
+        <>
             {/* Header: logo (click → expande) + nombre (click → perfil) + tiempo. */}
             <div className="flex items-center gap-3">
                 <button
@@ -135,16 +147,39 @@ export function DetallePublicacionNegocioContenido({
                 <Eye className="h-5 w-5" />
                 {publicacion.totalVistas} vistas
             </div>
+        </>
+    );
 
-            {/* ── Comentarios — estilo Facebook, mismo componente que usa el
-                modal del feed (sin card por hilo, respuestas colapsadas,
-                input sin avatar). ── */}
-            <div className="pt-3 border-t-[1.5px] border-slate-300">
-                <SeccionComentariosPublicacionNegocio
-                    publicacionId={publicacionId}
-                    negocioId={publicacion.negocioId}
-                    autorUsuarioId={publicacion.autorUsuarioId}
-                />
+    const contenidoComentarios = (
+        <SeccionComentariosPublicacionNegocio
+            publicacionId={publicacionId}
+            negocioId={publicacion.negocioId}
+            autorUsuarioId={publicacion.autorUsuarioId}
+        />
+    );
+
+    return (
+        <div data-testid="detalle-publicacion-negocio">
+            {/* ── MÓVIL: una sola card apilada ── */}
+            <div className={`space-y-4 p-3 lg:hidden ${TARJETA_CLASES}`}>
+                {contenidoIzquierda}
+                <div className="border-t-[1.5px] border-slate-300 pt-3">
+                    {contenidoComentarios}
+                </div>
+            </div>
+
+            {/* ── ESCRITORIO: 2 columnas independientes, flujo normal, MISMO
+                alto fijo `h-[700px]` en ambas (vacías o llenas) — con
+                scroll interno propio cada una, así no se desbalancean
+                aunque el contenido de una sea más corto que el de la otra. */}
+            <div className="hidden lg:flex lg:items-start lg:gap-6 2xl:gap-8">
+                <div className={`scroll-discreto w-[560px] 2xl:w-[640px] shrink-0 h-[700px] space-y-4 overflow-y-auto p-5 ${TARJETA_CLASES}`}>
+                    {contenidoIzquierda}
+                </div>
+
+                <div className={`min-w-0 flex-1 h-[700px] p-5 ${TARJETA_CLASES}`}>
+                    {contenidoComentarios}
+                </div>
             </div>
 
             {logoAbierto && publicacion.sucursalAvatarUrl && (

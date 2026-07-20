@@ -437,7 +437,11 @@ function KpiChip({ icono: IconoChip, valor, label, urgente, acento, className }:
             className={`inline-flex shrink-0 items-center gap-1 rounded-full ${bgClasses} px-2 py-1 text-sm font-semibold ${textClasses} lg:px-2.5 ${className ?? ''}`}
             title={label}
         >
-            <IconoChip className={`h-3.5 w-3.5 ${iconClasses} lg:h-4 lg:w-4`} strokeWidth={2.5} fill={acento === 'amber' ? 'currentColor' : 'none'} />
+            {/* Sin `fill` — ICONOS.guardar es el ícono Archive (con detalles
+                internos); relleno sólido lo volvía una mancha ilegible a
+                este tamaño. El acento amber ya se comunica con el fondo/
+                texto del chip, no hace falta rellenar también el ícono. */}
+            <IconoChip className={`h-3.5 w-3.5 ${iconClasses} lg:h-4 lg:w-4`} strokeWidth={2.5} fill="none" />
             {valor}
         </span>
     );

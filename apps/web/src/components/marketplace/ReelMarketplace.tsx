@@ -136,7 +136,7 @@ export function ReelMarketplace({
     return (
         <div
             data-testid="reel-marketplace-wrapper"
-            className="group/reel relative"
+            className="group/reel relative mb-4"
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
         >
@@ -148,7 +148,7 @@ export function ReelMarketplace({
                 onMouseUp={finalizarDrag}
                 onTouchStart={onTouchStart}
                 onTouchEnd={onTouchEnd}
-                className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory px-4 py-2 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+                className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
                 style={{
                     cursor: dragRef.current.activo ? 'grabbing' : 'grab',
                 }}

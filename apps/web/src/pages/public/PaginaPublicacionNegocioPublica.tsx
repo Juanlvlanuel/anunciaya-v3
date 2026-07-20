@@ -86,9 +86,13 @@ export function PaginaPublicacionNegocioPublica() {
         >
             <HeaderPublico />
 
-            <main className="flex-1 overflow-y-auto pb-8">
-                <div className="lg:mx-auto lg:max-w-[720px] lg:px-6 2xl:px-8">
-                    <div className="mx-3 mt-4 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:mt-8 lg:p-5">
+            <main className="flex-1 overflow-y-auto">
+                <div className="lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-6 2xl:px-8">
+                    {/* `DetallePublicacionNegocioContenido` pone su propia
+                        card en móvil (unificada) y en escritorio (2 columnas
+                        independientes) — la página ya no envuelve nada con
+                        su propia card. */}
+                    <div className="mx-3 mt-4 lg:mx-0 lg:mt-8">
                         <DetallePublicacionNegocioContenido publicacionId={publicacion.id} />
                     </div>
 

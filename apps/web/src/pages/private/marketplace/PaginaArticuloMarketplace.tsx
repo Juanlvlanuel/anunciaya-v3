@@ -399,12 +399,12 @@ export function PaginaArticuloMarketplace() {
                         {/* Bloque info — SOLO en móvil. En desktop va en col-derecha.
                             Card propia con la misma estética que Descripción y
                             Características (border slate-300 + shadow-md). */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:hidden">
+                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">
                             <BloqueInfo articulo={articulo} />
                         </div>
 
                         {/* Descripción — card propia tipo Mercado Libre */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
                             <h2 className="mb-2 text-base font-bold text-slate-900">
                                 Descripción
                             </h2>
@@ -419,7 +419,7 @@ export function PaginaArticuloMarketplace() {
                         {/* Características — solo móvil. En desktop va en
                             el panel sticky derecho (estilo Mercado Libre,
                             datos clave junto al precio). */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md lg:hidden">
+                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">
                             <h2 className="mb-3 text-base font-bold text-slate-900">
                                 Características
                             </h2>
@@ -432,7 +432,7 @@ export function PaginaArticuloMarketplace() {
                         </div>
 
                         {/* Mapa — card propia */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
                             <h2 className="mb-2 text-base font-bold text-slate-900">
                                 Ubicación aproximada
                             </h2>
@@ -449,7 +449,7 @@ export function PaginaArticuloMarketplace() {
                             track del grid padre, por si algún input/textarea
                             interno de `SeccionPreguntas` tiene contenido
                             largo sin word-break que intente expandir. */}
-                        <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                        <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
                             <SeccionComentarios
                                 articuloId={articulo.id}
                                 vendedor={articulo.vendedor}
@@ -471,7 +471,7 @@ export function PaginaArticuloMarketplace() {
                             {/* Card consolidada: info + CTAs (estilo MercadoLibre).
                                 Padding `p-4` unificado en todas las cards del
                                 panel sticky (mismo patrón en la pública). */}
-                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]">
                                 <BloqueInfo articulo={articulo} compacto />
 
                                 <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
@@ -507,7 +507,7 @@ export function PaginaArticuloMarketplace() {
 
                             {/* Características — solo desktop, debajo del
                                 card vendedor. Padding `p-4` consistente. */}
-                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]">
                                 <h2 className="mb-1.5 text-base font-bold text-slate-900">
                                     Características
                                 </h2>

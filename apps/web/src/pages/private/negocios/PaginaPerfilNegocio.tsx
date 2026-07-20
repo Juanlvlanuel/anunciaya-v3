@@ -1062,10 +1062,12 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         liked ? 'bg-white border-blue-500 text-blue-500' : 'bg-white border-slate-300 text-slate-700'
                                     }`}
                                 >
+                                    {/* Sin `fill` — ThumbsUp con relleno sólido se ve
+                                        manchado a este tamaño, solo contorno + color. */}
                                     <Icon
                                         icon={ICONOS.like}
                                         className="w-5 h-5"
-                                        fill={liked ? 'currentColor' : 'none'}
+                                        fill="none"
                                     />
                                 </button>
                             </Tooltip>
@@ -1214,7 +1216,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         entre KPIs siguen visibles sobre el degradado de la página. */}
                                     <div className="flex items-center @5xl:px-2 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2">
                                         <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:pr-2 @[96rem]:pr-4">
-                                            <ThumbsUp className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
+                                            {/* Sin `fill-current` — ThumbsUp con relleno sólido +
+                                                trazo lucide default se veía como mancha a este
+                                                tamaño; solo contorno, igual criterio que el resto
+                                                de íconos de esta fila. */}
+                                            <ThumbsUp className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-500 animate-bounce" style={{ animationDuration: '2s' }} />
                                             <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} me gusta</span>
                                         </div>
                                         <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
@@ -1244,9 +1250,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         {distanciaKm !== null && (
                                             <>
                                                 <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
-                                                <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:ml-2 @[96rem]:ml-4 rounded-full bg-blue-100 @5xl:px-2 @5xl:py-1 @[96rem]:px-3 @[96rem]:py-1.5">
-                                                    <MapPin className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-700 animate-pulse" style={{ animationDuration: '2s' }} />
-                                                    <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-blue-700">
+                                                {/* Sin contenedor/pill azul — mismo criterio que
+                                                    "me gusta"/"visitas"/rating: solo ícono + texto. */}
+                                                <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4">
+                                                    <MapPin className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-600 animate-pulse" style={{ animationDuration: '2s' }} />
+                                                    <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">
                                                         {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}
                                                     </span>
                                                 </div>
