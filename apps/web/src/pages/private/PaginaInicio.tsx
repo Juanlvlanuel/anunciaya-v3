@@ -16,7 +16,7 @@
  * Ubicación: apps/web/src/pages/private/PaginaInicio.tsx
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Users, History, RefreshCcw, Inbox, Sparkles, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -517,6 +517,41 @@ export function PaginaInicio() {
 
     const esMovil = useEsMovil();
 
+    // Rail izquierdo de Coyo (escritorio) — FIJO por JS, mismo patrón que la
+    // columna de cards de PaginaNegocios.tsx/PaginaMarketplace.tsx: con
+    // `position: sticky` había un "recorrido" perceptible (el rail viaja en
+    // flujo normal hasta alcanzar su offset y ahí se pega, sintiéndose como
+    // que "se mueve con el scroll"). Al fijarlo desde el primer pixel
+    // (`position: fixed` con `top`/`left` calculados) no hay recorrido.
+    // El placeholder reserva el ancho/alto exactos en el flujo normal (para
+    // que el feed no salte) y sirve de referencia para medir su `left`.
+    // `top` usa `--ay-navbar-h` (ya publicado por MainLayout con su propio
+    // ResizeObserver del Navbar) en vez de medir un header propio, porque el
+    // Home no tiene header de página — solo el Navbar global.
+    const railPlaceholderRef = useRef<HTMLDivElement>(null);
+    const [railLeft, setRailLeft] = useState<number | null>(null);
+
+    // Depende de `esMovil` (el placeholder se desmonta/remonta al cambiar de
+    // layout) y de `preguntasMostradas.length`: cambios en el alto del feed
+    // pueden hacer aparecer/desaparecer el scrollbar de la página, lo que
+    // corre el contenido centrado (`lg:justify-center`) unos px — un
+    // `ResizeObserver` sobre el propio placeholder NO detecta ese corrimiento
+    // (su ancho no cambia, solo su posición X).
+    useLayoutEffect(() => {
+        if (esMovil) return;
+        const el = railPlaceholderRef.current;
+        if (!el) return;
+        const medir = () => setRailLeft(el.getBoundingClientRect().left);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        window.addEventListener('resize', medir);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', medir);
+        };
+    }, [esMovil, preguntasMostradas.length]);
+
     // Bloque destacado de la pregunta del deep-link (se monta arriba del feed en
     // ambos layouts). Solo cuando hay preguntaId en la URL.
     const bloqueDestacado = preguntaIdDestacada ? (
@@ -780,18 +815,33 @@ export function PaginaInicio() {
             <div className="flex flex-col lg:flex-row lg:justify-center gap-5 2xl:gap-7 items-start">
                 {/* Rail izquierdo: Coyo (mascota + burbujas + input) alineado
                     arriba + adorno decorativo (huellitas + pin) anclado a la
-                    base para llenar el espacio inferior. */}
-                <div className="w-full lg:w-[336px] 2xl:w-[412px] shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100vh-7rem)]">
-                    <EscenaCoyo
-                        nombreUsuario={nombreUsuario}
-                        estadoCoyo={estadoCoyoVisual}
-                        hayCiudad={hayCiudad}
-                        texto={texto}
-                        onTextoChange={setTexto}
-                        onEnviar={handleEnviar}
-                        enviando={crear.isPending}
-                        puedeEnviar={puedeEnviar}
-                    />
+                    base para llenar el espacio inferior. Placeholder `relative`
+                    reserva el ancho/alto exactos en el flujo normal; el rail
+                    real va `lg:fixed` (ver comentario de `railPlaceholderRef`). */}
+                <div
+                    ref={railPlaceholderRef}
+                    className="relative w-full lg:w-[336px] 2xl:w-[412px] shrink-0"
+                    style={{ height: 'calc(100vh - var(--ay-navbar-h, 77px) - 32px)' }}
+                >
+                    <div
+                        className="w-full lg:w-[336px] 2xl:w-[412px] lg:fixed"
+                        style={{
+                            top: 'calc(var(--ay-navbar-h, 77px) + 16px)',
+                            left: railLeft !== null ? `${railLeft}px` : undefined,
+                            height: 'calc(100vh - var(--ay-navbar-h, 77px) - 32px)',
+                        }}
+                    >
+                        <EscenaCoyo
+                            nombreUsuario={nombreUsuario}
+                            estadoCoyo={estadoCoyoVisual}
+                            hayCiudad={hayCiudad}
+                            texto={texto}
+                            onTextoChange={setTexto}
+                            onEnviar={handleEnviar}
+                            enviando={crear.isPending}
+                            puedeEnviar={puedeEnviar}
+                        />
+                    </div>
                 </div>
 
                 {/* Feed */}

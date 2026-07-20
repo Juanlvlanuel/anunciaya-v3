@@ -1269,29 +1269,33 @@ interface PanelDesktopProps {
   onClose: () => void;
 }
 
+// Anclar el panel al botón de campana del Navbar (rect dinámico). El botón
+// se marca con `data-notificaciones-boton="true"`. Calculamos también el
+// maxHeight para que el panel crezca hasta casi llegar al fondo.
+function calcularPosicionPanel(): { top: number; right: number; maxHeight: number } | null {
+  const btn = document.querySelector<HTMLElement>('button[data-notificaciones-boton="true"]');
+  if (!btn) return null;
+  const rect = btn.getBoundingClientRect();
+  const top = rect.bottom + 8;
+  return {
+    top,
+    right: Math.max(8, window.innerWidth - rect.right),
+    // 116 px de margen abajo (~100 px más corto que el cálculo "hasta el
+    // fondo"). Math.max con 460 respeta el min-height y evita que choque
+    // con el footer del CTA en pantallas chicas.
+    maxHeight: Math.max(460, window.innerHeight - top - 116),
+  };
+}
+
 function PanelDesktop({ onClose }: PanelDesktopProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [posicion, setPosicion] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
+  // Calculado en el initializer (síncrono, antes del primer paint) para que
+  // el panel nazca ya anclado al botón — evita el salto de "aparece arriba
+  // y luego brinca debajo de la campana".
+  const [posicion, setPosicion] = useState(calcularPosicionPanel);
 
-  // Anclar el panel al botón de campana del Navbar (rect dinámico).
-  // El botón se marca con `data-notificaciones-boton="true"`. Calculamos
-  // también el maxHeight para que el panel crezca hasta casi llegar al fondo.
   useEffect(() => {
-    const recalcular = () => {
-      const btn = document.querySelector<HTMLElement>('button[data-notificaciones-boton="true"]');
-      if (!btn) return;
-      const rect = btn.getBoundingClientRect();
-      const top = rect.bottom + 8;
-      setPosicion({
-        top,
-        right: Math.max(8, window.innerWidth - rect.right),
-        // 116 px de margen abajo (~100 px más corto que el cálculo "hasta el
-        // fondo"). Math.max con 460 respeta el min-height y evita que choque
-        // con el footer del CTA en pantallas chicas.
-        maxHeight: Math.max(460, window.innerHeight - top - 116),
-      });
-    };
-    recalcular();
+    const recalcular = () => setPosicion(calcularPosicionPanel());
     window.addEventListener('resize', recalcular);
     return () => window.removeEventListener('resize', recalcular);
   }, []);
