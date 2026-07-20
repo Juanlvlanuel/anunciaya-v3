@@ -57,7 +57,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 import { useAuthStore } from '../../../stores/useAuthStore';
 import {
     useArticuloMarketplace,
-    registrarVistaArticulo,
+    useRegistrarVistaArticulo,
     heartbeatArticulo,
     useReactivarArticulo,
 } from '../../../hooks/queries/useMarketplace';
@@ -132,11 +132,9 @@ export function PaginaArticuloMarketplace() {
     const reactivarMutation = useReactivarArticulo();
 
     // ─── Registrar vista (filtra dueño + dedup por sessionStorage) ─────────────
-    useEffect(() => {
-        if (!articulo || !articuloId) return;
-        if (usuarioActual?.id === articulo.vendedor.id) return;
-        registrarVistaArticulo(articuloId);
-    }, [articulo, articuloId, usuarioActual?.id]);
+    // Centralizado en useRegistrarVistaArticulo — mismo hook que usa el modal
+    // de comentarios del feed, mismo patrón que Negocios.
+    useRegistrarVistaArticulo(articulo);
 
     // ─── Heartbeat "viendo ahora" — solo usuarios autenticados ─────────────────
     // Primer ping a los 5s (evita contar rebotes). Luego cada 60s.
@@ -205,7 +203,7 @@ export function PaginaArticuloMarketplace() {
     return (
         <div
             data-testid="pagina-articulo-marketplace"
-            className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full lg:pb-12"
+            className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full"
         >
             {/* Bubble flotante "¡Guardado!" / "Quitado" vía useSaveBubble —
                 reemplaza el toast global (silencioso=true en useGuardados)

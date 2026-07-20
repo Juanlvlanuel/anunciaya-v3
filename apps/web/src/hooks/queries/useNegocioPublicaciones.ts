@@ -8,6 +8,7 @@
  * Ubicación: apps/web/src/hooks/queries/useNegocioPublicaciones.ts
  */
 
+import { useEffect } from 'react';
 import {
     useQuery,
     useInfiniteQuery,
@@ -17,6 +18,7 @@ import {
 } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
+import { useAuthStore } from '../../stores/useAuthStore';
 import type { Comentario } from '../../types/comentarios';
 import type {
     PublicacionNegocioFeedItem,
@@ -140,17 +142,38 @@ const STORAGE_PREFIX_VISTA = 'vista_negocio_publicacion_';
 
 export async function registrarVistaPublicacionNegocio(publicacionId: string): Promise<void> {
     const key = `${STORAGE_PREFIX_VISTA}${publicacionId}`;
-    if (typeof window !== 'undefined' && sessionStorage.getItem(key)) {
-        return;
+    if (typeof window !== 'undefined') {
+        if (sessionStorage.getItem(key)) return;
+        // Se marca ANTES del await (optimista): el mismo componente se monta
+        // por duplicado (bloque móvil + escritorio, alternados por CSS) y
+        // dos llamadas concurrentes verían el storage vacío si se marcara
+        // después de la respuesta, duplicando la vista.
+        sessionStorage.setItem(key, '1');
     }
     try {
         await api.post(`/negocio-publicaciones/${publicacionId}/vista`);
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem(key, '1');
-        }
     } catch {
-        // Silencioso a propósito.
+        if (typeof window !== 'undefined') sessionStorage.removeItem(key);
     }
+}
+
+/**
+ * Registra la vista de una publicación ya cargada (fire-and-forget, dedup
+ * por sesión) — salta al autor para que no infle las vistas de su propia
+ * publicación (mismo criterio que MarketPlace con el vendedor). Centraliza
+ * la lógica de "quién puede ver esto" para que la usen por igual la página
+ * de detalle y el modal de comentarios, sin depender de qué subcomponente
+ * visual está montado en cada caso.
+ */
+export function useRegistrarVistaPublicacionNegocio(
+    publicacion: PublicacionNegocioDetalle | null | undefined
+): void {
+    const usuarioActual = useAuthStore((s) => s.usuario);
+    useEffect(() => {
+        if (!publicacion) return;
+        if (usuarioActual?.id === publicacion.autorUsuarioId) return;
+        registrarVistaPublicacionNegocio(publicacion.id);
+    }, [publicacion, usuarioActual?.id]);
 }
 
 // =============================================================================
@@ -277,7 +300,11 @@ export function useComentariosPublicacionNegocio(publicacionId: string | undefin
             return response.data.data ?? [];
         },
         enabled: !!publicacionId,
-        staleTime: 60 * 1000,
+        // Sin staleTime: los comentarios son contenido social — al reabrir el
+        // modal (ej. desde el deep-link de una notificación) SIEMPRE debe
+        // refrescar en vez de servir el caché de hace hasta 1 min, donde un
+        // comentario recién llegado podía no aparecer hasta recargar la página.
+        staleTime: 0,
     });
 }
 

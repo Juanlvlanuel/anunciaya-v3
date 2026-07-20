@@ -41,6 +41,7 @@ import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useEsCiudadUnica } from '../../hooks/queries/useCiudades';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { notificar } from '../../utils/notificaciones';
+import { ModalImagenes } from '../ui/ModalImagenes';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -121,7 +122,7 @@ const menuDrawerCss = `
   .md4-close {
     all: unset; box-sizing: border-box;
     position: absolute; top: 12px; right: 12px;
-    width: 30px; height: 30px; border-radius: 50%;
+    width: 38px; height: 38px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     background: rgba(15,23,42,0.06);
     color: var(--muted); cursor: pointer;
@@ -327,11 +328,11 @@ const menuDrawerCss = `
     color: #fff;
     border: none;
     border-radius: 12px;
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow: 0 4px 12px rgba(220,38,38,0.28);
+    background: linear-gradient(135deg, #dc2626, #7f1d1d);
+    box-shadow: 0 4px 12px rgba(127,29,29,0.35);
     transition: filter 200ms ease, box-shadow 200ms ease, transform .12s ease;
   }
-  .md4-out:hover { filter: brightness(1.06); box-shadow: 0 6px 16px rgba(220,38,38,0.36); }
+  .md4-out:hover { filter: brightness(1.08); box-shadow: 0 6px 16px rgba(127,29,29,0.45); }
   .md4-out:active { transform: scale(0.97); }
   .md4-out:focus-visible { outline: 2px solid #dc2626; outline-offset: 2px; }
 
@@ -424,6 +425,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   const navegarASeccion = useNavegarASeccion();
 
   const [cambiandoModo, setCambiandoModo] = useState(false);
+  const [avatarAbierto, setAvatarAbierto] = useState(false);
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const tabPersonalRef = useRef<HTMLButtonElement>(null);
@@ -855,7 +857,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             aria-label="Cerrar menú"
             data-testid="menu-drawer-close"
           >
-            <X width={16} height={16} style={{ strokeWidth: 2 }} />
+            <X width={20} height={20} style={{ strokeWidth: 2 }} />
           </button>
           <span
             className={'md4-indicator' + (!tieneModoComercial ? ' md4-indicator-derecha' : '')}
@@ -868,9 +870,14 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
               <div className="md4-avatar-wrap">
                 <div
                   className="md4-avatar"
+                  onClick={() => avatarUrl && setAvatarAbierto(true)}
+                  role={avatarUrl ? 'button' : undefined}
+                  aria-label={avatarUrl ? 'Ver foto de perfil en grande' : undefined}
+                  data-testid="menu-drawer-avatar"
                   style={{
                     background: paleta.accentBg,
                     boxShadow: `0 0 0 4px ${paleta.paper}, 0 0 0 5px ${paleta.accentSoft}`,
+                    cursor: avatarUrl ? 'pointer' : 'default',
                   }}
                 >
                   {avatarUrl ? (
@@ -922,6 +929,15 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           </div>
         </div>
       </div>
+
+      {avatarAbierto && avatarUrl && (
+        <ModalImagenes
+          images={[avatarUrl]}
+          initialIndex={0}
+          isOpen={avatarAbierto}
+          onClose={() => setAvatarAbierto(false)}
+        />
+      )}
     </div>
   );
 }

@@ -179,7 +179,11 @@ export function DropdownCompartir({
     // Estilos según variante
     // -------------------------------------------------------------------------
     const estilosBoton = {
-        hero: `w-[38px] h-[38px] grid place-items-center rounded-full border-2 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${abierto
+        // Base más grande (46px) para vista móvil; `@5xl:` la vuelve a 38px
+        // en escritorio — único consumidor de esta variante es
+        // PaginaPerfilNegocio.tsx, que usa el mismo sistema de container
+        // queries (`@container` de MainLayout).
+        hero: `w-[46px] h-[46px] @5xl:w-[38px] @5xl:h-[38px] grid place-items-center rounded-full border-2 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${abierto
             ? 'bg-blue-50 border-blue-500 text-blue-600'
             : 'bg-white border-slate-300 text-slate-700 hover:border-blue-500 hover:text-blue-600'
             }`,
@@ -215,7 +219,7 @@ export function DropdownCompartir({
                         variante === 'dark'
                             ? 'w-5 h-5'
                             : variante === 'hero'
-                                ? 'w-5 h-5'
+                                ? 'w-6 h-6 @5xl:w-5 @5xl:h-5'
                                 : 'w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700 group-hover:text-gray-500 transition-colors'
                     }
                 />

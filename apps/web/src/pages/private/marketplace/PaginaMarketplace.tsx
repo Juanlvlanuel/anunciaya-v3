@@ -25,7 +25,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
@@ -47,6 +47,7 @@ import { CardArticulo } from '../../../components/marketplace/CardArticulo';
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
+import { ModalComentariosMarketplace } from '../../../components/marketplace/ModalComentariosMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
 import { notificar } from '../../../utils/notificaciones';
@@ -277,6 +278,41 @@ export function PaginaMarketplace() {
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // ─── Deep-link desde notificación de comentario (?articuloId=&comentarioId=) ──
+    // Mismo patrón que `?resenaId=` en PaginaPerfilNegocio.tsx: estado
+    // perezoso desde la URL al montar + efecto keyed en `location.search`
+    // (para que funcione también si ya estás en /marketplace y llega OTRA
+    // notificación), con limpieza de la URL vía history replace. A
+    // diferencia del patrón de reseñas, no hace falta validar contra una
+    // lista ya cargada — el feed es infinito/paginado y el artículo puntual
+    // probablemente no esté en la página cargada; el modal resuelve su
+    // propio fetch por id y tolera estar `undefined` mientras carga.
+    const [articuloIdDestacado, setArticuloIdDestacado] = useState<string | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('articuloId') || null;
+    });
+    const [comentarioIdDestacado, setComentarioIdDestacado] = useState<string | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('comentarioId') || null;
+    });
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const nuevoArticuloId = params.get('articuloId');
+        if (nuevoArticuloId) {
+            setArticuloIdDestacado(nuevoArticuloId);
+            setComentarioIdDestacado(params.get('comentarioId'));
+            params.delete('articuloId');
+            params.delete('comentarioId');
+            const nuevaUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+            window.history.replaceState({}, '', nuevaUrl);
+        }
+    }, [location.search]);
+
     const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
     const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
     const buscadorAbierto = useSearchStore((s) => s.buscadorAbierto);
@@ -1174,6 +1210,21 @@ export function PaginaMarketplace() {
                     </div>
                 </div>,
                 document.body
+            )}
+
+            {/* Deep-link desde notificación de comentario — abre el modal de
+                comentarios del artículo puntual (con scroll + highlight al
+                comentario, ver ModalComentariosMarketplace). */}
+            {articuloIdDestacado && (
+                <ModalComentariosMarketplace
+                    abierto={!!articuloIdDestacado}
+                    onCerrar={() => {
+                        setArticuloIdDestacado(null);
+                        setComentarioIdDestacado(null);
+                    }}
+                    articuloId={articuloIdDestacado}
+                    comentarioDestacadoId={comentarioIdDestacado}
+                />
             )}
         </div>
     );

@@ -123,6 +123,12 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   pago_rechazado: 'membresia',
   pago_aprobado: 'membresia',
   pago_anulado: 'membresia',
+  // ── Comentarios (hilos) — misma familia visual que "alguien te
+  // respondió" (comunidad): tile azul + glifo de chat. ───────────────────
+  marketplace_nuevo_comentario: 'comunidad',
+  marketplace_respuesta_comentario: 'comunidad',
+  negocio_publicacion_nuevo_comentario: 'comunidad',
+  negocio_publicacion_respuesta_comentario: 'comunidad',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -262,6 +268,22 @@ function obtenerRutaDestino(n: Notificacion): string | null {
   if (tipo === 'membresia_en_gracia') {
     return '/perfil?tab=pagos';
   }
+  // Comentarios (MarketPlace / Negocios): al feed + auto-abrir el modal de
+  // comentarios de esa publicación puntual (NO el detalle dedicado — el
+  // `case 'marketplace':` genérico de abajo apunta ahí, así que estos tipos
+  // se interceptan ANTES). `comentarioId` deja que el modal haga scroll +
+  // highlight al comentario exacto; puede ser null en notificaciones viejas
+  // (pre-migración), el modal simplemente abre sin resaltar nada.
+  if (tipo === 'marketplace_nuevo_comentario' || tipo === 'marketplace_respuesta_comentario') {
+    if (!referenciaId) return null;
+    const comId = n.comentarioId ? `&comentarioId=${n.comentarioId}` : '';
+    return `/marketplace?articuloId=${referenciaId}${comId}`;
+  }
+  if (tipo === 'negocio_publicacion_nuevo_comentario' || tipo === 'negocio_publicacion_respuesta_comentario') {
+    if (!referenciaId) return null;
+    const comId = n.comentarioId ? `&comentarioId=${n.comentarioId}` : '';
+    return `/negocios?publicacionId=${referenciaId}${comId}`;
+  }
   if (!referenciaTipo) return null;
 
   // ── Sprint 1.D — Notificaciones del Home / Coyo ────────────────────────
@@ -367,7 +389,7 @@ const panelNotifCss = `
     to   { transform: translate(0,0) scale(1); }
   }
 
-  .pn-tabs { display: flex; gap: 0; padding: 0 6px; }
+  .pn-tabs { display: flex; gap: 0; padding: 0 6px; flex-shrink: 0; }
   .pn-tab {
     all: unset; cursor: pointer; flex: 1;
     box-sizing: border-box;
@@ -400,7 +422,7 @@ const panelNotifCss = `
   .pn-tab-count.on { background: #2244C8; color: #fff; }
 
   .pn-card {
-    position: relative; z-index: 1; overflow: hidden;
+    position: relative; overflow: hidden;
     background: #F5F7FE;
     border-radius: 18px;
     box-shadow: 0 30px 70px -20px rgba(10,30,90,0.30), 0 6px 16px rgba(10,30,90,0.10);
@@ -440,14 +462,16 @@ const panelNotifCss = `
     flex-shrink: 0;
   }
   .pn-closebtn {
-    all: unset; cursor: pointer;
+    all: unset; cursor: pointer; box-sizing: border-box;
     margin-left: auto;
-    width: 30px; height: 30px; border-radius: 9px;
+    width: 38px; height: 38px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(14,31,92,0.06);
     color: rgba(14,31,92,0.55);
-    transition: background-color .15s ease, color .2s ease;
+    transition: transform .18s ease, background .18s ease, color .18s ease;
   }
-  .pn-closebtn:hover { background: rgba(14,31,92,0.06); color: #0E1F5C; }
+  .pn-closebtn:hover { transform: scale(1.05); background: rgba(14,31,92,0.11); color: #0E1F5C; }
+  .pn-closebtn:active { transform: scale(0.92); }
   .pn-closebtn:focus-visible { outline: 2px solid #2244C8; outline-offset: 2px; }
 
   .pn-fade { animation: pn-fade 220ms ease both; }
@@ -665,13 +689,13 @@ const panelNotifCss = `
     font-family: inherit;
     font-size: 15px; font-weight: 700; letter-spacing: -0.005em;
     color: #fff;
-    background: linear-gradient(180deg, #19295C, #0E1F4A);
+    background: linear-gradient(180deg, #475569, #1e293b);
     border-radius: 12px;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 12px rgba(14,31,92,0.22);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 12px rgba(51,65,85,0.28);
     transition: transform .12s ease, box-shadow .18s ease, opacity .18s ease;
   }
   .pn-cta:hover:not(:disabled) {
-    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 6px 16px rgba(14,31,92,0.30);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 6px 16px rgba(51,65,85,0.36);
   }
   .pn-cta:active:not(:disabled) { transform: scale(.985); }
   .pn-cta:focus-visible:not(:disabled) { outline: 2px solid #fff; outline-offset: -3px; }
@@ -704,7 +728,7 @@ const panelNotifCss = `
     z-index: 40;
     animation: pn-slide 380ms cubic-bezier(.2,.7,.35,1) both;
     display: flex; flex-direction: column;
-    padding-top: 56px;
+    padding-top: 20px;
     box-sizing: border-box;
     cursor: default;
   }
@@ -712,22 +736,6 @@ const panelNotifCss = `
     from { transform: translateX(100%); }
     to   { transform: translateX(0); }
   }
-  .pn-close-mobile {
-    all: unset; box-sizing: border-box;
-    position: absolute; top: 16px; right: 16px;
-    width: 34px; height: 34px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.85);
-    color: #1F2937; cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    transition: transform .18s ease, background .18s ease;
-    z-index: 50;
-  }
-  .pn-close-mobile:hover { transform: scale(1.05); background: #fff; }
-  .pn-close-mobile:active { transform: scale(0.92); }
-  .pn-close-mobile:focus-visible { outline: 2px solid #2244C8; outline-offset: 2px; }
 
   /* En móvil la card sube hasta el top-left con border-radius solo izquierda.
      El shell se convierte en flex column con flex:1 para que la card herede
@@ -1172,7 +1180,7 @@ function PanelContenido({ onClose, conBotonCerrarHeader }: PanelContenidoProps) 
                 aria-label="Cerrar panel"
                 data-testid="panel-notif-close"
               >
-                <IcoX width={15} height={15} />
+                <IcoX width={20} height={20} strokeWidth={2} />
               </button>
             )}
           </div>
@@ -1402,16 +1410,7 @@ function PanelMovil({ onClose }: PanelMovilProps) {
         className="pn-drawer-mobile"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          className="pn-close-mobile"
-          onClick={onClose}
-          aria-label="Cerrar panel"
-          data-testid="panel-notif-close-mobile"
-        >
-          <IcoX width={16} height={16} />
-        </button>
-        <PanelContenido onClose={onClose} conBotonCerrarHeader={false} />
+        <PanelContenido onClose={onClose} conBotonCerrarHeader={true} />
       </div>
     </div>
   );

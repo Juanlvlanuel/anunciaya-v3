@@ -39,6 +39,7 @@ import {
     editarComentarioSchema,
     formatearErroresZod,
 } from '../validations/negocioPublicaciones.schema.js';
+import { obtenerModoActual } from '../middleware/validarModo.js';
 
 // =============================================================================
 // HELPERS
@@ -367,7 +368,8 @@ export async function postCrearComentario(req: Request, res: Response) {
             id,
             usuarioId,
             validacion.data.texto,
-            validacion.data.parentId ?? null
+            validacion.data.parentId ?? null,
+            obtenerModoActual(req)
         );
 
         if (!resultado.success) {

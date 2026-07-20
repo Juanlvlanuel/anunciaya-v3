@@ -1796,6 +1796,10 @@ export const notificaciones = pgTable("notificaciones", {
 	sucursalId: uuid("sucursal_id"),
 	referenciaId: varchar("referencia_id", { length: 100 }),
 	referenciaTipo: varchar("referencia_tipo", { length: 30 }),
+	// Comentario puntual que originó la notificación (deep-link con scroll +
+	// highlight). Sin FK — igual que referenciaId, apunta a tablas distintas
+	// según el módulo (marketplace_comentarios / negocio_publicaciones_comentarios).
+	comentarioId: varchar("comentario_id", { length: 100 }),
 	icono: varchar({ length: 20 }),
 	actorImagenUrl: text("actor_imagen_url"),
 	actorNombre: varchar("actor_nombre", { length: 100 }),
@@ -1823,8 +1827,8 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying])::text[])`),
-	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying])::text[]))`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying, 'negocio_publicacion_nuevo_comentario'::character varying, 'negocio_publicacion_respuesta_comentario'::character varying])::text[])`),
+	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying, 'negocio_publicacion'::character varying])::text[]))`),
 ]);
 
 
@@ -2530,12 +2534,17 @@ export const negocioPublicacionesComentarios = pgTable("negocio_publicaciones_co
 	// Auto-FK: una respuesta apunta a su comentario raíz.
 	parentId: uuid("parent_id").references((): AnyPgColumn => negocioPublicacionesComentarios.id, { onDelete: 'cascade' }),
 	texto: varchar({ length: 500 }).notNull(),
+	// Modo activo del autor AL MOMENTO de comentar ('personal' | 'comercial')
+	// — determina si se muestra la etiqueta "Negocio". Fijo desde la
+	// creación: editar el texto no cambia con qué identidad se comentó.
+	modo: varchar({ length: 15 }).default('personal').notNull(),
 	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_negocio_pub_comentarios_publicacion").using("btree", table.publicacionId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
 	index("idx_negocio_pub_comentarios_parent").using("btree", table.parentId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	check("negocio_pub_comentarios_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 ]);
 
 // ============================================================================

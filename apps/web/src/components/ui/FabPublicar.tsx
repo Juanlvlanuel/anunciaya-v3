@@ -17,6 +17,7 @@
  * Ubicación: apps/web/src/components/ui/FabPublicar.tsx
  */
 
+import type { ReactNode } from 'react';
 import { Plus } from 'lucide-react';
 
 interface FabPublicarProps {
@@ -35,6 +36,10 @@ interface FabPublicarProps {
      *  false — MP/Servicios muestran texto plano en desktop, sin cambios).
      *  Negocios lo activa para igualar el mismo look que móvil. */
     labelConCardEscritorio?: boolean;
+    /** Ícono dentro del círculo (default: `Plus` con animación pulse — el
+     *  comportamiento original "+ Publicar"). Pásalo para reusar el mismo
+     *  FAB con otro propósito (ej. toggle Mapa/Feed de Negocios). */
+    icon?: ReactNode;
 }
 
 export function FabPublicar({
@@ -47,6 +52,7 @@ export function FabPublicar({
     esEscritorio,
     bottomNavVisible,
     labelConCardEscritorio = false,
+    icon,
 }: FabPublicarProps) {
     return (
         <button
@@ -63,11 +69,13 @@ export function FabPublicar({
             }`}
         >
             <span className={`flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform hover:scale-105 ${claseColor}`}>
-                <Plus
-                    className="h-6 w-6"
-                    strokeWidth={2.75}
-                    style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
-                />
+                {icon ?? (
+                    <Plus
+                        className="h-6 w-6"
+                        strokeWidth={2.75}
+                        style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
+                    />
+                )}
             </span>
             {/* Label "Publicar" — visible en móvil y desktop.
                 Móvil: chip blanco translúcido con sombra para legibilidad

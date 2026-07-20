@@ -749,7 +749,6 @@ export function CardArticuloFeed({
                     abierto={comentariosAbierto}
                     onCerrar={() => setComentariosAbierto(false)}
                     articuloId={articulo.id}
-                    vendedorId={articulo.vendedor.id}
                 />
             )}
         </article>

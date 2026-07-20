@@ -355,7 +355,6 @@ export function CardPublicacionNegocioFeed({
                     abierto={comentariosAbierto}
                     onCerrar={() => setComentariosAbierto(false)}
                     publicacionId={publicacion.id}
-                    negocioId={publicacion.negocioId}
                 />
             )}
         </article>

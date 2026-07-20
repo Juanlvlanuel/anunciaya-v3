@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useDeferredValue, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { normalizarTexto } from '../../../utils/normalizarTexto';
@@ -62,6 +62,7 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
+import { ModalComentariosPublicacionNegocio } from '../../../components/negocios/publicaciones/ModalComentariosPublicacionNegocio';
 import { ComposerSection as ComposerSectionNegocio } from '../../../components/negocios/publicaciones/composer/ComposerSection';
 import { FeedPublicacionesNegocio } from '../../../components/negocios/publicaciones/FeedPublicacionesNegocio';
 import { ReelNegociosFeed } from '../../../components/negocios/publicaciones/ReelNegociosFeed';
@@ -515,6 +516,7 @@ function MapaNegocio({
 
 export function PaginaNegocios() {
   const navigate = useNavigate();
+  const location = useLocation();
   // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
   const handleVolver = useVolverAtras('/inicio');
   const cuerpoRef = useScrollAppShell();
@@ -553,6 +555,40 @@ export function PaginaNegocios() {
   const [negocioSeleccionadoId, setNegocioSeleccionadoId] = useState<string | null>(null);
   // Feed es el default en desktop y móvil por igual (reemplaza a Lista).
   const [tabActiva, setTabActiva] = useState<TabNegocios>('feed');
+
+  // ─── Deep-link desde notificación de comentario (?publicacionId=&comentarioId=) ──
+  // Mismo patrón que `?resenaId=` en PaginaPerfilNegocio.tsx: estado
+  // perezoso desde la URL al montar + efecto keyed en `location.search`
+  // (para que funcione también si ya estás en /negocios y llega OTRA
+  // notificación), con limpieza de la URL vía history replace. No hace
+  // falta validar contra una lista ya cargada — el feed es infinito y el
+  // modal resuelve su propio fetch por id.
+  const [publicacionIdDestacada, setPublicacionIdDestacada] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('publicacionId') || null;
+  });
+  const [comentarioIdDestacado, setComentarioIdDestacado] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('comentarioId') || null;
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nuevaPublicacionId = params.get('publicacionId');
+    if (nuevaPublicacionId) {
+      setPublicacionIdDestacada(nuevaPublicacionId);
+      setComentarioIdDestacado(params.get('comentarioId'));
+      // El deep-link solo tiene sentido en el tab Feed — por si el usuario
+      // ya estaba parado en Mapa cuando llega la notificación.
+      setTabActiva('feed');
+      params.delete('publicacionId');
+      params.delete('comentarioId');
+      const nuevaUrl = params.toString()
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      window.history.replaceState({}, '', nuevaUrl);
+    }
+  }, [location.search]);
   const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
   const inputBusquedaRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -1323,7 +1359,7 @@ export function PaginaNegocios() {
               // `!esModoComercialConNegocio` que envuelve este bloque) — el
               // FAB "Publicar" solo existe en Modo Comercial, así que nunca
               // conviven. Va a la derecha, mismo lugar que ocuparía Publicar.
-              className="lg:hidden fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 active:scale-95"
+              className="lg:hidden fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30 hover:scale-105 active:scale-95"
             >
               <IconoOpuesta className="w-6 h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
               <style>{`
@@ -1530,13 +1566,29 @@ export function PaginaNegocios() {
         {tabActiva === 'feed' && (
           <BotonIrArriba
             testId="negocios-ir-arriba"
-            right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[368px]"
-            // `anclarDerechaRef` SOLO en escritorio: el div de cards del tab
-            // feed vive dentro de un contenedor `hidden lg:block` — en móvil
-            // sigue montado en el DOM (solo oculto por CSS), así que su
-            // `getBoundingClientRect()` da puros ceros y manda la flecha a
-            // una posición inválida si se lo pasamos sin condición.
-            anclarDerechaRef={esEscritorio ? (cardsScrollRef as RefObject<HTMLElement | null>) : undefined}
+            // Modo Personal escritorio: el toggle Mapa/Feed subió arriba (ver
+            // más abajo), así que la flecha baja a ocupar su antiguo lugar
+            // (`2xl:right-[394px]`, mismo eje que el FAB "Publicar" — igual
+            // que en MarketPlace). Modo Comercial (o móvil): sin cambios,
+            // sigue en `2xl:right-[368px]`.
+            right={
+              !esModoComercialConNegocio && esEscritorio
+                ? 'left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]'
+                : 'left-4 lg:left-auto lg:right-[330px] 2xl:right-[368px]'
+            }
+            // `anclarDerechaRef` SOLO en escritorio + Modo Comercial: en
+            // Modo Personal la flecha ya no acompaña el borde de la columna
+            // de cards, se va al slot fijo de arriba (ver `right`). El div de
+            // cards del tab feed vive dentro de un contenedor `hidden
+            // lg:block` — en móvil sigue montado en el DOM (solo oculto por
+            // CSS), así que su `getBoundingClientRect()` da puros ceros y
+            // manda la flecha a una posición inválida si se lo pasamos sin
+            // condición.
+            anclarDerechaRef={
+              esEscritorio && esModoComercialConNegocio
+                ? (cardsScrollRef as RefObject<HTMLElement | null>)
+                : undefined
+            }
             anclaOffsetX={21}
             apilarEscritorio={0}
             // El FAB de toggle Mapa/Feed ahora vive en right-4 en móvil (no
@@ -1556,23 +1608,45 @@ export function PaginaNegocios() {
         )}
 
         {/* Toggle Feed/Mapa circular — SOLO escritorio, reemplaza al pill
-            "Feed 20 / Mapa" flotante. Mismo estilo e ícono que el FAB móvil
-            (círculo oscuro, ícono del modo OPUESTO), anclado ABAJO a la
-            derecha. Visible en AMBOS modos (igual que el pill que
-            reemplaza) — a diferencia del toggle de móvil, este nunca se
-            ocultó en Modo Comercial; convive con el FAB "Publicar" porque
-            viven en alturas distintas (Publicar arriba, este abajo). */}
+            "Feed 20 / Mapa" flotante. Mismo ícono/estilo en ambos casos
+            (círculo oscuro, ícono del modo OPUESTO):
+            · Modo Comercial CON negocio: se queda ABAJO a la derecha —
+              convive con el FAB "Publicar" que vive arriba (alturas
+              distintas, nunca se solapan).
+            · Modo Personal (o comercial sin negocio): sube ARRIBA, al mismo
+              slot y estilo que el FAB "Publicar" de MarketPlace (no hay
+              Publicar aquí que lo ocupe) — reusa `FabPublicar` con el ícono
+              del toggle. La flecha "ir arriba" baja al lugar que este deja
+              libre (ver `BotonIrArriba` más arriba). */}
         {(() => {
           const opuesta = TABS_NEGOCIOS_DESKTOP.find((t) => t.id !== tabActiva);
           if (!opuesta) return null;
           const IconoOpuesta = opuesta.Icono;
+
+          if (!esModoComercialConNegocio && esEscritorio) {
+            return (
+              <FabPublicar
+                onClick={() => setTabActiva(opuesta.id)}
+                ariaLabel={`Cambiar a vista ${opuesta.label}`}
+                testId="toggle-mapa-feed-escritorio"
+                label={opuesta.label}
+                claseColor="bg-linear-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30"
+                icon={<IconoOpuesta className="h-6 w-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />}
+                topPublicar={topPublicar}
+                esEscritorio={esEscritorio}
+                bottomNavVisible={bottomNavVisible}
+                labelConCardEscritorio
+              />
+            );
+          }
+
           return createPortal(
             <button
               type="button"
               data-testid="toggle-mapa-feed-escritorio"
               onClick={() => setTabActiva(opuesta.id)}
               aria-label={`Cambiar a vista ${opuesta.label}`}
-              className="hidden lg:flex fixed bottom-4 right-4 lg:right-[330px] 2xl:right-[394px] z-30 h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 active:scale-95"
+              className="hidden lg:flex fixed bottom-4 right-4 lg:right-[330px] 2xl:right-[394px] z-30 h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30 hover:scale-105 active:scale-95"
             >
               <IconoOpuesta className="w-6 h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
             </button>,
@@ -1600,6 +1674,21 @@ export function PaginaNegocios() {
         {/* Composer de publicaciones de negocio — modal, sin barra inline
             (nace directo con el patrón FAB-only). */}
         <ComposerSectionNegocio />
+
+        {/* Deep-link desde notificación de comentario — abre el modal de
+            comentarios de la publicación puntual (con scroll + highlight al
+            comentario, ver ModalComentariosPublicacionNegocio). */}
+        {publicacionIdDestacada && (
+          <ModalComentariosPublicacionNegocio
+            abierto={!!publicacionIdDestacada}
+            onCerrar={() => {
+              setPublicacionIdDestacada(null);
+              setComentarioIdDestacado(null);
+            }}
+            publicacionId={publicacionIdDestacada}
+            comentarioDestacadoId={comentarioIdDestacado}
+          />
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* DROPDOWNS GLOBALES (posición fixed)                              */}

@@ -997,28 +997,32 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     grande de "Horario de comida · Regresa 4:00 PM" debajo
                     del header (más prominente y con info accionable). */}
                 <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-4 py-2.5 px-3 bg-white/60 backdrop-blur-md @5xl:hidden">
+                    {/* Sin `fill-current` — ThumbsUp con relleno sólido se ve
+                        manchado a este tamaño, solo contorno + color. */}
                     <div className="flex items-center gap-1.5">
-                        <ThumbsUp className="w-5 h-5 text-blue-500 fill-current" />
-                        <span className="text-sm font-bold text-slate-700">{totalLikes ?? 0}</span>
+                        <ThumbsUp className="w-6 h-6 text-blue-500" />
+                        <span className="text-base font-bold text-slate-700">{totalLikes ?? 0}</span>
                     </div>
                     <div className="h-5 w-px bg-slate-400/50" />
                     <div className="flex items-center gap-1.5">
-                        <Eye className="w-5 h-5 text-slate-500" />
-                        <span className="text-sm font-bold text-slate-700">{totalVisitas ?? 0}</span>
+                        <Eye className="w-6 h-6 text-slate-500" />
+                        <span className="text-base font-bold text-slate-700">{totalVisitas ?? 0}</span>
                     </div>
                     <div className="h-5 w-px bg-slate-400/50" />
                     <div className="flex items-center gap-1.5">
-                        <Star className={`w-5 h-5 ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} />
-                        <span className="text-sm font-bold text-slate-700">
+                        <Star className={`w-6 h-6 ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} />
+                        <span className="text-base font-bold text-slate-700">
                             {tieneCalificacion ? `${promedioResenas.toFixed(1)}` : '0'}
                         </span>
                     </div>
                     {distanciaKm !== null && (
                         <>
                             <div className="h-5 w-px bg-slate-400/50" />
-                            <div className="flex items-center gap-1.5 rounded-full bg-blue-100 px-2 py-0.5">
-                                <MapPin className="w-4 h-4 text-blue-700" />
-                                <span className="text-sm font-bold text-blue-700">
+                            {/* Sin contenedor/pill azul — mismo criterio que
+                                me gusta/visitas/rating: solo ícono + texto. */}
+                            <div className="flex items-center gap-1.5">
+                                <MapPin className="w-5 h-5 text-blue-600" />
+                                <span className="text-base font-bold text-slate-700">
                                     {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)}m` : `${distanciaKm.toFixed(1)}km`}
                                 </span>
                             </div>
@@ -1058,7 +1062,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     onClick={handleLikeConAuth}
                                     aria-label={liked ? 'Quitar me gusta' : 'Me gusta'}
                                     aria-pressed={liked}
-                                    className={`w-[38px] h-[38px] grid place-items-center cursor-pointer rounded-full border-2 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                    className={`w-[46px] h-[46px] @5xl:w-[38px] @5xl:h-[38px] grid place-items-center cursor-pointer rounded-full border-2 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
                                         liked ? 'bg-white border-blue-500 text-blue-500' : 'bg-white border-slate-300 text-slate-700'
                                     }`}
                                 >
@@ -1066,7 +1070,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         manchado a este tamaño, solo contorno + color. */}
                                     <Icon
                                         icon={ICONOS.like}
-                                        className="w-5 h-5"
+                                        className="w-6 h-6 @5xl:w-5 @5xl:h-5"
                                         fill="none"
                                     />
                                 </button>
@@ -1081,7 +1085,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     onClick={handleSaveConAuth}
                                     aria-label={followed ? 'Quitar de guardados' : 'Guardar negocio'}
                                     aria-pressed={followed}
-                                    className={`relative w-[38px] h-[38px] grid place-items-center cursor-pointer rounded-full border-2 backdrop-blur-sm shadow-lg overflow-visible transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                    className={`relative w-[46px] h-[46px] @5xl:w-[38px] @5xl:h-[38px] grid place-items-center cursor-pointer rounded-full border-2 backdrop-blur-sm shadow-lg overflow-visible transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
                                         followed ? 'bg-white border-amber-500' : 'bg-white border-slate-300'
                                     }`}
                                 >
@@ -1094,7 +1098,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     )}
                                     <Icon
                                         icon={ICONOS.guardar}
-                                        className="w-5 h-5"
+                                        className="w-6 h-6 @5xl:w-5 @5xl:h-5"
                                         style={{ color: followed ? '#f59e0b' : '#94a3b8' }}
                                     />
                                 </button>

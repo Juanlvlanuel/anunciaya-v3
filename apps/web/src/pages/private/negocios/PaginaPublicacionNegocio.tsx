@@ -75,7 +75,7 @@ export function PaginaPublicacionNegocio() {
     return (
         <div
             data-testid="pagina-publicacion-negocio"
-            className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full lg:pb-12"
+            className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full"
         >
             {/* Header dark sticky — acento azul (marca Negocios). */}
             <div className="shrink-0 z-30 lg:sticky lg:top-0 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">

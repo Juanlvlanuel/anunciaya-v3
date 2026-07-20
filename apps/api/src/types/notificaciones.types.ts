@@ -69,7 +69,13 @@ export type TipoNotificacion =
   | 'pregunta_comunidad_seguida_respondida'
   /** Comentarios de comunidad (hilos): al autor de un comentario cuando le
    *  responden dentro del hilo de una pregunta del Home. */
-  | 'comunidad_respuesta_comentario';
+  | 'comunidad_respuesta_comentario'
+  /** Comentarios de Negocios (publicaciones libres, hilos): al autor de la
+   *  publicación cuando comentan su post. */
+  | 'negocio_publicacion_nuevo_comentario'
+  /** Comentarios de Negocios (publicaciones libres, hilos): al autor cuando
+   *  responden su comentario. */
+  | 'negocio_publicacion_respuesta_comentario';
 
 // Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =
@@ -83,7 +89,9 @@ export type ReferenciaTipo =
   | 'servicio'
   | 'alerta'
   // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
-  | 'pregunta_comunidad';
+  | 'pregunta_comunidad'
+  // ── Comentarios de Negocios (publicaciones libres) ──────────────────────
+  | 'negocio_publicacion';
 
 export interface CrearNotificacionInput {
   usuarioId: string;
@@ -95,6 +103,8 @@ export interface CrearNotificacionInput {
   sucursalId?: string;
   referenciaId?: string;
   referenciaTipo?: ReferenciaTipo;
+  /** Comentario puntual que originó la notificación (deep-link con scroll + highlight). */
+  comentarioId?: string;
   icono?: string;
   actorImagenUrl?: string;
   actorNombre?: string;
@@ -111,6 +121,7 @@ export interface NotificacionResponse {
   sucursalNombre: string | null;
   referenciaId: string | null;
   referenciaTipo: ReferenciaTipo | null;
+  comentarioId: string | null;
   icono: string | null;
   actorImagenUrl: string | null;
   actorNombre: string | null;

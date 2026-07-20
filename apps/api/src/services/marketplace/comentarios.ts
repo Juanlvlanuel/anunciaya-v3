@@ -199,6 +199,17 @@ export async function crearComentario(
     const nuevo = insertResult.rows[0] as { id: string };
 
     // ── Notificaciones ───────────────────────────────────────────────────────
+    // Avatar/nombre de quien COMENTA (no del destinatario) — así el panel de
+    // notificaciones muestra la foto de la persona que comentó, en vez del
+    // ícono genérico de la familia "comunidad".
+    const autorComentarioResult = await db.execute(sql`
+        SELECT nombre, avatar_url
+        FROM usuarios
+        WHERE id = ${autorId}
+        LIMIT 1
+    `);
+    const autorComentario = autorComentarioResult.rows[0] as { nombre: string; avatar_url: string | null } | undefined;
+
     if (!parentId) {
         // Comentario raíz → avisar al dueño del artículo.
         if (duenoId !== autorId) {
@@ -210,6 +221,9 @@ export async function crearComentario(
                 mensaje: `Comentaron en "${articulo.titulo}"`,
                 referenciaId: articuloId,
                 referenciaTipo: 'marketplace',
+                comentarioId: nuevo.id,
+                actorNombre: autorComentario?.nombre,
+                actorImagenUrl: autorComentario?.avatar_url ?? undefined,
             }).catch(() => { /* notificación no crítica */ });
         }
     } else {
@@ -223,6 +237,9 @@ export async function crearComentario(
                 mensaje: `Respondieron tu comentario en "${articulo.titulo}"`,
                 referenciaId: articuloId,
                 referenciaTipo: 'marketplace',
+                comentarioId: nuevo.id,
+                actorNombre: autorComentario?.nombre,
+                actorImagenUrl: autorComentario?.avatar_url ?? undefined,
             }).catch(() => { /* notificación no crítica */ });
         }
         // …y al dueño del artículo si es otra persona (actividad en su publicación).
@@ -235,6 +252,9 @@ export async function crearComentario(
                 mensaje: `Comentaron en "${articulo.titulo}"`,
                 referenciaId: articuloId,
                 referenciaTipo: 'marketplace',
+                comentarioId: nuevo.id,
+                actorNombre: autorComentario?.nombre,
+                actorImagenUrl: autorComentario?.avatar_url ?? undefined,
             }).catch(() => { /* notificación no crítica */ });
         }
     }

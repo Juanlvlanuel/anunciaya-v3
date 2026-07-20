@@ -22,6 +22,7 @@ import {
 import { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
+import { useAuthStore } from '../../stores/useAuthStore';
 import type {
     FeedMarketplace,
     ArticuloMarketplaceDetalle,
@@ -283,17 +284,39 @@ const STORAGE_PREFIX_VISTA = 'vista_marketplace_';
  */
 export async function registrarVistaArticulo(articuloId: string): Promise<void> {
     const key = `${STORAGE_PREFIX_VISTA}${articuloId}`;
-    if (typeof window !== 'undefined' && sessionStorage.getItem(key)) {
-        return;
+    if (typeof window !== 'undefined') {
+        if (sessionStorage.getItem(key)) return;
+        // Se marca ANTES del await (optimista): si el componente que muestra
+        // el cuerpo del artículo llega a montarse por duplicado (mismo
+        // patrón que Negocios — bloque móvil + escritorio), dos llamadas
+        // concurrentes verían el storage vacío si se marcara después de la
+        // respuesta, duplicando la vista.
+        sessionStorage.setItem(key, '1');
     }
     try {
         await api.post(`/marketplace/articulos/${articuloId}/vista`);
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem(key, '1');
-        }
     } catch {
-        // Silencioso a propósito.
+        if (typeof window !== 'undefined') sessionStorage.removeItem(key);
     }
+}
+
+/**
+ * Registra la vista de un artículo ya cargado (fire-and-forget, dedup por
+ * sesión) — salta al vendedor para que no infle las vistas de su propio
+ * artículo. Centraliza la lógica de "quién puede ver esto" para que la usen
+ * por igual la página de detalle y el modal de comentarios, sin depender de
+ * qué subcomponente visual está montado en cada caso (mismo patrón que
+ * `useRegistrarVistaPublicacionNegocio` en Negocios).
+ */
+export function useRegistrarVistaArticulo(
+    articulo: ArticuloMarketplaceDetalle | null | undefined
+): void {
+    const usuarioActual = useAuthStore((s) => s.usuario);
+    useEffect(() => {
+        if (!articulo) return;
+        if (usuarioActual?.id === articulo.vendedor.id) return;
+        registrarVistaArticulo(articulo.id);
+    }, [articulo, usuarioActual?.id]);
 }
 
 // =============================================================================
@@ -710,7 +733,11 @@ export function useComentariosArticulo(articuloId: string | undefined) {
             return response.data.data ?? [];
         },
         enabled: !!articuloId,
-        staleTime: 60 * 1000,
+        // Sin staleTime: los comentarios son contenido social — al reabrir el
+        // modal (ej. desde el deep-link de una notificación) SIEMPRE debe
+        // refrescar en vez de servir el caché de hace hasta 1 min, donde un
+        // comentario recién llegado podía no aparecer hasta recargar la página.
+        staleTime: 0,
     });
 }
 

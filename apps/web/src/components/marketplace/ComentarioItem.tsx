@@ -178,6 +178,8 @@ interface ComentarioFilaProps {
     onResponder?: () => void;
     tamanoAvatar?: 'sm' | 'md';
     colorTema: ColorTemaComentario;
+    /** Deep-link desde notificación: anillo transitorio de resaltado (~3s). */
+    resaltado?: boolean;
 }
 
 function ComentarioFila({
@@ -191,6 +193,7 @@ function ComentarioFila({
     onResponder,
     tamanoAvatar = 'md',
     colorTema,
+    resaltado = false,
 }: ComentarioFilaProps) {
     const tema = TEMA_COMENTARIO[colorTema];
     const [editando, setEditando] = useState(false);
@@ -253,7 +256,11 @@ function ComentarioFila({
     };
 
     return (
-        <div data-testid={`comentario-${comentario.id}`} className="flex gap-2.5">
+        <div
+            id={`comentario-${comentario.id}`}
+            data-testid={`comentario-${comentario.id}`}
+            className={`flex gap-2.5 ${resaltado ? 'rounded-xl p-2 -m-2 ring-2 ring-yellow-400 bg-yellow-50 shadow-lg shadow-yellow-200/50' : ''} transition-all duration-500`}
+        >
             <AvatarComentario
                 autorId={comentario.autorId}
                 nombre={comentario.autorNombre}
@@ -442,12 +449,16 @@ function InputRespuesta({
     onEnviar,
     onCancelar,
     colorTema,
+    nombreDestino,
 }: {
     usuarioActual: UsuarioComentario | null;
     enviando: boolean;
     onEnviar: (texto: string) => Promise<boolean>;
     onCancelar: () => void;
     colorTema: ColorTemaComentario;
+    /** Nombre de a quién se le está respondiendo — deja claro el destino
+     *  cuando se responde a una respuesta puntual, no siempre al raíz. */
+    nombreDestino?: string;
 }) {
     const tema = TEMA_COMENTARIO[colorTema];
     const [texto, setTexto] = useState('');
@@ -486,7 +497,7 @@ function InputRespuesta({
                             setTexto(e.target.value);
                             if (error) setError(null);
                         }}
-                        placeholder="Escribe una respuesta…"
+                        placeholder={nombreDestino ? `Responder a ${nombreDestino}…` : 'Escribe una respuesta…'}
                         maxLength={TEXTO_MAX}
                         autoFocus
                         disabled={enviando}
@@ -561,6 +572,12 @@ export interface ComentarioItemProps {
      *  colapsadas detrás de "Ver N respuestas". Default false (MP/Servicios
      *  siguen con card + respuestas siempre visibles, sin cambios). */
     estiloFacebook?: boolean;
+    /** Deep-link desde notificación: id del comentario a destacar. Si es una
+     *  respuesta colapsada de ESTE hilo, fuerza abrir "Ver N respuestas". */
+    comentarioDestacadoId?: string | null;
+    /** id del comentario que debe mostrar el anillo de resaltado AHORA MISMO
+     *  (transitorio, se apaga solo tras el scroll — ver `ListaComentarios*`). */
+    comentarioResaltadoId?: string | null;
 }
 
 export function ComentarioItem({
@@ -576,14 +593,40 @@ export function ComentarioItem({
     onResponder,
     colorTema = 'teal',
     estiloFacebook = false,
+    comentarioDestacadoId = null,
+    comentarioResaltadoId = null,
 }: ComentarioItemProps) {
-    const [respondiendo, setRespondiendo] = useState(false);
+    // Guarda el id de a QUIÉN se responde (raíz o una respuesta puntual) —
+    // no un simple boolean, porque ahora cualquier fila del hilo puede
+    // disparar el input (antes solo el raíz podía).
+    const [respondiendoAId, setRespondiendoAId] = useState<string | null>(null);
     // Estilo Facebook: respuestas colapsadas por default. MP/Servicios (no
     // estiloFacebook) mantienen el comportamiento original — siempre visibles.
     const [respuestasAbiertas, setRespuestasAbiertas] = useState(!estiloFacebook);
     const tema = TEMA_COMENTARIO[colorTema];
     const hayRespuestas = comentario.respuestas.length > 0;
     const mostrarRespuestas = estiloFacebook ? respuestasAbiertas : hayRespuestas;
+    // A quién apunta el input de responder ahora mismo — el raíz o una
+    // respuesta puntual, según qué "Responder" se haya presionado.
+    const comentarioObjetivo =
+        respondiendoAId === null
+            ? null
+            : respondiendoAId === comentario.id
+              ? comentario
+              : comentario.respuestas.find((r) => r.id === respondiendoAId) ?? null;
+
+    // Deep-link desde notificación: si el comentario destacado es una
+    // respuesta colapsada DE ESTE HILO, forzar la apertura de "Ver N
+    // respuestas" para que el scroll+highlight de la lista lo encuentre.
+    useEffect(() => {
+        if (
+            estiloFacebook &&
+            comentarioDestacadoId &&
+            comentario.respuestas.some((r) => r.id === comentarioDestacadoId)
+        ) {
+            setRespuestasAbiertas(true);
+        }
+    }, [estiloFacebook, comentarioDestacadoId, comentario.respuestas]);
 
     return (
         <div
@@ -598,8 +641,9 @@ export function ComentarioItem({
                 permiteEliminarDueno={permiteEliminarDueno}
                 onEditar={onEditar}
                 onEliminar={onEliminar}
-                onResponder={puedeComentar ? () => setRespondiendo((v) => !v) : undefined}
+                onResponder={puedeComentar ? () => setRespondiendoAId((v) => (v === comentario.id ? null : comentario.id)) : undefined}
                 colorTema={colorTema}
+                resaltado={comentario.id === comentarioResaltadoId}
             />
 
             {/* "Ver N respuestas" — solo estilo Facebook, cuando están colapsadas. */}
@@ -616,7 +660,7 @@ export function ComentarioItem({
             )}
 
             {/* Respuestas anidadas (1 nivel) — indentadas con un conector. */}
-            {(mostrarRespuestas || respondiendo) && (
+            {(mostrarRespuestas || respondiendoAId !== null) && (
                 <div className="mt-2 space-y-3 border-l-2 border-slate-200 pl-3 lg:pl-4">
                     {mostrarRespuestas && comentario.respuestas.map((r) => (
                         <ComentarioFila
@@ -628,8 +672,10 @@ export function ComentarioItem({
                             permiteEliminarDueno={permiteEliminarDueno}
                             onEditar={onEditar}
                             onEliminar={onEliminar}
+                            onResponder={puedeComentar ? () => setRespondiendoAId((v) => (v === r.id ? null : r.id)) : undefined}
                             tamanoAvatar="sm"
                             colorTema={colorTema}
+                            resaltado={r.id === comentarioResaltadoId}
                         />
                     ))}
 
@@ -645,7 +691,7 @@ export function ComentarioItem({
                         </button>
                     )}
 
-                    {respondiendo && (
+                    {respondiendoAId !== null && (
                         <div className="flex items-start gap-2">
                             <CornerDownRight
                                 className="mt-2 h-4 w-4 shrink-0 text-slate-400"
@@ -657,12 +703,17 @@ export function ComentarioItem({
                                     usuarioActual={usuarioActual}
                                     enviando={enviandoRespuesta}
                                     onEnviar={async (texto) => {
-                                        const ok = await onResponder(comentario.id, texto);
-                                        if (ok) setRespondiendo(false);
+                                        const ok = await onResponder(respondiendoAId, texto);
+                                        if (ok) setRespondiendoAId(null);
                                         return ok;
                                     }}
-                                    onCancelar={() => setRespondiendo(false)}
+                                    onCancelar={() => setRespondiendoAId(null)}
                                     colorTema={colorTema}
+                                    nombreDestino={
+                                        comentarioObjetivo
+                                            ? obtenerNombreCorto(comentarioObjetivo.autorNombre, comentarioObjetivo.autorApellidos)
+                                            : undefined
+                                    }
                                 />
                             </div>
                         </div>

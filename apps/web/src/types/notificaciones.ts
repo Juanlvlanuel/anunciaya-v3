@@ -47,7 +47,16 @@ export type TipoNotificacion =
   | 'membresia_en_gracia'
   | 'pago_rechazado'
   | 'pago_aprobado'
-  | 'pago_anulado';
+  | 'pago_anulado'
+  // ── Comentarios (hilos) ─────────────────────────────────────────────────
+  /** MarketPlace: al dueño cuando comentan su artículo. */
+  | 'marketplace_nuevo_comentario'
+  /** MarketPlace: al autor cuando responden su comentario. */
+  | 'marketplace_respuesta_comentario'
+  /** Negocios (publicaciones libres): al autor cuando comentan su post. */
+  | 'negocio_publicacion_nuevo_comentario'
+  /** Negocios (publicaciones libres): al autor cuando responden su comentario. */
+  | 'negocio_publicacion_respuesta_comentario';
 
 export type ReferenciaTipo =
   | 'transaccion'
@@ -62,7 +71,9 @@ export type ReferenciaTipo =
   // "cliente frecuente"/"fuera de horario" abre su modal en /business-studio/alertas.
   | 'alerta'
   // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
-  | 'pregunta_comunidad';
+  | 'pregunta_comunidad'
+  // ── Comentarios de Negocios (publicaciones libres) ────────────────────
+  | 'negocio_publicacion';
 
 // =============================================================================
 // NOTIFICACIÓN
@@ -79,6 +90,7 @@ export interface Notificacion {
   sucursalNombre: string | null;
   referenciaId: string | null;
   referenciaTipo: ReferenciaTipo | null;
+  comentarioId: string | null;
   icono: string | null;
   actorImagenUrl: string | null;
   actorNombre: string | null;

@@ -36,6 +36,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { notificar } from '../../utils/notificaciones';
+import { ModalImagenes } from '../ui/ModalImagenes';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -307,6 +308,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
   const navegarASeccion = useNavegarASeccion();
 
   const [cambiandoModo, setCambiandoModo] = useState(false);
+  const [avatarAbierto, setAvatarAbierto] = useState(false);
 
   // El CSS se inyecta al cargar el módulo (ver llamada top-level a
   // inyectarEstilosDrawerDesktop arriba) para evitar el flash entre el
@@ -524,9 +526,14 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
             <div className="dd-avatar-wrap">
               <div
                 className="dd-avatar"
+                onClick={() => avatarUrl && setAvatarAbierto(true)}
+                role={avatarUrl ? 'button' : undefined}
+                aria-label={avatarUrl ? 'Ver foto de perfil en grande' : undefined}
+                data-testid="drawer-desktop-avatar"
                 style={{
                   background: paleta.accentBg,
                   boxShadow: `0 0 0 4px ${paleta.paper}, 0 0 0 5px ${paleta.accentSoft}`,
+                  cursor: avatarUrl ? 'pointer' : 'default',
                 }}
               >
                 {avatarUrl ? (
@@ -596,6 +603,15 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
           </button>
         </div>
       </div>
+
+      {avatarAbierto && avatarUrl && (
+        <ModalImagenes
+          images={[avatarUrl]}
+          initialIndex={0}
+          isOpen={avatarAbierto}
+          onClose={() => setAvatarAbierto(false)}
+        />
+      )}
     </div>
   );
 }
