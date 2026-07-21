@@ -281,7 +281,7 @@ export function ComposerPublicacionNegocio({
                 >
                     {/* Zona scrollable: texto + fotos (el precio ahora vive
                         dentro del chip, en la fila anclada abajo). */}
-                    <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-3">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-3">
                         <textarea
                             data-testid="composer-negocio-texto"
                             value={draft.texto}

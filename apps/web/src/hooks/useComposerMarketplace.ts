@@ -20,7 +20,7 @@
  * Ubicación: apps/web/src/hooks/useComposerMarketplace.ts
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CondicionArticulo, ModoArticulo } from '../types/marketplace';
 
 // =============================================================================
@@ -183,6 +183,17 @@ export function draftEstaIntacto(d: ComposerMarketplaceDraft): boolean {
     );
 }
 
+/** Compara dos drafts ignorando `modo` (usado para detectar cambios reales
+ *  en modo edición, donde el draft nace prellenado y nunca está "vacío").
+ *  Cambiar solo el toggle Vendo/Busco sin tocar nada más NO cuenta como
+ *  "cambios sin guardar" — es solo corregir la intención, no contenido. El
+ *  draft es 100% datos planos serializables, así que comparar su JSON
+ *  (normalizando `modo` a un valor fijo en ambos lados) es correcto y evita
+ *  listar cada campo a mano. */
+function draftsIgualesSalvoModo(a: ComposerMarketplaceDraft, b: ComposerMarketplaceDraft): boolean {
+    return JSON.stringify({ ...a, modo: 'vendo' }) === JSON.stringify({ ...b, modo: 'vendo' });
+}
+
 // =============================================================================
 // VALIDACIÓN GLOBAL
 // =============================================================================
@@ -330,6 +341,15 @@ export function useComposerMarketplace(opts: UseComposerMarketplaceOpts = {}) {
         cargarDraft(ns),
     );
 
+    // "Base de comparación" para detectar cambios reales: arranca en lo que
+    // `cargarDraft` haya devuelto (vacío si no hay nada guardado, o el
+    // borrador resumido de una sesión anterior) — NO en `DRAFT_INICIAL` fijo,
+    // porque si quedó un borrador viejo en localStorage el composer marcaría
+    // "hay cambios" de inmediato sin que el usuario haya tocado nada en esta
+    // sesión. En edición, `hidratarDesdeArticulo` la mueve al contenido
+    // original del artículo.
+    const draftBaseRef = useRef<ComposerMarketplaceDraft>(draft);
+
     useEffect(() => {
         guardarDraft(ns, draft);
     }, [draft, ns]);
@@ -369,9 +389,28 @@ export function useComposerMarketplace(opts: UseComposerMarketplaceOpts = {}) {
 
     /** Hidrata el draft con valores de un artículo existente (modo edición).
      *  Llamar UNA SOLA VEZ cuando el artículo se carga (ref-guard). */
+    /** Sembrado automático de ubicación (GPS) — NO es una edición del
+     *  usuario, así que también actualiza la base de comparación para que
+     *  `estaIntacto` no se dispare solo por esto (ver ComposerMarketplace,
+     *  efecto de auto-siembra de GPS al montar). */
+    const sembrarUbicacion = useCallback(
+        (u: { latitud: number; longitud: number; ciudad: string | null }) => {
+            setDraft((prev) => {
+                const nuevo = { ...prev, latitud: u.latitud, longitud: u.longitud, ciudad: u.ciudad };
+                draftBaseRef.current = { ...draftBaseRef.current, latitud: u.latitud, longitud: u.longitud, ciudad: u.ciudad };
+                return nuevo;
+            });
+        },
+        [],
+    );
+
     const hidratarDesdeArticulo = useCallback(
         (d: Partial<ComposerMarketplaceDraft>) => {
-            setDraft((prev) => ({ ...prev, ...d }));
+            setDraft((prev) => {
+                const nuevo = { ...prev, ...d };
+                draftBaseRef.current = nuevo;
+                return nuevo;
+            });
         },
         [],
     );
@@ -382,6 +421,7 @@ export function useComposerMarketplace(opts: UseComposerMarketplaceOpts = {}) {
         draft,
         actualizar,
         setConfirmacionesUnificadas,
+        sembrarUbicacion,
         limpiar,
         hidratarDesdeArticulo,
         // Validación
@@ -389,7 +429,7 @@ export function useComposerMarketplace(opts: UseComposerMarketplaceOpts = {}) {
         valido: validacion.valido,
         mensajeBoton: validacion.mensajeBoton,
         // Utilidades
-        estaIntacto: draftEstaIntacto(draft),
+        estaIntacto: draftsIgualesSalvoModo(draft, draftBaseRef.current),
     };
 }
 

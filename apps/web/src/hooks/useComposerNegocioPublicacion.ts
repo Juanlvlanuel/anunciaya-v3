@@ -154,11 +154,14 @@ export function useComposerNegocioPublicacion(opts: UseComposerNegocioPublicacio
         cargarDraft(ns),
     );
 
-    // "Base de comparación" para detectar cambios reales: en creación es el
-    // draft vacío (DRAFT_INICIAL); en edición, `hidratarDesdePublicacion` la
-    // mueve al contenido original de la publicación — así el composer de
-    // edición no confunde "llegó prellenado" con "el usuario cambió algo".
-    const draftBaseRef = useRef<ComposerNegocioPublicacionDraft>(DRAFT_INICIAL);
+    // "Base de comparación" para detectar cambios reales: arranca en lo que
+    // `cargarDraft` haya devuelto (vacío si no hay nada guardado, o el
+    // borrador resumido de una sesión anterior) — NO en `DRAFT_INICIAL` fijo,
+    // porque si quedó un borrador viejo en localStorage el composer marcaría
+    // "hay cambios" de inmediato sin que el usuario haya tocado nada en esta
+    // sesión. En edición, `hidratarDesdePublicacion` la mueve al contenido
+    // original de la publicación.
+    const draftBaseRef = useRef<ComposerNegocioPublicacionDraft>(draft);
 
     useEffect(() => {
         guardarDraft(ns, draft);

@@ -30,6 +30,7 @@
 23. [Lightbox / Modal de Imágenes — Indicadores y Botones Flotantes](#23-lightbox--modal-de-imágenes--indicadores-y-botones-flotantes)
 24. [DatePicker (Calendario)](#24-datepicker-calendario)
 25. [Highlight de Foco en Inputs y Selects](#25-highlight-de-foco-en-inputs-y-selects)
+26. [Composer estilo Post (Instagram/Facebook)](#26-composer-estilo-post-instagramfacebook)
 
 ---
 
@@ -1988,10 +1989,225 @@ Aceptan props opcionales (default = comportamiento histórico) para unificar por
 | Componente | Prop | Para |
 |---|---|---|
 | `InputTelefono` | `claseAlto`, `claseTexto` | igualar altura/texto al resto de inputs |
-| `CustomSelect` | `claseControl` (padding/altura), `claseActivo` (borde+ring abierto) | BS sigue slate; Mi Perfil pasa azul |
+| `CustomSelect` | `claseControl` (padding/altura), `claseActivo` (borde+ring abierto), `portal` (menú en `document.body`, anclado por posición) | BS sigue slate; Mi Perfil pasa azul; `portal` para selects dentro de un modal/composer con `overflow-hidden` que recortaría el menú (ej. `PanelCategoria` de MarketPlace) |
 | `InputCorreoValidado` | `claseAlto`, `claseTexto`, `mensajeDisponible` | igualar tamaño + texto de éxito por contexto |
 | `DatePicker` | `iconoIzquierda` | icono a la izquierda |
 
 **Regla del select abierto:** `hover:border-slate-400` solo aplica **cerrado** → `open ? claseActivo : 'border-slate-300 hover:border-slate-400'`, para que el hover no pise el borde activo estando abierto.
 
 **Referencia de implementación:** los 8 campos de Mi Perfil → Datos Personales y todos los inputs de Seguridad usan este patrón con altura `h-11 lg:h-10 2xl:h-11` y texto `text-base lg:text-sm 2xl:text-base`.
+
+---
+
+## 26. Composer estilo Post (Instagram/Facebook)
+
+Patrón de composer "casual" (se siente un post, no un formulario) para publicar contenido del usuario/negocio. Reemplazó en jul-2026 al formulario tradicional (labels visibles, errores rojos permanentes, grid de 2 columnas, acordeón en `ModalBottom` anidado) en los 3 composers de la app: `ComposerPublicacionNegocio.tsx` (Negocios — la plantilla original), `ComposerMarketplace.tsx` y `ComposerServicios.tsx`.
+
+**Cuándo usar:** cualquier composer nuevo de "publicar contenido del usuario" (texto + fotos + campos opcionales). **Cuándo NO usar:** formularios de configuración/datos estructurados sin componente "social" (ej. Mi Perfil, Alta de sucursal) — esos siguen el patrón de formulario tradicional (TC-1E, TC-11).
+
+### Estructura vertical (de arriba a abajo)
+
+```
+[Header: X | título (+ toggle de modo, si aplica) | Publicar]   ← shrink-0, gradiente de marca
+[Identidad: avatar 64px + nombre + ciudad]                      ← shrink-0
+[Body scrolleable: input título / textarea descripción /        ← flex-1 min-h-0 overflow-y-auto
+ hint moderación / grid de fotos / panel abierto]                  overscroll-contain scroll-discreto
+[Chip bar anclado: Galería + chips de detalle]                  ← shrink-0, border-t
+[Footer: checkbox legal]                                        ← shrink-0, border-t (solo si aplica)
+```
+
+### Header
+
+```tsx
+<div
+  className="shrink-0 flex items-center justify-between px-3 py-3 lg:px-4"
+  style={{ background: 'linear-gradient(135deg, #colorBase 0%, #colorOscuro 100%)' }}
+>
+  <button onClick={handleIntentarCerrar} className="flex h-9 w-9 items-center justify-center rounded-full text-white lg:cursor-pointer lg:hover:bg-white/15">
+    <X className="h-6 w-6" strokeWidth={2.5} />
+  </button>
+  <div className="flex min-w-0 items-center gap-2">
+    <h2 className="truncate text-[17px] font-extrabold text-white tracking-tight">{titulo}</h2>
+    {/* Toggle de modo, si el composer tiene doble sentido — ver más abajo */}
+  </div>
+  <button type="submit" form={idDelForm} disabled={enviando}
+    className={`rounded-full px-4 py-1.5 text-[15px] font-bold lg:cursor-pointer ${
+      valido && !enviando ? 'bg-white text-{color}-700 shadow-sm lg:hover:bg-{color}-50' : 'bg-white/20 text-white/60'
+    }`}>
+    {enviando ? 'Publicando…' : 'Publicar'}
+  </button>
+</div>
+```
+
+- **Color por sección** — no se copia el azul de Negocios: MarketPlace usa teal (`#14b8a6 → #0f766e`), Servicios usa sky (`#0ea5e9 → #0369a1`), Negocios usa azul (`#3b82f6 → #1d4ed8`). Lo que se copia es la estructura, no la paleta.
+- **Título responsive** cuando depende de un modo (Vendo/Busco, Ofrezco/Solicito): versión corta en móvil (una palabra), completa en desktop — dos `<span>` (`lg:hidden` / `hidden lg:inline`), no un hook de breakpoint en JS.
+- **Botón Publicar nunca se deshabilita por validez** — solo por `enviando`. Si el draft es inválido, el click debe disparar el toast + abrir el panel del campo faltante (ver Validación abajo), no quedar muerto.
+
+### Toggle de modo (doble sentido) — solo-ícono junto al título
+
+Cuando el composer tiene un doble sentido (Vendo/Busco, Ofrezco/Solicito), el toggle vive **junto al título del header**, no en la fila de identidad (ahí compite por espacio con el nombre y lo aprieta en móvil).
+
+```tsx
+function ToggleModoIconos({ modo, onCambio }) {
+  return (
+    <div className="inline-flex items-center gap-1 shrink-0">
+      {OPCIONES.map(({ id, label, Icono }) => {
+        const activo = modo === id;
+        return (
+          <button key={id} type="button" aria-label={label} aria-pressed={activo} onClick={() => onCambio(id)}
+            className={`flex h-9 w-9 items-center justify-center rounded-full lg:cursor-pointer ${
+              activo ? 'bg-white text-{color}-700 shadow-sm' : 'bg-white/15 text-white/70 hover:bg-white/25 hover:text-white'
+            }`}>
+            <Icono className="h-5 w-5" strokeWidth={2.5} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+- Ícono `h-5 w-5` dentro de botón circular `h-9 w-9` — mismo footprint que el botón X de cerrar, tamaño legible (nunca bajar a `w-3.5`/`w-4`).
+- Sin texto: el ícono + el color activo ya comunican el modo. El título del header (dinámico según `modo`) refuerza la selección.
+- Un solo lugar de render para ambos breakpoints — no hay versión "solo desktop" + versión "solo móvil" duplicada.
+
+### Identidad
+
+```tsx
+<div className="shrink-0 flex items-center gap-3 px-4 pt-4 pb-2">
+  <img src={avatar} className="h-16 w-16 rounded-full object-cover shrink-0" /> {/* o iniciales sobre bg-{color}-600 */}
+  <div className="min-w-0 flex-1">
+    <span className="block text-[22px] font-extrabold text-slate-900 leading-tight truncate">{nombre}</span>
+    <span className="block text-sm font-semibold text-slate-500 truncate">{ciudad}</span>
+  </div>
+</div>
+```
+
+### Input de título / textarea de descripción — sin bordes
+
+```tsx
+<input className="w-full border-0 bg-transparent py-2 text-xl text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-bold outline-none" />
+<textarea rows={4} className="w-full resize-none border-0 bg-transparent py-2 text-[15px] text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-medium outline-none" />
+```
+
+- **Sin `autoFocus`** — abrir el composer NO debe disparar el teclado móvil automáticamente. Es una regresión real si se agrega (se probó y se quitó en jul-2026).
+- Sin `<label>` visible, sin contador de caracteres permanente. El límite se aplica en silencio con `.slice(n)` en el `onChange`.
+
+### Grid de fotos — hover-zoom + Trash2 + ModalImagenes
+
+Reemplaza cualquier carrusel con flechas/menú-cámara previo.
+
+```tsx
+{(fotos.length > 0 || previews.length > 0) && (
+  <div className="mt-3 grid grid-cols-3 lg:grid-cols-5 gap-2">
+    {fotos.map((url, i) => (
+      <div key={url} className="relative aspect-square rounded-xl overflow-hidden group">
+        <img src={url} onClick={() => setIndiceImagenAbierta(i)}
+          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110 lg:cursor-pointer" />
+        <div className="absolute bottom-0 inset-x-0 flex items-center justify-end py-1.5 px-1.5"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}>
+          <button onClick={(e) => { e.stopPropagation(); eliminar(i); }}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 lg:cursor-pointer active:scale-95 transition-colors">
+            <Trash2 className="w-5 h-5 text-white" />
+          </button>
+        </div>
+      </div>
+    ))}
+    {previews.map((p) => (
+      <div key={p.tempId} className="relative aspect-square rounded-xl overflow-hidden">
+        <img src={p.url} className="h-full w-full object-cover opacity-60" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <Loader2 className="h-6 w-6 text-white animate-spin" />
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+```
+
+- **3 cols móvil / 5 cols desktop** (`grid-cols-3 lg:grid-cols-5`) — no usar 3 fijo en ambas resoluciones, desperdicia el ancho del modal desktop.
+- Click en la foto abre `apps/web/src/components/ui/ModalImagenes.tsx` (mismo lightbox que Mi Perfil → Galería) — no un lightbox propio.
+- Botón eliminar: círculo `w-9 h-9 bg-black/30 hover:bg-red-600`, ícono `Trash2 w-5 h-5 text-white`, sobre una barra-gradiente inferior (no una `X` suelta arriba-derecha) — mismo patrón que TC-9 pero para fotos de composer, no de tabla.
+- Agregar fotos es un chip (`Galería`) en el chip bar de abajo, **no** un botón "+" flotante sobre el grid.
+
+### Chip bar anclado — un solo lugar para TODOS los chips
+
+```tsx
+<div className="shrink-0 px-4 py-3 border-t-2 border-slate-200">
+  <div className="flex items-center gap-2 overflow-x-auto lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    {/* Galería (acción directa: abre el picker) */}
+    <button onClick={abrirGaleria} className="flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100">
+      <Camera className="h-4 w-4" /> Galería {fotos.length > 0 && `(${fotos.length})`}
+    </button>
+    {/* Chips de detalle (revelado progresivo) */}
+    <ChipDetalle ... />
+  </div>
+</div>
+```
+
+- **Móvil = carrusel deslizable** (`overflow-x-auto` + scrollbar oculto), **desktop = wrap** (`lg:flex-wrap lg:overflow-visible`) — nunca los 7 chips en una sola línea fija que se corte.
+- **NO existe una sección "Detalles" con label/contador aparte** — todos los chips (Galería + los de contenido) viven en la MISMA barra. Si el composer viejo tenía un `FilaIconos` con "Detalles 2/4", ese contador se elimina al migrar.
+- Chip de detalle: `ChipDetalle` — `rounded-full border-2 px-3.5 py-2 text-sm font-semibold`, abierto = `bg-{color}-100 border-{color}-500 text-{color}-800`, cerrado = `bg-white border-slate-300 text-slate-700`. Dot verde (`w-3 h-3 rounded-full bg-emerald-500 border-2 border-white`, `absolute -top-1 -right-1`) si el campo ya tiene contenido.
+- **Revelado progresivo, siempre inline** (nunca `ModalBottom` anidado): al tocar un chip, su panel aparece dentro del body scrolleable (después del grid de fotos), con solo un panel abierto a la vez (`seccionAbierta` state). El wrapper del panel (`PanelWrapper`: `rounded-xl border-2 border-{color}-300 bg-{color}-50/40 p-3`) es el mismo en móvil y desktop — no hay rama condicional por breakpoint.
+
+### Validación — toast, no texto permanente
+
+```tsx
+async function publicar() {
+  if (!valido || enviando) {
+    if (!enviando && mensajeBoton) {
+      notificar.error(mensajeBoton);
+      const seccionConError = primerSeccionConError(errores);
+      if (seccionConError) setSeccionAbierta(seccionConError);
+    }
+    return;
+  }
+  // ... continuar con el submit real
+}
+```
+
+- **Cero `<p className="text-red-600">` permanentes** bajo campos, y cero mensaje ámbar tipo "Falta: X" fijo arriba del botón. El único canal de error es el toast al intentar publicar.
+- Si el campo con error vive dentro de un panel colapsado, el toast va acompañado de abrir ese panel (`setSeccionAbierta(seccionConError)`) para que el usuario vea dónde corregir.
+
+### Modal de confirmación al cerrar con cambios sin guardar
+
+Igual en los 3 composers — "¿Quieres terminar la publicación más tarde?" con 3 opciones (Guardar borrador / Descartar / Seguir editando), usando `ModalAdaptativo ancho="sm" alturaMaxima="sm"`. Ver el código de referencia en `ComposerPublicacionNegocio.tsx`.
+
+**Regla técnica no obvia** (bug real encontrado y corregido 2 veces en jul-2026): la "base de comparación" para decidir si hay cambios (`estaIntacto`) **debe arrancar en lo que el draft cargó de localStorage al montar** (`useRef(draft)`, capturado justo después del `useState` inicial), **nunca en un `DRAFT_INICIAL` fijo**. Si arranca en vacío, cualquier borrador viejo dejado en localStorage por una sesión anterior (o el auto-sembrado de GPS al montar, o cambiar solo el toggle de modo sin tocar nada más) hace que el composer muestre el modal de confirmación aunque el usuario no haya hecho nada en la sesión actual. Tres mitigaciones necesarias en el hook del draft (`useComposer*.ts`):
+
+1. `draftBaseRef = useRef(draft)` — no `useRef(DRAFT_INICIAL)`.
+2. Cualquier función que sea un **sembrado automático** (no una edición real del usuario — ej. GPS) debe actualizar `draftBaseRef.current` a la vez que el draft, para no contar como "cambio". Ver `sembrarUbicacion` en `useComposerMarketplace.ts`/`useComposerServicios.ts`.
+3. La comparación de `estaIntacto` **ignora el campo `modo`** (Vendo/Busco, Ofrezco/Solicito) — cambiar de intención sin tocar nada más no es "contenido sin guardar". Patrón: normalizar `modo` al mismo valor constante en ambos lados antes de comparar el JSON completo (`JSON.stringify({ ...a, modo: 'x' }) === JSON.stringify({ ...b, modo: 'x' })`).
+
+### Móvil fullscreen real / Desktop modal de tamaño fijo (`ComposerSection.tsx`)
+
+```tsx
+if (esMobile) {
+  if (!expandido) return null;
+  return createPortal(
+    <div className={`${esContenido ? 'absolute' : 'fixed'} inset-0 z-52 flex flex-col bg-white`}>
+      {composer}
+    </div>,
+    portalTarget
+  );
+}
+
+return (
+  <ModalAdaptativo abierto={expandido} onCerrar={onIntentarCerrar} ancho="full" paddingContenido="none" sinScrollInterno mostrarHeader={false}
+    className="h-[560px] lg:h-[600px] 2xl:h-[660px]">
+    {composer}
+  </ModalAdaptativo>
+);
+```
+
+- **Móvil NO pasa por `ModalBottom`/`Modal`** — es un `createPortal` directo a pantalla completa, sin overlay ni esquinas redondeadas. El orquestador (`ComposerSection.tsx`) maneja su propio `useBackNativo` (discriminador único por composer, ej. `_composerMPFull_${guardKey}`, `_composerServiciosFull_${guardKey}` — **nunca reusar el mismo string entre composers**, colisiona en `history.state`) y su propio bloqueo de scroll del body (`position: fixed` + restaurar `scrollY` al cerrar).
+- **Desktop usa `ancho="full"` + altura FIJA** vía `className` (no `ancho="wide"` sin altura) — el modal no debe "saltar" de tamaño cuando se abre/cierra un panel.
+- El contenedor scrolleable interno del composer (body) lleva `overflow-y-auto overscroll-contain scroll-discreto`:
+  - `overscroll-contain` — evita que el rebote del scroll al llegar al tope/fondo se propague al documento (causaba que la barra de direcciones del navegador móvil apareciera/desapareciera al hacer scroll dentro del composer). Mismo patrón que usan las páginas app-shell (Ofertas, Servicios, Negocios, MarketPlace) en su contenedor `cuerpoRef`.
+  - `scroll-discreto` — clase global (`index.css`) con la misma canaleta+thumb que el carrusel "Recién publicado" del feed en PC.
+
+### Implementaciones actuales
+
+- `apps/web/src/components/negocios/publicaciones/composer/ComposerPublicacionNegocio.tsx` + `ComposerSection.tsx` — plantilla original (sin toggle de modo, sin categoría estructurada).
+- `apps/web/src/components/marketplace/composer/ComposerMarketplace.tsx` + `ComposerSection.tsx` — con toggle Vendo/Busco, categoría vía `CustomSelect` con `portal` (ver TC-25).
+- `apps/web/src/components/servicios/composer/ComposerServicios.tsx` + `ComposerSection.tsx` — con toggle Ofrezco/Solicito, categoría/modalidad vía chips fijos (sin `CustomSelect`).

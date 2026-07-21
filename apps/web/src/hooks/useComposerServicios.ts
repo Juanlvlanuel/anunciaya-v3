@@ -25,7 +25,7 @@
  * Ubicación: apps/web/src/hooks/useComposerServicios.ts
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
     CategoriaClasificado,
     ModalidadServicio,
@@ -195,6 +195,17 @@ export function draftEstaIntacto(d: ComposerServiciosDraft): boolean {
     );
 }
 
+/** Compara dos drafts ignorando `modo` (usado para detectar cambios reales
+ *  en modo edición, donde el draft nace prellenado y nunca está "vacío").
+ *  Cambiar solo el toggle Ofrezco/Solicito sin tocar nada más NO cuenta
+ *  como "cambios sin guardar" — es solo corregir la intención, no
+ *  contenido. El draft es 100% datos planos serializables, así que
+ *  comparar su JSON (normalizando `modo` a un valor fijo en ambos lados)
+ *  es correcto y evita listar cada campo a mano. */
+function draftsIgualesSalvoModo(a: ComposerServiciosDraft, b: ComposerServiciosDraft): boolean {
+    return JSON.stringify({ ...a, modo: 'ofrezco' }) === JSON.stringify({ ...b, modo: 'ofrezco' });
+}
+
 // =============================================================================
 // VALIDACIÓN GLOBAL
 // =============================================================================
@@ -340,6 +351,15 @@ export function useComposerServicios(opts: UseComposerServiciosOpts = {}) {
         return previo;
     });
 
+    // "Base de comparación" para detectar cambios reales: arranca en lo que
+    // el initializer de arriba haya producido (vacío, un borrador resumido,
+    // o ese borrador con el modo sugerido aplicado) — NO en `DRAFT_INICIAL`
+    // fijo, porque si quedó un borrador viejo en localStorage el composer
+    // marcaría "hay cambios" de inmediato sin que el usuario haya tocado
+    // nada en esta sesión. En edición, `hidratarDesdePublicacion` la mueve
+    // al contenido original de la publicación.
+    const draftBaseRef = useRef<ComposerServiciosDraft>(draft);
+
     useEffect(() => {
         guardarDraft(ns, draft);
     }, [draft, ns]);
@@ -379,12 +399,31 @@ export function useComposerServicios(opts: UseComposerServiciosOpts = {}) {
         setDraft({ ...DRAFT_INICIAL, modo });
     }, [ns, opts.modoInicial]);
 
+    /** Sembrado automático de ubicación (GPS) — NO es una edición del
+     *  usuario, así que también actualiza la base de comparación para que
+     *  `estaIntacto` no se dispare solo por esto (ver ComposerServicios,
+     *  efecto de auto-siembra de GPS al montar). */
+    const sembrarUbicacion = useCallback(
+        (u: { latitud: number; longitud: number; ciudad: string | null }) => {
+            setDraft((prev) => {
+                const nuevo = { ...prev, latitud: u.latitud, longitud: u.longitud, ciudad: u.ciudad };
+                draftBaseRef.current = { ...draftBaseRef.current, latitud: u.latitud, longitud: u.longitud, ciudad: u.ciudad };
+                return nuevo;
+            });
+        },
+        [],
+    );
+
     /** Hidrata el draft con valores de una publicación existente (modo
      *  edición). El caller debe asegurarse de llamarla UNA SOLA VEZ
      *  cuando la publicación se carga, típicamente con un ref-guard. */
     const hidratarDesdePublicacion = useCallback(
         (d: Partial<ComposerServiciosDraft>) => {
-            setDraft((prev) => ({ ...prev, ...d }));
+            setDraft((prev) => {
+                const nuevo = { ...prev, ...d };
+                draftBaseRef.current = nuevo;
+                return nuevo;
+            });
         },
         [],
     );
@@ -395,6 +434,7 @@ export function useComposerServicios(opts: UseComposerServiciosOpts = {}) {
         draft,
         actualizar,
         setConfirmacionesUnificadas,
+        sembrarUbicacion,
         limpiar,
         hidratarDesdePublicacion,
         // Validación
@@ -402,7 +442,7 @@ export function useComposerServicios(opts: UseComposerServiciosOpts = {}) {
         valido: validacion.valido,
         mensajeBoton: validacion.mensajeBoton,
         // Utilidades
-        estaIntacto: draftEstaIntacto(draft),
+        estaIntacto: draftsIgualesSalvoModo(draft, draftBaseRef.current),
     };
 }
 
