@@ -21,7 +21,7 @@ export interface ConfigPublica {
 }
 
 /** Default seguro mientras carga / si la API falla (coincide con el default del backend). */
-export const CONFIG_PUBLICA_DEFAULT: ConfigPublica = { trialDias: 14, precioMembresia: 849, precioMembresiaAnual: 8490, anualDisponible: false };
+export const CONFIG_PUBLICA_DEFAULT: ConfigPublica = { trialDias: 14, precioMembresia: 864, precioMembresiaAnual: 8640, anualDisponible: false };
 
 export async function obtenerConfigPublica(): Promise<ConfigPublica> {
   const { data } = await api.get<RespuestaAPI<ConfigPublica>>('/configuracion-publica');

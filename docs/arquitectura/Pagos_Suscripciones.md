@@ -60,7 +60,7 @@
 
 ## 1. Visión general
 
-- **Modelo de negocio:** suscripción comercial **$849 MXN/mes** vía **Stripe** (modo subscription, con **trial**). El usuario usa la app gratis; el negocio paga por Business Studio + ScanYA + presencia premium. **El precio es editable desde el Panel** (no hardcodeado): el monto vive en `configuracion` y el checkout lee el **Price ID de config** (la env solo siembra la 1ª vez); un botón del Panel crea el Price nuevo en Stripe **sin redeploy** (Sprint Stripe Pieza 1). Hay plan **mensual y anual** (anual ≈ 10× el mensual).
+- **Modelo de negocio:** suscripción comercial **$864 MXN/mes** vía **Stripe** (modo subscription, con **trial**). El usuario usa la app gratis; el negocio paga por Business Studio + ScanYA + presencia premium. **El precio es editable desde el Panel** (no hardcodeado): el monto vive en `configuracion` y el checkout lee el **Price ID de config** (la env solo siembra la 1ª vez); un botón del Panel crea el Price nuevo en Stripe **sin redeploy** (Sprint Stripe Pieza 1). Hay plan **mensual y anual** (anual ≈ 10× el mensual).
 - **Trial:** configurable (`configuracion` clave `trial_duracion_dias`, default **14**).
 - **Periodo de gracia tras impago:** configurable (`periodo_gracia_cobro_dias`, default **14**).
 - **Fuente de verdad:** **NUESTRA BD**. Stripe es el motor de cobro; ante un fallo de Stripe en una acción del Panel, la BD manda y se avisa (ver §9, regla §4.3).

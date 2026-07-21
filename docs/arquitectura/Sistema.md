@@ -33,7 +33,7 @@ Este documento describe la arquitectura técnica base, decisiones de diseño fun
 |---------|-------------|
 | **Modelo** | 1 correo = 1 cuenta = 2 modos posibles |
 | **Modo Personal** | Siempre disponible (gratis) |
-| **Modo Comercial** | Requiere pago ($849 MXN/mes) |
+| **Modo Comercial** | Requiere pago ($864 MXN/mes) |
 | **Alternancia** | Toggle en UI para cambiar de modo |
 
 ### Modelo de Datos
@@ -86,7 +86,7 @@ Usuario registrado (modo Personal por defecto)
          ↓
 Click "Conocer planes" / "🔒 Comercial"
          ↓
-Modal de planes → Pago Stripe ($849/mes)
+Modal de planes → Pago Stripe ($864/mes)
          ↓
 tieneModoComercial = true
          ↓
@@ -384,7 +384,7 @@ Registro → Usuario elige tipo (Personal o Comercial)
 │
 ├── Personal → Acceso gratuito → Modo Personal activo
 │
-└── Comercial → Pago ($849 MXN/mes) → Onboarding → Business Studio
+└── Comercial → Pago ($864 MXN/mes) → Onboarding → Business Studio
 ```
 
 ---
@@ -396,7 +396,7 @@ Un usuario puede tener **ambos modos** con el mismo correo:
 | Modo | Acceso | Costo |
 |------|--------|-------|
 | Personal | Siempre disponible | Gratis |
-| Comercial | Requiere suscripción | $849 MXN/mes |
+| Comercial | Requiere suscripción | $864 MXN/mes |
 
 ---
 

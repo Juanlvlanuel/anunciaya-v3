@@ -24,7 +24,7 @@
 
 ## Pieza 1 — Precio + plan anual (verificación rápida, ya validada)
 
-- [ ] Panel → Configuración: el precio es **$849**; el toggle **Plan anual** está activable
+- [ ] Panel → Configuración: el precio es **$864**; el toggle **Plan anual** está activable
 - [ ] En el registro con tarjeta aparece el **selector Mensual / Anual**
 - [ ] *(Opcional)* cambiar el precio crea un **Price nuevo en Stripe** (Products) sin redeploy
 
@@ -36,10 +36,10 @@
 
 ### Caso A — Tarjeta MENSUAL con vendedor *(el principal)*
 - [ ] Registrarse en `…/registro?plan=comercial&ref=<código>` con tarjeta 4242, plan **Mensual**
-- [ ] **Stripe → Payments:** hay un **cobro de $849 HOY** (no $0, no trial)
+- [ ] **Stripe → Payments:** hay un **cobro de $864 HOY** (no $0, no trial)
 - [ ] **Stripe → Subscriptions:** la sub quedó `trialing` con **trial_end ≈ hoy + 44 días**
 - [ ] **Panel → Negocios** (ficha): **al corriente**, **Próximo cobro ≈ hoy + 1 mes + 14 días**
-- [ ] **Panel → Suscripciones:** evento **"Cobro exitoso $849"**
+- [ ] **Panel → Suscripciones:** evento **"Cobro exitoso $864"**
 - [ ] **Gmail del dueño:** llegó el **recibo PDF** (con folio) · **Panel → Recibos:** aparece
 - [ ] **Panel → Vendedores → [vendedor] → Comisiones:** la **comisión de alta ($400)** se devengó
 
@@ -55,7 +55,7 @@
 
 ### Caso D *(opcional)* — Tarjeta ANUAL con vendedor
 - [ ] Registro con `?ref=` + tarjeta, plan **Anual**
-- [ ] **Stripe:** cobro de **$8,490 (10×849) HOY**; próximo cobro ≈ **hoy + 1 año + 14 días**
+- [ ] **Stripe:** cobro de **$8,490 (10×864) HOY**; próximo cobro ≈ **hoy + 1 año + 14 días**
 
 ---
 

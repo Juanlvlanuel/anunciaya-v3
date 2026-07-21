@@ -119,7 +119,7 @@ export async function cambiarPrecioMensual(panel: UsuarioPanel, nuevoPrecioMensu
     const ctx = await contextoStripe();
     if (!ctx) return { ok: false, status: 502, mensaje: 'No se pudo leer el Price actual en Stripe. Revisa la configuración.' };
 
-    const precioActual = await obtenerConfigNumero('precio_membresia_mxn', 849);
+    const precioActual = await obtenerConfigNumero('precio_membresia_mxn', 864);
     const priceMensualActualId = await obtenerConfigTexto('stripe_price_comercial_id', env.STRIPE_PRICE_COMERCIAL);
     const priceAnualActualId = await obtenerConfigTexto('stripe_price_comercial_anual_id', '');
     const anualActivo = priceAnualActualId.trim() !== '';
@@ -181,7 +181,7 @@ export async function activarPlanAnual(panel: UsuarioPanel, activo: boolean): Pr
     if (!ctx) return { ok: false, status: 502, mensaje: 'No se pudo leer el Price actual en Stripe. Revisa la configuración.' };
 
     if (activo) {
-        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 849);
+        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 864);
         const precioAnual = precioMensual * FACTOR_ANUAL;
         let anual: Stripe.Price;
         try {

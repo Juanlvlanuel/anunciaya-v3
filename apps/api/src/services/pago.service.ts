@@ -1565,7 +1565,7 @@ export async function registrarCobroReal(opts: {
     try {
         // Meses cubiertos por el dinero (= monto ÷ precio mensual): 1 en mensual, 10 en anual. Llena el
         // campo "Periodo" del recibo (antes quedaba vacío en el cobro con tarjeta).
-        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 849);
+        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 864);
         const mesesCubiertos = precioMensual > 0 ? Math.max(1, Math.round(monto / precioMensual)) : null;
         const [pagoTarjeta] = await db
             .insert(pagosMembresia)
@@ -1886,7 +1886,7 @@ export async function manejarTrialPorTerminar(subscription: Stripe.Subscription)
         // Pago manual (efectivo/transferencia): avisa del próximo cobro SIN llamarlo "prueba gratis".
         // Trial de alta (sin pago manual cubriendo este periodo): conserva el copy de prueba gratis.
         const esPagoManual = conceptoManual === 'efectivo' || conceptoManual === 'transferencia';
-        const precioMembresia = await obtenerConfigNumero('precio_membresia_mxn', 849);
+        const precioMembresia = await obtenerConfigNumero('precio_membresia_mxn', 864);
         const titulo = esPagoManual ? 'Tu membresía se renueva pronto' : 'Tu prueba gratis termina pronto';
         const mensaje = esPagoManual
             ? `El periodo que cubriste vence el ${fechaTxt}. Ese día se cobrará tu membresía ($${precioMembresia}/mes) a la tarjeta registrada. Revisa que esté vigente para no perder el servicio.`

@@ -13,7 +13,7 @@
  */
 
 /** Precio mensual de la membresía comercial (MXN) — fallback si la config aún no cargó. */
-export const PRECIO_MEMBRESIA = 849;
+export const PRECIO_MEMBRESIA = 864;
 
 /**
  * Precio sugerido para N meses (el operador puede ajustarlo a mano después).

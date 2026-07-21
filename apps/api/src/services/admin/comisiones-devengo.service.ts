@@ -188,7 +188,7 @@ export async function devengarComisionRecurrenteAlCobro(
             return;
         }
 
-        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 849);
+        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 864);
         let mesesDevengables = precioMensual > 0 ? Math.round(montoPagado / precioMensual) : 0;
 
         // El PRIMER mes lo cubre la comisión de ALTA (pago único que YA representa el 1er mes de membresía),

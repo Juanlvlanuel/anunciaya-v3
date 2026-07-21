@@ -96,7 +96,7 @@ reglas** que aplica a todas por diccionarios — y que ante una acción nueva **
 4. **Nombres reales, no ids.** La entidad afectada se muestra por su nombre, resuelto por JOIN; si la
    acción no apunta a un id (p. ej. una alta, donde la entidad aún no "es" un id en la columna), el
    nombre se **deriva del snapshot**.
-5. **Valores legibles.** Montos con **$** (`$849.00`), fechas con el formato del proyecto (**`20 Jun
+5. **Valores legibles.** Montos con **$** (`$864.00`), fechas con el formato del proyecto (**`20 Jun
    2026`**, mes capitalizado, sin corrimiento de zona), periodos `2026-06` → `Jun 2026`, arrays unidos
    por coma, booleanos **Sí/No**, claves de configuración por su nombre humano.
 6. **Sin duplicados.** El dato que ya se muestra en "Sobre" no se repite abajo; la fecha de un pago que

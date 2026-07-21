@@ -53,7 +53,7 @@
 | Fórmulas de precio de Publicidad (`probar-publicidad-precio.ts`) | ✅ | 17/17 OK: base + multiplicador por ciudades + combo −15% + descuentos por meses + validaciones. |
 | Negocio de prueba "Maricos Las Plebes" (BD ↔ Stripe) | ✅ | Alineados: BD `al_corriente` / Stripe `trialing`, misma vigencia `2027-07-04`, tarjeta `****4242`. |
 | Comisión de alta (`diagnostico-comision-alta.ts`) | ✅ | 1 correcta (\$400 pendiente) · **0 indebidas**. |
-| Valores de config actuales del Panel | ✅ | `precio_membresia_mxn=849`, `precio_membresia_anual_mxn=8490` (=10×), ambos Price IDs (**anual activo**), `trial_duracion_dias=14`, `periodo_gracia_cobro_dias=14`, escalera `[0–5=$200, 6–10=$250, 11+=$300]`. |
+| Valores de config actuales del Panel | ✅ | `precio_membresia_mxn=864`, `precio_membresia_anual_mxn=8640` (=10×), ambos Price IDs (**anual activo**), `trial_duracion_dias=14`, `periodo_gracia_cobro_dias=14`, escalera `[0–5=$200, 6–10=$250, 11+=$300]`. |
 
 ### Hallazgos / puntos de atención
 
@@ -184,8 +184,8 @@
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
 | 🔴 A1 | Alta tarjeta **sin** vendedor → trial 14d → cobra día 15 | 🌐 | ✅ | E2E 22 jun: negocio nuevo `al_corriente`, `embajador_id=null`, Stripe `trialing`, `trial_end`=hoy+14 (6 jul), factura hoy $0 |
-| 🔴 A2 | Alta tarjeta **con** `?ref=JUAN01` → **cobro día 1** + próximo a +44d (Pieza 2) | 🌐 | ✅ | E2E 22 jun: cobró $849 al instante, `fecha_primer_pago`=hoy, próximo cobro 5 ago (+44d), atribuido a JUAN01, **comisión alta $400**, recibo folio #00035 + correo, bitácora `eventos_pago` ✓ |
-| 🔴 A3 | Renovación recurrente (`invoice.payment_succeeded`) refresca vigencia sin retroceder (`GREATEST`) | 🌐🤖 | ✅ | E2E 22 jun (`forzar-fin-trial.ts`): cobro $849 → webhook → `cobro_exitoso` en bitácora, `al_corriente`. **Anti-doble-pago en vivo**: no duplicó comisión (cobro cae dentro de `comision_devengada_hasta`=5 ago). Ver OBS-10 |
+| 🔴 A2 | Alta tarjeta **con** `?ref=JUAN01` → **cobro día 1** + próximo a +44d (Pieza 2) | 🌐 | ✅ | E2E 22 jun: cobró $864 al instante, `fecha_primer_pago`=hoy, próximo cobro 5 ago (+44d), atribuido a JUAN01, **comisión alta $400**, recibo folio #00035 + correo, bitácora `eventos_pago` ✓ |
+| 🔴 A3 | Renovación recurrente (`invoice.payment_succeeded`) refresca vigencia sin retroceder (`GREATEST`) | 🌐🤖 | ✅ | E2E 22 jun (`forzar-fin-trial.ts`): cobro $864 → webhook → `cobro_exitoso` en bitácora, `al_corriente`. **Anti-doble-pago en vivo**: no duplicó comisión (cobro cae dentro de `comision_devengada_hasta`=5 ago). Ver OBS-10 |
 | ⚪ A4 | Alta manual efectivo / transferencia / **cortesía** (sin Stripe) | 🤖 | ✅ | feature OK: super crea negocio con todos los campos, vendedor atribuye (`embajador_id`+`referido_por`); el script super crashea en una verificación obsoleta (OBS-8) sin afectar el alta (22 jun) |
 
 ### B · Morosidad y cancelación
@@ -219,7 +219,7 @@
 |---|---|---|:--:|---|
 | 🔴 E1 | Cambiar **precio membresía** → crea Price nuevo → siguiente checkout cobra el nuevo monto; **vigentes NO migran** | 🌐 | ✅ | **Validado E2E a lo largo de la ronda (22 jun):** Juan cambió el precio en Configuración del Panel varias veces y cada alta/checkout posterior cobró el precio configurado (Stripe respetó el Panel). `cambiarPrecioMensual` crea el Price nuevo + archiva el viejo + reapunta `stripe_price_comercial_id`; las suscripciones vigentes no migran (Stripe las deja en su Price anterior) |
 | 🔴 E2 | Toggle **plan anual** ON → Price anual = 10× → registro ofrece anual; elegir anual usa el Price correcto | 🌐 | ✅ | E2E 22 jun: registro anual con vendedor cobró **$8,490** (folio #37, `cobro_exitoso`), vigencia ~1 año + 14d cortesía |
-| 🔴 E3 | Cambiar **días de trial** → checkout usa `trial_period_days` nuevo (0 = cobra ya) | 🌐 | ✅ | **E2E 22 jun:** config trial=0 + alta SIN vendedor → Stripe cobró $849 **al instante** (sin `trialing`), negocio `al_corriente`, recibo folio #00046 + correo. Junto con A1 (trial=14 → `trial_end` +14d) confirma que el checkout respeta el valor de config. Detectó OBS-15b (desfase de fecha en el correo) |
+| 🔴 E3 | Cambiar **días de trial** → checkout usa `trial_period_days` nuevo (0 = cobra ya) | 🌐 | ✅ | **E2E 22 jun:** config trial=0 + alta SIN vendedor → Stripe cobró $864 **al instante** (sin `trialing`), negocio `al_corriente`, recibo folio #00046 + correo. Junto con A1 (trial=14 → `trial_end` +14d) confirma que el checkout respeta el valor de config. Detectó OBS-15b (desfase de fecha en el correo) |
 | 🔴 E4 | Cambiar **días de gracia** → suspensión al día configurado | 🤖 | ✅ | `probar-gracia-dinamica.ts` TODO VERDE (22 jun): editar `periodo_gracia_cobro_dias` vía `actualizarConfig` a 7 → `fecha_limite_gracia` = ahora+7.000d; cambio dinámico a 3 → ahora+3.000d (sin caché viejo); gracia restaurada (14d). Vía ruta manual `expirarManualesVencidos` (misma config que el webhook de tarjeta), sin Stripe |
 | 🔴 E5 | Cambiar **escalera de comisiones** → próximo cobro usa el nuevo escalón (congelado) | 🤖 | ✅ | `probar-escalera-dinamica.ts` TODO VERDE (22 jun): editar la escalera vía `actualizarConfig` (función REAL del Panel) a \$777 → el devengo usó \$777; cambio dinámico a \$111 → el siguiente cobro usó \$111 (sin caché viejo); escalera **restaurada** (\$200/activo). Confirma que el escalón se lee de config en cada cobro |
 | 🔴 E6 | **Precio de publicidad**: base + multiplicador ciudades + combo + descuento meses → total wizard = cobro Stripe | 🤖 | ✅ | `probar-publicidad-precio.ts` 17/17 (22 jun) |
@@ -282,7 +282,7 @@
   feature futuro, ver Z3). **Fix de 2 harness:** usaban `STRIPE_PRICE_COMERCIAL` del env (archivado al cambiar el
   precio) → ahora leen `stripe_price_comercial_id` de config.
 - **22 jun** — Línea base (solo lectura) **completa**: E6 ✅, negocio de prueba coherente BD↔Stripe, comisión
-  de alta sin indebidas, config leída (849 / anual 8490 / trial 14 / gracia 14 / escalera 200·250·300).
+  de alta sin indebidas, config leída (864 / anual 8640 / trial 14 / gracia 14 / escalera 200·250·300).
   Hallazgos OBS-1..OBS-3.
 - **22 jun** — **Auditoría de exhaustividad** (2 barridos de código): inventariado el universo completo de
   Stripe (6 event types del webhook, 3 subtipos de checkout, acciones del Panel, helpers, crons, frontend).
@@ -302,10 +302,10 @@
   `pagoService.verificarSession` pasa `{ timeout: 40000 }` (> polling del backend). Probado E2E: registro día-1
   → entra al modal de bienvenida.
 - **22 jun** — **Tanda 2 E2E (en curso):** A1 ✅ (alta sin vendedor → trial 14d, sin cobro hoy, `embajador_id=null`,
-  Stripe `trialing` `trial_end`=hoy+14; confirma base de E3). A2 ✅ (alta con `?ref=JUAN01` → **cobro día-1 $849**,
+  Stripe `trialing` `trial_end`=hoy+14; confirma base de E3). A2 ✅ (alta con `?ref=JUAN01` → **cobro día-1 $864**,
   próximo cobro 5 ago (+44d), atribución JUAN01, **comisión alta $400**, recibo folio #00035 + correo, bitácora
   `eventos_pago`; reconfirma C1 E2E + recibos foliados). El alias `multivideosjj+aN@gmail.com` funciona (correo
-  real entregado). A3 ✅ (`forzar-fin-trial.ts`): renovación $849 → `cobro_exitoso` en bitácora, `al_corriente`;
+  real entregado). A3 ✅ (`forzar-fin-trial.ts`): renovación $864 → `cobro_exitoso` en bitácora, `al_corriente`;
   **anti-doble-pago de comisión confirmado en vivo** (no duplicó); detectado OBS-10 (retroceso de vigencia en
   cobro forzado, escenario artificial). Siguiente: coherencia E1–E3 (precio / anual / trial).
 - **22 jun** — **Tanda 1 de harness (sin navegador):** C1/C2/C3 ✅ (comisión al cobro, escalera real 200),

@@ -750,7 +750,7 @@ export async function activarPromocionNegocio(
     // (meses exactos del paquete, sin la cortesía de vendedor).
     const otorgados = neg.promoMesesOtorgados ?? 1;
     const cobrados = neg.promoMesesCobrados ?? 1;
-    const precio = await obtenerConfigNumero('precio_membresia_mxn', 849);
+    const precio = await obtenerConfigNumero('precio_membresia_mxn', 864);
     const monto = cobrados * precio;
     const venc = new Date();
     venc.setMonth(venc.getMonth() + otorgados);

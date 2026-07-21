@@ -676,7 +676,7 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 
 ### 🎬 C-· — "Gestiona tu membresía y tu método de cobro" · 🏪 · PC 16:9 · ~65-80 seg
 
-> **Nota:** vive en **Mi Perfil → tab "Membresía y Pagos" → "Membresía"** (visible solo con negocio comercial). No hay literal "$849/mes" en esta vista. Botones de método: "Actualizar tarjeta", "Desactivar cobro automático", "Activar cobro automático".
+> **Nota:** vive en **Mi Perfil → tab "Membresía y Pagos" → "Membresía"** (visible solo con negocio comercial). No hay literal "$864/mes" en esta vista. Botones de método: "Actualizar tarjeta", "Desactivar cobro automático", "Activar cobro automático".
 
 > `[Pantalla: Mi Perfil → "Membresía y Pagos", vista "Membresía". Card "Tu membresía" con el estado]`
 > **"En 'Membresía y Pagos' ves el estado de tu membresía: si estás 'Al corriente', tu método de cobro y tu próximo pago."**
@@ -1416,7 +1416,7 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 
 ## 7. Plan de producción — Serie Comerciante (prioridad activa)
 
-> **Decisión (14-jul-2026):** pausamos la secuencia de videos de usuario para enfocar la producción en los videos de **comerciante** — son quienes pagan la suscripción ($849/mes) y quienes sostienen la beta (50 negocios piloto en Puerto Peñasco). Objetivo: que un negocio **entienda → se dé de alta → opere → no cancele**.
+> **Decisión (14-jul-2026):** pausamos la secuencia de videos de usuario para enfocar la producción en los videos de **comerciante** — son quienes pagan la suscripción ($864/mes) y quienes sostienen la beta (50 negocios piloto en Puerto Peñasco). Objetivo: que un negocio **entienda → se dé de alta → opere → no cancele**.
 
 ### Enfoque: "construir un negocio demo"
 Se graba en el **orden del viaje del comerciante**, de modo que cada video reutiliza los datos reales del anterior (das de alta → subes producto → configuras puntos → creas una oferta → registras una venta en ScanYA → esa venta ya aparece en el Dashboard). Grabar sobre el **negocio demo** (el mismo que usan los vendedores, ver `docs/arquitectura/Demo_Business_Studio.md`) para no exponer datos de un piloto real.

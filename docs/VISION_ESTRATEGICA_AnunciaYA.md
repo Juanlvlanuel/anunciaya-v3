@@ -24,7 +24,7 @@ Cada uno de esos puntos es donde AnunciaYA gana, gracias a las piezas únicas qu
 
 ### Modelo de negocio (recordatorio)
 
-- Negocios pagan suscripción comercial ($849 MXN/mes) por Business Studio + ScanYA + presencia premium.
+- Negocios pagan suscripción comercial ($864 MXN/mes) por Business Studio + ScanYA + presencia premium.
 - Usuarios usan la app gratis.
 - La sostenibilidad viene de los negocios verificados, NO de publicidad invasiva ni venta de datos de usuarios.
 

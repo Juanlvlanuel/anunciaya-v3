@@ -234,7 +234,7 @@ construye V2 en el Panel.
 - ✅ **HECHO — Precio editable + plan anual + cobro día-1 + comisión al cobro + recibos de tarjeta.** Todo el
   Sprint de Stripe (Piezas 1-3) está construido y **validado E2E en la ronda A-Z**. Vive en su doc maestro
   [`Sprint_Stripe.md`](Sprint_Stripe.md) (y el módulo [`Recibos.md`](Recibos.md), que nació de ahí). El precio
-  quedó **firme en $849**.
+  quedó **firme en $864**.
 - ❌ **DESCARTADO — Promos / meses gratis / cupones de membresía.** No se construye como trabajo del Panel. La
   **cortesía manual** (alta manual / "Registrar pago") ya cubre a los negocios **fundadores**, y si alguna vez
   hace falta un cupón puntual, el **Checkout de Stripe ya acepta promotion codes sin código** (verificado en la

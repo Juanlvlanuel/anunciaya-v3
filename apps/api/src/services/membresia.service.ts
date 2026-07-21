@@ -474,7 +474,7 @@ export async function obtenerDatosCobro(): Promise<DatosCobro> {
 export async function obtenerDatosCobroConPrecio(): Promise<DatosCobro & { precioMensual: number; precioAnual: number }> {
     const [datos, precioMensual, precioAnual] = await Promise.all([
         obtenerDatosCobro(),
-        obtenerConfigNumero('precio_membresia_mxn', 849),
+        obtenerConfigNumero('precio_membresia_mxn', 864),
         obtenerConfigNumero('precio_membresia_anual_mxn', 0),
     ]);
     return { ...datos, precioMensual, precioAnual };

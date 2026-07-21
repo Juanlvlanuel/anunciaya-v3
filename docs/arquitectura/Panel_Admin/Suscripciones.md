@@ -21,7 +21,7 @@
 
 ## 1. ¿Qué es y para qué existe?
 
-Cada negocio paga una **membresía de $849 al mes**. Ese dinero entra de varias formas: el
+Cada negocio paga una **membresía de $864 al mes**. Ese dinero entra de varias formas: el
 cobro automático de la tarjeta (Stripe), un pago en efectivo que registra un vendedor, una
 cortesía, etc. Y a veces falla un cobro o se cancela una membresía.
 
@@ -296,7 +296,7 @@ no se construye nada más. Detalle del cierre en `Suscripciones_Pendientes.md` �
   `5ae71be`: `editarPagoMembresia` actualiza el gemelo en la misma tx, simétrico a `anularPagoMembresia`) ·
   **migración `eventos_pago` confirmada en prod** (12 columnas) · **backfill** aplicado (dev 0 / prod 1 cortesía).
 - ✅ **Sprint de Stripe (precio editable + anual + cobro día-1 + comisión al cobro + recibos de tarjeta):** hecho
-  y validado; vive en [`Sprint_Stripe.md`](Sprint_Stripe.md). Precio firme en **$849**.
+  y validado; vive en [`Sprint_Stripe.md`](Sprint_Stripe.md). Precio firme en **$864**.
 - ❌ **Descartado (no se construye):** promos/cupones de membresía (la cortesía manual cubre a fundadores; el
   Checkout de Stripe ya acepta promotion codes a mano), exportar CSV, reembolsos/disputas como eventos
   (se manejan a mano en Stripe), migrar el dedup de Redis a `eventos_pago`.

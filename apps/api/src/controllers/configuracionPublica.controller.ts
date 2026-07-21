@@ -22,7 +22,7 @@ export async function obtenerConfigPublicaController(_req: Request, res: Respons
     try {
         const [trialDias, precioMembresia, precioAnualConfig, priceAnualId, whatsappNumero] = await Promise.all([
             obtenerConfigNumero('trial_duracion_dias', 14),
-            obtenerConfigNumero('precio_membresia_mxn', 849),
+            obtenerConfigNumero('precio_membresia_mxn', 864),
             obtenerConfigNumero('precio_membresia_anual_mxn', 0),
             obtenerConfigTexto('stripe_price_comercial_anual_id', ''),
             obtenerConfigTexto('contacto_whatsapp_numero', '+52 638 125 9076'),
@@ -35,6 +35,6 @@ export async function obtenerConfigPublicaController(_req: Request, res: Respons
     } catch (error) {
         // La landing nunca debe romperse por esto: ante cualquier fallo, devolver los defaults.
         console.error('Error en obtenerConfigPublicaController:', error);
-        res.status(200).json({ success: true, data: { trialDias: 14, precioMembresia: 849, precioMembresiaAnual: 8490, anualDisponible: false, whatsappNumero: '+52 638 125 9076' } });
+        res.status(200).json({ success: true, data: { trialDias: 14, precioMembresia: 864, precioMembresiaAnual: 8640, anualDisponible: false, whatsappNumero: '+52 638 125 9076' } });
     }
 }

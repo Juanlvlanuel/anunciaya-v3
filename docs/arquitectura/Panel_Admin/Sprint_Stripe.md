@@ -32,7 +32,7 @@ todo cerrado). La migración de la Pieza 3 (`2026-06-19-comision-al-cobro.sql`) 
 
 > **Contexto de arranque:** el **valor** del precio ya se subió de $449 a $849 MXN en TODO el código
 > (web: 3 constantes `PRECIO_COMERCIAL` + displays + i18n; admin: `PRECIO_MEMBRESIA` + placeholders;
-> api: avisos) y en los docs vigentes. En Stripe **TEST** ya está el Price de $849
+> api: avisos) y en los docs vigentes. En Stripe **TEST** ya está el Price de $864
 > (`price_1TjjgMDbqVqWBiz7Mg5RWqvI`) como default del producto `prod_TcFY6kI9RIuCf1`, con el Price
 > viejo archivado. Existe `apps/api/scripts/crear-price-membresia.ts` (crea/reusa un Price sobre el
 > mismo producto, lo hace default, archiva el viejo; idempotente; detecta TEST/LIVE por la llave).
@@ -49,12 +49,12 @@ todo cerrado). La migración de la Pieza 3 (`2026-06-19-comision-al-cobro.sql`) 
 **Qué hace el sprint (una carilla):** deja el **dinero de la membresía** gobernable sin tocar código y
 prepara el cobro para la red de vendedores. Tres frentes:
 
-1. **Precio centralizado + editable desde el Panel.** Un solo lugar para el monto ($849), consumido por
+1. **Precio centralizado + editable desde el Panel.** Un solo lugar para el monto ($864), consumido por
    la web, el admin y los avisos; y un **botón** (superadmin) que, al cambiar el precio, **crea el Price
    nuevo en Stripe** (mensual **y** anual), lo deja default y reapunta la config — todo de un clic, sin
    redeploy. Incluye el **plan anual en tarjeta** (self-service).
 2. **Cobro "día 1" para ventas por vendedor.** Cuando hay vendedor (`?ref=` por tarjeta **o** alta
-   manual), el comercio **paga $849 al inicio** y recibe **44 días** de servicio (30 + 14 de cortesía) →
+   manual), el comercio **paga $864 al inicio** y recibe **44 días** de servicio (30 + 14 de cortesía) →
    próximo cobro a los 44 días. El **auto-registro sin vendedor** mantiene el flujo actual (14 días
    gratis → cobra el día 15).
 3. **Comisión recurrente "al cobro".** El vendedor devenga su comisión recurrente **por los meses que el
@@ -63,7 +63,7 @@ prepara el cobro para la red de vendedores. Tres frentes:
 
 **Qué NO hace (fuera de alcance — anotado, no escondido):**
 - 🚫 **No baja el precio** de lanzamiento (no hay coupon de descuento de precio). El precio se queda
-  **firme en $849**; las promos de apertura dan **tiempo** (cortesías), no rebaja (DS3).
+  **firme en $864**; las promos de apertura dan **tiempo** (cortesías), no rebaja (DS3).
 - 🚫 **No construye promo-codes self-service** de meses gratis. Los meses gratis se dan como **cortesía
   desde el Panel**, que ya existe y funciona también con tarjeta (DS5).
 - 🚫 **No construye rifas / intercambio comunitario.** Eso lo opera Juan **por fuera de la app**, manual;
@@ -89,11 +89,11 @@ prepara el cobro para la red de vendedores. Tres frentes:
 |---|---|---|---|
 | **DS1** | ¿Cómo se enlaza "cambiar el monto en el Panel" con "crear el Price en Stripe"? | **Botón que automatiza el Price** desde el Panel (no script manual). Reusa la lógica de `crear-price-membresia.ts`. **Consecuencia obligada:** el Price ID se **muda de env var a config en BD** (un runtime no puede reescribir una env de Render); la env queda como **semilla/fallback** la 1ª vez. | ✅ decidido · ⏳ construir |
 | **DS2** | ¿Dónde vive el monto para display/manuales? | Clave `precio_membresia_mxn` en `configuracion` (mismo patrón que `trial_duracion_dias`). Consumida por **admin** (reemplaza `PRECIO_MEMBRESIA`), **web** (vía **endpoint público** + i18n con interpolación `{{precio}}`) y **avisos**. Reemplaza las ~7 copias hardcodeadas. | ✅ decidido · ⏳ construir |
-| **DS3** | ¿Precio de lanzamiento (rebaja)? | **DESCARTADO.** El precio se queda **firme en $849**. No hay coupon de descuento de precio. Las promos de apertura dan **tiempo**, no rebaja. | ✅ decidido |
+| **DS3** | ¿Precio de lanzamiento (rebaja)? | **DESCARTADO.** El precio se queda **firme en $864**. No hay coupon de descuento de precio. Las promos de apertura dan **tiempo**, no rebaja. | ✅ decidido |
 | **DS4** | Plan anual (paga ~10, 12 meses): ¿qué canales? | **Manual + tarjeta.** En manual ya existe (`precioPorMeses(12)`). En **tarjeta** se construye: **Price anual nuevo** en Stripe (= 10× el mensual) + opción en el registro/checkout. | ✅ decidido · ⏳ construir (tarjeta) |
 | **DS5** | Meses gratis de apertura: ¿cómo? | **Solo cortesía desde el Panel** (ya existe; empuja `trial_end` sin cobro, también con tarjeta). El **promo-code self-service queda descartado**. | ✅ decidido (cero trabajo) |
 | **DS6** | Rifa / intercambio comunitario | **Fuera de la app.** Marketing externo que opera Juan manualmente. No se construye. | ✅ decidido |
-| **DS7** | Mecanismo Stripe del cobro día-1 | Modelo decidido (paga $849 al inicio + 44 días → próximo cobro a 44d con vendedor; sin vendedor, flujo actual). El **cómo** en Stripe se valida con un **spike + Test Clock**, entre **(b)** sin trial: 1ª factura $849 hoy + ancla del ciclo a +44d / **(c)** `trial_end=+44d` + invoice $849 inmediata. **Descartado (a)** cargo one-time suelto (no dispara `invoice.payment_succeeded` → rompería el devengo de alta). Preferida: **(b)** (historial = invoices normales). | ✅ modelo decidido · ⏳ spike |
+| **DS7** | Mecanismo Stripe del cobro día-1 | Modelo decidido (paga $864 al inicio + 44 días → próximo cobro a 44d con vendedor; sin vendedor, flujo actual). El **cómo** en Stripe se valida con un **spike + Test Clock**, entre **(b)** sin trial: 1ª factura $864 hoy + ancla del ciclo a +44d / **(c)** `trial_end=+44d` + invoice $864 inmediata. **Descartado (a)** cargo one-time suelto (no dispara `invoice.payment_succeeded` → rompería el devengo de alta). Preferida: **(b)** (historial = invoices normales). | ✅ modelo decidido · ⏳ spike |
 | **DS8** | Comisión recurrente al cobro: ¿en este sprint? | **Sí, como última pieza** (comparte el gancho "devengo al cobro" con el cobro día-1). Mecánica D16/D16.1 de `Vendedores_y_comisiones_Pendientes.md`. | ✅ decidido · ⏳ construir |
 | **DS9** | Orden de construcción | **Pieza 1 (precio + Prices en BD + botón) → Pieza 2 (cobro día-1) → Pieza 3 (comisión al cobro).** | ✅ decidido |
 | **DS10** | Estructura documental | **Doc maestro del sprint** (este archivo); cada pieza, al cerrar, actualiza **su módulo**. `Suscripciones_Pendientes.md` §Cierre de alcance apunta aquí. | ✅ decidido |
@@ -213,7 +213,7 @@ Fase 0 — Definir ✅ (18 Jun 2026)
 Pieza 1 — Precio centralizado + Prices en BD + botón   🟢 VALIDADA E2E EN TEST (cobro real OK; falta Fase 3 + commit)
 - [x] 1a · Monto centralizado en config (precio_membresia_mxn): api (endpoint público + notificaciones),
       web (3 constantes + 3 displays + i18n → useConfigPublica), admin (usePrecioMembresia + precioPorMeses(precioBase)
-      + 3 diálogos + placeholders). tsc verde ×3. NO requiere correr nada en BD (default 849).
+      + 3 diálogos + placeholders). tsc verde ×3. NO requiere correr nada en BD (default 864).
 - [x] 1b-backend · checkout acepta `intervalo` mensual/anual y lee el Price de config (env como semilla);
       el endpoint público expone `precioMembresiaAnual`. tsc verde.
 - [x] 1c-backend · cambiarPrecioMembresia (crea Prices mensual+anual=10×, default + archiva viejos, reapunta
