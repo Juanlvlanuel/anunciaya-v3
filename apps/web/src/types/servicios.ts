@@ -164,6 +164,22 @@ export interface PublicacionServicio {
     expiraAt: string;
     createdAt: string;
     updatedAt: string;
+    /**
+     * Oferente ligero (id/nombre/apellidos/avatar) — solo poblado en el feed
+     * (`/feed`, `/feed/infinito`). NULL en endpoints que no hacen ese JOIN
+     * (ej. Mis Publicaciones). Distinto de `OferenteServicio` (el objeto
+     * completo del detalle, con teléfono/ultimaConexion/negocio/etc.) —
+     * nombre separado para no chocar tipos entre `PublicacionServicio` y
+     * `PublicacionDetalle`.
+     */
+    oferenteResumen: {
+        id: string;
+        nombre: string;
+        apellidos: string;
+        avatarUrl: string | null;
+    } | null;
+    /** Conteo de comentarios públicos — solo poblado en el feed. */
+    totalComentarios: number;
 }
 
 /** Fila del feed (incluye distancia para orden cercano). */

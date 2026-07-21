@@ -33,8 +33,8 @@ interface FabPublicarProps {
     esEscritorio: boolean;
     bottomNavVisible: boolean;
     /** Mantiene el chip blanco del label también en escritorio (default:
-     *  false — MP/Servicios muestran texto plano en desktop, sin cambios).
-     *  Negocios lo activa para igualar el mismo look que móvil. */
+     *  false — texto plano en desktop). MP, Negocios y Servicios lo activan
+     *  para igualar el mismo look que móvil. */
     labelConCardEscritorio?: boolean;
     /** Ícono dentro del círculo (default: `Plus` con animación pulse — el
      *  comportamiento original "+ Publicar"). Pásalo para reusar el mismo
@@ -80,8 +80,9 @@ export function FabPublicar({
             {/* Label "Publicar" — visible en móvil y desktop.
                 Móvil: chip blanco translúcido con sombra para legibilidad
                 sobre fotos del feed (fondos impredecibles).
-                Desktop: texto plano sobre el fondo claro `bg-slate-100` —
-                salvo que `labelConCardEscritorio` pida mantener el chip. */}
+                Desktop: texto plano sobre el fondo claro, salvo que
+                `labelConCardEscritorio` pida mantener el chip (MP/Negocios/
+                Servicios lo activan). */}
             <span
                 className={`rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm ${
                     labelConCardEscritorio ? '' : 'lg:bg-transparent lg:px-0 lg:py-0 lg:text-base lg:shadow-none lg:backdrop-blur-none'

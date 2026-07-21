@@ -31,6 +31,7 @@
 24. [DatePicker (Calendario)](#24-datepicker-calendario)
 25. [Highlight de Foco en Inputs y Selects](#25-highlight-de-foco-en-inputs-y-selects)
 26. [Composer estilo Post (Instagram/Facebook)](#26-composer-estilo-post-instagramfacebook)
+27. [Feed de Posts estilo Facebook + Rail "Recién publicado"](#27-feed-de-posts-estilo-facebook--rail-recién-publicado)
 
 ---
 
@@ -2211,3 +2212,29 @@ return (
 - `apps/web/src/components/negocios/publicaciones/composer/ComposerPublicacionNegocio.tsx` + `ComposerSection.tsx` — plantilla original (sin toggle de modo, sin categoría estructurada).
 - `apps/web/src/components/marketplace/composer/ComposerMarketplace.tsx` + `ComposerSection.tsx` — con toggle Vendo/Busco, categoría vía `CustomSelect` con `portal` (ver TC-25).
 - `apps/web/src/components/servicios/composer/ComposerServicios.tsx` + `ComposerSection.tsx` — con toggle Ofrezco/Solicito, categoría/modalidad vía chips fijos (sin `CustomSelect`).
+
+---
+
+## 27. Feed de Posts estilo Facebook + Rail "Recién publicado"
+
+Patrón de feed de 1 columna que comparten las 3 secciones públicas (Negocios, MarketPlace, Servicios) — reemplaza grillas/carruseles de cards compactas por posts completos, más el rail lateral de "recién publicado".
+
+### Card de post (feed principal)
+
+- Contenedor: `rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] overflow-hidden`.
+- **Header**: avatar/logo (`h-14 w-14 rounded-full`) + nombre `text-[17px] font-extrabold` con `ChevronRight` animado (`animate-bounceX`) color de marca de la sección + tiempo relativo debajo + badge de distancia a la derecha (`bg-{color}-100 text-{color}-700 rounded-full`) + botón editar inline (`Pencil`, solo visible para el dueño, abre el composer existente vía `?editar=<id>`).
+- **Cuerpo**: título (link al detalle) → precio/chips (tipo, categoría, urgente, etc., en `rounded-md` — NO pastel saturado) → descripción con "Ver más" como texto REAL dentro del mismo párrafo (recorte por caracteres ~100-150, NO `line-clamp` + overlay flotante).
+- **Galería**: fotos swipeables (`translateX` en vivo con `touchstart/move/end`, keys estables por índice de foto para que no re-decodifique al pasar) `aspect-[4/3] lg:aspect-[2/1]` + thumbnails laterales `w-24` solo desktop cuando hay múltiples fotos (`lg:mr-24` en la galería principal para reservar el espacio).
+- **Footer**: comentarios (ícono `ICONOS.chat`, abre modal con TODOS los comentarios — sin preview inline) + vistas (`ICONOS.vistas`). Ancho del feed: `space-y-4` dentro de un contenedor `max-w-[940px] 2xl:max-w-[1068px]` (con rail) o `max-w-[620px] 2xl:max-w-[704px]` (sin rail, centrado).
+
+### Rail "Recién publicado" (desktop) / Reel horizontal (móvil)
+
+- **Desktop**: columna FIJA por JS desde el primer render (NO `position: sticky`) — placeholder `relative w-[300px] 2xl:w-[340px] shrink-0` que reserva el espacio en el flujo normal + columna real `lg:fixed` posicionada con `top`/`left` medidos por `getBoundingClientRect()` (title fuera del contenedor con scroll para que no se oculte con el auto-scroll). Auto-scroll vertical cada 3.5s (`scrollBy({top: clientHeight*0.5})`), pausa al `mouseenter`. Cards compactas `w-44 lg:w-52` (foto `aspect-[4/3]` + título + precio, sin descripción).
+- **Móvil**: `ReelXxx.tsx` — carrusel horizontal con auto-scroll cada 4s, pausa al hover/touch, drag manual con mouse, loop infinito visual, flechas solo desktop con hover del wrapper.
+- Ambas variantes leen la MISMA fuente de datos ("recién publicado", sin paginar — el feed grande de abajo es el que pagina).
+
+### Implementaciones actuales
+
+- Negocios: `CardPublicacionNegocioFeed.tsx` + `ReelNegociosFeed.tsx`/`CardNegocioReel.tsx` + columna fija en `PaginaNegocios.tsx` (tab Feed).
+- MarketPlace: `CardArticuloFeed.tsx` + `ReelMarketplace.tsx`/`CardArticuloReel.tsx` + columna fija en `PaginaMarketplace.tsx`.
+- Servicios: `CardServicioFeed.tsx` (+ `ModalComentariosServicio.tsx`) + `ReelServicios.tsx`/`CardServicioReel.tsx` + columna fija en `PaginaServicios.tsx` (las 4 tabs). Universal para los 3 tipos de publicación (`servicio-persona`/`solicito`/`vacante-empresa`) — mismo criterio que la card de grilla `CardServicio.tsx` (que se mantiene aparte para Guardados/Perfil Prestador).

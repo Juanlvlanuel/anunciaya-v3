@@ -194,6 +194,8 @@ function construirVacanteOptimista(
         expiraAt: expira,
         createdAt: ahora,
         updatedAt: ahora,
+        oferenteResumen: null,
+        totalComentarios: 0,
     };
 }
 

@@ -21,8 +21,10 @@
  *    Scroll infinito en móvil (IntersectionObserver) + botón "Cargar más"
  *    en desktop. Patrón calcado de BS Empleados/Transacciones. Sin límite
  *    de items — se muestran TODOS los resultados de la ciudad hasta agotar.
- *  - 'solicitudes': `ClasificadosWidget` (densidad alta, sin paginación —
- *    los pedidos del día caben en una sola vista por diseño).
+ *  - 'solicitudes': banner CTA + título simple + lista `CardServicioFeed`,
+ *    mismo estilo que 'vacantes'/'servicios'. Sin paginación (usa el feed
+ *    inicial, no `useServiciosFeedInfinito`) — los pedidos del día caben
+ *    en una sola vista.
  *
  * Estados:
  *  - Sin GPS o sin ciudad → mensaje accionable invitando a activar ubicación.
@@ -36,7 +38,7 @@
  * Ubicación: apps/web/src/pages/private/servicios/PaginaServicios.tsx
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -44,6 +46,7 @@ import {
     CornerRightDown,
     MapPin,
     Plus,
+    Search,
     Sparkles,
     Wrench,
 } from 'lucide-react';
@@ -62,26 +65,30 @@ import {
 } from '../../../hooks/queries/useServicios';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import type { TabServicios } from '../../../components/servicios/TabsServicios';
-import { CardServicio } from '../../../components/servicios/CardServicio';
-import { CardHorizontal } from '../../../components/servicios/CardHorizontal';
-import { ClasificadosWidget } from '../../../components/servicios/ClasificadosWidget';
+import { CardServicioFeed } from '../../../components/servicios/CardServicioFeed';
+import { CardServicioReel } from '../../../components/servicios/CardServicioReel';
+import { ReelServicios } from '../../../components/servicios/ReelServicios';
 import { ComposerSection } from '../../../components/servicios/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
 import type {
     ModoServicio,
     PublicacionServicio,
-    FiltroClasificado,
+    PublicacionFeed,
 } from '../../../types/servicios';
+
+// Canaleta + barra de scroll del rail fijo "Recién publicado" (desktop) —
+// misma estética que `.marketplace-cards-scroll`/`.negocios-cards-scroll`.
+const SERVICIOS_RAIL_SCROLL_STYLES = `
+  .servicios-rail-scroll::-webkit-scrollbar { width: 12px; }
+  .servicios-rail-scroll::-webkit-scrollbar-track { background: transparent; }
+  .servicios-rail-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
+  .servicios-rail-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+`;
 
 // =============================================================================
 // CONSTANTES
 // =============================================================================
-
-/** Tope de cards a renderizar en cada sección del tab='todos' (preview).
- *  Si la cantidad real supera este límite, se muestra "Ver más →" al
- *  lado del título que cambia a la tab filtrada correspondiente. */
-const LIMITE_PREVIEW_TODOS = 8;
 
 /** Items por página del feed infinito (tabs filtradas). 20 es un buen
  *  balance: rellena 4 filas de cards en desktop (5 cols max) sin que el
@@ -110,6 +117,8 @@ export function PaginaServicios() {
     const handleVolver = useVolverAtras('/inicio');
     const cuerpoRef = useScrollAppShell();
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+    // Salto entre top-levels (Servicios → BS) para el banner de Vacantes.
+    const navegarASeccion = useNavegarASeccion();
 
     // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N publicaciones"
     // + tabs Servicios/Solicitudes/Vacantes) al hacer scroll hacia abajo,
@@ -153,10 +162,18 @@ export function PaginaServicios() {
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
     const headerRef = useRef<HTMLDivElement>(null);
     const [topPublicar, setTopPublicar] = useState(96);
+    // Borde inferior real del header (getBoundingClientRect, no solo su alto)
+    // — lo usa el rail fijo "Recién publicado" de abajo, mismo criterio que
+    // la columna de cards de PaginaNegocios.tsx/PaginaMarketplace.tsx.
+    const [headerBottom, setHeaderBottom] = useState(150);
     useEffect(() => {
         const el = headerRef.current;
         if (!el) return;
-        const medir = () => setTopPublicar(el.getBoundingClientRect().bottom + 8);
+        const medir = () => {
+            const rect = el.getBoundingClientRect();
+            setTopPublicar(rect.bottom + 8);
+            setHeaderBottom(rect.bottom);
+        };
         medir();
         const observador = new ResizeObserver(medir);
         observador.observe(el);
@@ -166,6 +183,21 @@ export function PaginaServicios() {
             window.removeEventListener('resize', medir);
         };
     }, []);
+
+    // ─── Rail "Recién publicado" fijo (escritorio) / reel horizontal (móvil) ──
+    // Mismo mecanismo que la columna de cards de PaginaNegocios.tsx / la
+    // columna "Recién publicado" de PaginaMarketplace.tsx: FIJA por JS desde
+    // el primer render (sin `position: sticky`), con auto-scroll vertical y
+    // pausa al hover. En móvil, `ReelServicios` (carrusel horizontal) hace
+    // el mismo rol arriba del feed.
+    const railPlaceholderRef = useRef<HTMLDivElement>(null);
+    const railScrollRef = useRef<HTMLDivElement>(null);
+    const [railLeft, setRailLeft] = useState<number | null>(null);
+    // Título "Recién publicado" vive FUERA del contenedor con scroll para que
+    // no se oculte al avanzar el auto-scroll — se mide su alto real para
+    // restarlo de la altura del área scrolleable de abajo.
+    const railHeadingRef = useRef<HTMLHeadingElement>(null);
+    const [railHeadingAlto, setRailHeadingAlto] = useState(32);
 
     // ─── Estado local ─────────────────────────────────────────────────────
     // `tabActiva` → tab activa del segmented control. Reemplaza al sistema
@@ -214,9 +246,24 @@ export function PaginaServicios() {
     // (Sprint 9.2): el atajo a /mis-publicaciones ahora vive como chip dentro
     // del propio composer (header de la pill colapsada). Mismo patrón que MP.
 
-    // Filtro del tag strip del widget Clasificados (interno de la tab Solicitudes).
-    const [filtroClasificado, setFiltroClasificado] =
-        useState<FiltroClasificado>('todos');
+    // ─── Altura del composer (medida) — usada como spacer en Vacantes ──────
+    // El composer NO se renderiza en la tab Vacantes (se publica desde BS),
+    // así que el banner/rail/feed de esa tab arrancaban más arriba que en
+    // el resto de las tabs (donde el composer sí ocupa espacio encima).
+    // Se mide su alto real mientras está montado en cualquier OTRA tab y se
+    // reusa como spacer fijo cuando `tabActiva==='vacantes'` — mismo alto,
+    // sin adivinar un valor en px.
+    const composerRef = useRef<HTMLDivElement>(null);
+    const [composerAltura, setComposerAltura] = useState(0);
+    useEffect(() => {
+        const el = composerRef.current;
+        if (!el) return;
+        const medir = () => setComposerAltura(el.getBoundingClientRect().height);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [tabActiva]);
 
     // ─── React Query — feed inicial ────────────────────────────────────────
     // SIEMPRE activo — es la fuente de verdad para:
@@ -314,7 +361,7 @@ export function PaginaServicios() {
 
     // Mapeo tab → tipo de publicación que muestra en recientes/cercanos.
     //   - servicios → solo servicio-persona
-    //   - solicitudes → solo solicito (renderizado en ClasificadosWidget aparte)
+    //   - solicitudes → solo solicito (usa `clasificados`, aparte)
     //   - vacantes → solo vacante-empresa
     //   - todos → servicio-persona + vacante-empresa juntos (los solicito
     //     van al widget aparte en su propia sección)
@@ -356,7 +403,7 @@ export function PaginaServicios() {
      *                     secciones dedicadas arriba/abajo del feed.
      *  - tab='servicios': solo `servicio-persona`.
      *  - tab='vacantes':  vacío (vacantes están en su sección arriba).
-     *  - tab='solicitudes': vacío (ClasificadosWidget aparte). */
+     *  - tab='solicitudes': vacío (usa `clasificados`, aparte). */
     const recientes = useMemo(() => {
         if (tabActiva === 'vacantes' || tabActiva === 'solicitudes') return [];
         const mapa = new Map<string, typeof recientesRaw[number]>();
@@ -387,13 +434,6 @@ export function PaginaServicios() {
         const mapa = new Map<string, typeof recientesRaw[number]>();
         for (const p of [...recientesRaw, ...cercanosRaw]) {
             if (p.tipo !== 'solicito') continue;
-            if (filtroClasificado === 'urgente' && !p.urgente) continue;
-            if (
-                filtroClasificado !== 'todos' &&
-                filtroClasificado !== 'urgente' &&
-                p.categoria !== filtroClasificado
-            )
-                continue;
             mapa.set(p.id, p);
         }
         // Urgentes primero, luego por fecha de creación descendente.
@@ -401,7 +441,35 @@ export function PaginaServicios() {
             if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
             return b.createdAt.localeCompare(a.createdAt);
         });
-    }, [recientesRaw, cercanosRaw, filtroClasificado]);
+    }, [recientesRaw, cercanosRaw]);
+
+    /** "Recién publicado" del rail — mezcla los 3 tipos (servicio-persona +
+     *  solicito + vacante-empresa), dedup por id, orden por fecha. Solo se
+     *  usa cuando `tabActiva === 'todos'` (las otras 3 tabs reusan sus
+     *  arreglos ya filtrados por tipo — `recientes`/`vacantes`/`clasificados`). */
+    const railTodos = useMemo(() => {
+        const mapa = new Map<string, PublicacionFeed>();
+        for (const p of [...recientesRaw, ...cercanosRaw]) {
+            if (!mapa.has(p.id)) mapa.set(p.id, p);
+        }
+        return Array.from(mapa.values()).sort((a, b) =>
+            b.createdAt.localeCompare(a.createdAt),
+        );
+    }, [recientesRaw, cercanosRaw]);
+
+    /** Publicaciones del rail fijo (desktop) / reel horizontal (móvil) —
+     *  hasta 12, "recién publicado" del tipo que corresponde a la tab activa.
+     *  Reusa los arreglos que el resto del feed ya calcula (evita una fuente
+     *  de verdad aparte). Vacío durante la carga inicial → el rail
+     *  simplemente no se renderiza (mismo criterio que `hayColumnaCards`
+     *  de PaginaMarketplace.tsx). */
+    const LIMITE_RAIL = 12;
+    const railData = useMemo<PublicacionFeed[]>(() => {
+        if (tabActiva === 'todos') return railTodos.slice(0, LIMITE_RAIL);
+        if (tabActiva === 'servicios') return recientes.slice(0, LIMITE_RAIL);
+        if (tabActiva === 'vacantes') return vacantes.slice(0, LIMITE_RAIL);
+        return clasificados.slice(0, LIMITE_RAIL);
+    }, [tabActiva, railTodos, recientes, vacantes, clasificados]);
 
     /** KPI "N pedidos hoy" del widget — total de `solicito` únicos sin filtro. */
     const totalClasificadosHoy = useMemo(() => {
@@ -435,6 +503,66 @@ export function PaginaServicios() {
             vacantes: ids.vacantes.size,
         };
     }, [recientesRaw, cercanosRaw]);
+
+    // ─── Medición del rail fijo (escritorio) ───────────────────────────────
+    // Mismo patrón que la columna de cards de PaginaNegocios.tsx / la
+    // columna "Recién publicado" de PaginaMarketplace.tsx. Depende de
+    // `railData.length` porque el placeholder se monta/desmonta según haya
+    // o no datos — hay que re-medir cada vez que vuelve a existir.
+    useLayoutEffect(() => {
+        const el = railPlaceholderRef.current;
+        if (!el) return;
+        const medir = () => setRailLeft(el.getBoundingClientRect().left);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        window.addEventListener('resize', medir);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', medir);
+        };
+    }, [railData.length]);
+
+    useLayoutEffect(() => {
+        const el = railHeadingRef.current;
+        if (!el) return;
+        const medir = () => setRailHeadingAlto(el.getBoundingClientRect().height);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [railData.length]);
+
+    // Auto-scroll vertical del rail fijo, con pausa al hover — mismo patrón
+    // que la columna de cards de PaginaNegocios.tsx/PaginaMarketplace.tsx.
+    useEffect(() => {
+        const el = railScrollRef.current;
+        if (!el) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        let pausado = false;
+        const onEnter = () => { pausado = true; };
+        const onLeave = () => { pausado = false; };
+        el.addEventListener('mouseenter', onEnter);
+        el.addEventListener('mouseleave', onLeave);
+
+        const intervalo = window.setInterval(() => {
+            if (pausado) return;
+            const { scrollTop, scrollHeight, clientHeight } = el;
+            if (scrollHeight <= clientHeight) return;
+            if (scrollTop + clientHeight >= scrollHeight - 4) {
+                el.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                el.scrollBy({ top: clientHeight * 0.5, behavior: 'smooth' });
+            }
+        }, 3500);
+
+        return () => {
+            window.clearInterval(intervalo);
+            el.removeEventListener('mouseenter', onEnter);
+            el.removeEventListener('mouseleave', onLeave);
+        };
+    }, [railData.length]);
 
     /** Expande el composer inline en el feed pasando el modo deseado
      *  como query param. La pill de `<ComposerSection>` lo detecta y se
@@ -522,27 +650,80 @@ export function PaginaServicios() {
             />
 
             {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[920px] lg:px-4">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
+                <style>{SERVICIOS_RAIL_SCROLL_STYLES}</style>
+
                 {/* Composer inline — pill colapsada que se expande
                     in-place al tap. Solo en modo Personal y en tabs
                     donde el usuario puede publicar (Todos / Servicios /
                     Solicitudes). Vacantes se publica desde Business
-                    Studio, no aquí.
-
-                    Sprint 9.2: se quitó el widget lateral `MisPublicacionesWidget`
-                    y el atajo a /mis-publicaciones quedó como chip dentro
-                    del header de la pill (mismo patrón que MP). Todo el
-                    contenido del feed (composer + cards + secciones) se
-                    acota a `max-w-[920px]` desde el container padre, igual
-                    que MP — el composer hereda ese ancho sin wrapper extra. */}
+                    Studio, no aquí. Vive FUERA del layout de 2 columnas
+                    (ancho completo) — no participa del rail. */}
                 {esModoPersonal && tabActiva !== 'vacantes' && (
-                    <div className="px-4 lg:px-0 pt-3 lg:pt-4">
+                    <div ref={composerRef} className="px-4 lg:px-0 pt-3">
                         <ComposerSection
                             modoServiciosDefault={modoComposerPorTab(tabActiva)}
                         />
                     </div>
                 )}
+                {/* Spacer del alto del composer — Vacantes no lo muestra
+                    (se publica desde BS), pero sin este spacer el banner/
+                    rail/feed de esa tab arrancaban más arriba que en el
+                    resto. Reusa el alto medido mientras el composer está
+                    montado en cualquier otra tab. */}
+                {esModoPersonal && tabActiva === 'vacantes' && composerAltura > 0 && (
+                    <div style={{ height: composerAltura }} />
+                )}
 
+                {/* Reel horizontal "Recién publicado" — solo móvil. En
+                    desktop el rol lo cumple el rail fijo de abajo. */}
+                {railData.length > 0 && (
+                    <div className="px-4 lg:hidden mt-4">
+                        <ReelServicios publicaciones={railData} />
+                    </div>
+                )}
+
+                {/* Layout de 2 columnas en escritorio: rail fijo "Recién
+                    publicado" a la izquierda (mismo mecanismo que la columna
+                    de cards de PaginaNegocios.tsx/PaginaMarketplace.tsx) +
+                    contenido de la tab activa a la derecha. En móvil es
+                    flujo normal de 1 columna (el `lg:flex` no aplica). */}
+                <div className="lg:flex lg:items-start lg:gap-5 2xl:gap-6">
+                    {railData.length > 0 && (
+                        <div
+                            ref={railPlaceholderRef}
+                            className="relative hidden lg:block w-[300px] 2xl:w-[340px] shrink-0"
+                            style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
+                        >
+                            <div
+                                className="w-[300px] 2xl:w-[340px] z-10 lg:fixed"
+                                style={{
+                                    top: `${headerBottom + 16}px`,
+                                    left: railLeft !== null ? `${railLeft}px` : undefined,
+                                }}
+                            >
+                                <h3
+                                    ref={railHeadingRef}
+                                    className="px-1 pb-2 text-sm font-bold uppercase tracking-wide text-slate-600"
+                                >
+                                    Recién publicado
+                                </h3>
+                                <div
+                                    ref={railScrollRef}
+                                    className="servicios-rail-scroll overflow-y-auto overflow-x-visible pr-1"
+                                    style={{ height: `calc(100vh - ${headerBottom + 16 + railHeadingAlto}px - 16px)` }}
+                                >
+                                    <div className="flex flex-col gap-4 2xl:gap-5 pb-4">
+                                        {railData.map((p) => (
+                                            <CardServicioReel key={p.id} publicacion={p} variant="glass" />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="min-w-0 lg:flex-1">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-20">
                         <Spinner tamanio="lg" />
@@ -550,33 +731,36 @@ export function PaginaServicios() {
                 ) : isError ? (
                     <ErrorBloque onReintentar={() => refetch()} />
                 ) : tabActiva === 'solicitudes' ? (
-                    /* ═══ TAB SOLICITUDES — el widget ya tiene su propia UI ═══
-                       `onPublicar` sí se pasa (Sprint 9.3): el footer del
-                       widget se rediseñó como CTA de conversión amber y
-                       tiene sentido aunque el FAB global esté visible
-                       (aquí el contexto es "ya viste las solicitudes de
-                       otros, publica la tuya"). No usa paginación infinita
-                       — los clasificados del día caben sin scroll y la UX
-                       del widget es densa por diseño. */
+                    /* ═══ TAB SOLICITUDES — mismo estilo que Vacantes/Servicios:
+                       banner CTA + título simple en 1 línea + lista, sin
+                       tag-strip de categorías. No usa paginación infinita
+                       — los clasificados del día caben sin scroll. */
                     totalClasificadosHoy > 0 ? (
-                        <div className="px-4 lg:px-0 mt-4 lg:mt-5">
-                            <ClasificadosWidget
-                                pedidos={clasificados}
-                                filtroActivo={filtroClasificado}
-                                onFiltroChange={setFiltroClasificado}
-                                desktop={esEscritorio}
-                                ciudad={ciudad.split(',')[0]}
-                                onPedidoClick={(id) =>
-                                    navigate(`/servicios/${id}`)
-                                }
-                                onPublicar={
-                                    esModoPersonal ? irAPublicarSolicito : undefined
-                                }
-                                /* `onVerTodos` NO se pasa aquí: ya estamos
-                                   en tab='solicitudes', no hay a dónde
-                                   navegar — "ver más" carecería de sentido. */
-                            />
-                        </div>
+                        <>
+                            {esModoPersonal && (
+                                <BannerCTA
+                                    icono={Search}
+                                    titulo="¿Necesitas un servicio?"
+                                    subtitulo="Publica tu solicitud y conecta con quien puede ayudarte."
+                                    onClick={irAPublicarSolicito}
+                                    testId="banner-publicar-solicitud"
+                                    color="amber"
+                                />
+                            )}
+                            <section className="px-4 lg:px-0">
+                                <TituloSeccion count={totalClasificadosHoy}>
+                                    Solicitudes en {ciudad.split(',')[0]}
+                                </TituloSeccion>
+                                <div
+                                    data-testid="servicios-lista-solicitudes"
+                                    className="space-y-4"
+                                >
+                                    {clasificados.map((p) => (
+                                        <CardServicioFeed key={p.id} publicacion={p} />
+                                    ))}
+                                </div>
+                            </section>
+                        </>
                     ) : (
                         <TabVacia
                             titulo="Sin solicitudes activas"
@@ -596,9 +780,29 @@ export function PaginaServicios() {
                        El tab='todos' (más abajo) sigue usando el feed simple
                        con secciones agrupadas y preview de 8 items por sección. */
                     <>
-                        {/* Banner solo en Vacantes — invita al comerciante a
-                            publicar desde BS si tiene negocio. */}
-                        {tabActiva === 'vacantes' && <BannerVacantesBS />}
+                        {/* Banner CTA — Vacantes invita al comerciante a
+                            publicar desde BS; Servicios invita al usuario
+                            personal a ofrecer el suyo (mismo verde del
+                            badge SERVICIO). */}
+                        {tabActiva === 'vacantes' && (
+                            <BannerCTA
+                                icono={Wrench}
+                                titulo="¿Tienes un negocio?"
+                                subtitulo="Publica vacantes desde Business Studio."
+                                onClick={() => navegarASeccion('/business-studio/vacantes')}
+                                testId="banner-publicar-vacante-bs"
+                            />
+                        )}
+                        {tabActiva === 'servicios' && esModoPersonal && (
+                            <BannerCTA
+                                icono={Wrench}
+                                titulo="¿Ofreces un servicio?"
+                                subtitulo="Publícalo y que la gente te encuentre."
+                                onClick={irAPublicarOfrezco}
+                                testId="banner-publicar-servicio"
+                                color="emerald"
+                            />
+                        )}
 
                         {cargandoInfinito ? (
                             <div className="flex items-center justify-center py-20">
@@ -619,7 +823,7 @@ export function PaginaServicios() {
                                 />
                             )
                         ) : (
-                            <section className="px-4 lg:px-0 mt-5 lg:mt-6 pb-28 lg:pb-32">
+                            <section className="px-4 lg:px-0">
                                 <TituloSeccion count={totalInfinito}>
                                     {tabActiva === 'vacantes'
                                         ? `Vacantes en ${ciudad.split(',')[0]}`
@@ -632,17 +836,10 @@ export function PaginaServicios() {
                                             ? 'servicios-grid-vacantes-paginado'
                                             : 'servicios-grid-servicios-paginado'
                                     }
-                                    className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4"
+                                    className="space-y-4"
                                 >
                                     {itemsInfinitos.map((p) => (
-                                        <CardSegunTipo
-                                            key={p.id}
-                                            publicacion={p}
-                                            distanciaMetros={p.distanciaMetros}
-                                            onClick={() =>
-                                                navigate(`/servicios/${p.id}`)
-                                            }
-                                        />
+                                        <CardServicioFeed key={p.id} publicacion={p} />
                                     ))}
                                 </div>
 
@@ -677,19 +874,10 @@ export function PaginaServicios() {
                                     </div>
                                 )}
 
-                                {/* Mensaje "ya no hay más" al final cuando
-                                    el usuario llegó al fondo del listado. */}
-                                {!hayMasInfinito && itemsInfinitos.length > 0 && (
-                                    <p className="mt-6 text-center text-sm lg:text-[13px] 2xl:text-sm text-slate-600 font-semibold">
-                                        Has visto todos los resultados ({totalInfinito})
-                                    </p>
-                                )}
                             </section>
                         )}
                     </>
-                ) : recientes.length === 0
-                    && vacantes.length === 0
-                    && totalClasificadosHoy === 0 ? (
+                ) : railTodos.length === 0 ? (
                     /* ═══ TAB 'todos' VACÍA — sin servicios, vacantes ni
                        solicitudes en toda la ciudad ═══ */
                     <FeedVacio
@@ -698,126 +886,23 @@ export function PaginaServicios() {
                     />
                 ) : (
                     /* ═══ TAB 'todos' CON CONTENIDO ═══
-                       Secciones agrupadas como preview (slice 8) con link
-                       "Ver más →" a la tab filtrada cuando hay más. La
-                       paginación completa vive en las tabs filtradas (rama
-                       de arriba con useServiciosFeedInfinito). */
-                    <>
-                        {/* 1. VACANTES — preview slice 8 + Ver más. */}
-                        {vacantes.length > 0 && (
-                            <section className="px-4 lg:px-0 mt-5 lg:mt-6">
-                                <TituloSeccion
-                                    count={vacantes.length}
-                                    onVerMas={
-                                        vacantes.length > LIMITE_PREVIEW_TODOS
-                                            ? () => setTabActiva('vacantes')
-                                            : undefined
-                                    }
-                                >
-                                    Vacantes en {ciudad.split(',')[0]}
-                                </TituloSeccion>
-                                <div
-                                    data-testid="servicios-grid-vacantes"
-                                    className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4"
-                                >
-                                    {vacantes
-                                        .slice(0, LIMITE_PREVIEW_TODOS)
-                                        .map((p) => (
-                                            <CardSegunTipo
-                                                key={p.id}
-                                                publicacion={p}
-                                                distanciaMetros={
-                                                    p.distanciaMetros
-                                                }
-                                                onClick={() =>
-                                                    navigate(
-                                                        `/servicios/${p.id}`,
-                                                    )
-                                                }
-                                            />
-                                        ))}
-                                </div>
-                            </section>
-                        )}
-
-                        {/* 2. SERVICIOS — carrusel horizontal preview slice 8
-                            + Ver más a la tab Servicios. El título es
-                            "Servicios" (no "Recién publicado") para mantener
-                            simetría con las otras 2 secciones del tab='todos'
-                            (Vacantes / Servicios / Clasificados) y para
-                            matchear el nombre de la tab cuando el usuario
-                            entra al vista filtrada. El orden por fecha es
-                            implícito — los cards muestran "hace Xh". */}
-                        {recientes.length > 0 && (
-                            <section className="px-4 lg:px-0 mt-6 lg:mt-8">
-                                <TituloSeccion
-                                    count={recientes.length}
-                                    onVerMas={
-                                        recientes.length > LIMITE_PREVIEW_TODOS
-                                            ? () => setTabActiva('servicios')
-                                            : undefined
-                                    }
-                                >
-                                    Servicios en {ciudad.split(',')[0]}
-                                </TituloSeccion>
-                                <div
-                                    data-testid="servicios-carrusel-recientes"
-                                    className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x"
-                                >
-                                    {recientes
-                                        .slice(0, LIMITE_PREVIEW_TODOS)
-                                        .map((p) => (
-                                            <CardHorizontal
-                                                key={p.id}
-                                                publicacion={p}
-                                                distanciaMetros={
-                                                    p.distanciaMetros
-                                                }
-                                                onClick={() =>
-                                                    navigate(
-                                                        `/servicios/${p.id}`,
-                                                    )
-                                                }
-                                            />
-                                        ))}
-                                </div>
-                            </section>
-                        )}
-
-                        {/* 3. CLASIFICADOS — widget con teaser de los
-                            `solicito` activos (la tab Solicitudes tiene la
-                            versión completa). */}
-                        {totalClasificadosHoy > 0 && (
-                            <div className="px-4 lg:px-0 mt-6 lg:mt-8">
-                                <ClasificadosWidget
-                                    pedidos={clasificados}
-                                    filtroActivo={filtroClasificado}
-                                    onFiltroChange={setFiltroClasificado}
-                                    desktop={esEscritorio}
-                                    ciudad={ciudad.split(',')[0]}
-                                    onPedidoClick={(id) =>
-                                        navigate(`/servicios/${id}`)
-                                    }
-                                    /* "Ver más →" en el header del widget
-                                       solo aparece si hay más de 6 (el
-                                       widget muestra hasta 6 en desktop —
-                                       con 6 o menos el usuario ya las ve
-                                       todas, no tiene sentido navegar). */
-                                    onVerTodos={
-                                        totalClasificadosHoy > 6
-                                            ? () => setTabActiva('solicitudes')
-                                            : undefined
-                                    }
-                                    onPublicar={
-                                        esModoPersonal
-                                            ? irAPublicarSolicito
-                                            : undefined
-                                    }
-                                />
-                            </div>
-                        )}
-                    </>
+                       Feed unificado (Sprint 9.4): los 3 tipos de publicación
+                       (servicio-persona / solicito / vacante-empresa) se
+                       combinan en una sola lista ordenada por fecha, sin
+                       títulos de sección ni preferencia por tipo — fluye
+                       igual que el feed de Negocios/MarketPlace. `railTodos`
+                       ya viene deduplicado y ordenado desc por `createdAt`. */
+                    <section
+                        data-testid="servicios-feed-todos"
+                        className="px-4 lg:px-0 space-y-4"
+                    >
+                        {railTodos.map((p) => (
+                            <CardServicioFeed key={p.id} publicacion={p} />
+                        ))}
+                    </section>
                 )}
+                    </div>
+                </div>
             </div>
 
             {/* FAB "+ Publicar" — un solo botón. El wizard pregunta el modo
@@ -833,6 +918,7 @@ export function PaginaServicios() {
                     topPublicar={topPublicar}
                     esEscritorio={esEscritorio}
                     bottomNavVisible={bottomNavVisible}
+                    labelConCardEscritorio
                 />
             )}
 
@@ -850,29 +936,6 @@ export function PaginaServicios() {
 // =============================================================================
 // SUBCOMPONENTES
 // =============================================================================
-
-function CardSegunTipo({
-    publicacion,
-    distanciaMetros,
-    onClick,
-}: {
-    publicacion: PublicacionServicio & { distanciaMetros?: number | null };
-    distanciaMetros?: number | null;
-    onClick?: () => void;
-}) {
-    // Sprint 9.3: `CardServicio` es universal — renderiza los 3 tipos
-    // (`servicio-persona`, `solicito`, `vacante-empresa`) con el mismo
-    // layout y misma altura. La diferenciación visual entre tipos vive en
-    // el badge sup-izq de la foto y en el meta secundario (modalidad vs
-    // tipo de empleo). Ya no se ramifica aquí por `publicacion.tipo`.
-    return (
-        <CardServicio
-            publicacion={publicacion}
-            distanciaMetros={distanciaMetros}
-            onClick={onClick}
-        />
-    );
-}
 
 function TituloSeccion({
     children,
@@ -916,39 +979,78 @@ function TituloSeccion({
     );
 }
 
-/** Banner sobre la tab Vacantes: invita al comerciante a publicar desde BS.
- *  Visible siempre — los usuarios sin negocio simplemente lo ignoran. La
- *  navegación a BS Vacantes se gatekeepea en `/business-studio/vacantes`
- *  (auth + tener negocio activo + ModoGuard 'comercial'). Usa
- *  `useNavegarASeccion` porque es un salto entre top-levels (Servicios → BS). */
-function BannerVacantesBS() {
-    const navegarASeccion = useNavegarASeccion();
+/** Banner CTA compacto — mismo estilo en las 3 tabs filtradas (icono +
+ *  título + subtítulo + flecha). Vacantes lo usa para invitar al
+ *  comerciante a publicar desde Business Studio; Solicitudes para invitar
+ *  al usuario personal a publicar su propia solicitud. */
+function BannerCTA({
+    icono: Icono,
+    titulo,
+    subtitulo,
+    onClick,
+    testId,
+    color = 'sky',
+}: {
+    icono: typeof Wrench;
+    titulo: string;
+    subtitulo: string;
+    onClick: () => void;
+    testId: string;
+    /** Vacantes usa sky (marca Servicios); Solicitudes usa amber (mismo
+     *  acento que el badge SOLICITUD/precio) y Servicios usa emerald
+     *  (mismo acento que el badge SERVICIO/precio de `CardServicioFeed`). */
+    color?: 'sky' | 'amber' | 'emerald';
+}) {
+    const paleta = color === 'amber'
+        ? {
+              borde: 'border-amber-300',
+              fondo: 'bg-amber-50',
+              hoverBorde: 'lg:hover:border-amber-400',
+              hoverFondo: 'lg:hover:bg-amber-100/60',
+              icono: 'linear-gradient(135deg, #f59e0b, #b45309)',
+              flecha: 'text-amber-700',
+          }
+        : color === 'emerald'
+        ? {
+              borde: 'border-emerald-300',
+              fondo: 'bg-emerald-50',
+              hoverBorde: 'lg:hover:border-emerald-400',
+              hoverFondo: 'lg:hover:bg-emerald-100/60',
+              icono: 'linear-gradient(135deg, #34d399, #047857)',
+              flecha: 'text-emerald-700',
+          }
+        : {
+              borde: 'border-sky-300',
+              fondo: 'bg-sky-50',
+              hoverBorde: 'lg:hover:border-sky-400',
+              hoverFondo: 'lg:hover:bg-sky-100/60',
+              icono: 'linear-gradient(135deg, #38bdf8, #0369a1)',
+              flecha: 'text-sky-700',
+          };
     return (
-        <div className="px-4 lg:px-0 mt-4 lg:mt-5">
+        <div className="px-4 lg:px-0 mb-4 lg:mb-5">
             <button
                 type="button"
-                data-testid="banner-publicar-vacante-bs"
-                onClick={() => navegarASeccion('/business-studio/vacantes')}
-                className="flex w-full items-center gap-3 rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-left lg:cursor-pointer lg:hover:border-sky-400 lg:hover:bg-sky-100/60"
+                data-testid={testId}
+                onClick={onClick}
+                className={`flex w-full items-center gap-3 rounded-2xl border ${paleta.borde} ${paleta.fondo} px-4 py-3 text-left lg:cursor-pointer ${paleta.hoverBorde} ${paleta.hoverFondo}`}
             >
                 <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
-                    style={{
-                        background: 'linear-gradient(135deg, #38bdf8, #0369a1)',
-                    }}
+                    style={{ background: paleta.icono }}
                 >
-                    <Wrench className="h-5 w-5" strokeWidth={2.25} />
+                    <Icono className="h-5 w-5" strokeWidth={2.25} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-slate-900">
-                        ¿Tienes un negocio?
+                        {titulo}
                     </div>
                     <div className="text-sm font-medium text-slate-600">
-                        Publica vacantes desde Business Studio.
+                        {subtitulo}
                     </div>
                 </div>
                 <CornerRightDown
-                    className="h-5 w-5 shrink-0 text-sky-700 -rotate-90"
+                    className={`h-5 w-5 shrink-0 -rotate-90 ${paleta.flecha}`}
                     strokeWidth={2.5}
                 />
             </button>

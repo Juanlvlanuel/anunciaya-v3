@@ -7,8 +7,9 @@
  *  - **Header de card**: avatar + nombre del vendedor + ciudad + tiempo relativo.
  *    Click en avatar → abre `ModalImagenes` con la foto. Click en nombre →
  *    navega al perfil del vendedor (P3).
- *  - **Multi-imágenes inline**: galería principal + thumbnails laterales en
- *    desktop. En móvil galería full-width con flechas/dots.
+ *  - **Multi-imágenes inline**: 1 sola foto visible, deslizable con
+ *    flechas laterales (hover)/swipe + dots, igual en desktop y móvil.
+ *    Mismo patrón que `CardPublicacionNegocioFeed.tsx` (sin thumbnails).
  *  - **Comentarios inline**: muestra las top 2 preguntas respondidas más
  *    recientes + input funcional para preguntar sin salir del feed.
  *  - **Layout**: ancho ~920px en desktop centrado, full-width en móvil.
@@ -20,7 +21,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Users,
     ChevronLeft,
     ChevronRight,
     ImageOff,
@@ -32,7 +32,6 @@ import { useAuthStore } from '../../stores/useAuthStore';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
@@ -70,23 +69,6 @@ interface CardArticuloFeedProps {
      * queda con una pantalla muerta. Lo pasa ModalArticuloDetalle.
      */
     onAntesDeNavegar?: () => void;
-    /**
-     * Cuando true, NO se renderiza el sidebar de thumbnails laterales en
-     * desktop, ni se reserva el espacio `lg:mr-24` para él en la galería
-     * principal. Útil para previsualizaciones en contenedores estrechos
-     * (vista previa del wizard de publicar P4) donde el sidebar
-     * generaría scroll feo. El feed real lo deja en false para conservar
-     * la navegación rápida por miniaturas.
-     */
-    ocultarThumbnailsLaterales?: boolean;
-    /**
-     * Sobreescribe las clases que definen el aspecto/altura de la galería
-     * principal. Default: `aspect-[4/3] lg:aspect-[2/1]`. Útil en
-     * previsualizaciones donde el card es angosto y se necesita más
-     * altura vertical para que el sidebar de thumbnails muestre más
-     * miniaturas sin scroll (ej. `lg:aspect-[4/3]`).
-     */
-    claseAspectoGaleria?: string;
 }
 
 // =============================================================================
@@ -141,16 +123,8 @@ export function CardArticuloFeed({
     articulo,
     modoModal = false,
     onAntesDeNavegar,
-    ocultarThumbnailsLaterales = false,
-    claseAspectoGaleria,
 }: CardArticuloFeedProps) {
     const navigate = useNavigate();
-
-    // `articulo.totalGuardados` ya viene actualizado del cache de React Query:
-    // `useGuardados` aplica el optimistic update sobre el feed/detalle/perfil
-    // del vendedor, así que cualquier render derivado (incluido el modal
-    // estilo Facebook) ve el conteo correcto sin lógica local de delta.
-    const totalGuardadosLocal = articulo.totalGuardados;
 
     // ─── Estado local ────────────────────────────────────────────────────────
     const [indiceFoto, setIndiceFoto] = useState(articulo.fotoPortadaIndex ?? 0);
@@ -197,34 +171,6 @@ export function CardArticuloFeed({
     const usuarioId = useAuthStore((s) => s.usuario?.id ?? null);
     const esMio = usuarioId !== null && usuarioId === articulo.vendedor.id;
 
-    // Señal de actividad inline. Tipo:
-    //  - 'viendo' / 'vistas24h' → texto descriptivo en teal.
-    //  - 'guardados' → corazón rojo + número, sin texto (consistente con el
-    //    pattern de "likes" de redes sociales).
-    type Senal =
-        | { tipo: 'viendo' | 'vistas24h'; icono: React.ReactNode; texto: string }
-        | { tipo: 'guardados'; total: number };
-    const senalActividad: Senal | null = (() => {
-        if ((articulo.viendo ?? 0) >= 3) {
-            return {
-                tipo: 'viendo',
-                icono: <Users className="h-4 w-4 shrink-0" strokeWidth={2} />,
-                texto: `${articulo.viendo} personas viendo ahora`,
-            };
-        }
-        if ((articulo.vistas24h ?? 0) >= 10) {
-            return {
-                tipo: 'vistas24h',
-                icono: <Eye className="h-4 w-4 shrink-0" strokeWidth={2} />,
-                texto: `${articulo.vistas24h} vistas hoy`,
-            };
-        }
-        if (totalGuardadosLocal >= 1) {
-            return { tipo: 'guardados', total: totalGuardadosLocal };
-        }
-        return null;
-    })();
-
     // ─── Handlers ────────────────────────────────────────────────────────────
     // Si la card vive dentro de un modal (onAntesDeNavegar provisto), cerramos
     // ese modal PRIMERO y navegamos 130ms después: así el modal consume su
@@ -261,11 +207,6 @@ export function CardArticuloFeed({
         e.stopPropagation();
         setIndiceFoto((i) => (i === fotos.length - 1 ? 0 : i + 1));
     }, [fotos.length]);
-
-    const seleccionarFoto = useCallback((e: React.MouseEvent, indice: number) => {
-        e.stopPropagation();
-        setIndiceFoto(indice);
-    }, []);
 
     // ─── Swipe moderno con translateX en vivo ────────────────────────────────
     // Mientras el usuario arrastra, la imagen se mueve con el dedo y la
@@ -344,15 +285,6 @@ export function CardArticuloFeed({
         }
         irAlDetalle();
     }, [irAlDetalle]);
-
-    // Índices de imágenes adyacentes (loop) para renderizar en el track
-    // y que se vean asomando durante el swipe.
-    const indiceAnterior = fotos.length > 0
-        ? (indiceFoto === 0 ? fotos.length - 1 : indiceFoto - 1)
-        : 0;
-    const indiceSiguiente = fotos.length > 0
-        ? (indiceFoto === fotos.length - 1 ? 0 : indiceFoto + 1)
-        : 0;
 
     const handleAvatarClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -541,93 +473,70 @@ export function CardArticuloFeed({
                 )}
             </div>
 
-            {/* ─── GALERÍA + THUMBNAILS LATERALES (lg+) ───────────────────────
-                La galería principal define la altura del bloque vía
-                `aspect-ratio` y reserva 96px a su derecha en desktop
-                (`lg:mr-24`) para el sidebar de thumbnails. El sidebar usa
-                `position: absolute` anclado a top/right/bottom del wrapper
-                relative — así toma exactamente la altura de la galería y,
-                si las miniaturas exceden ese alto, scrollea internamente
-                con `overflow-y-auto`. Esto evita que el sidebar imponga su
-                altura natural al contenedor en cards angostas (preview del
-                wizard P4), donde la galería se veía estirada o el card
-                quedaba con espacio blanco abajo.
-            ───────────────────────────────────────────────────────────── */}
-            <div className="relative">
-                {/* Galería principal — proporción 4:3 móvil / 2:1 desktop.
-                    `mr-24` en lg+ reserva espacio para el sidebar absolute. */}
+            {/* ─── GALERÍA — 1 sola foto visible, deslizable con flechas
+                laterales/swipe (sin thumbnails), igual que
+                CardPublicacionNegocioFeed.tsx. ───────────────────────── */}
+            {fotos.length > 0 ? (
                 <div
-                    className={`group/galeria relative ${modoModal ? 'h-56 lg:h-64' : (claseAspectoGaleria ?? 'aspect-[4/3] lg:aspect-[2/1]')} overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y ${tieneMultiples && !modoModal && !ocultarThumbnailsLaterales ? 'lg:mr-24' : ''}`}
+                    className={`group relative ${modoModal ? 'h-56 lg:h-64' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    {fotos.length === 0 ? (
-                        <div className="flex h-full w-full items-center justify-center text-slate-500">
-                            <ImageOff className="h-12 w-12" strokeWidth={1.5} />
-                        </div>
-                    ) : (
-                        // Renderizamos prev/curr/next con KEYS ESTABLES por índice
-                        // de foto (no por rol). Al avanzar indiceFoto, la imagen
-                        // que era 'next' se promueve a 'curr' sin desmontar — solo
-                        // cambia su transform. Esto elimina el flash de carga al
-                        // hacer swipe, porque el navegador NO re-decodifica la
-                        // imagen ya pintada (problema clásico de carruseles
-                        // construidos con keys por rol).
-                        <>
-                            {fotos.map((foto, i) => {
-                                if (!tieneMultiples && i !== indiceFoto) return null;
+                    {/* Renderizamos prev/curr/next con KEYS ESTABLES por índice
+                        de foto (no por rol). Al avanzar indiceFoto, la imagen
+                        que era 'next' se promueve a 'curr' sin desmontar — solo
+                        cambia su transform. Esto elimina el flash de carga al
+                        hacer swipe, porque el navegador NO re-decodifica la
+                        imagen ya pintada (problema clásico de carruseles
+                        construidos con keys por rol). */}
+                    {fotos.map((foto, i) => {
+                        if (!tieneMultiples && i !== indiceFoto) return null;
 
-                                // Distancia mínima en cualquiera de las dos direcciones
-                                // alrededor del carrusel (loop).
-                                const distAtras = (indiceFoto - i + fotos.length) % fotos.length;
-                                const distAdelante = (i - indiceFoto + fotos.length) % fotos.length;
+                        // Distancia mínima en cualquiera de las dos direcciones
+                        // alrededor del carrusel (loop).
+                        const distAtras = (indiceFoto - i + fotos.length) % fotos.length;
+                        const distAdelante = (i - indiceFoto + fotos.length) % fotos.length;
 
-                                let rol: 'prev' | 'curr' | 'next' | null = null;
-                                if (i === indiceFoto) rol = 'curr';
-                                else if (distAtras === 1) rol = 'prev';
-                                else if (distAdelante === 1) rol = 'next';
+                        let rol: 'prev' | 'curr' | 'next' | null = null;
+                        if (i === indiceFoto) rol = 'curr';
+                        else if (distAtras === 1) rol = 'prev';
+                        else if (distAdelante === 1) rol = 'next';
 
-                                if (!rol) return null;
+                        if (!rol) return null;
 
-                                const baseTransform = rol === 'prev' ? '-100%' : rol === 'next' ? '100%' : '0%';
-                                const esCurr = rol === 'curr';
+                        const baseTransform = rol === 'prev' ? '-100%' : rol === 'next' ? '100%' : '0%';
+                        const esCurr = rol === 'curr';
 
-                                return (
-                                    <img
-                                        key={i}
-                                        src={foto}
-                                        alt={esCurr ? `${articulo.titulo} — foto ${i + 1}` : ''}
-                                        aria-hidden={esCurr ? undefined : true}
-                                        draggable={false}
-                                        decoding="async"
-                                        className={`absolute inset-0 h-full w-full select-none object-cover ${
-                                            esCurr ? '' : 'pointer-events-none'
-                                        }`}
-                                        style={{
-                                            transform: `translateX(calc(${baseTransform} + ${offsetPx}px))`,
-                                            transition: enTransicion ? 'transform 220ms ease-out' : 'none',
-                                            willChange: 'transform',
-                                        }}
-                                    />
-                                );
-                            })}
-                        </>
-                    )}
+                        return (
+                            <img
+                                key={i}
+                                src={foto}
+                                alt={esCurr ? `${articulo.titulo} — foto ${i + 1}` : ''}
+                                aria-hidden={esCurr ? undefined : true}
+                                draggable={false}
+                                decoding="async"
+                                className={`absolute inset-0 h-full w-full select-none object-cover ${
+                                    esCurr ? '' : 'pointer-events-none'
+                                }`}
+                                style={{
+                                    transform: `translateX(calc(${baseTransform} + ${offsetPx}px))`,
+                                    transition: enTransicion ? 'transform 220ms ease-out' : 'none',
+                                    willChange: 'transform',
+                                }}
+                            />
+                        );
+                    })}
 
-                    {/* Flechas (solo desktop con multi-imagen) */}
                     {tieneMultiples && (
                         <>
-                            {/* Estilo dark uniforme — mismo criterio que
-                                CardPublicacionNegocioFeed/GaleriaArticulo/
-                                GaleriaPublicacionNegocio. */}
                             <button
                                 type="button"
                                 onClick={fotoAnterior}
                                 data-testid={`card-feed-foto-prev-${articulo.id}`}
                                 aria-label="Foto anterior"
-                                className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover/galeria:opacity-100 lg:flex lg:cursor-pointer"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity lg:cursor-pointer"
                             >
                                 <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
                             </button>
@@ -636,111 +545,58 @@ export function CardArticuloFeed({
                                 onClick={fotoSiguiente}
                                 data-testid={`card-feed-foto-next-${articulo.id}`}
                                 aria-label="Foto siguiente"
-                                className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover/galeria:opacity-100 lg:flex lg:cursor-pointer"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity lg:cursor-pointer"
                             >
                                 <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
                             </button>
-
-                            {/* Contador de foto (esquina inf der) */}
-                            <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-2 py-0.5 text-xs font-semibold text-white lg:hidden">
-                                {indiceFoto + 1}/{fotos.length}
-                            </span>
-
-                            {/* Dots solo en móvil */}
-                            <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5 lg:hidden">
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1">
                                 {fotos.map((_, i) => (
                                     <span
                                         key={i}
-                                        className={`h-1.5 rounded-full transition-all ${i === indiceFoto ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
-                                            }`}
+                                        aria-hidden
+                                        className={`h-1.5 rounded-full transition-all ${
+                                            i === indiceFoto ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+                                        }`}
                                     />
                                 ))}
                             </div>
                         </>
                     )}
                 </div>
-
-                {/* Thumbnails laterales (solo desktop con multi-imagen).
-                    Ocultos en modoModal — el modal prioriza el espacio
-                    para mensajes; el usuario navega imágenes con swipe o flechas.
-                    Posicionado `absolute` para tomar el alto del wrapper
-                    relative (= alto de la galería). Si las miniaturas
-                    exceden ese alto, scrollean internamente con
-                    `overflow-y-auto`. */}
-                {tieneMultiples && !modoModal && !ocultarThumbnailsLaterales && (
-                    <div className="absolute top-0 right-0 bottom-0 hidden w-24 flex-col gap-2 overflow-y-auto bg-slate-200 p-2 lg:flex">
-                        {fotos.map((url, i) => (
-                            <button
-                                type="button"
-                                key={`${url}-${i}`}
-                                onClick={(e) => seleccionarFoto(e, i)}
-                                data-testid={`card-feed-thumb-${articulo.id}-${i}`}
-                                aria-label={`Ver foto ${i + 1}`}
-                                className={`relative aspect-square w-full shrink-0 overflow-hidden rounded-md border-2 lg:cursor-pointer ${i === indiceFoto
-                                        ? 'border-teal-500 ring-2 ring-teal-200'
-                                        : 'border-transparent opacity-70 lg:hover:opacity-100'
-                                    }`}
-                            >
-                                <img
-                                    src={url}
-                                    alt={`Miniatura ${i + 1}`}
-                                    className="h-full w-full object-cover"
-                                />
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* ─── FOOTER: comentarios · vistas + señal social ────────────────
-                Distancia ya vive en el badge del header — footer limpio,
-                mismo criterio que CardPublicacionNegocioFeed. Íconos h-6 w-6
-                (bump desde h-5 w-5) para igualar el peso visual. ──────────── */}
-            <div className={`flex items-center justify-between gap-3 px-4 text-base font-medium text-slate-600 ${modoModal ? 'py-2' : 'py-3'}`}>
-                <div className="flex items-center gap-3">
-                    {/* Comentarios — clickeable, abre el modal con TODOS
-                        (mismo patrón que CardPublicacionNegocioFeed). En
-                        modoModal ya están visibles debajo, así que no repite
-                        el modal ahí — solo informativo. */}
-                    {modoModal ? (
-                        <span className="flex items-center gap-1.5">
-                            <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2} />
-                            {articulo.totalComentarios}
-                        </span>
-                    ) : (
-                        <button
-                            type="button"
-                            data-testid={`card-feed-abrir-comentarios-${articulo.id}`}
-                            onClick={() => setComentariosAbierto(true)}
-                            aria-label="Ver comentarios"
-                            className="flex items-center gap-1.5 lg:cursor-pointer lg:hover:text-slate-800"
-                        >
-                            <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2} />
-                            {articulo.totalComentarios}
-                        </button>
-                    )}
-                    <span className="text-slate-400" aria-hidden>·</span>
-                    <span className="flex items-center gap-1.5">
-                        <Eye className="h-6 w-6 shrink-0" strokeWidth={2} />
-                        {articulo.totalVistas}
-                    </span>
+            ) : (
+                <div className="flex items-center justify-center gap-2 px-4 py-6 text-slate-300">
+                    <ImageOff className="h-5 w-5" strokeWidth={1.75} />
                 </div>
-                {senalActividad && senalActividad.tipo === 'guardados' && (
-                    <span className="flex items-center gap-1.5 font-semibold text-slate-600">
-                        {/* Sin `fill` — ICONOS.guardar es el ícono Archive (con
-                            detalles internos); relleno sólido + trazo grueso lo
-                            volvía una mancha ilegible a este tamaño. Contorno
-                            limpio, igual criterio que MessageCircle/Eye. */}
-                        <Bookmark className="h-6 w-6 shrink-0" strokeWidth={2} />
-                        {senalActividad.total}
+            )}
+
+            {/* ─── FOOTER: comentarios a la orilla izquierda, vistas a la
+                orilla derecha — igual que CardPublicacionNegocioFeed.tsx. ── */}
+            <div className={`flex items-center justify-between gap-3 px-4 text-base font-medium text-slate-600 border-t-[1.5px] border-slate-300 ${modoModal ? 'py-2' : 'py-3'}`}>
+                {/* Comentarios — clickeable, abre el modal con TODOS
+                    (mismo patrón que CardPublicacionNegocioFeed). En
+                    modoModal ya están visibles debajo, así que no repite
+                    el modal ahí — solo informativo. */}
+                {modoModal ? (
+                    <span className="flex items-center gap-2">
+                        <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2} />
+                        {articulo.totalComentarios}
                     </span>
+                ) : (
+                    <button
+                        type="button"
+                        data-testid={`card-feed-abrir-comentarios-${articulo.id}`}
+                        onClick={() => setComentariosAbierto(true)}
+                        aria-label="Ver comentarios"
+                        className="flex items-center gap-2 lg:cursor-pointer lg:hover:text-slate-800"
+                    >
+                        <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2} />
+                        {articulo.totalComentarios}
+                    </button>
                 )}
-                {senalActividad && senalActividad.tipo !== 'guardados' && (
-                    <span className="flex items-center gap-1.5 font-semibold text-teal-600">
-                        {senalActividad.icono}
-                        {senalActividad.texto}
-                    </span>
-                )}
+                <span className="flex items-center gap-2">
+                    <Eye className="h-6 w-6 shrink-0" strokeWidth={2} />
+                    {articulo.totalVistas}
+                </span>
             </div>
 
             {/* ─── COMENTARIOS (solo en modoModal) — sin vista previa inline

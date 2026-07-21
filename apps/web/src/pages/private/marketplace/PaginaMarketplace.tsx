@@ -768,7 +768,7 @@ export function PaginaMarketplace() {
                 secciones. Solo el header sticky negro de arriba mantiene
                 `max-w-7xl`. Reels, composer y feed heredan este ancho.
             ════════════════════════════════════════════════════════════════ */}
-            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0">
+            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque
@@ -781,7 +781,7 @@ export function PaginaMarketplace() {
                     propio composer (header de la pill colapsada), por eso
                     no hay widget lateral. */}
                 {esModoPersonal && (
-                    <div className="px-3 lg:px-0 pt-3 lg:pt-4">
+                    <div className="px-3 lg:px-0 pt-3">
                         <ComposerSection />
                     </div>
                 )}
@@ -966,7 +966,7 @@ export function PaginaMarketplace() {
                         </div>
 
                         {/* ── ESCRITORIO ── */}
-                        <div className="hidden lg:flex lg:mt-4 lg:items-start lg:gap-5 2xl:gap-6">
+                        <div className="hidden lg:flex lg:items-start lg:gap-5 2xl:gap-6">
                             {hayColumnaCards && (
                                 <div
                                     ref={cardsPlaceholderRef}
@@ -1019,7 +1019,7 @@ export function PaginaMarketplace() {
                                         : 'mx-auto w-full max-w-[620px] 2xl:max-w-[704px]'
                                 }
                             >
-                                <div className="space-y-4 py-2">
+                                <div className="space-y-4">
                                     {articulosFeedSinReel.map((articulo) => (
                                         <CardArticuloFeed
                                             key={articulo.id}
@@ -1048,12 +1048,6 @@ export function PaginaMarketplace() {
                                     <div className="h-1 w-1" /> /* spacer */
                                 )}
                             </div>
-                        )}
-
-                        {!hasNextPage && articulosFeedSinReel.length > 0 && (
-                            <p className="py-6 text-center text-sm font-medium text-slate-600">
-                                No hay más publicaciones
-                            </p>
                         )}
                     </>
                 )}
@@ -1178,7 +1172,6 @@ export function PaginaMarketplace() {
                         </div>
                     )}
 
-                <div className="h-24 lg:h-12" />
             </div>
 
             {/* FAB "+ Publicar" — visible solo en modo personal (los negocios

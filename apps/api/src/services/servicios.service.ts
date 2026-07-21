@@ -116,6 +116,23 @@ export interface PublicacionRow {
     sucursalPortada: string | null;
     /** Foto de perfil de la sucursal (avatar del chat). */
     sucursalFotoPerfil: string | null;
+    /**
+     * Sprint 9.4 — Oferente ligero (id/nombre/apellidos/avatar), solo
+     * poblado por `COLUMNAS_PUBLICACION_FEED` (obtenerFeed/obtenerFeedInfinito).
+     * NULL en queries que usan `COLUMNAS_PUBLICACION` (ej. obtenerMisPublicaciones).
+     * Nombre distinto a `oferente` (el objeto completo del detalle, con
+     * teléfono/ultimaConexion/etc. en `PublicacionConOferenteRow`) para no
+     * chocar tipos entre ambas interfaces.
+     */
+    oferenteResumen: {
+        id: string;
+        nombre: string;
+        apellidos: string;
+        avatarUrl: string | null;
+    } | null;
+    /** Sprint 9.4 — Conteo de comentarios (`servicios_comentarios`), solo
+     *  poblado por `COLUMNAS_PUBLICACION_FEED`. 0 en el resto de queries. */
+    totalComentarios: number;
 }
 
 export interface PublicacionConOferenteRow extends PublicacionRow {
@@ -220,6 +237,16 @@ type RawPublicacionDb = {
     sucursal_nombre?: string | null;
     sucursal_portada?: string | null;
     sucursal_foto_perfil?: string | null;
+    // ───────────────────────────────────────────────────────────────────
+    // Oferente ligero + conteo de comentarios — opcionales, solo se llenan
+    // cuando la query usa `COLUMNAS_PUBLICACION_FEED` (ver nota en
+    // `PublicacionRow.oferenteResumen`).
+    // ───────────────────────────────────────────────────────────────────
+    oferente_id?: string | null;
+    oferente_nombre?: string | null;
+    oferente_apellidos?: string | null;
+    oferente_avatar_url?: string | null;
+    total_comentarios?: number;
 } & Record<string, unknown>;
 
 // =============================================================================
@@ -334,6 +361,15 @@ function mapearPublicacion(row: RawPublicacionDb): PublicacionRow {
         sucursalNombre: row.sucursal_nombre ?? null,
         sucursalPortada: row.sucursal_portada ?? null,
         sucursalFotoPerfil: row.sucursal_foto_perfil ?? null,
+        oferenteResumen: row.oferente_id
+            ? {
+                  id: row.oferente_id,
+                  nombre: row.oferente_nombre ?? '',
+                  apellidos: row.oferente_apellidos ?? '',
+                  avatarUrl: row.oferente_avatar_url ?? null,
+              }
+            : null,
+        totalComentarios: row.total_comentarios ?? 0,
     };
 }
 
@@ -430,7 +466,30 @@ const COLUMNAS_PUBLICACION_FEED = sql`
     n.logo_url        AS negocio_logo,
     s.nombre          AS sucursal_nombre,
     s.portada_url     AS sucursal_portada,
-    s.foto_perfil     AS sucursal_foto_perfil
+    s.foto_perfil     AS sucursal_foto_perfil,
+    -- Oferente ligero (Sprint 9.4 — header del post-card estilo feed)
+    u.id              AS oferente_id,
+    u.nombre          AS oferente_nombre,
+    u.apellidos       AS oferente_apellidos,
+    u.avatar_url      AS oferente_avatar_url,
+    COALESCE(cq.total, 0) AS total_comentarios
+`;
+
+// JOINs que requiere `COLUMNAS_PUBLICACION_FEED` — se concatenan después del
+// `FROM servicios_publicaciones sp` en las 3 queries del feed (obtenerFeed
+// recientes/cercanos + obtenerFeedInfinito). Centralizado para no repetir el
+// mismo bloque 3 veces y que quede sincronizado si cambia.
+const JOINS_PUBLICACION_FEED = sql`
+    INNER JOIN usuarios u          ON u.id = sp.usuario_id
+    LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+    LEFT JOIN negocios n           ON n.id = s.negocio_id
+    LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
+    LEFT JOIN (
+        SELECT publicacion_id, COUNT(*)::int AS total
+        FROM servicios_comentarios
+        WHERE deleted_at IS NULL
+        GROUP BY publicacion_id
+    ) cq ON cq.publicacion_id = sp.id
 `;
 
 // =============================================================================
@@ -843,9 +902,7 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS dist_m
             FROM servicios_publicaciones sp
-            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
-            LEFT JOIN negocios n           ON n.id = s.negocio_id
-            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
+            ${JOINS_PUBLICACION_FEED}
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND c.nombre = ${ciudad}
@@ -869,9 +926,7 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS dist_m
             FROM servicios_publicaciones sp
-            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
-            LEFT JOIN negocios n           ON n.id = s.negocio_id
-            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
+            ${JOINS_PUBLICACION_FEED}
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND c.nombre = ${ciudad}
@@ -982,9 +1037,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS dist_m
             FROM servicios_publicaciones sp
-            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
-            LEFT JOIN negocios n           ON n.id = s.negocio_id
-            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
+            ${JOINS_PUBLICACION_FEED}
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND c.nombre = ${ciudad}

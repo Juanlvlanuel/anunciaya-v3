@@ -124,11 +124,13 @@ export function CardServicio({
           ? formatearPresupuesto(publicacion.presupuesto)
           : 'A tratar';
 
-    // Color del precio: sky para vacante/ofrezco (oferta del oferente),
-    // amber para solicito de persona (búsqueda).
-    const tonoPrecio = (esVacante || esOfrece)
+    // Color del precio — mismo acento que el badge de tipo: sky para
+    // vacante, emerald para servicio (ofrezco), amber para solicito.
+    const tonoPrecio = esVacante
         ? 'text-sky-700'
-        : 'text-amber-700';
+        : esOfrece
+          ? 'text-emerald-700'
+          : 'text-amber-700';
 
     // Configuración del badge tipo (esquina sup-izq de la foto).
     // Misma anatomía que CardHorizontal — chip pequeño con uppercase.

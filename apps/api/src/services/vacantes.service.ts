@@ -275,6 +275,8 @@ export async function listarVacantes(
             negocioLogo: null,
             sucursalPortada: null,
             sucursalFotoPerfil: null,
+            oferenteResumen: null,
+            totalComentarios: 0,
         }));
 
         return {

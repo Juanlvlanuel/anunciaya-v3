@@ -256,7 +256,7 @@ export function PaginaServicio() {
                     </div>
                 ) : (
                     <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-                        <span className="text-[20px] font-extrabold text-sky-700">
+                        <span className={`text-[20px] font-extrabold ${isVacante ? 'text-sky-700' : isSolicito ? 'text-amber-700' : 'text-emerald-700'}`}>
                             {formatearPrecioServicio(publicacion.precio, {
                                 esVacante: isVacante,
                             })}
@@ -732,7 +732,7 @@ function TipoChip({
         );
     }
     return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-sky-700 text-sm font-bold">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">
             <Wrench className="w-3.5 h-3.5" strokeWidth={2.5} />
             Servicio personal
         </span>
@@ -869,7 +869,7 @@ function SidebarContacto({
                     <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                         Pago
                     </div>
-                    <div className="text-lg 2xl:text-xl font-extrabold text-sky-700 leading-tight">
+                    <div className={`text-lg 2xl:text-xl font-extrabold leading-tight ${esVacante ? 'text-sky-700' : isSolicito ? 'text-amber-700' : 'text-emerald-700'}`}>
                         {formatearPrecioServicio(publicacion.precio, {
                             esVacante,
                         })}

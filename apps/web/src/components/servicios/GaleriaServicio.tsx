@@ -12,7 +12,9 @@
  * de marca del negocio). Sin lightbox porque hay solo una.
  *
  * Para `tipo='servicio-persona'` o `'solicito'`: hasta 12 fotos con swipe
- * nativo (móvil) o flechas (desktop). Click abre lightbox fullscreen con
+ * nativo (móvil) o flechas (desktop) + tira de thumbnails debajo (solo
+ * cuando hay más de 1 foto) — mismo patrón que `GaleriaArticulo.tsx`
+ * (MarketPlace)/Negocios. Click abre lightbox fullscreen con
  * `ModalImagenes`. Patrón replicado del módulo MarketPlace (scroll-snap
  * CSS puro + listener `scroll` pasivo).
  *
@@ -40,6 +42,7 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
     const [indiceActivo, setIndiceActivo] = useState(portadaIdx);
     const [lightboxAbierto, setLightboxAbierto] = useState(false);
     const carruselRef = useRef<HTMLDivElement>(null);
+    const thumbnailsRef = useRef<HTMLDivElement>(null);
 
     // ─── Sync swipe móvil ↔ índice activo ────────────────────────────────
     // Escucha el scroll del carrusel y calcula el índice por `scrollLeft /
@@ -80,6 +83,19 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
     const irSiguiente = useCallback(() => {
         irA((indiceActivo + 1) % fotos.length);
     }, [indiceActivo, fotos.length, irA]);
+
+    // Al cambiar la foto activa, scrollear la tira de thumbnails para que
+    // la activa quede visible (centrarla cuando sea posible) — mismo
+    // patrón que `GaleriaArticulo.tsx`.
+    useEffect(() => {
+        const tira = thumbnailsRef.current;
+        if (!tira) return;
+        const thumb = tira.children[indiceActivo] as HTMLElement | undefined;
+        if (!thumb) return;
+        const offsetCentrado =
+            thumb.offsetLeft - tira.clientWidth / 2 + thumb.clientWidth / 2;
+        tira.scrollTo({ left: offsetCentrado, behavior: 'smooth' });
+    }, [indiceActivo]);
 
     // ─── Vacante-empresa: identidad de marca, sin galería ─────────────────
     // Layout estilo "hero": portada del local (sucursal) como fondo +
@@ -263,6 +279,43 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
                     </>
                 )}
             </div>
+
+            {/* Tira de thumbnails horizontal — móvil + desktop, solo con
+                más de 1 foto. Misma tira que `GaleriaArticulo.tsx` (MP),
+                con acento sky (marca Servicios). */}
+            {fotos.length > 1 && (
+                <div
+                    data-testid="galeria-servicio-thumbnails"
+                    ref={thumbnailsRef}
+                    className="mt-3 flex gap-2 overflow-x-auto scroll-smooth px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:px-0"
+                >
+                    {fotos.map((foto, idx) => {
+                        const esActiva = indiceActivo === idx;
+                        return (
+                            <button
+                                key={`thumb-${foto}-${idx}`}
+                                data-testid={`galeria-servicio-thumb-${idx}`}
+                                type="button"
+                                onClick={() => irA(idx)}
+                                aria-label={`Ver foto ${idx + 1}`}
+                                aria-pressed={esActiva}
+                                className={`relative h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 transition-all lg:h-20 lg:w-20 ${
+                                    esActiva
+                                        ? 'border-sky-500 ring-2 ring-sky-300'
+                                        : 'border-slate-200 opacity-70 hover:border-slate-400 hover:opacity-100'
+                                }`}
+                            >
+                                <img
+                                    src={foto}
+                                    alt={`Miniatura ${idx + 1}`}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                />
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* Lightbox fullscreen con swipe, teclado y descarga */}
             <ModalImagenes
