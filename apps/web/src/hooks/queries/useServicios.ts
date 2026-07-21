@@ -90,6 +90,11 @@ export function useServiciosFeed(params: UseServiciosFeedParams) {
         enabled: habilitado,
         staleTime: 2 * 60 * 1000,
         placeholderData: keepPreviousData,
+        // Refresco "tipo Facebook" (mismo patrón que Negocios/MarketPlace):
+        // refetch automático al volver a la pestaña y cada vez que se entra
+        // a la página, no solo cuando el dato ya está stale.
+        refetchOnWindowFocus: true,
+        refetchOnMount: 'always',
     });
 }
 
@@ -193,6 +198,11 @@ export function useServiciosFeedInfinito(params: UseServiciosFeedInfinitoParams)
         enabled: habilitado,
         staleTime: 2 * 60 * 1000,
         placeholderData: keepPreviousData,
+        // Refresco "tipo Facebook" (mismo patrón que Negocios/MarketPlace):
+        // refetch automático al volver a la pestaña y cada vez que se entra
+        // a la página, no solo cuando el dato ya está stale.
+        refetchOnWindowFocus: true,
+        refetchOnMount: 'always',
     });
 }
 

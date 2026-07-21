@@ -70,6 +70,9 @@ import { CardServicioReel } from '../../../components/servicios/CardServicioReel
 import { ReelServicios } from '../../../components/servicios/ReelServicios';
 import { ComposerSection } from '../../../components/servicios/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
+import { IndicadorRefrescoFeed } from '../../../components/ui/IndicadorRefrescoFeed';
+import { usePullToRefresh } from '../../../hooks/usePullToRefresh';
+import { useMinDuracionVisible } from '../../../hooks/useMinDuracionVisible';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
 import type {
     ModoServicio,
@@ -271,7 +274,7 @@ export function PaginaServicios() {
     //   - Tab 'solicitudes': widget Clasificados (no paginado).
     //   - Conteos por tab (los chips de TabsServicios).
     //   - KPI del header.
-    const { data, isLoading, isError, refetch } = useServiciosFeed({
+    const { data, isLoading, isError, isRefetching: isRefetchingFeed, refetch } = useServiciosFeed({
         ciudad,
         lat: latitud,
         lng: longitud,
@@ -321,6 +324,26 @@ export function PaginaServicios() {
     const hayMasInfinito = feedInfinitoQuery.hasNextPage;
     const cargandoMasInfinito = feedInfinitoQuery.isFetchingNextPage;
     const cargandoInfinito = feedInfinitoQuery.isPending && feedInfinitoEnabled;
+
+    // ─── Refresco tipo Facebook (mismo patrón que Negocios/MarketPlace) ────
+    // La "query activa" para el refresco depende de la tab: 'servicios' y
+    // 'vacantes' se pintan desde `feedInfinitoQuery`; 'todos' y 'solicitudes'
+    // desde `useServiciosFeed` (arriba). Jalar para refrescar (móvil) +
+    // auto-refresh en PC (refetchOnMount/refetchOnWindowFocus, ya en el
+    // hook) comparten el mismo indicador.
+    const isRefetchingActivo = feedInfinitoEnabled ? feedInfinitoQuery.isRefetching : isRefetchingFeed;
+    const refetchActivo = feedInfinitoEnabled ? feedInfinitoQuery.refetch : refetch;
+    const pull = usePullToRefresh({
+        onRefresh: () => refetchActivo(),
+        scrollRef: cuerpoRef,
+        habilitado: !esEscritorio,
+    });
+    // `useMinDuracionVisible`: si el refetch resuelve casi instantáneo (304
+    // Not Modified por ETag), sostiene el anillo un mínimo perceptible en
+    // vez de prender/apagar entre renders.
+    const refrescandoCrudo = isRefetchingActivo && !cargandoMasInfinito;
+    const refrescando = useMinDuracionVisible(refrescandoCrudo, 700);
+    const progresoRefresco = refrescando ? 1 : pull.progreso;
 
     // ─── Sentinel + IntersectionObserver para scroll infinito móvil ────────
     // Patrón calcado de PaginaEmpleados.tsx (BS): cuando el sentinel entra
@@ -650,8 +673,21 @@ export function PaginaServicios() {
             />
 
             {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
+            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
                 <style>{SERVICIOS_RAIL_SCROLL_STYLES}</style>
+
+                {/* Refresco tipo Facebook: ícono de Servicios (Wrench) con
+                    anillo giratorio sky — `absolute` relativo a `cuerpoRef`
+                    (arriba), así queda ENCIMA del reel/composer sin importar
+                    su orden en el DOM, igual que MarketPlace. */}
+                <IndicadorRefrescoFeed
+                    testId="servicios-feed-refrescando"
+                    progreso={progresoRefresco}
+                    refrescando={refrescando}
+                    sinTransicion={pull.gestoActivo}
+                    icon={<Wrench className="h-9 w-9 text-sky-600" strokeWidth={2.25} />}
+                    claseAnillo="border-sky-200 border-t-sky-600"
+                />
 
                 {/* Composer inline — pill colapsada que se expande
                     in-place al tap. Solo en modo Personal y en tabs
@@ -726,7 +762,13 @@ export function PaginaServicios() {
                     <div className="min-w-0 lg:flex-1">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-20">
-                        <Spinner tamanio="lg" />
+                        <IndicadorRefrescoFeed
+                            inline
+                            progreso={1}
+                            refrescando
+                            icon={<Wrench className="h-9 w-9 text-sky-600" strokeWidth={2.25} />}
+                            claseAnillo="border-sky-200 border-t-sky-600"
+                        />
                     </div>
                 ) : isError ? (
                     <ErrorBloque onReintentar={() => refetch()} />
@@ -806,7 +848,13 @@ export function PaginaServicios() {
 
                         {cargandoInfinito ? (
                             <div className="flex items-center justify-center py-20">
-                                <Spinner tamanio="lg" />
+                                <IndicadorRefrescoFeed
+                                    inline
+                                    progreso={1}
+                                    refrescando
+                                    icon={<Wrench className="h-9 w-9 text-sky-600" strokeWidth={2.25} />}
+                                    claseAnillo="border-sky-200 border-t-sky-600"
+                                />
                             </div>
                         ) : itemsInfinitos.length === 0 ? (
                             tabActiva === 'vacantes' ? (

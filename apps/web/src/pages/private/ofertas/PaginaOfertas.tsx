@@ -52,13 +52,16 @@ import CardOfertaLista from '@/components/ofertas/CardOfertaLista';
 import TituloDeBloque from '@/components/ofertas/TituloDeBloque';
 import BloqueCarruselAuto from '@/components/ofertas/BloqueCarruselAuto';
 import TickerOfertas from '@/components/ofertas/TickerOfertas';
-import { Spinner } from '@/components/ui/Spinner';
 import { BotonIrArriba } from '@/components/ui/BotonIrArriba';
+import { IndicadorRefrescoFeed } from '@/components/ui/IndicadorRefrescoFeed';
 
 import { useGpsStore } from '@/stores/useGpsStore';
 import { useSearchStore } from '@/stores/useSearchStore';
 import { useFiltrosOfertasStore } from '@/stores/useFiltrosOfertasStore';
 import { useCarruselRotativo } from '@/hooks/useCarruselRotativo';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useMinDuracionVisible } from '@/hooks/useMinDuracionVisible';
 
 import {
   useOfertasFeedCerca,
@@ -157,12 +160,40 @@ export default function PaginaOfertas() {
     data: ofertas = [],
     isPending,
     isError,
+    isRefetching,
     refetch,
   } = useOfertasFeedCerca();
-  const { data: ofertaDestacada } = useOfertaDestacadaDelDia();
+  const destacadaQuery = useOfertaDestacadaDelDia();
+  const ofertaDestacada = destacadaQuery.data;
   const vencenPronto = useOfertasFeedVencenPronto();
   const recientes = useOfertasFeedRecientes();
   const populares = useOfertasFeedPopulares();
+
+  // ─── Refresco tipo Facebook (mismo patrón que Negocios/MarketPlace/
+  // Servicios) ────────────────────────────────────────────────────────────
+  // Ofertas no tiene tabs con query única — son 5 queries en paralelo
+  // (cerca, destacada, vencen pronto, recientes, populares). Jalar para
+  // refrescar (móvil) y el auto-refresh en PC (refetchOnMount/
+  // refetchOnWindowFocus, ya en cada hook) refrescan LAS 5 juntas; el
+  // indicador visual sigue a la principal ("cerca de ti").
+  const { esEscritorio } = useBreakpoint();
+  const pull = usePullToRefresh({
+    onRefresh: () =>
+      Promise.all([
+        refetch(),
+        destacadaQuery.refetch(),
+        vencenPronto.refetch(),
+        recientes.refetch(),
+        populares.refetch(),
+      ]),
+    scrollRef: cuerpoRef,
+    habilitado: !esEscritorio,
+  });
+  // `useMinDuracionVisible`: si el refetch resuelve casi instantáneo (304
+  // Not Modified por ETag), sostiene el anillo un mínimo perceptible en
+  // vez de prender/apagar entre renders.
+  const refrescando = useMinDuracionVisible(isRefetching, 700);
+  const progresoRefresco = refrescando ? 1 : pull.progreso;
 
   // Sin GPS y chip='cerca' → prompt para activar GPS
   const sinGpsYNecesario = chipActivo === 'cerca' && !(latitud && longitud);
@@ -408,11 +439,28 @@ export default function PaginaOfertas() {
       {/* feed de MP, Servicios y Negocios para coherencia visual entre     */}
       {/* secciones). El header sticky de arriba mantiene `max-w-7xl`.      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-6 pb-24 lg:flex-none lg:overflow-visible lg:px-4 lg:max-w-[920px] lg:mx-auto lg:pt-8 lg:pb-16">
+      <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-6 pb-24 lg:flex-none lg:overflow-visible lg:px-4 lg:max-w-[920px] lg:mx-auto lg:pt-8 lg:pb-16">
+        {/* Refresco tipo Facebook: ícono de Ofertas (Tag) con anillo
+            giratorio amber — `absolute` relativo a este contenedor, así
+            queda ENCIMA de todo el feed sin importar el orden del DOM. */}
+        <IndicadorRefrescoFeed
+          testId="ofertas-feed-refrescando"
+          progreso={progresoRefresco}
+          refrescando={refrescando}
+          sinTransicion={pull.gestoActivo}
+          icon={<Tag className="h-9 w-9 text-amber-600" strokeWidth={2.25} />}
+          claseAnillo="border-amber-200 border-t-amber-600"
+        />
         {cargaInicial ? (
-          // Un solo spinner centrado, idéntico a Servicios/MarketPlace.
+          // Mismo ícono+anillo, en modo inline (sin overlay) — carga inicial.
           <div className="flex items-center justify-center py-20">
-            <Spinner tamanio="lg" />
+            <IndicadorRefrescoFeed
+              inline
+              progreso={1}
+              refrescando
+              icon={<Tag className="h-9 w-9 text-amber-600" strokeWidth={2.25} />}
+              claseAnillo="border-amber-200 border-t-amber-600"
+            />
           </div>
         ) : (
          <>

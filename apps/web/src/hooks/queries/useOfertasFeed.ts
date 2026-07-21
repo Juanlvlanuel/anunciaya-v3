@@ -117,6 +117,11 @@ export function useOfertasFeedCerca() {
       return r.success ? (r.data ?? []) : [];
     },
     placeholderData: keepPreviousData,
+    // Refresco "tipo Facebook" (mismo patrón que Negocios/MarketPlace/
+    // Servicios): refetch automático al volver a la pestaña y cada vez que
+    // se entra a la página, no solo cuando el dato ya está stale.
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
 }
 
@@ -149,6 +154,9 @@ export function useOfertaDestacadaDelDia() {
       return r.success ? (r.data ?? null) : null;
     },
     staleTime: 30 * 60 * 1000,
+    // Refresco "tipo Facebook" — ver `useOfertasFeedCerca` arriba.
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
 }
 
@@ -189,6 +197,9 @@ function useBloqueCarrusel(
       return r.success ? (r.data ?? []) : [];
     },
     staleTime: 5 * 60 * 1000,
+    // Refresco "tipo Facebook" — ver `useOfertasFeedCerca` arriba.
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
 }
 
