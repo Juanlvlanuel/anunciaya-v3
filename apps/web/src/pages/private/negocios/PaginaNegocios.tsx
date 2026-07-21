@@ -826,6 +826,30 @@ export function PaginaNegocios() {
     };
   }, [tabActiva]);
 
+  // Centro horizontal REAL de `cuerpoRef` (el wrapper de la página completa,
+  // `lg:mx-auto lg:max-w-[940px]`) — lo usa el indicador de refresco del feed
+  // de publicaciones para ubicarse en la PÁGINA, no en su propia columna (que
+  // en escritorio es más angosta: cuerpoRef menos la columna de cards de la
+  // izquierda; en móvil, además, el feed va DESPUÉS del `ReelNegociosFeed` en
+  // el DOM, así que un indicador "de flujo normal" quedaría abajo del
+  // carrusel en vez de encima). Mismo patrón de medición por JS que
+  // `cardsLeft`. Combinado más abajo con `headerBottom` para el `top` — ver
+  // `feedIndicadorPos`.
+  const [feedIndicadorLeft, setFeedIndicadorLeft] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = cuerpoRef.current;
+    if (!el) return;
+    const medir = () => setFeedIndicadorLeft(el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2);
+    medir();
+    const observer = new ResizeObserver(medir);
+    observer.observe(el);
+    window.addEventListener('resize', medir);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', medir);
+    };
+  }, [cuerpoRef]);
+
   // Auto-scroll vertical de la columna de cards (escritorio) — mismo
   // espíritu que el carrusel automático del reel de Negocios en móvil
   // (`ReelNegociosFeed.tsx`), pero vertical y con `scrollBy` normal en vez
@@ -945,6 +969,15 @@ export function PaginaNegocios() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Posición combinada del indicador de refresco del feed de publicaciones:
+  // `left` centrado en la página completa (medido arriba) + `top` justo
+  // debajo del borde real del header (`headerBottom`, ya reactivo al
+  // colapso del header móvil y al sticky de escritorio). Con `position:
+  // fixed` esto lo saca del flujo normal — así en móvil aparece ENCIMA del
+  // `ReelNegociosFeed` en vez de después (el feed va después del carrusel en
+  // el DOM) y en escritorio no cae detrás del Navbar (z-50).
+  const feedIndicadorPos = feedIndicadorLeft !== null ? { left: feedIndicadorLeft, top: headerBottom + 8 } : null;
 
   // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N negocios" +
   // chips de filtros) al hacer scroll hacia abajo, dejando solo la fila
@@ -1397,6 +1430,9 @@ export function PaginaNegocios() {
               <FeedPublicacionesNegocio
                 ciudad={ciudadGps?.nombre ?? null}
                 onAbrirDetalle={handleAbrirPublicacion}
+                scrollRef={cuerpoRef}
+                pullHabilitado={!esEscritorio}
+                posicionFija={feedIndicadorPos ?? undefined}
               />
             </div>
           )}
@@ -1486,6 +1522,7 @@ export function PaginaNegocios() {
                   <FeedPublicacionesNegocio
                     ciudad={ciudadGps?.nombre ?? null}
                     onAbrirDetalle={handleAbrirPublicacion}
+                    posicionFija={feedIndicadorPos ?? undefined}
                   />
                 </div>
               </div>

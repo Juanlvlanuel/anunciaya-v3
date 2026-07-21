@@ -649,19 +649,19 @@ body {
 }
 
 /* ============================================= */
-/* ANIMACIÓN - Refresh con huellitas de Coyo     */
-/* Las pisadas aparecen en secuencia (efecto de  */
-/* "caminando") en el indicador de pull-to-       */
-/* refresh / refresco del feed del Home.         */
-/* Ver IndicadorHuellitas (PaginaInicio).        */
+/* ANIMACIÓN - Ícono con pulso (indicador de      */
+/* refresco de feed, tipo Facebook/Instagram):    */
+/* late suave dentro del anillo giratorio.        */
+/* Ver IndicadorRefrescoFeed.tsx (Negocios/MP) y  */
+/* IndicadorRefrescoCoyo en PaginaInicio.tsx.     */
 /* ============================================= */
-@keyframes huellaPaso {
-  0%, 100% { opacity: 0.18; transform: translateY(2px) scale(0.8); }
-  40%      { opacity: 1;    transform: translateY(0)   scale(1); }
+@keyframes indicadorRefrescoIconoPulso {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.15); opacity: 0.7; }
 }
 
-.huella-paso {
-  animation: huellaPaso 1.1s ease-in-out infinite;
+.indicador-refresco-icono {
+  animation: indicadorRefrescoIconoPulso 1.4s ease-in-out infinite;
 }
 
 /* ============================================= */

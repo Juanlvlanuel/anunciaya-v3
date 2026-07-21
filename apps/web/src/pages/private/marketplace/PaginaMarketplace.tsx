@@ -48,8 +48,10 @@ import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
 import { ModalComentariosMarketplace } from '../../../components/marketplace/ModalComentariosMarketplace';
-import { Spinner } from '../../../components/ui/Spinner';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
+import { IndicadorRefrescoFeed } from '../../../components/ui/IndicadorRefrescoFeed';
+import { usePullToRefresh } from '../../../hooks/usePullToRefresh';
+import { useMinDuracionVisible } from '../../../hooks/useMinDuracionVisible';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito, CategoriaMarketplace } from '../../../types/marketplace';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
@@ -151,6 +153,8 @@ export function PaginaMarketplace() {
         data: dataFeedInfinito,
         isLoading: isLoadingFeed,
         isError: isErrorFeed,
+        isRefetching: isRefetchingFeed,
+        refetch: refetchFeed,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
@@ -450,6 +454,23 @@ export function PaginaMarketplace() {
     // se usa, pero la UI principal escucha al feed infinito.
     const isLoading = isLoadingFeed;
     const isError = isErrorFeed;
+    const isRefetching = isRefetchingFeed;
+
+    // Jalar para refrescar (móvil) — mismo hook que el Home y Negocios.
+    // `progreso` sigue el dedo mientras jalas; en cuanto arranca el refetch
+    // real (por el pull o por el auto-refresh de `refetchOnMount`/
+    // `refetchOnWindowFocus`), `refrescando` se enciende solo.
+    const pull = usePullToRefresh({
+        onRefresh: () => refetchFeed(),
+        scrollRef: cuerpoRef,
+        habilitado: !esEscritorio,
+    });
+    // `useMinDuracionVisible`: en escritorio el refetch a veces resuelve en
+    // 304 Not Modified (ETag) casi instantáneo — sin esto, el anillo prende
+    // y apaga entre renders y nunca alcanza a pintarse en pantalla.
+    const refrescandoFeedCrudo = isRefetching && !isFetchingNextPage;
+    const refrescandoFeed = useMinDuracionVisible(refrescandoFeedCrudo, 700);
+    const progresoRefresco = refrescandoFeed ? 1 : pull.progreso;
 
     // Total para el KPI del header (basado en el feed v1.1 que tiene los
     // arrays completos de recientes+cercanos por ciudad). Se mantiene.
@@ -747,7 +768,7 @@ export function PaginaMarketplace() {
                 secciones. Solo el header sticky negro de arriba mantiene
                 `max-w-7xl`. Reels, composer y feed heredan este ancho.
             ════════════════════════════════════════════════════════════════ */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0">
+            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0">
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque
@@ -856,7 +877,13 @@ export function PaginaMarketplace() {
                 {/* Estado: loading inicial */}
                 {isLoading && (
                     <div className="flex items-center justify-center py-20">
-                        <Spinner tamanio="lg" />
+                        <IndicadorRefrescoFeed
+                            inline
+                            progreso={1}
+                            refrescando
+                            icon={<ShoppingCart className="h-9 w-9 text-teal-600" strokeWidth={2.25} />}
+                            claseAnillo="border-teal-200 border-t-teal-600"
+                        />
                     </div>
                 )}
 
@@ -885,6 +912,22 @@ export function PaginaMarketplace() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Refresco tipo Facebook: ícono de MarketPlace (ShoppingCart)
+                    con anillo giratorio teal — mismo criterio que el Home
+                    (Coyo) y Negocios: jalón en móvil (`progresoRefresco`
+                    sigue el dedo) + auto en PC (`refrescandoFeed`), nunca
+                    durante la paginación. */}
+                {!isLoading && !isError && (
+                    <IndicadorRefrescoFeed
+                        testId="marketplace-feed-refrescando"
+                        progreso={progresoRefresco}
+                        refrescando={refrescandoFeed}
+                        sinTransicion={pull.gestoActivo}
+                        icon={<ShoppingCart className="h-9 w-9 text-teal-600" strokeWidth={2.25} />}
+                        claseAnillo="border-teal-200 border-t-teal-600"
+                    />
                 )}
 
                 {/* ════════════════════════════════════════════════════════════════

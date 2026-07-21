@@ -99,6 +99,14 @@ export function useFeedNegocioPublicaciones(params: UseFeedNegocioPublicacionesP
         enabled: habilitado,
         staleTime: 2 * 60 * 1000,
         placeholderData: keepPreviousData,
+        // Refresco "tipo Facebook": al volver a la pestaña, refetchea en
+        // segundo plano (mismo override que `usePreguntasComunidadLista` del
+        // Home, contra el `refetchOnWindowFocus: false` global). Además,
+        // `refetchOnMount: 'always'` — a diferencia del Home, acá SÍ se pidió
+        // que el refresco sea automático cada vez que se entra a la página
+        // (no solo cuando el dato ya está stale).
+        refetchOnWindowFocus: true,
+        refetchOnMount: 'always',
     });
 }
 

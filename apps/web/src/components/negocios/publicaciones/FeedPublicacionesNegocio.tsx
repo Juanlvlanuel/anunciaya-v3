@@ -15,24 +15,42 @@
  *  - Desktop tab Feed: columna derecha (junto a la lista de negocios).
  *  - Móvil tab Feed: debajo del `ReelNegociosFeed`.
  *
+ * Refresco tipo Facebook: `useFeedNegocioPublicaciones` ya trae
+ * `refetchOnMount: 'always'` + `refetchOnWindowFocus: true` (refresco
+ * automático en PC al entrar/volver a la pestaña). En móvil, además, el
+ * gesto de jalar para refrescar (`usePullToRefresh`, mismo patrón que el
+ * Home) — solo la instancia móvil (`pullHabilitado`) engancha el gesto,
+ * la instancia de escritorio nunca lo activa (evita listeners duplicados
+ * sobre el mismo `scrollRef` cuando ambos bloques están montados a la vez).
+ *
  * Ubicación: apps/web/src/components/negocios/publicaciones/FeedPublicacionesNegocio.tsx
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Newspaper, Sparkles, Plus, Store } from 'lucide-react';
 import { useFeedNegocioPublicaciones } from '../../../hooks/queries/useNegocioPublicaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { usePullToRefresh } from '../../../hooks/usePullToRefresh';
+import { useMinDuracionVisible } from '../../../hooks/useMinDuracionVisible';
+import { IndicadorRefrescoFeed } from '../../ui/IndicadorRefrescoFeed';
 import { CardPublicacionNegocioFeed } from './CardPublicacionNegocioFeed';
 
 interface FeedPublicacionesNegocioProps {
     ciudad: string | null;
     onAbrirDetalle: (id: string) => void;
+    /** Contenedor con scroll para el gesto de jalar (solo la instancia móvil lo pasa). */
+    scrollRef?: RefObject<HTMLElement | null>;
+    /** Habilita el gesto de jalar — true SOLO en la instancia realmente móvil (ver nota arriba). */
+    pullHabilitado?: boolean;
+    /** Posición FIJA en px de la PÁGINA (no de esta columna) — solo la
+     *  instancia de escritorio la pasa, ver `IndicadorRefrescoFeed`. */
+    posicionFija?: { left: number; top: number };
 }
 
-export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublicacionesNegocioProps) {
+export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle, scrollRef, pullHabilitado = false, posicionFija }: FeedPublicacionesNegocioProps) {
     const navigate = useNavigate();
     const handlePublicar = () => navigate('/negocios?crear=1');
     // El composer es exclusivo de negocios en modo Comercial (a diferencia
@@ -51,6 +69,8 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
         data,
         isLoading,
         isError,
+        isRefetching,
+        refetch,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
@@ -93,24 +113,55 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
         return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+    // Jalar para refrescar (móvil) — mismo hook que el Home. `progreso` sigue
+    // el dedo mientras jalas; en cuanto el refetch real arranca (por el pull
+    // o por el auto-refresh de `refetchOnMount`/`refetchOnWindowFocus`),
+    // `refrescando` se enciende solo y el indicador gira hasta que termina.
+    const pull = usePullToRefresh({
+        onRefresh: () => refetch(),
+        scrollRef,
+        habilitado: pullHabilitado,
+    });
+    // `useMinDuracionVisible`: en escritorio el refetch a veces resuelve en
+    // 304 Not Modified (ETag) casi instantáneo — sin esto, el anillo prende
+    // y apaga entre renders y nunca alcanza a pintarse en pantalla.
+    const refrescandoCrudo = isRefetching && !isFetchingNextPage;
+    const refrescando = useMinDuracionVisible(refrescandoCrudo, 700);
+    const progreso = refrescando ? 1 : pull.progreso;
+    const indicador = (
+        <IndicadorRefrescoFeed
+            testId="negocios-feed-refrescando"
+            progreso={progreso}
+            refrescando={refrescando}
+            sinTransicion={pull.gestoActivo}
+            icon={<Store className="h-9 w-9 text-blue-600" strokeWidth={2.25} />}
+            claseAnillo="border-blue-200 border-t-blue-600"
+            posicionFija={posicionFija}
+        />
+    );
+
+    let contenido: ReactNode;
+
     if (isLoading) {
-        return (
+        contenido = (
             <div className="flex items-center justify-center py-12" data-testid="feed-publicaciones-negocio-cargando">
-                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                <IndicadorRefrescoFeed
+                    inline
+                    progreso={1}
+                    refrescando
+                    icon={<Store className="h-9 w-9 text-blue-600" strokeWidth={2.25} />}
+                    claseAnillo="border-blue-200 border-t-blue-600"
+                />
             </div>
         );
-    }
-
-    if (isError) {
-        return (
+    } else if (isError) {
+        contenido = (
             <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500" data-testid="feed-publicaciones-negocio-error">
                 <Newspaper className="w-8 h-8 mb-2 text-slate-300" strokeWidth={1.5} />
                 <p className="text-[14px] font-semibold">No pudimos cargar el feed.</p>
             </div>
         );
-    }
-
-    if (publicaciones.length === 0) {
+    } else if (publicaciones.length === 0) {
         // Dos casos bien distintos (mismo criterio que la lista de negocios,
         // `EstadoCiudadSinNegocios`/`EstadoFiltroSinNegocios`):
         //  - Hay filtros activos y no matchean nada → "sin coincidencias",
@@ -118,7 +169,7 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
         //  - Sin filtros, la ciudad realmente no tiene publicaciones aún.
         const hayFiltros = filtrosActivos() > 0;
 
-        return (
+        contenido = (
             <div
                 className="relative mt-8 flex flex-col items-center px-6 text-center lg:mt-16"
                 data-testid="feed-publicaciones-negocio-vacio"
@@ -209,23 +260,30 @@ export function FeedPublicacionesNegocio({ ciudad, onAbrirDetalle }: FeedPublica
                 )}
             </div>
         );
+    } else {
+        contenido = (
+            <div className="space-y-4" data-testid="feed-publicaciones-negocio">
+                {publicaciones.map((publicacion) => (
+                    <CardPublicacionNegocioFeed
+                        key={publicacion.id}
+                        publicacion={publicacion}
+                        onAbrirDetalle={onAbrirDetalle}
+                    />
+                ))}
+
+                {hasNextPage && (
+                    <div ref={sentinelRef} className="flex items-center justify-center py-4">
+                        {isFetchingNextPage && <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />}
+                    </div>
+                )}
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-4" data-testid="feed-publicaciones-negocio">
-            {publicaciones.map((publicacion) => (
-                <CardPublicacionNegocioFeed
-                    key={publicacion.id}
-                    publicacion={publicacion}
-                    onAbrirDetalle={onAbrirDetalle}
-                />
-            ))}
-
-            {hasNextPage && (
-                <div ref={sentinelRef} className="flex items-center justify-center py-4">
-                    {isFetchingNextPage && <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />}
-                </div>
-            )}
+        <div className="relative">
+            {indicador}
+            {contenido}
         </div>
     );
 }

@@ -30,7 +30,9 @@ import {
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { useMinDuracionVisible } from '../../hooks/useMinDuracionVisible';
 import { BotonIrArriba } from '../../components/ui/BotonIrArriba';
+import { IndicadorRefrescoFeed } from '../../components/ui/IndicadorRefrescoFeed';
 import { CoyoInput } from '../../components/home/AreaPreguntaCoyo';
 import { CardPreguntaEditorial } from '../../components/home/CardPreguntaEditorial';
 import { ModalOfertaCoyo } from '../../components/home/ModalOfertaCoyo';
@@ -312,62 +314,19 @@ function BloquePreguntaDestacada({
 }
 
 // =============================================================================
-// INDICADOR DE REFRESCO — huellitas de Coyo caminando (pull móvil + auto PC)
+// INDICADOR DE REFRESCO — huella de Coyo para `IndicadorRefrescoFeed`
+// (componente reusable en components/ui, mismo usado por Negocios/MP).
 // =============================================================================
 
-// Fila de pisadas de Coyo (la misma pata azul del adorno del rail) que aparecen
-// en secuencia (`.huella-paso`) dando el efecto de "caminando". Entra/sale con
-// altura + opacidad (no se corta de golpe). Móvil: el carril sigue el jalón.
-// PC: altura fija mientras refresca.
-function IndicadorHuellitas({
-    visible,
-    altura,
-    sinTransicion,
-}: {
-    /** Si debe mostrarse (controla altura/opacidad para la animación de salida). */
-    visible: boolean;
-    /** Altura del carril (px). Móvil: sigue el jalón. PC: fijo. */
-    altura: number;
-    /** Sin transición mientras el dedo jala (para que siga el dedo en vivo). */
-    sinTransicion: boolean;
-}) {
-    return (
-        <div
-            className="flex items-center justify-center overflow-hidden"
-            style={{
-                height: visible ? altura : 0,
-                transition: sinTransicion
-                    ? 'none'
-                    : 'height 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}
-            aria-hidden="true"
-        >
-            <div
-                className="flex items-center gap-1.5"
-                style={{
-                    opacity: visible ? 1 : 0,
-                    transition: sinTransicion ? 'none' : 'opacity 200ms ease-out',
-                }}
-            >
-                {[0, 1, 2, 3].map((i) => (
-                    <svg
-                        key={i}
-                        viewBox="-14 -14 28 28"
-                        className="w-8 h-8 huella-paso"
-                        style={{ animationDelay: `${i * 0.14}s` }}
-                        fill="#d97534"
-                    >
-                        <ellipse cx="0" cy="5.5" rx="5.6" ry="7" />
-                        <circle cx="-5.6" cy="-3.2" r="2.3" />
-                        <circle cx="-1.9" cy="-6.6" r="2.3" />
-                        <circle cx="1.9" cy="-6.6" r="2.3" />
-                        <circle cx="5.6" cy="-3.2" r="2.3" />
-                    </svg>
-                ))}
-            </div>
-        </div>
-    );
-}
+const HUELLA_COYO = (
+    <svg viewBox="-14 -14 28 28" className="h-11 w-11" fill="#d97534">
+        <ellipse cx="0" cy="5.5" rx="5.6" ry="7" />
+        <circle cx="-5.6" cy="-3.2" r="2.3" />
+        <circle cx="-1.9" cy="-6.6" r="2.3" />
+        <circle cx="1.9" cy="-6.6" r="2.3" />
+        <circle cx="5.6" cy="-3.2" r="2.3" />
+    </svg>
+);
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -710,28 +669,38 @@ export function PaginaInicio() {
         refetchingPrevRef.current = ahora;
     }, [queryActivo.isRefetching]);
 
-    // Indicador del jalón (móvil): huellitas que aparecen mientras el dedo jala
-    // (siguen el jalón) y siguen "caminando" mientras el feed refresca por ese
-    // pull. Imposible que se quede pegado: depende del dedo (gestoActivo) y del
-    // estado real del refetch (isRefetching), ambos se apagan solos.
+    // Indicador del jalón (móvil): overlay que aparece mientras el dedo jala
+    // (sigue el progreso) y gira en loop mientras el feed refresca por ese
+    // pull — NUNCA reserva espacio (position:absolute), así el layout de
+    // abajo no se mueve ni un pixel al jalar. Imposible que se quede
+    // pegado: depende del dedo (gestoActivo) y del estado real del refetch
+    // (isRefetching), ambos se apagan solos.
     const caminandoPull = refrescoPorPull && queryActivo.isRefetching;
     const indicadorPull = (
-        <IndicadorHuellitas
-            visible={(pull.gestoActivo && pull.distancia > 0) || caminandoPull}
-            altura={caminandoPull ? 52 : pull.distancia}
+        <IndicadorRefrescoFeed
+            testId="home-indicador-pull"
+            progreso={caminandoPull ? 1 : pull.progreso}
+            refrescando={caminandoPull}
             sinTransicion={pull.gestoActivo}
+            icon={HUELLA_COYO}
+            claseAnillo="border-orange-200/70 border-t-[#d97534]"
         />
     );
 
-    // Indicador de refresco en PC: huellitas caminando mientras refetchea (al
-    // entrar o al volver a la pestaña), sin contar carga de más páginas ni la
-    // publicación de una pregunta.
+    // Indicador de refresco en PC: mismo overlay, girando mientras refetchea
+    // (al entrar o al volver a la pestaña), sin contar carga de más páginas
+    // ni la publicación de una pregunta. `useMinDuracionVisible`: si el
+    // refetch resuelve casi instantáneo (304 Not Modified), sostiene el giro
+    // un mínimo perceptible en vez de prender/apagar entre renders.
+    const refrescandoPcCrudo = queryActivo.isRefetching && !isFetchingNextPage && !publicandoPregunta;
+    const refrescandoPc = useMinDuracionVisible(refrescandoPcCrudo, 700);
     const indicadorRefrescoPc = (
         <div data-testid="home-refrescando">
-            <IndicadorHuellitas
-                visible={queryActivo.isRefetching && !isFetchingNextPage && !publicandoPregunta}
-                altura={52}
-                sinTransicion={false}
+            <IndicadorRefrescoFeed
+                progreso={refrescandoPc ? 1 : 0}
+                refrescando={refrescandoPc}
+                icon={HUELLA_COYO}
+                claseAnillo="border-orange-200/70 border-t-[#d97534]"
             />
         </div>
     );
@@ -739,7 +708,7 @@ export function PaginaInicio() {
     // ── MÓVIL ────────────────────────────────────────────────────────────
     if (esMovil) {
         return (
-            <div className="w-full max-w-[520px] mx-auto px-4 pb-3">
+            <div className="relative w-full max-w-[520px] mx-auto px-4 pb-3">
                 {indicadorPull}
                 {/* HERO: escena "Casa de Coyo" completa CON input dentro (igual
                     que PC). `-mx-4 -mt-px` para que la escena llegue a la orilla
@@ -846,10 +815,10 @@ export function PaginaInicio() {
 
                 {/* Feed */}
                 <div className="w-full min-w-0 flex-1 lg:max-w-[760px]">
-                    <div className="w-full space-y-3 lg:space-y-4">
+                    <div className="relative w-full space-y-3 lg:space-y-4">
+                        {indicadorRefrescoPc}
                         {bloqueDestacado}
                         <FeedHeader ciudad={nombreCiudad} segmento={segmento} onSegmento={setSegmento} conteos={conteosSegmento} />
-                        {indicadorRefrescoPc}
                         <ContenidoFeed
                             hayCiudad={segmento === 'mias' || hayCiudad}
                             feed={queryActivo}
