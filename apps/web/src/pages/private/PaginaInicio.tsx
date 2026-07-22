@@ -505,9 +505,40 @@ export function PaginaInicio() {
         const observer = new ResizeObserver(medir);
         observer.observe(el);
         window.addEventListener('resize', medir);
+
+        // El <main> de MainLayout anima su padding-right (`transition-[padding]
+        // duration-200`) al entrar/salir de Business Studio. El feed (en flujo
+        // normal) se recoloca solo, frame a frame, siguiendo esa transición
+        // CSS — pero el rail es `position: fixed` con `left` fijado por JS, así
+        // que si solo medimos al inicio y al final, el rail salta de golpe en
+        // vez de moverse junto con el feed. Mientras dura la transición del
+        // <main>, se muestrea con requestAnimationFrame para que el rail siga
+        // la misma trayectoria del placeholder en cada frame.
+        const mainEl = el.closest('main');
+        let rafId = 0;
+        const seguirTransicion = () => {
+            medir();
+            rafId = requestAnimationFrame(seguirTransicion);
+        };
+        const iniciarSeguimiento = () => {
+            cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(seguirTransicion);
+        };
+        const detenerSeguimiento = () => {
+            cancelAnimationFrame(rafId);
+            medir();
+        };
+        mainEl?.addEventListener('transitionrun', iniciarSeguimiento);
+        mainEl?.addEventListener('transitionend', detenerSeguimiento);
+        mainEl?.addEventListener('transitioncancel', detenerSeguimiento);
+
         return () => {
             observer.disconnect();
             window.removeEventListener('resize', medir);
+            mainEl?.removeEventListener('transitionrun', iniciarSeguimiento);
+            mainEl?.removeEventListener('transitionend', detenerSeguimiento);
+            mainEl?.removeEventListener('transitioncancel', detenerSeguimiento);
+            cancelAnimationFrame(rafId);
         };
     }, [esMovil, preguntasMostradas.length]);
 
