@@ -652,20 +652,20 @@ export default function PaginaScanYA() {
                 - PC (lg:): 2 Columnas (grid-cols-[1.5fr_1fr])
               */}
               <div className="
-                w-full lg:w-auto 2xl:w-full
-                lg:max-w-[1000px]
+                w-full
+                lg:max-w-[820px]
                 2xl:max-w-[1000px]
-                2xl:mx-auto
-                
+                mx-auto
+
                 flex flex-col
                 lg:grid lg:grid-cols-[1.5fr_1fr]
-                gap-5 lg:gap-0 2xl:gap-8
+                gap-5 lg:gap-6 2xl:gap-8
                 lg:mt-12 2xl:mt-0
               ">
                 {/* ========================================== */}
                 {/* COLUMNA IZQUIERDA: MI TURNO (60%) */}
                 {/* ========================================== */}
-                <div>
+                <div className="lg:h-full">
                   <ResumenTurno
                     turno={turno}
                     onAbrirTurno={handleAbrirTurno}
@@ -680,13 +680,13 @@ export default function PaginaScanYA() {
                 {/* ========================================== */}
                 {/* COLUMNA DERECHA: ACCIONES (40%) */}
                 {/* ========================================== */}
-                <div className="flex flex-col -mt-1 lg:gap-4 2xl:gap-5">
-
-                  {/* Botón Principal: Otorgar Puntos */}
+                <div className="-mt-1 lg:h-full">
+                  {/* Móvil: botón separado del grid (diseño original intacto, sin fusionar) */}
                   <button
                     onClick={handleOtorgarPuntos}
                     disabled={!turno && online}
                     className="
+                      flex lg:hidden
                       w-full
                       bg-linear-to-br from-amber-600 to-red-700
                       hover:from-amber-700 hover:to-red-800
@@ -695,19 +695,16 @@ export default function PaginaScanYA() {
                       disabled:cursor-not-allowed
                       text-white font-bold
                       disabled:text-white/50
-                      py-3 lg:py-3 lg:mt-1 2xl:py-5 2xl:mt-0
+                      py-3
                       rounded-xl
-                      flex items-center justify-center gap-2 lg:gap-1.5 2xl:gap-2
+                      items-center justify-center gap-2
                       shadow-lg
                       disabled:shadow-none
                       transition-all duration-200
-                      text-base lg:text-base 2xl:text-xl
+                      text-base
                     "
                   >
-                    <Zap
-                      className="w-5 h-5 lg:w-6 lg:h-6 2xl:w-9 2xl:h-9"
-                      fill="currentColor"
-                    />
+                    <Zap className="w-5 h-5" fill="currentColor" />
                     {!online
                       ? 'Guardar Recordatorio'
                       : turno
@@ -716,11 +713,46 @@ export default function PaginaScanYA() {
                     }
                   </button>
 
-                  {/* Indicadores Rápidos */}
                   <IndicadoresRapidos
                     contadores={{ ...contadores, mensajesSinLeer: totalNoLeidos }}
                     onNavigate={handleNavigate}
-                  />
+                  >
+                    {/* Laptop + Desktop: botón fusionado como primera fila del grid,
+                        tamaño discreto (auto) — no crece con el resto */}
+                    <button
+                      onClick={handleOtorgarPuntos}
+                      disabled={!turno && online}
+                      className="
+                        hidden lg:flex
+                        w-full
+                        bg-linear-to-br from-amber-600 to-red-700
+                        hover:from-amber-700 hover:to-red-800
+                        disabled:from-amber-600/40 disabled:to-red-700/40
+                        cursor-pointer
+                        disabled:cursor-not-allowed
+                        text-white font-bold
+                        disabled:text-white/50
+                        lg:py-3 2xl:py-5
+                        rounded-xl
+                        items-center justify-center lg:gap-1.5 2xl:gap-2
+                        shadow-lg
+                        disabled:shadow-none
+                        transition-all duration-200
+                        lg:text-base 2xl:text-xl
+                      "
+                    >
+                      <Zap
+                        className="lg:w-9 lg:h-9 2xl:w-12 2xl:h-12"
+                        fill="currentColor"
+                      />
+                      {!online
+                        ? 'Guardar Recordatorio'
+                        : turno
+                          ? 'Registrar Venta'
+                          : 'Abre un turno para comenzar'
+                      }
+                    </button>
+                  </IndicadoresRapidos>
                 </div>
               </div>
             </>

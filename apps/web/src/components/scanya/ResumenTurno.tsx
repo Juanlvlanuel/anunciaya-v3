@@ -166,10 +166,9 @@ export default function ResumenTurno({
             <div
                 className="
           rounded-2xl
-          p-6 lg:p-4 2xl:p-6
+          p-4 lg:p-4 2xl:p-6
           relative
-          lg:max-w-md 2xl:max-w-none
-          
+          lg:h-full lg:flex lg:flex-col
         "
                 style={{
                     background: '#001136',
@@ -186,11 +185,13 @@ export default function ResumenTurno({
 
                 {/* Header — Avatar centrado */}
                 <div
-                    className="mb-5 pb-4 relative"
+                    className="
+                        relative
+                        -mx-4 -mt-4 mb-4 lg:-mx-4 lg:-mt-4 lg:mb-4 2xl:-mx-6 2xl:-mt-6 2xl:mb-6
+                        pt-5 px-4 pb-3 lg:pt-5 lg:px-4 lg:pb-3 2xl:pt-7 2xl:px-6 2xl:pb-4
+                    "
                     style={{
                         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.1))',
-                        margin: '-24px -24px 24px -24px',
-                        padding: '28px 24px 16px 24px',
                         borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
                     }}
                 >
@@ -215,10 +216,10 @@ export default function ResumenTurno({
                     </div>
 
                     {/* Avatar + Nombre centrados */}
-                    <div className="flex flex-col items-center gap-3 pt-2">
+                    <div className="flex flex-col items-center gap-2 pt-1">
                         <div
                             className={`
-                                w-18 h-18 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20
+                                w-14 h-14 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20
                                 rounded-full
                                 flex items-center justify-center
                                 overflow-hidden shrink-0
@@ -233,16 +234,16 @@ export default function ResumenTurno({
                             {fotoUrl ? (
                                 <img src={fotoUrl} alt="" className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
                             ) : (
-                                <span className="text-white font-bold text-3xl lg:text-2xl 2xl:text-3xl">
+                                <span className="text-white font-bold text-2xl lg:text-2xl 2xl:text-3xl">
                                     {obtenerSoloNombres(nombreUsuario).charAt(0).toUpperCase()}
                                 </span>
                             )}
                         </div>
                         <div className="text-center">
-                            <h2 className="text-white font-bold text-xl lg:text-lg 2xl:text-xl">
+                            <h2 className="text-white font-bold text-lg lg:text-lg 2xl:text-xl">
                                 Hola, {obtenerSoloNombres(nombreUsuario)}
                             </h2>
-                            <p className="text-[#94A3B8] text-base lg:text-sm 2xl:text-base mt-0.5 font-medium">
+                            <p className="text-[#94A3B8] text-sm lg:text-sm 2xl:text-base mt-0.5 font-medium">
                                 Listo para empezar
                             </p>
                         </div>
@@ -250,7 +251,7 @@ export default function ResumenTurno({
                 </div>
 
                 {/* Mensaje */}
-                <p className="text-[#94A3B8] text-center mb-6 lg:mb-4 2xl:mb-6 mt-6 lg:mt-4 2xl:mt-6 text-lg lg:text-base 2xl:text-lg py-4 lg:py-3 2xl:py-4">
+                <p className="text-[#94A3B8] text-center mb-4 lg:mb-4 2xl:mb-6 mt-4 lg:mt-4 2xl:mt-6 text-base lg:text-base 2xl:text-lg py-3 lg:py-3 2xl:py-4">
                     No tienes un turno abierto
                 </p>
 
@@ -262,12 +263,13 @@ export default function ResumenTurno({
             w-full
             flex items-center justify-center gap-2.5
             text-white font-semibold
-            py-4
+            py-3
             rounded-lg
             transition-all duration-200
             text-base
             cursor-pointer
             disabled:opacity-50 disabled:cursor-not-allowed
+            lg:mt-auto
           "
                     style={{
                         background: cargando
@@ -317,8 +319,6 @@ export default function ResumenTurno({
         rounded-2xl
         relative
         overflow-hidden
-        lg:max-w-md 2xl:max-w-none
-        
       "
             style={{
                 background: '#001136',
@@ -335,7 +335,7 @@ export default function ResumenTurno({
 
             {/* Header Premium — Avatar centrado */}
             <div
-                className="p-4 lg:p-4 2xl:p-6 pb-3 lg:pb-3 2xl:pb-4 relative"
+                className="p-3 lg:p-3 2xl:p-6 pb-2 lg:pb-2 2xl:pb-4 relative"
                 style={{
                     background: 'linear-gradient(0deg, #001136 0%, #072885 70%, #072885 100%)',
                 }}
@@ -343,19 +343,19 @@ export default function ResumenTurno({
                 {/* ============================================================
                     MÓVIL: 3 columnas — Finalizar | Avatar+Datos | Activo
                 ============================================================ */}
-                <div className="flex lg:hidden flex-col pt-2 mb-3">
+                <div className="flex lg:hidden flex-col pt-1 mb-2">
                     {/* Fila superior: Finalizar | Activo */}
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-2">
                         {/* Botón Finalizar Turno */}
                         <button
                             onClick={onCerrarTurno}
                             disabled={cargando}
                             className="
-                                px-3 py-1.5
+                                px-2.5 py-1
                                 rounded-full
-                                flex items-center gap-2
+                                flex items-center gap-1.5
                                 text-white font-bold
-                                text-sm
+                                text-xs
                                 transition-all duration-200
                                 cursor-pointer
                                 disabled:opacity-50 disabled:cursor-not-allowed
@@ -365,7 +365,7 @@ export default function ResumenTurno({
                                 boxShadow: '0 2px 10px rgba(185, 28, 28, 0.35)',
                             }}
                         >
-                            <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <circle cx="12" cy="12" r="10" />
                                 <rect x="9" y="9" width="6" height="6" />
                             </svg>
@@ -375,7 +375,7 @@ export default function ResumenTurno({
                         {/* Badge Activo */}
                         <div
                             className="
-                                px-3 py-1.5
+                                px-2.5 py-1
                                 rounded-full
                                 flex items-center gap-1.5
                             "
@@ -393,10 +393,10 @@ export default function ResumenTurno({
                     </div>
 
                     {/* Avatar + Nombre centrado */}
-                    <div className="flex flex-col items-center gap-1.5">
+                    <div className="flex flex-col items-center gap-1">
                         <div
                             className={`
-                                w-14 h-14
+                                w-11 h-11
                                 rounded-full
                                 flex items-center justify-center
                                 overflow-hidden shrink-0
@@ -411,16 +411,16 @@ export default function ResumenTurno({
                             {fotoUrl ? (
                                 <img src={fotoUrl} alt="" className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
                             ) : (
-                                <span className="text-white font-bold text-xl">
+                                <span className="text-white font-bold text-lg">
                                     {obtenerSoloNombres(nombreUsuario).charAt(0).toUpperCase()}
                                 </span>
                             )}
                         </div>
                         <div className="text-center">
-                            <h2 className="text-white font-bold text-xl">
+                            <h2 className="text-white font-bold text-base">
                                 Hola, {obtenerSoloNombres(nombreUsuario)}
                             </h2>
-                            <p className="text-[#94A3B8] text-base mt-0.5 font-medium">
+                            <p className="text-[#94A3B8] text-xs mt-0.5 font-medium">
                                 Tu turno está en curso
                             </p>
                         </div>
@@ -453,10 +453,10 @@ export default function ResumenTurno({
                 </div>
 
                 {/* Avatar + Nombre centrados (solo desktop) */}
-                <div className="hidden lg:flex flex-col items-center gap-2 pt-2 mb-4">
+                <div className="hidden lg:flex flex-col items-center gap-1.5 lg:gap-1.5 2xl:gap-2 pt-2 lg:pt-1 2xl:pt-2 mb-4 lg:mb-2 2xl:mb-4">
                     <div
                         className={`
-                            lg:w-16 lg:h-16 2xl:w-20 2xl:h-20
+                            lg:w-14 lg:h-14 2xl:w-20 2xl:h-20
                             rounded-full
                             flex items-center justify-center
                             overflow-hidden shrink-0
@@ -471,13 +471,13 @@ export default function ResumenTurno({
                         {fotoUrl ? (
                             <img src={fotoUrl} alt="" className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
                         ) : (
-                            <span className="text-white font-bold lg:text-2xl 2xl:text-3xl">
+                            <span className="text-white font-bold lg:text-xl 2xl:text-3xl">
                                 {obtenerSoloNombres(nombreUsuario).charAt(0).toUpperCase()}
                             </span>
                         )}
                     </div>
                     <div className="text-center">
-                        <h2 className="text-white font-bold lg:text-lg 2xl:text-xl">
+                        <h2 className="text-white font-bold lg:text-base 2xl:text-xl">
                             Hola, {obtenerSoloNombres(nombreUsuario)}
                         </h2>
                         <p className="text-[#94A3B8] lg:text-sm 2xl:text-base mt-0.5 font-medium">
@@ -488,39 +488,39 @@ export default function ResumenTurno({
 
                 {/* Separador móvil */}
                 <div
-                    className="h-0.5 mx-4 mt-2 mb-3 lg:mt-1 lg:mb-3 2xl:mt-2 2xl:mb-4"
+                    className="h-0.5 mx-4 mt-1.5 mb-2 lg:mt-1 lg:mb-3 2xl:mt-2 2xl:mb-4"
                     style={{ background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25), transparent)' }}
                 />
 
                 {/* Time Display en 3 bloques */}
-                <div className="flex justify-between items-center py-0 lg:py-1">
+                <div className="flex justify-between items-center py-0 lg:py-0.5">
                     <div className="text-center">
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide font-medium">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase mb-0.5 lg:mb-0.5 2xl:mb-2 tracking-wide font-medium">
                             Inicio
                         </div>
-                        <div className="text-lg lg:text-lg 2xl:text-2xl font-bold text-white">
+                        <div className="text-base lg:text-base 2xl:text-2xl font-bold text-white">
                             {formatearHora(turno.horaInicio)}
                         </div>
                     </div>
 
-                    <div className="text-2xl lg:text-xl 2xl:text-2xl text-[#3B82F6] font-light mx-2 lg:mx-2 2xl:mx-3">•</div>
+                    <div className="text-xl lg:text-lg 2xl:text-2xl text-[#3B82F6] font-light mx-2 lg:mx-1.5 2xl:mx-3">•</div>
 
                     <div className="text-center">
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide font-medium">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase mb-0.5 lg:mb-0.5 2xl:mb-2 tracking-wide font-medium">
                             Duración
                         </div>
-                        <div className="text-lg lg:text-lg 2xl:text-2xl font-bold text-[#10B981]">
+                        <div className="text-base lg:text-base 2xl:text-2xl font-bold text-[#10B981]">
                             {duracion || '0min'}
                         </div>
                     </div>
 
-                    <div className="text-2xl lg:text-xl 2xl:text-2xl text-[#3B82F6] font-light mx-2 lg:mx-2 2xl:mx-3">•</div>
+                    <div className="text-xl lg:text-lg 2xl:text-2xl text-[#3B82F6] font-light mx-2 lg:mx-1.5 2xl:mx-3">•</div>
 
                     <div className="text-center">
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase mb-1 lg:mb-1 2xl:mb-2 tracking-wide font-medium">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase mb-0.5 lg:mb-0.5 2xl:mb-2 tracking-wide font-medium">
                             Estado
                         </div>
-                        <div className="text-base lg:text-base 2xl:text-lg font-bold text-white">
+                        <div className="text-sm lg:text-sm 2xl:text-lg font-bold text-white">
                             Abierto
                         </div>
                     </div>
@@ -528,12 +528,12 @@ export default function ResumenTurno({
             </div>
 
             {/* Body Premium */}
-            <div className="p-4 pt-4 lg:p-4 lg:pt-4 2xl:p-6 2xl:pt-6">
+            <div className="p-3 pt-3 lg:p-3 lg:pt-3 2xl:p-6 2xl:pt-6">
                 {/* Métricas — 4 en 1 fila */}
-                <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 lg:gap-2 2xl:gap-3 mb-4 lg:mb-4 2xl:mb-5">
+                <div className="grid grid-cols-3 lg:grid-cols-4 gap-1.5 lg:gap-1.5 2xl:gap-3 mb-3 lg:mb-3 2xl:mb-5">
                     {/* Transacciones */}
                     <div
-                        className="rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
+                        className="rounded-lg p-2 lg:p-2 2xl:p-3 relative"
                         style={{
                             background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
                             border: '2.5px solid rgba(30, 64, 110, 0.7)',
@@ -544,20 +544,20 @@ export default function ResumenTurno({
                             className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
                             style={{ background: 'linear-gradient(90deg, #3B82F6, transparent)' }}
                         />
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-0.5">
                             Ventas
                         </div>
-                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
+                        <div className="text-xl lg:text-xl 2xl:text-3xl font-bold text-white text-center">
                             {turno.transacciones}
                         </div>
-                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
                             en turno
                         </div>
                     </div>
 
                     {/* Puntos */}
                     <div
-                        className="rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
+                        className="rounded-lg p-2 lg:p-2 2xl:p-3 relative"
                         style={{
                             background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
                             border: '2.5px solid rgba(30, 64, 110, 0.7)',
@@ -568,20 +568,20 @@ export default function ResumenTurno({
                             className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
                             style={{ background: 'linear-gradient(90deg, #F59E0B, transparent)' }}
                         />
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-0.5">
                             Puntos
                         </div>
-                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
+                        <div className="text-xl lg:text-xl 2xl:text-3xl font-bold text-white text-center">
                             {turno.puntosOtorgados}
                         </div>
-                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
                             otorgados
                         </div>
                     </div>
 
                     {/* Ventas Totales $ */}
                     <div
-                        className="rounded-lg p-2.5 lg:p-2.5 2xl:p-3 relative"
+                        className="rounded-lg p-2 lg:p-2 2xl:p-3 relative"
                         style={{
                             background: 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)',
                             border: '2.5px solid rgba(30, 64, 110, 0.7)',
@@ -592,13 +592,13 @@ export default function ResumenTurno({
                             className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
                             style={{ background: 'linear-gradient(90deg, #10B981, transparent)' }}
                         />
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-0.5">
                             Total $
                         </div>
-                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-[#10B981] text-center">
+                        <div className="text-xl lg:text-xl 2xl:text-3xl font-bold text-[#10B981] text-center">
                             ${turno.ventasTotales ? turno.ventasTotales.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
                         </div>
-                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
                             vendido
                         </div>
                     </div>
@@ -616,13 +616,13 @@ export default function ResumenTurno({
                             className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
                             style={{ background: 'linear-gradient(90deg, #8B5CF6, transparent)' }}
                         />
-                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-1">
+                        <div className="text-xs lg:text-[11px] 2xl:text-sm text-[#94A3B8] uppercase tracking-wide font-medium text-center mt-0.5 mb-0.5">
                             Vouchers
                         </div>
-                        <div className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-white text-center">
+                        <div className="text-xl lg:text-xl 2xl:text-3xl font-bold text-white text-center">
                             {vouchersPendientes}
                         </div>
-                        <div className="text-sm lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
+                        <div className="text-xs lg:text-xs 2xl:text-sm text-[#94A3B8] font-medium text-center mt-0.5">
                             por canjear
                         </div>
                     </div>
@@ -630,7 +630,7 @@ export default function ResumenTurno({
 
                 {/* Divider */}
                 <div
-                    className="h-0.5 mb-4 lg:mb-4 2xl:mb-5"
+                    className="h-0.5 mb-3 lg:mb-3 2xl:mb-5"
                     style={{
                         background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent)',
                     }}
@@ -643,12 +643,12 @@ export default function ResumenTurno({
                     className="
             hidden lg:flex
             w-full
-            items-center justify-center gap-2 lg:gap-2 2xl:gap-3
+            items-center justify-center gap-2 lg:gap-1.5 2xl:gap-3
             text-white font-bold
-            py-3.5 lg:py-3.5 2xl:py-4
+            py-3.5 lg:py-2.5 2xl:py-4
             rounded-xl
             transition-all duration-200
-            text-base lg:text-base 2xl:text-lg
+            text-base lg:text-sm 2xl:text-lg
             cursor-pointer
             disabled:opacity-50 disabled:cursor-not-allowed
             relative
@@ -689,7 +689,7 @@ export default function ResumenTurno({
                     )}
 
                     {/* Icono SVG StopCircle */}
-                    <svg className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-[22px] 2xl:h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-[22px] 2xl:h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <rect x="9" y="9" width="6" height="6" />
                     </svg>

@@ -20,7 +20,7 @@
 
 import { WifiOff, Ticket, History, type LucideIcon } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { ICONOS } from '../../config/iconos';
 
 // Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
@@ -46,6 +46,8 @@ interface Contadores {
 interface IndicadoresRapidosProps {
   contadores: Contadores;
   onNavigate: (ruta: string) => void;
+  /** Acción principal (botón "Registrar Venta") — se fusiona como primera fila del grid en móvil/laptop; en 2xl no se usa (ese bloque queda intacto sin el botón). */
+  children?: ReactNode;
 }
 
 interface Boton {
@@ -122,123 +124,143 @@ const BOTONES: Boton[] = [
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
+function renderBoton(
+  boton: Boton,
+  contadores: Contadores,
+  onNavigate: (ruta: string) => void,
+) {
+  const Icon = boton.icon;
+  const valorContador = boton.contador ? contadores[boton.contador] : 0;
+  const mostrarBadge = valorContador > 0;
+
+  return (
+    <button
+      key={boton.id}
+      onClick={() => onNavigate(boton.ruta)}
+      className={`
+        relative
+        rounded-xl lg:rounded-xl 2xl:rounded-2xl
+        ${boton.id === 'historial' ? 'p-2.5 lg:p-3 2xl:p-5 2xl:mt-3' : 'p-3 lg:p-3.5 2xl:p-5'}
+        flex ${boton.id === 'historial' ? 'flex-row gap-2.5 lg:gap-2 2xl:gap-4 col-span-2 lg:col-span-2' : 'flex-col gap-1.5 lg:gap-1.5 2xl:gap-3'} items-center justify-center
+        transition-all duration-200
+        cursor-pointer
+        group
+      `}
+      style={{
+        background: '#011545',
+        border: `3px solid ${boton.borderColor}`,
+        backdropFilter: 'blur(10px)',
+        boxShadow: `0 0 15px ${boton.borderColor.replace('0.3', '0.1')}`,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = boton.bgHover;
+        e.currentTarget.style.boxShadow = `0 0 25px ${boton.borderColor.replace('0.3', '0.2')}`;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)';
+        e.currentTarget.style.boxShadow = `0 0 15px ${boton.borderColor.replace('0.3', '0.1')}`;
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      {/* Badge con contador */}
+      {mostrarBadge && (
+        <div
+          className="
+            absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2
+            bg-[#DC2626]
+            text-white
+            text-sm lg:text-xs 2xl:text-sm
+            font-bold
+            min-w-7 h-7
+            lg:min-w-6 lg:h-6
+            2xl:min-w-7 2xl:h-7
+            px-1.5 lg:px-1 2xl:px-1.5
+            rounded-full
+            flex items-center justify-center
+            shadow-lg
+          "
+          style={{
+            boxShadow: '0 0 20px rgba(220, 38, 38, 0.5)',
+          }}
+        >
+          {valorContador > 99 ? '99+' : valorContador}
+        </div>
+      )}
+
+      {/* Logo o Ícono */}
+      {boton.isLogo && boton.logoSrc ? (
+        <img
+          src={boton.logoSrc}
+          alt={boton.label}
+          className="
+            w-auto
+            h-14 lg:h-14 2xl:h-18
+            object-contain
+            group-hover:scale-110
+            transition-transform duration-200
+          "
+        />
+      ) : Icon ? (
+        <>
+          {/* Ícono */}
+          <Icon
+            className={`
+              w-8 h-8
+              lg:w-9 lg:h-9
+              2xl:w-12 2xl:h-12
+              ${boton.color}
+              group-hover:scale-110
+              transition-transform duration-200
+            `}
+            strokeWidth={2}
+          />
+
+          {/* Label */}
+          <span
+            className="
+              text-white font-bold
+              text-sm lg:text-xs 2xl:text-base
+              text-center
+            "
+          >
+            {boton.label}
+          </span>
+        </>
+      ) : null}
+    </button>
+  );
+}
+
 export default function IndicadoresRapidos({
   contadores,
   onNavigate,
+  children,
 }: IndicadoresRapidosProps) {
   return (
-    <div>
-      {/* Grid de botones - 3 columnas móvil, 2 columnas PC */}
+    <div className="lg:h-full">
+      {/* Móvil: grid original, sin fusionar la acción principal — no tocar */}
+      <div className="grid grid-cols-3 lg:hidden gap-2.5 mt-4">
+        {BOTONES.map((boton) => renderBoton(boton, contadores, onNavigate))}
+      </div>
+
+      {/* Laptop + Desktop: grid fusionado — la acción principal (children) es
+          la primera fila. Solo las 2 filas de los 4 botones de en medio
+          (ChatYA/Reseñas/Offline/Vouchers) crecen (1fr) para llenar el alto
+          de la columna izquierda; la acción principal e Historial quedan con
+          su tamaño natural/discreto (auto), en ambos breakpoints. */}
       <div
         className="
-          grid grid-cols-3 lg:grid-cols-2
-          gap-3 lg:gap-3.5 2xl:gap-5
-          mt-6 lg:mt-6 2xl:mt-8
+          hidden lg:grid
+          lg:grid-cols-2
+          lg:h-full lg:grid-rows-[auto_1fr_1fr_auto]
+          lg:gap-4 2xl:gap-5
         "
       >
-        {BOTONES.map((boton) => {
-          const Icon = boton.icon;
-          const valorContador = boton.contador ? contadores[boton.contador] : 0;
-          const mostrarBadge = valorContador > 0;
-
-          return (
-            <button
-              key={boton.id}
-              onClick={() => onNavigate(boton.ruta)}
-              className={`
-                relative
-                rounded-xl lg:rounded-xl 2xl:rounded-2xl
-                ${boton.id === 'historial' ? 'p-3 lg:p-3.5 2xl:p-5 2xl:mt-3' : 'p-4 lg:p-4 2xl:p-5'}
-                flex ${boton.id === 'historial' ? 'flex-row gap-3 lg:gap-3 2xl:gap-4 col-span-2 lg:col-span-2' : 'flex-col gap-2 lg:gap-2.5 2xl:gap-3'} items-center justify-center
-                transition-all duration-200
-                cursor-pointer
-                group
-              `}
-              style={{
-                background: '#011545',
-                border: `3px solid ${boton.borderColor}`,
-                backdropFilter: 'blur(10px)',
-                boxShadow: `0 0 15px ${boton.borderColor.replace('0.3', '0.1')}`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = boton.bgHover;
-                e.currentTarget.style.boxShadow = `0 0 25px ${boton.borderColor.replace('0.3', '0.2')}`;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(5, 20, 45, 0.7) 0%, rgba(10, 35, 70, 0.6) 100%)';
-                e.currentTarget.style.boxShadow = `0 0 15px ${boton.borderColor.replace('0.3', '0.1')}`;
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              {/* Badge con contador */}
-              {mostrarBadge && (
-                <div
-                  className="
-                    absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2
-                    bg-[#DC2626]
-                    text-white 
-                    text-sm lg:text-xs 2xl:text-sm
-                    font-bold
-                    min-w-7 h-7
-                    lg:min-w-6 lg:h-6
-                    2xl:min-w-7 2xl:h-7
-                    px-1.5 lg:px-1 2xl:px-1.5
-                    rounded-full
-                    flex items-center justify-center
-                    shadow-lg
-                  "
-                  style={{
-                    boxShadow: '0 0 20px rgba(220, 38, 38, 0.5)',
-                  }}
-                >
-                  {valorContador > 99 ? '99+' : valorContador}
-                </div>
-              )}
-
-              {/* Logo o Ícono */}
-              {boton.isLogo && boton.logoSrc ? (
-                <img
-                  src={boton.logoSrc}
-                  alt={boton.label}
-                  className="
-                    w-auto
-                    h-16 lg:h-14 2xl:h-18
-                    object-contain
-                    group-hover:scale-110
-                    transition-transform duration-200
-                  "
-                />
-              ) : Icon ? (
-                <>
-                  {/* Ícono */}
-                  <Icon
-                    className={`
-                      w-9 h-9
-                      lg:w-10 lg:h-10
-                      2xl:w-12 2xl:h-12
-                      ${boton.color}
-                      group-hover:scale-110
-                      transition-transform duration-200
-                    `}
-                    strokeWidth={2}
-                  />
-
-                  {/* Label */}
-                  <span
-                    className="
-                      text-white font-bold
-                      text-sm lg:text-sm 2xl:text-base
-                      text-center
-                    "
-                  >
-                    {boton.label}
-                  </span>
-                </>
-              ) : null}
-            </button>
-          );
-        })}
+        {children && (
+          <div className="lg:col-span-2">{children}</div>
+        )}
+        {BOTONES.map((boton) => renderBoton(boton, contadores, onNavigate))}
       </div>
     </div>
   );
