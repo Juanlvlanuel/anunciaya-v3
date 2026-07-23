@@ -94,6 +94,12 @@ export async function reordenarCategorias(ids: number[]): Promise<{ total: numbe
   return data.data ?? { total: 0 };
 }
 
+/** Hard delete — excepción controlada; el backend valida que no tenga subcategorías (409 si no). */
+export async function eliminarCategoria(id: number): Promise<{ id: number }> {
+  const { data } = await api.delete<RespuestaAPI<{ id: number }>>(`/admin/categorias/${id}`);
+  return data.data ?? { id };
+}
+
 // =============================================================================
 // ACCIONES · SUBCATEGORÍA
 // =============================================================================
@@ -122,4 +128,10 @@ export async function asignarCiudadesSubcategoria(id: number, ciudadIds: string[
 export async function reordenarSubcategorias(categoriaId: number, ids: number[]): Promise<{ total: number }> {
   const { data } = await api.post<RespuestaAPI<{ total: number }>>('/admin/categorias/subcategorias/reordenar', { categoriaId, ids });
   return data.data ?? { total: 0 };
+}
+
+/** Hard delete — excepción controlada; el backend valida que no tenga negocios asignados (409 si no). */
+export async function eliminarSubcategoria(id: number): Promise<{ id: number }> {
+  const { data } = await api.delete<RespuestaAPI<{ id: number }>>(`/admin/categorias/subcategorias/${id}`);
+  return data.data ?? { id };
 }

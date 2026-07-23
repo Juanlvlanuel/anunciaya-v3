@@ -5,13 +5,17 @@
  * gate global de routes/admin/index.ts).
  *
  * Categoría:    crearCategoria · editarCategoria · cambiarActivaCategoria ·
- *               reordenarCategorias · asignarCiudadesCategoria.
+ *               reordenarCategorias · asignarCiudadesCategoria · eliminarCategoria.
  * Subcategoría: crearSubcategoria · editarSubcategoria · cambiarActivaSubcategoria ·
- *               reordenarSubcategorias · asignarCiudadesSubcategoria.
+ *               reordenarSubcategorias · asignarCiudadesSubcategoria · eliminarSubcategoria.
  *
  * REGLAS:
  *  - "Quitar" = DESACTIVAR (activa=false), nunca DELETE físico (integridad con los
  *    negocios ya asignados en asignacion_subcategorias). Igual que Ciudades/Regiones.
+ *  - EXCEPCIÓN CONTROLADA — hard delete: mientras se define el catálogo de giros
+ *    para la beta, `eliminarCategoria`/`eliminarSubcategoria` permiten borrado físico,
+ *    pero solo si la guardia de integridad lo permite (ver cada función). El
+ *    frontend deshabilita el botón preventivamente, pero la guardia real vive aquí.
  *  - Disponibilidad por ciudad con SET SEMANTICS: el body manda la lista COMPLETA de
  *    ciudades; se reemplaza (delete all + insert). Lista vacía = GLOBAL (todas).
  *  - Una subcategoría solo puede estar disponible en ciudades donde su CATEGORÍA
@@ -31,6 +35,7 @@ import {
     categoriaCiudades,
     subcategoriaCiudades,
     ciudades,
+    asignacionSubcategorias,
 } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
@@ -259,6 +264,47 @@ export async function asignarCiudadesCategoria(
     return { ok: true, data: { id, total: ciudadIds.length } };
 }
 
+/**
+ * Hard delete de una categoría — excepción controlada al patrón "quitar = desactivar".
+ * Guardia: la FK subcategorias_negocio.categoria_id NO declara cascade en el schema
+ * (schema.ts ~línea 900), así que borrar con subcategorías vivas (activas o inactivas)
+ * las dejaría huérfanas. Bloquea si tiene ≥1, sin importar su estado.
+ */
+export async function eliminarCategoria(
+    panel: UsuarioPanel,
+    id: number,
+): Promise<ResultadoAccion<{ id: number }>> {
+    const [actual] = await db
+        .select({ id: categoriasNegocio.id, nombre: categoriasNegocio.nombre })
+        .from(categoriasNegocio)
+        .where(eq(categoriasNegocio.id, id))
+        .limit(1);
+    if (!actual) return { ok: false, status: 404, mensaje: 'Categoría no encontrada.' };
+
+    const [{ total }] = await db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(subcategoriasNegocio)
+        .where(eq(subcategoriasNegocio.categoriaId, id));
+    if (total > 0) {
+        return {
+            ok: false,
+            status: 409,
+            mensaje: `Tiene ${total} subcategoría${total === 1 ? '' : 's'}, bórralas primero.`,
+        };
+    }
+
+    await registrarAuditoria(panel, {
+        accion: 'categoria_eliminar',
+        entidadTipo: 'categoria',
+        entidadId: null,
+        datosPrevios: { id: actual.id, nombre: actual.nombre },
+    });
+
+    await db.delete(categoriasNegocio).where(eq(categoriasNegocio.id, id));
+
+    return { ok: true, data: { id } };
+}
+
 // =============================================================================
 // SUBCATEGORÍA
 // =============================================================================
@@ -438,4 +484,46 @@ export async function asignarCiudadesSubcategoria(
     });
 
     return { ok: true, data: { id, total: ciudadIds.length } };
+}
+
+/**
+ * Hard delete de una subcategoría — excepción controlada al patrón "quitar = desactivar".
+ * Guardia CRUDA: cualquier fila en asignacion_subcategorias con este subcategoriaId
+ * bloquea el borrado (409), sin filtrar por negocio real/demo/borrador — esa FK sí
+ * tiene onDelete: 'cascade' hacia acá, así que un borrado se propagaría en cascada
+ * sin aviso y desclasificaría negocios (incluso demo o en borrador).
+ */
+export async function eliminarSubcategoria(
+    panel: UsuarioPanel,
+    id: number,
+): Promise<ResultadoAccion<{ id: number }>> {
+    const [actual] = await db
+        .select({ id: subcategoriasNegocio.id, categoriaId: subcategoriasNegocio.categoriaId, nombre: subcategoriasNegocio.nombre })
+        .from(subcategoriasNegocio)
+        .where(eq(subcategoriasNegocio.id, id))
+        .limit(1);
+    if (!actual) return { ok: false, status: 404, mensaje: 'Subcategoría no encontrada.' };
+
+    const [{ total }] = await db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(asignacionSubcategorias)
+        .where(eq(asignacionSubcategorias.subcategoriaId, id));
+    if (total > 0) {
+        return {
+            ok: false,
+            status: 409,
+            mensaje: `Tiene ${total} negocio${total === 1 ? '' : 's'} clasificado${total === 1 ? '' : 's'}, desactívala en su lugar.`,
+        };
+    }
+
+    await registrarAuditoria(panel, {
+        accion: 'subcategoria_eliminar',
+        entidadTipo: 'subcategoria',
+        entidadId: null,
+        datosPrevios: { id: actual.id, categoriaId: actual.categoriaId, nombre: actual.nombre },
+    });
+
+    await db.delete(subcategoriasNegocio).where(eq(subcategoriasNegocio.id, id));
+
+    return { ok: true, data: { id } };
 }

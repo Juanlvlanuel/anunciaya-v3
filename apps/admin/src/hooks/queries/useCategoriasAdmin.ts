@@ -87,6 +87,16 @@ export function useReordenarCategorias() {
   });
 }
 
+/** Hard delete — excepción controlada (ver categorias-acciones.service.ts). 409 si tiene subcategorías. */
+export function useEliminarCategoria() {
+  const invalidar = useInvalidarCategorias();
+  return useMutation({
+    mutationFn: (id: number) => categoriasService.eliminarCategoria(id),
+    onSuccess: () => { invalidar(); toast.exito('Categoría eliminada'); },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar la categoría')),
+  });
+}
+
 // ── Subcategoría ─────────────────────────────────────────────────────────────
 export function useCrearSubcategoria() {
   const invalidar = useInvalidarCategorias();
@@ -130,5 +140,15 @@ export function useReordenarSubcategorias() {
     mutationFn: ({ categoriaId, ids }: { categoriaId: number; ids: number[] }) => categoriasService.reordenarSubcategorias(categoriaId, ids),
     onSuccess: () => invalidar(),
     onError: (e) => toast.error(mensajeError(e, 'No se pudo reordenar')),
+  });
+}
+
+/** Hard delete — excepción controlada (ver categorias-acciones.service.ts). 409 si tiene negocios asignados. */
+export function useEliminarSubcategoria() {
+  const invalidar = useInvalidarCategorias();
+  return useMutation({
+    mutationFn: (id: number) => categoriasService.eliminarSubcategoria(id),
+    onSuccess: () => { invalidar(); toast.exito('Subcategoría eliminada'); },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar la subcategoría')),
   });
 }

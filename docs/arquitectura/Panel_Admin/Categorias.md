@@ -7,7 +7,8 @@
 >
 > **Estado:** ✅ desplegado y operativo en PROD (commit `65e388f`, 30 jun) — migraciones corridas
 > en dev+prod, harness verde. **Analítica por ciudad** (conteo de negocios reales por giro, filtrable
-> por ciudad) añadida el 2 jul. **Última actualización:** 2 Julio 2026.
+> por ciudad) añadida el 2 jul. **Hard delete** (excepción controlada mientras se define el catálogo
+> de giros de la beta) añadido el 23 jul. **Última actualización:** 23 Julio 2026.
 
 ---
 
@@ -31,6 +32,13 @@ Una **lista jerárquica**: categorías expandibles → subcategorías. Por fila 
   ciudades"** (global) o una lista multi-selección de ciudades.
 - **Activar/Desactivar**. **"Quitar" = desactivar**, nunca borrar: conserva la integridad
   con los negocios ya clasificados (igual que Ciudades/Regiones).
+- **Eliminar (excepción controlada, hard delete).** Mientras se define el catálogo de giros
+  para la beta, hay un botón de **borrado físico** aparte del de activar/desactivar, para
+  quitar de raíz una categoría/subcategoría creada por error. Está **bloqueado** (deshabilitado
+  con tooltip) si: una **categoría** tiene alguna subcategoría (activa o inactiva) — hay que
+  borrarlas primero; una **subcategoría** tiene algún negocio clasificado (incluso demo o en
+  borrador) — hay que desactivarla en su lugar. El backend valida de nuevo (409 si no cumple);
+  el frontend solo da feedback inmediato.
 
 Cada fila muestra chips: nº de subcategorías, **Todas / N ciudades**, y nº de **negocios reales**
 que usan el giro (para ver el impacto antes de desactivar).
@@ -102,7 +110,7 @@ exige además que su categoría sea visible en C.
 | Archivo | Rol |
 |---|---|
 | `services/admin/categorias.service.ts` | Lectura: `listarCatalogoAdmin(ciudadId?)` — catálogo anidado + ciudades + **conteo de negocios reales DISTINCT** por subcategoría, categoría y total. `ciudadId` restringe el conteo a negocios con **sucursal activa** en esa ciudad (dedup en memoria vía `Set`). Devuelve `{ categorias, totalNegocios }`. Criterio "negocio real": `activo`, `es_borrador≠true`, `estado_admin='activo'`, `es_demo=false`, sucursal `activa`. |
-| `services/admin/categorias-acciones.service.ts` | Acciones: crear/editar/activar/reordenar/asignar-ciudades de categoría y subcategoría; auditoría; regla "subcategoría ⊆ categoría"; coherencia descendente al acotar una categoría. |
+| `services/admin/categorias-acciones.service.ts` | Acciones: crear/editar/activar/reordenar/asignar-ciudades de categoría y subcategoría; auditoría; regla "subcategoría ⊆ categoría"; coherencia descendente al acotar una categoría. También `eliminarCategoria`/`eliminarSubcategoria` (hard delete, excepción controlada — ver Capa 1): categoría bloqueada si `COUNT(subcategorias_negocio.categoria_id) > 0` (esa FK no tiene cascade en el schema); subcategoría bloqueada si existe **cualquier** fila en `asignacion_subcategorias` (verificación cruda, sin filtrar por negocio real/demo/borrador — esa FK sí tiene `onDelete: cascade` y se propagaría sin aviso). 409 con mensaje si la guardia bloquea. |
 | `controllers/admin/categorias.controller.ts` · `routes/admin/categorias.routes.ts` | Endpoints (montados bajo el gate de superadmin en `routes/admin/index.ts`). |
 | `validations/admin/categorias.schema.ts` | Zod de los bodies. |
 | `services/categorias.service.ts` (público) | `GET /api/categorias` y `/:id/subcategorias` ahora aceptan `?ciudadId=` (opcional, retrocompatible). |
@@ -110,8 +118,8 @@ exige además que su categoría sea visible en C.
 
 **Endpoints admin** (solo super): `GET /admin/categorias` (acepta `?ciudadId=` para la analítica) · `POST /admin/categorias` ·
 `POST /admin/categorias/reordenar` · `PATCH /admin/categorias/:id` · `…/:id/activa` ·
-`…/:id/ciudades` · `POST /admin/categorias/subcategorias` · `…/subcategorias/reordenar` ·
-`PATCH /admin/categorias/subcategorias/:id` · `…/:id/activa` · `…/:id/ciudades`.
+`…/:id/ciudades` · `DELETE /admin/categorias/:id` (hard delete) · `POST /admin/categorias/subcategorias` · `…/subcategorias/reordenar` ·
+`PATCH /admin/categorias/subcategorias/:id` · `…/:id/activa` · `…/:id/ciudades` · `DELETE /admin/categorias/subcategorias/:id` (hard delete).
 
 ### Frontend del Panel (`apps/admin`)
 | Archivo | Rol |
@@ -120,7 +128,7 @@ exige además que su categoría sea visible en C.
 | `components/categorias/SeccionCategorias.tsx` | Toggle **Negocios/MarketPlace** + lista jerárquica + acciones por fila. Barra con **selector de ciudad** (`MenuFiltro`) y KPI "Negocios clasificados" por ciudad. La vista MarketPlace vive en `SeccionCategoriasMarketplace.tsx`. |
 | `components/categorias/DialogosCategorias.tsx` | Diálogos: categoría, subcategoría, disponibilidad por ciudad (multi-select + toggle global). |
 | `data/menuPanel.ts` · `config/iconosPanel.tsx` (`Tags`) · `pages/PaginaPanel.tsx` | Registro del módulo en el menú (grupo Crecimiento, solo super) y el shell. |
-| `components/auditoria/accionesAuditoria.tsx` | Humanización de las ~12 acciones nuevas (categoria_*/subcategoria_*). |
+| `components/auditoria/accionesAuditoria.tsx` | Humanización de las acciones (categoria_*/subcategoria_*, incl. `*_eliminar`). |
 
 ### Frontend público (`apps/web`)
 - `hooks/queries/usePerfil.ts`: `usePerfilCategorias(ciudadId?)` / `usePerfilSubcategorias(catId, ciudadId?)` pasan `?ciudadId=`.

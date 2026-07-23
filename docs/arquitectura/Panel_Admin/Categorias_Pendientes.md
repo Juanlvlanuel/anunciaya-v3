@@ -1,7 +1,7 @@
 # Categorías — Pendientes (checklist vivo)
 
 > Hermano de [`Categorias.md`](Categorias.md) (qué ES). Aquí lo que **FALTA**.
-> Última actualización: 30 Junio 2026.
+> Última actualización: 23 Julio 2026.
 
 ## Estado: ✅ desplegado y operativo en PROD
 - [x] Backend + Panel + web · `tsc`/build verdes en api/admin/web.
@@ -11,6 +11,20 @@
 - [x] Desplegado: commit `65e388f` en main (Render Live, 30 jun).
 - [x] Emojis del catálogo eliminados (UI + contract: ORM, endpoint público, negocios/ofertas,
       tipos) y columna `icono` DROPeada en dev+prod (`2026-06-29-drop-catalogo-icono.sql`).
+- [x] **Hard delete (excepción controlada)** — 23 jul. Botón "Eliminar" aparte de
+      activar/desactivar, para borrar de raíz una categoría/subcategoría creada por error
+      mientras se define el catálogo de la beta. Guardias en backend (fuente de verdad): categoría
+      bloqueada si tiene ≥1 subcategoría (activa o inactiva); subcategoría bloqueada si existe
+      ≥1 fila cruda en `asignacion_subcategorias` (sin filtrar por negocio real/demo/borrador).
+      409 con mensaje si la guardia bloquea; frontend deshabilita el botón preventivamente.
+      `tsc -b`/`--noEmit` verdes en api y admin. Falta QA E2E a mano.
+- [x] **Reordenar por arrastre (drag&drop)** — 23 jul, solo ámbito **Negocios**
+      (`SeccionCategoriasNegocios`; MarketPlace queda pendiente como tarea aparte). `@dnd-kit/core`
+      + `@dnd-kit/sortable` + `@dnd-kit/utilities`. Handle `GripVertical` por fila (categoría y
+      subcategoría); orden local optimista + `useReordenarCategorias`/`useReordenarSubcategorias`
+      con el array COMPLETO (no solo lo visible). **Deshabilitado** si hay búsqueda o filtro de
+      estado activo (`hayFiltros`), porque la lista filtrada no representa el orden real completo.
+      `tsc -b` verde en admin.
 
 ## Lo único que queda
 - [ ] **Verificación visual E2E** en el Panel (que Juan lo pruebe en vivo): crear/editar categoría
@@ -26,7 +40,7 @@
       super había excluido; si a futuro se quiere bloquear, haría falta marcar exclusiones "duras".
 
 ## Mejoras futuras (no bloquean)
-- [ ] **Reordenar por arrastre** (drag&drop) en la UI. El backend ya expone
-      `POST /admin/categorias/reordenar` y `…/subcategorias/reordenar`; falta cablear el gesto.
+- [ ] Replicar el drag&drop en el ámbito **MarketPlace** (`SeccionCategoriasMarketplace.tsx`) si
+      el patrón funciona bien en Negocios.
 - [ ] Confirmación explícita al **desactivar** un giro con muchos negocios (hoy es directo;
       es reversible y no destruye datos, pero un aviso ayudaría).

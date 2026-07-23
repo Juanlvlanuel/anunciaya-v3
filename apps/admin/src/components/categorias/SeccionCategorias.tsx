@@ -11,20 +11,42 @@
  * Ubicación: apps/admin/src/components/categorias/SeccionCategorias.tsx
  */
 
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { Plus, ChevronRight, Pencil, MapPin, Globe2, Power, Tags, Search, X, Store } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { Plus, ChevronRight, Pencil, MapPin, Globe2, Power, Tags, Search, X, Store, Trash2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { Tooltip } from '../ui/Tooltip';
+import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import {
   useCatalogo,
   useCrearCategoria,
   useEditarCategoria,
   useCambiarActivaCategoria,
   useAsignarCiudadesCategoria,
+  useReordenarCategorias,
+  useEliminarCategoria,
   useCrearSubcategoria,
   useEditarSubcategoria,
   useCambiarActivaSubcategoria,
   useAsignarCiudadesSubcategoria,
+  useReordenarSubcategorias,
+  useEliminarSubcategoria,
 } from '../../hooks/queries/useCategoriasAdmin';
 import type { CategoriaAdmin, SubcategoriaAdmin, CiudadRef } from '../../services/categoriasService';
 import { DialogoCategoria, DialogoSubcategoria, DialogoDisponibilidad } from './DialogosCategorias';
@@ -41,6 +63,11 @@ type DlgSubcategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin; su
 type DlgDisponibilidad =
   | { nivel: 'categoria'; id: number; titulo: string; actuales: CiudadRef[] }
   | { nivel: 'subcategoria'; id: number; titulo: string; actuales: CiudadRef[]; permitidas: CiudadRef[] }
+  | null;
+/** Hard delete (excepción; ver categorias-acciones.service.ts) — solo se ofrece si la guardia lo permite. */
+type DlgEliminar =
+  | { nivel: 'categoria'; id: number; nombre: string }
+  | { nivel: 'subcategoria'; id: number; nombre: string }
   | null;
 
 // =============================================================================
@@ -74,15 +101,83 @@ function Disponibilidad({ ciudades }: { ciudades: CiudadRef[] }) {
 }
 
 /** Botón-ícono de acción (envuelto por Tooltip desde el caller). */
-function BotonIcono({ onClick, children, testid }: { onClick: () => void; children: React.ReactNode; testid?: string }) {
+function BotonIcono({ onClick, children, testid, disabled }: { onClick: () => void; children: React.ReactNode; testid?: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       data-testid={testid}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-transparent text-texto-3 transition hover:border-borde hover:bg-marca-suave hover:text-marca"
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-transparent text-texto-3 transition hover:border-borde hover:bg-marca-suave hover:text-marca disabled:pointer-events-none disabled:opacity-35"
     >
       {children}
+    </button>
+  );
+}
+
+/** Aplica un orden LOCAL (ids) sobre una lista; los que no estén en `orden` van al final, en su orden original. */
+function ordenarConLocal<T extends { id: number }>(items: T[], orden: number[]): T[] {
+  if (!orden.length) return items;
+  const porId = new Map(items.map((i) => [i.id, i]));
+  const ordenados = orden.map((id) => porId.get(id)).filter((i): i is T => !!i);
+  const faltantes = items.filter((i) => !orden.includes(i.id));
+  return [...ordenados, ...faltantes];
+}
+
+/**
+ * Envoltura sortable genérica (dnd-kit): el nodo completo se mueve con el drag,
+ * pero solo el elemento que reciba `{...listeners} {...attributes}` (el handle)
+ * puede iniciarlo. `disabled` desactiva el gesto (buscador/filtro activo).
+ */
+function FilaArrastrable({
+  id,
+  disabled,
+  children,
+}: {
+  id: number;
+  disabled: boolean;
+  children: (drag: { listeners: ReturnType<typeof useSortable>['listeners']; attributes: ReturnType<typeof useSortable>['attributes'] }) => ReactNode;
+}) {
+  const { setNodeRef, transform, transition, listeners, attributes, isDragging } = useSortable({ id, disabled });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    position: isDragging ? ('relative' as const) : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ listeners, attributes })}
+    </div>
+  );
+}
+
+/** Handle de arrastre (ícono inline, sin botón-círculo — Tokens_Panel Regla 13). Inerte si `disabled`. */
+function HandleArrastrar({
+  testid,
+  disabled,
+  size,
+  listeners,
+  attributes,
+}: {
+  testid: string;
+  disabled: boolean;
+  size: number;
+  listeners: ReturnType<typeof useSortable>['listeners'];
+  attributes: ReturnType<typeof useSortable>['attributes'];
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      data-testid={testid}
+      className="grid h-8 w-5 shrink-0 touch-none place-items-center text-texto-4 transition hover:text-marca active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30"
+      style={{ cursor: disabled ? undefined : 'grab' }}
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical size={size} />
     </button>
   );
 }
@@ -91,8 +186,26 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
   // Filtro por ciudad (analítica de negocios por plaza): '' = todas.
   const [ciudadSel, setCiudadSel] = useState('');
   const { data, isLoading, isError, isFetching } = useCatalogo(ciudadSel || undefined);
-  const catalogo = data?.categorias ?? [];
   const totalNegocios = data?.totalNegocios ?? 0;
+
+  // Orden LOCAL (optimista) de categorías y de las subcategorías de cada una — el
+  // drag-and-drop reordena aquí de inmediato; se resincroniza con el servidor cada
+  // vez que `data` cambia (incl. tras la propia mutación de reordenar).
+  const [ordenCategorias, setOrdenCategorias] = useState<number[]>([]);
+  const [ordenSubs, setOrdenSubs] = useState<Record<number, number[]>>({});
+  useEffect(() => {
+    const cats = data?.categorias ?? [];
+    setOrdenCategorias(cats.map((c) => c.id));
+    setOrdenSubs(() => {
+      const next: Record<number, number[]> = {};
+      for (const c of cats) next[c.id] = c.subcategorias.map((s) => s.id);
+      return next;
+    });
+  }, [data]);
+  const catalogo = useMemo(() => {
+    const cats = ordenarConLocal(data?.categorias ?? [], ordenCategorias);
+    return cats.map((c) => ({ ...c, subcategorias: ordenarConLocal(c.subcategorias, ordenSubs[c.id] ?? []) }));
+  }, [data, ordenCategorias, ordenSubs]);
   const { data: ciudades = [] } = useCiudadesLista({ activa: 'activas' });
   const opcionesCiudad = useMemo<OpcionMenu[]>(() => {
     // '' → total de categorías; plaza con categorías restringidas → su total; plaza sin restricciones → catGlobal.
@@ -110,15 +223,27 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
   const [dlgCategoria, setDlgCategoria] = useState<DlgCategoria>(null);
   const [dlgSub, setDlgSub] = useState<DlgSubcategoria>(null);
   const [dlgDisp, setDlgDisp] = useState<DlgDisponibilidad>(null);
+  const [dlgEliminar, setDlgEliminar] = useState<DlgEliminar>(null);
 
   const crearCat = useCrearCategoria();
   const editarCat = useEditarCategoria();
   const activaCat = useCambiarActivaCategoria();
   const ciudadesCat = useAsignarCiudadesCategoria();
+  const reordenarCat = useReordenarCategorias();
+  const eliminarCat = useEliminarCategoria();
   const crearSub = useCrearSubcategoria();
   const editarSub = useEditarSubcategoria();
   const activaSub = useCambiarActivaSubcategoria();
   const ciudadesSub = useAsignarCiudadesSubcategoria();
+  const reordenarSub = useReordenarSubcategorias();
+  const eliminarSub = useEliminarSubcategoria();
+
+  // Drag-and-drop (dnd-kit): un puntero necesita moverse 6px antes de arrastrar
+  // (para no robarle el click a los botones de la fila) + soporte de teclado.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   // El botón "+ Nueva categoría" vive en la barra de tabs (wrapper); aquí se registra su acción.
   useEffect(() => {
@@ -197,10 +322,48 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
       : ciudadesSub.mutateAsync({ id: dlgDisp.id, ciudadIds });
     m.then(() => setDlgDisp(null)).catch(() => {});
   };
+  const confirmarEliminar = () => {
+    if (!dlgEliminar) return;
+    const m = dlgEliminar.nivel === 'categoria'
+      ? eliminarCat.mutateAsync(dlgEliminar.id)
+      : eliminarSub.mutateAsync(dlgEliminar.id);
+    m.then(() => setDlgEliminar(null)).catch(() => {});
+  };
+
+  // Reordenar categorías: manda SIEMPRE el array completo (todas, no solo las
+  // visibles) — el índice = nuevo orden en el backend.
+  const handleDragEndCategoria = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = catalogo.map((c) => c.id);
+    const oldIndex = ids.indexOf(Number(active.id));
+    const newIndex = ids.indexOf(Number(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const nuevoOrden = arrayMove(ids, oldIndex, newIndex);
+    setOrdenCategorias(nuevoOrden);
+    reordenarCat.mutate(nuevoOrden);
+  };
+
+  // Reordenar subcategorías DENTRO de una categoría: array completo de esa
+  // categoría (activas + inactivas), nunca solo las filtradas.
+  const handleDragEndSubcategoria = (categoriaId: number) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const cat = catalogo.find((c) => c.id === categoriaId);
+    if (!cat) return;
+    const ids = cat.subcategorias.map((s) => s.id);
+    const oldIndex = ids.indexOf(Number(active.id));
+    const newIndex = ids.indexOf(Number(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const nuevoOrden = arrayMove(ids, oldIndex, newIndex);
+    setOrdenSubs((prev) => ({ ...prev, [categoriaId]: nuevoOrden }));
+    reordenarSub.mutate({ categoriaId, ids: nuevoOrden });
+  };
 
   const cargandoCategoria = crearCat.isPending || editarCat.isPending;
   const cargandoSub = crearSub.isPending || editarSub.isPending;
   const cargandoDisp = ciudadesCat.isPending || ciudadesSub.isPending;
+  const cargandoEliminar = eliminarCat.isPending || eliminarSub.isPending;
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -319,10 +482,21 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
           </div>
 
           <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
-            {vista.map(({ cat, subs, abierta }) => (
-              <div key={cat.id}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndCategoria}>
+              <SortableContext items={vista.map(({ cat }) => cat.id)} strategy={verticalListSortingStrategy}>
+                {vista.map(({ cat, subs, abierta }) => (
+                  <FilaArrastrable key={cat.id} id={cat.id} disabled={hayFiltros}>
+                    {({ listeners, attributes }) => (
+              <div>
                 {/* Fila categoría */}
                 <div className={`flex items-center gap-4 border-b border-borde px-4 py-3 transition ${!cat.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}>
+                  <HandleArrastrar
+                    testid={`categoria-arrastrar-${cat.id}`}
+                    disabled={hayFiltros}
+                    size={15}
+                    listeners={listeners}
+                    attributes={attributes}
+                  />
                   <button
                     type="button"
                     onClick={() => toggleExpandir(cat.id)}
@@ -357,6 +531,15 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
                     <Tooltip text={cat.activa ? 'Desactivar' : 'Activar'}>
                       <BotonIcono testid={`categoria-activa-${cat.id}`} onClick={() => activaCat.mutate({ id: cat.id, activa: !cat.activa })}><Power size={16} className={cat.activa ? 'text-verde' : 'text-texto-4'} /></BotonIcono>
                     </Tooltip>
+                    <Tooltip text={cat.subcategorias.length > 0 ? `Tiene ${cat.subcategorias.length} subcategoría${cat.subcategorias.length === 1 ? '' : 's'}, bórralas primero` : 'Eliminar (no se puede deshacer)'}>
+                      <BotonIcono
+                        testid={`categoria-eliminar-${cat.id}`}
+                        disabled={cat.subcategorias.length > 0}
+                        onClick={() => setDlgEliminar({ nivel: 'categoria', id: cat.id, nombre: cat.nombre })}
+                      >
+                        <Trash2 size={16} className="text-peligro" />
+                      </BotonIcono>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -366,36 +549,60 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
                     {subs.length === 0 && (
                       <p className="px-4 py-2.5 pl-14 text-[12.5px] text-texto-4">Sin subcategorías todavía.</p>
                     )}
-                    {subs.map((sub) => (
-                      <div key={sub.id} className={`flex items-center gap-4 px-4 py-2 pl-14 transition ${!sub.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}>
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-borde-fuerte" />
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
-                          {/* Línea 1: nombre (trunca si hace falta) + estado. */}
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <span className="min-w-0 truncate text-[13.5px] font-medium text-texto-2">{sub.nombre}</span>
-                            {!sub.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
-                          </div>
-                          {/* Línea 2 (solo móvil): disponibilidad + negocios. */}
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 lg:hidden">
-                            <Disponibilidad ciudades={sub.ciudades} />
-                            {sub.totalNegocios > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-texto-3"><Store size={12} /> {sub.totalNegocios}</span>}
-                          </div>
-                        </div>
-                        <span className="hidden w-44 lg:inline-flex"><Disponibilidad ciudades={sub.ciudades} /></span>
-                        <span className="hidden w-20 text-center text-[13.5px] font-semibold tabular-nums text-texto-3 lg:block">{sub.totalNegocios || '—'}</span>
-                        <div className="flex w-auto shrink-0 items-center justify-end gap-1 lg:w-32 lg:justify-center">
-                          <Tooltip text="Disponibilidad por ciudad">
-                            <BotonIcono testid={`subcategoria-ciudades-${sub.id}`} onClick={() => setDlgDisp({ nivel: 'subcategoria', id: sub.id, titulo: `Disponibilidad · ${sub.nombre}`, actuales: sub.ciudades, permitidas: cat.ciudades })}><MapPin size={15} /></BotonIcono>
-                          </Tooltip>
-                          <Tooltip text="Editar">
-                            <BotonIcono testid={`subcategoria-editar-${sub.id}`} onClick={() => setDlgSub({ modo: 'editar', categoria: cat, subcategoria: sub })}><Pencil size={15} /></BotonIcono>
-                          </Tooltip>
-                          <Tooltip text={sub.activa ? 'Desactivar' : 'Activar'}>
-                            <BotonIcono testid={`subcategoria-activa-${sub.id}`} onClick={() => activaSub.mutate({ id: sub.id, activa: !sub.activa })}><Power size={15} className={sub.activa ? 'text-verde' : 'text-texto-4'} /></BotonIcono>
-                          </Tooltip>
-                        </div>
-                      </div>
-                    ))}
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndSubcategoria(cat.id)}>
+                      <SortableContext items={subs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                        {subs.map((sub) => (
+                          <FilaArrastrable key={sub.id} id={sub.id} disabled={hayFiltros}>
+                            {({ listeners: listenersSub, attributes: attributesSub }) => (
+                              <div className={`flex items-center gap-4 px-4 py-2 pl-9 transition ${!sub.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}>
+                                <HandleArrastrar
+                                  testid={`subcategoria-arrastrar-${sub.id}`}
+                                  disabled={hayFiltros}
+                                  size={14}
+                                  listeners={listenersSub}
+                                  attributes={attributesSub}
+                                />
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-borde-fuerte" />
+                                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                  {/* Línea 1: nombre (trunca si hace falta) + estado. */}
+                                  <div className="flex min-w-0 items-center gap-2.5">
+                                    <span className="min-w-0 truncate text-[13.5px] font-medium text-texto-2">{sub.nombre}</span>
+                                    {!sub.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
+                                  </div>
+                                  {/* Línea 2 (solo móvil): disponibilidad + negocios. */}
+                                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 lg:hidden">
+                                    <Disponibilidad ciudades={sub.ciudades} />
+                                    {sub.totalNegocios > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-texto-3"><Store size={12} /> {sub.totalNegocios}</span>}
+                                  </div>
+                                </div>
+                                <span className="hidden w-44 lg:inline-flex"><Disponibilidad ciudades={sub.ciudades} /></span>
+                                <span className="hidden w-20 text-center text-[13.5px] font-semibold tabular-nums text-texto-3 lg:block">{sub.totalNegocios || '—'}</span>
+                                <div className="flex w-auto shrink-0 items-center justify-end gap-1 lg:w-32 lg:justify-center">
+                                  <Tooltip text="Disponibilidad por ciudad">
+                                    <BotonIcono testid={`subcategoria-ciudades-${sub.id}`} onClick={() => setDlgDisp({ nivel: 'subcategoria', id: sub.id, titulo: `Disponibilidad · ${sub.nombre}`, actuales: sub.ciudades, permitidas: cat.ciudades })}><MapPin size={15} /></BotonIcono>
+                                  </Tooltip>
+                                  <Tooltip text="Editar">
+                                    <BotonIcono testid={`subcategoria-editar-${sub.id}`} onClick={() => setDlgSub({ modo: 'editar', categoria: cat, subcategoria: sub })}><Pencil size={15} /></BotonIcono>
+                                  </Tooltip>
+                                  <Tooltip text={sub.activa ? 'Desactivar' : 'Activar'}>
+                                    <BotonIcono testid={`subcategoria-activa-${sub.id}`} onClick={() => activaSub.mutate({ id: sub.id, activa: !sub.activa })}><Power size={15} className={sub.activa ? 'text-verde' : 'text-texto-4'} /></BotonIcono>
+                                  </Tooltip>
+                                  <Tooltip text={sub.totalNegocios > 0 ? `Tiene ${sub.totalNegocios} negocio${sub.totalNegocios === 1 ? '' : 's'} clasificado${sub.totalNegocios === 1 ? '' : 's'}, desactívala en su lugar` : 'Eliminar (no se puede deshacer)'}>
+                                    <BotonIcono
+                                      testid={`subcategoria-eliminar-${sub.id}`}
+                                      disabled={sub.totalNegocios > 0}
+                                      onClick={() => setDlgEliminar({ nivel: 'subcategoria', id: sub.id, nombre: sub.nombre })}
+                                    >
+                                      <Trash2 size={15} className="text-peligro" />
+                                    </BotonIcono>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            )}
+                          </FilaArrastrable>
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                     <button
                       type="button"
                       data-testid={`subcategoria-nueva-${cat.id}`}
@@ -407,7 +614,11 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
                   </div>
                 )}
               </div>
-            ))}
+                    )}
+                  </FilaArrastrable>
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
       )}
@@ -438,6 +649,18 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
         cargando={cargandoDisp}
         onCerrar={() => setDlgDisp(null)}
         onGuardar={guardarDisp}
+      />
+      <DialogoConfirmar
+        abierto={!!dlgEliminar}
+        onCerrar={() => setDlgEliminar(null)}
+        titulo={`Eliminar "${dlgEliminar?.nombre ?? ''}"`}
+        iconoTitulo={<Trash2 size={18} />}
+        mensaje="Esta acción no se puede deshacer."
+        textoConfirmar="Eliminar"
+        variante="danger"
+        cargando={cargandoEliminar}
+        onConfirmar={confirmarEliminar}
+        discriminador="dialogo-eliminar-categoria"
       />
     </div>
   );

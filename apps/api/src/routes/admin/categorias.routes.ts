@@ -13,15 +13,22 @@
  *     PATCH  /api/admin/categorias/:id                          — editar.
  *     PATCH  /api/admin/categorias/:id/activa                   — activar/desactivar.
  *     PATCH  /api/admin/categorias/:id/ciudades                 — disponibilidad por ciudad.
+ *     DELETE /api/admin/categorias/:id                           — hard delete (solo sin subcategorías).
  *   Subcategoría:
  *     POST   /api/admin/categorias/subcategorias                — crear.
  *     POST   /api/admin/categorias/subcategorias/reordenar      — reordenar (de una categoría).
  *     PATCH  /api/admin/categorias/subcategorias/:id            — editar.
  *     PATCH  /api/admin/categorias/subcategorias/:id/activa     — activar/desactivar.
  *     PATCH  /api/admin/categorias/subcategorias/:id/ciudades   — disponibilidad por ciudad.
+ *     DELETE /api/admin/categorias/subcategorias/:id             — hard delete (solo sin negocios asignados).
  *
  * Las rutas específicas (subcategorias, reordenar) van ANTES que las paramétricas
  * (/:id) para que no se interpreten como un id.
+ *
+ * El DELETE es una excepción controlada al patrón "quitar = desactivar" (ver
+ * cabecera de categorias-acciones.service.ts): mientras se define el catálogo de
+ * giros para la beta, permite borrar de raíz una categoría/subcategoría creada por
+ * error, con guardias de integridad en el service.
  *
  * Ubicación: apps/api/src/routes/admin/categorias.routes.ts
  */
@@ -34,11 +41,13 @@ import {
     cambiarActivaCategoriaController,
     asignarCiudadesCategoriaController,
     reordenarCategoriasController,
+    eliminarCategoriaController,
     crearSubcategoriaController,
     editarSubcategoriaController,
     cambiarActivaSubcategoriaController,
     asignarCiudadesSubcategoriaController,
     reordenarSubcategoriasController,
+    eliminarSubcategoriaController,
 } from '../../controllers/admin/categorias.controller.js';
 
 const router: Router = Router();
@@ -52,6 +61,7 @@ router.post('/subcategorias', crearSubcategoriaController);
 router.patch('/subcategorias/:id/activa', cambiarActivaSubcategoriaController);
 router.patch('/subcategorias/:id/ciudades', asignarCiudadesSubcategoriaController);
 router.patch('/subcategorias/:id', editarSubcategoriaController);
+router.delete('/subcategorias/:id', eliminarSubcategoriaController);
 
 // ── Categorías · rutas específicas ────────────────────────────────────────────
 router.post('/reordenar', reordenarCategoriasController);
@@ -61,5 +71,6 @@ router.post('/', crearCategoriaController);
 router.patch('/:id/activa', cambiarActivaCategoriaController);
 router.patch('/:id/ciudades', asignarCiudadesCategoriaController);
 router.patch('/:id', editarCategoriaController);
+router.delete('/:id', eliminarCategoriaController);
 
 export default router;

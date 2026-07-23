@@ -16,11 +16,13 @@ import {
     cambiarActivaCategoria,
     reordenarCategorias,
     asignarCiudadesCategoria,
+    eliminarCategoria,
     crearSubcategoria,
     editarSubcategoria,
     cambiarActivaSubcategoria,
     reordenarSubcategorias,
     asignarCiudadesSubcategoria,
+    eliminarSubcategoria,
 } from '../../services/admin/categorias-acciones.service.js';
 import {
     crearCategoriaSchema,
@@ -139,6 +141,20 @@ export async function reordenarCategoriasController(req: Request, res: Response)
     }
 }
 
+/** DELETE /api/admin/categorias/:id — hard delete (excepción; ver categorias-acciones.service.ts). */
+export async function eliminarCategoriaController(req: Request, res: Response): Promise<void> {
+    try {
+        const id = parseId(req.params.id);
+        if (id === null) { res.status(400).json({ success: false, message: 'Identificador inválido.' }); return; }
+        const r = await eliminarCategoria(req.usuarioPanel!, id);
+        if (!r.ok) { res.status(r.status).json({ success: false, message: r.mensaje }); return; }
+        res.status(200).json({ success: true, message: 'Categoría eliminada', data: r.data });
+    } catch (error) {
+        console.error('Error en eliminarCategoriaController:', error);
+        res.status(500).json({ success: false, message: 'Error al eliminar la categoría' });
+    }
+}
+
 // =============================================================================
 // ACCIONES · SUBCATEGORÍA
 // =============================================================================
@@ -211,5 +227,19 @@ export async function reordenarSubcategoriasController(req: Request, res: Respon
     } catch (error) {
         console.error('Error en reordenarSubcategoriasController:', error);
         res.status(500).json({ success: false, message: 'Error al reordenar' });
+    }
+}
+
+/** DELETE /api/admin/categorias/subcategorias/:id — hard delete (excepción; ver categorias-acciones.service.ts). */
+export async function eliminarSubcategoriaController(req: Request, res: Response): Promise<void> {
+    try {
+        const id = parseId(req.params.id);
+        if (id === null) { res.status(400).json({ success: false, message: 'Identificador inválido.' }); return; }
+        const r = await eliminarSubcategoria(req.usuarioPanel!, id);
+        if (!r.ok) { res.status(r.status).json({ success: false, message: r.mensaje }); return; }
+        res.status(200).json({ success: true, message: 'Subcategoría eliminada', data: r.data });
+    } catch (error) {
+        console.error('Error en eliminarSubcategoriaController:', error);
+        res.status(500).json({ success: false, message: 'Error al eliminar la subcategoría' });
     }
 }
