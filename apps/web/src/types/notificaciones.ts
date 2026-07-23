@@ -56,7 +56,11 @@ export type TipoNotificacion =
   /** Negocios (publicaciones libres): al autor cuando comentan su post. */
   | 'negocio_publicacion_nuevo_comentario'
   /** Negocios (publicaciones libres): al autor cuando responden su comentario. */
-  | 'negocio_publicacion_respuesta_comentario';
+  | 'negocio_publicacion_respuesta_comentario'
+  /** Servicios: al dueño cuando comentan su publicación. */
+  | 'servicios_nuevo_comentario'
+  /** Servicios: al autor cuando responden su comentario. */
+  | 'servicios_respuesta_comentario';
 
 export type ReferenciaTipo =
   | 'transaccion'

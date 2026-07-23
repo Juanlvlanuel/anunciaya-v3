@@ -173,6 +173,17 @@ export async function crearComentario(
         `);
         const id = (insert.rows[0] as { id: string }).id;
 
+        // Avatar/nombre de quien COMENTA (no del destinatario) — así el panel de
+        // notificaciones muestra la foto de la persona que comentó, en vez del
+        // ícono genérico de la familia "comunidad".
+        const autorComentarioResult = await db.execute(sql`
+            SELECT nombre, avatar_url
+            FROM usuarios
+            WHERE id = ${autorId}
+            LIMIT 1
+        `);
+        const autorComentario = autorComentarioResult.rows[0] as { nombre: string; avatar_url: string | null } | undefined;
+
         // ── Notificaciones ───────────────────────────────────────────────────
         if (!parentId) {
             if (duenoId !== autorId) {
@@ -184,6 +195,8 @@ export async function crearComentario(
                     mensaje: `Comentaron en "${pub.titulo}"`,
                     referenciaId: publicacionId,
                     referenciaTipo: 'servicio',
+                    actorNombre: autorComentario?.nombre,
+                    actorImagenUrl: autorComentario?.avatar_url ?? undefined,
                 }).catch(() => { /* notificación no crítica */ });
             }
         } else {
@@ -196,6 +209,8 @@ export async function crearComentario(
                     mensaje: `Respondieron tu comentario en "${pub.titulo}"`,
                     referenciaId: publicacionId,
                     referenciaTipo: 'servicio',
+                    actorNombre: autorComentario?.nombre,
+                    actorImagenUrl: autorComentario?.avatar_url ?? undefined,
                 }).catch(() => { /* notificación no crítica */ });
             }
             if (duenoId !== autorId && duenoId !== autorComentarioTocado) {
@@ -207,6 +222,8 @@ export async function crearComentario(
                     mensaje: `Comentaron en "${pub.titulo}"`,
                     referenciaId: publicacionId,
                     referenciaTipo: 'servicio',
+                    actorNombre: autorComentario?.nombre,
+                    actorImagenUrl: autorComentario?.avatar_url ?? undefined,
                 }).catch(() => { /* notificación no crítica */ });
             }
         }
