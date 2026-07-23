@@ -74,7 +74,7 @@ export function FooterPublico() {
                 <img
                     src="/logo-anunciaya-azul.webp"
                     alt="AnunciaYA"
-                    className="h-8 lg:h-8 2xl:h-10"
+                    className="h-8 lg:h-9 2xl:h-10"
                 />
 
                 <div className="flex flex-col items-center gap-1">
@@ -98,7 +98,7 @@ export function FooterPublico() {
                         <img
                             src="/whatsapp.webp"
                             alt="WhatsApp"
-                            className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 2xl:h-8 2xl:w-8"
                         />
                     </a>
                     <a
@@ -110,7 +110,7 @@ export function FooterPublico() {
                         <img
                             src="/facebook.webp"
                             alt="Facebook"
-                            className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 2xl:h-8 2xl:w-8"
                         />
                     </a>
                     <a
@@ -122,7 +122,7 @@ export function FooterPublico() {
                         <img
                             src="/instagram.webp"
                             alt="Instagram"
-                            className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 2xl:h-8 2xl:w-8"
                         />
                     </a>
                     <a
@@ -134,7 +134,7 @@ export function FooterPublico() {
                         <img
                             src="/tiktok.webp"
                             alt="TikTok"
-                            className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 2xl:h-8 2xl:w-8"
                         />
                     </a>
                 </div>

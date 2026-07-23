@@ -617,6 +617,11 @@ export default function OfertaCard({
     };
 
     const s = usarLayoutHorizontal ? sizesMobile[size] : sizes[size];
+    // ModalOfertas/ModalOfertaDetalle portalean a document.body (fuera del
+    // @container del layout) — los @5xl:/@[96rem]: de arriba nunca se activan
+    // ahí, así que para el caso `inModal` se suma un breakpoint de viewport
+    // (lg:/2xl:) que sí funciona sin importar el ancestro del DOM.
+    const alturaCardModal = inModal && !usarLayoutHorizontal && size === 'compact' ? 'lg:h-[250px] 2xl:h-[280px]' : '';
 
     // Renderizar badge según configuración
     const renderBadge = () => {
@@ -753,7 +758,7 @@ export default function OfertaCard({
 
     // LAYOUT DESKTOP: Vertical (ORIGINAL - sin cambios)
     return (
-        <div ref={refCard} className={`${s.card} group cursor-pointer ${claseHoverRose} ${className}`} onClick={onClick}>
+        <div ref={refCard} className={`${s.card} ${alturaCardModal} group cursor-pointer ${claseHoverRose} ${className}`} onClick={onClick}>
             <div className={`relative h-full flex flex-col overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                 {/* Badge */}

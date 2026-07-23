@@ -60,6 +60,9 @@ interface SeccionCatalogoProps {
   /** Logo/foto de perfil del negocio. Se propaga a ModalCatalogo y
    *  ModalDetalleItem para que el chat temporal muestre el avatar. */
   logoUrl?: string | null;
+  /** Página pública de negocio (/p/negocio/...): más ancho disponible
+   *  (sin ColumnaIzquierda/Derecha) → 4 items en laptop en vez de 3. */
+  esRutaPublica?: boolean;
 }
 
 // =============================================================================
@@ -83,6 +86,7 @@ export function SeccionCatalogo({
   sucursalId,
   negocioNombre,
   logoUrl,
+  esRutaPublica = false,
 }: SeccionCatalogoProps) {
   // ---------------------------------------------------------------------------
   // ESTADOS
@@ -102,7 +106,7 @@ export function SeccionCatalogo({
   const totalItems = catalogo.length;
 
   // Items para preview (destacados primero, luego los primeros)
-  const previewCount = esDesktop ? ITEMS_PREVIEW_DESKTOP : ITEMS_PREVIEW_LAPTOP;
+  const previewCount = esDesktop ? ITEMS_PREVIEW_DESKTOP : (esRutaPublica ? ITEMS_PREVIEW_DESKTOP : ITEMS_PREVIEW_LAPTOP);
   const itemsPreview = useMemo(() => {
     const ordenados = [...catalogo].sort((a, b) => {
       if (a.destacado && !b.destacado) return -1;
@@ -212,7 +216,7 @@ export function SeccionCatalogo({
               [&_*]:cursor-grab fuerza el cursor en descendientes (los cards tienen cursor-pointer propio). */}
           <div
             ref={refScroll}
-            className="flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pb-0 @5xl:grid @5xl:grid-cols-3 @[96rem]:grid-cols-4 @5xl:gap-2.5 @[96rem]:gap-4 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            className={`flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pb-0 @5xl:grid ${esRutaPublica ? '@5xl:grid-cols-4' : '@5xl:grid-cols-3'} @[96rem]:grid-cols-4 @5xl:gap-2.5 @[96rem]:gap-4 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
           >
             {(esMobile
               ? [...catalogo].sort((a, b) => (a.destacado && !b.destacado ? -1 : !a.destacado && b.destacado ? 1 : 0)).slice(0, 10)

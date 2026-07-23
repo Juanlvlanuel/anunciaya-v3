@@ -220,7 +220,7 @@ export function ModalDetalleAlerta({ alerta, onCerrar, onMarcarResuelta, onElimi
 			<div data-testid="modal-detalle-alerta">
 				{/* Header con gradiente por severidad */}
 				<div
-					className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 lg:rounded-t-xl 2xl:rounded-t-2xl"
+					className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 lg:rounded-t-2xl 2xl:rounded-t-2xl"
 					style={{ background: colores.gradiente, boxShadow: colores.sombra }}
 				>
 					<div className="flex items-center gap-2.5">

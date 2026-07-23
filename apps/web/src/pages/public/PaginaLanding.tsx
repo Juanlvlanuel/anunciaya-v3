@@ -754,7 +754,7 @@ function FooterLanding() {
             </button>
 
             <div className="flex items-center justify-between">
-                <img src="/logo-anunciaya-azul.webp" alt="AnunciaYA" className="h-8 lg:h-8 2xl:h-10" />
+                <img src="/logo-anunciaya-azul.webp" alt="AnunciaYA" className="h-8 lg:h-9 2xl:h-10" />
 
                 <p className="text-sm lg:text-sm 2xl:text-sm font-medium text-white/80 text-center">
                     © {new Date().getFullYear()} {t('footer.derechos')}
@@ -763,13 +763,13 @@ function FooterLanding() {
                 {/* pr extra: libra el FAB de WhatsApp (fijo abajo-derecha) para que no tape los iconos. */}
                 <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4 lg:pr-20">
                     <a href="https://www.facebook.com/profile.php?id=61578901306800" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
-                        <img src="/facebook.webp" alt="Facebook" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                        <img src="/facebook.webp" alt="Facebook" className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8" />
                     </a>
                     <a href="https://www.instagram.com/anunciaya.mx/" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
-                        <img src="/instagram.webp" alt="Instagram" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                        <img src="/instagram.webp" alt="Instagram" className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8" />
                     </a>
                     <a href="https://www.tiktok.com/@anunciaya.mx" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
-                        <img src="/tiktok.webp" alt="TikTok" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                        <img src="/tiktok.webp" alt="TikTok" className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8" />
                     </a>
                 </div>
             </div>

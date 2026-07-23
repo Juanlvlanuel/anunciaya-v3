@@ -22,9 +22,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Image, Trash2, Plus, Loader2, Store, UserCircle, Images, Camera } from 'lucide-react';
+import { Image, Trash2, Plus, Loader2, Store, UserCircle, Images, Camera, Move } from 'lucide-react';
 import type { DatosImagenes, DatosInformacion } from '../hooks/usePerfil';
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
+import { useArrastrePortada } from '../../../../../hooks/useArrastrePortada';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { api } from '../../../../../services/api';
 import { notificar } from '../../../../../utils/notificaciones';
@@ -44,12 +45,22 @@ import Tooltip from '../../../../../components/ui/Tooltip';
 // =============================================================================
 
 function ImagenConBlur({
-  src, miniatura, className, onClick,
+  src, miniatura, className, onClick, posicion, arrastre,
 }: {
   src: string | null;
   miniatura: string | null;
   className?: string;
   onClick?: () => void;
+  /** % del encuadre (object-position); si se omite, usa el centrado por defecto */
+  posicion?: { x: number; y: number };
+  /** Handlers de arrastre (drag-to-reposition), ver useArrastrePortada */
+  arrastre?: {
+    arrastrando: boolean;
+    onPointerDown: (e: React.PointerEvent<HTMLImageElement>) => void;
+    onPointerMove: (e: React.PointerEvent<HTMLImageElement>) => void;
+    onPointerUp: (e: React.PointerEvent<HTMLImageElement>) => void;
+    onClickCapture: (e: React.MouseEvent) => void;
+  };
 }) {
   const [urlCargada, setUrlCargada] = useState<string | null>(() => {
     if (!src) return null;
@@ -60,6 +71,7 @@ function ImagenConBlur({
   });
   const cargada = src !== null && src === urlCargada;
   const urlBlur = miniatura || src;
+  const objectPosition = posicion ? `${posicion.x}% ${posicion.y}%` : undefined;
 
   return (
     <>
@@ -67,14 +79,23 @@ function ImagenConBlur({
       {urlBlur && (
         <img src={urlBlur} alt=""
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: 'blur(8px)' }} />
+          style={{ filter: 'blur(8px)', objectPosition }} />
       )}
       {/* Capa 2: Imagen real — fade-in al cargar */}
       {src && (
         <img src={src} alt=""
           className={`absolute inset-0 w-full h-full object-cover transition-transform duration-200 ${cargada && onClick ? 'group-hover:scale-110 cursor-pointer' : ''} ${className || ''}`}
-          style={{ opacity: cargada ? 1 : 0 }}
+          style={{
+            opacity: cargada ? 1 : 0,
+            objectPosition,
+            ...(arrastre && { cursor: arrastre.arrastrando ? 'grabbing' : 'grab', touchAction: 'none' }),
+          }}
           onClick={() => cargada && onClick?.()}
+          onClickCapture={arrastre?.onClickCapture}
+          onPointerDown={arrastre?.onPointerDown}
+          onPointerMove={arrastre?.onPointerMove}
+          onPointerUp={arrastre?.onPointerUp}
+          onPointerCancel={arrastre?.onPointerUp}
           onLoad={() => setUrlCargada(src)} />
       )}
     </>
@@ -246,7 +267,8 @@ export default function TabImagenes({
       if (!negocioId) return;
       try {
         await api.post(`/negocios/${negocioId}/portada`, { portadaUrl: url });
-        setDatosImagenes({ ...datosImagenes, portadaUrl: url });
+        // Imagen nueva → el backend reinicia el encuadre al centro (50/50).
+        setDatosImagenes({ ...datosImagenes, portadaUrl: url, portadaPosX: 50, portadaPosY: 50 });
         invalidarCachesNegocio();
         notificar.exito('Portada guardada correctamente');
       } catch (error) {
@@ -256,6 +278,24 @@ export default function TabImagenes({
     },
     onError: (error) => notificar.error(error.message),
   });
+
+  // Guarda el encuadre (posición) de la portada ya subida, sin re-subir el archivo
+  const guardarPosicionPortada = async ({ x, y }: { x: number; y: number }) => {
+    if (!negocioId) return;
+    setDatosImagenes({ ...datosImagenes, portadaPosX: x, portadaPosY: y });
+    try {
+      await api.patch(`/negocios/${negocioId}/portada/posicion`, { posX: x, posY: y });
+      invalidarCachesNegocio();
+    } catch (error) {
+      console.error('Error al guardar posición de portada:', error);
+      notificar.error('Error al guardar la posición de la portada');
+    }
+  };
+
+  const arrastrePortada = useArrastrePortada(
+    { x: datosImagenes.portadaPosX, y: datosImagenes.portadaPosY },
+    guardarPosicionPortada,
+  );
 
   // ==========================================================================
   // HANDLERS DE UPLOAD CON MINIATURA (blur layer)
@@ -328,7 +368,7 @@ export default function TabImagenes({
   const handleSubirGaleria = async (files: FileList | File[]) => {
     if (!negocioId) return;
 
-    const archivos = Array.from(files).slice(0, 10 - galeriaUrls.length);
+    const archivos = Array.from(files).slice(0, 12 - galeriaUrls.length);
     if (archivos.length === 0) return;
 
     // Crear previews inmediatos (blob URLs para blur)
@@ -687,9 +727,14 @@ export default function TabImagenes({
               </span>
               <div className="relative w-full aspect-video bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm group">
                 {portada.imageUrl
-                  ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura} className="cursor-pointer" onClick={() => abrirImagenUnica(portada.imageUrl!)} />
+                  ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura} className="cursor-pointer"
+                      onClick={() => abrirImagenUnica(portada.imageUrl!)}
+                      posicion={arrastrePortada.posicion} arrastre={arrastrePortada} />
                   : <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 text-slate-300" /></div>
                 }
+                {portada.imageUrl && !portada.isUploading && (
+                  <Move className="absolute top-2.5 left-2.5 w-4 h-4 text-white/70 pointer-events-none drop-shadow" />
+                )}
                 <div className="absolute bottom-0 inset-x-0 flex items-center justify-end gap-2.5 py-2.5 px-3"
                   style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}>
                   <button type="button" onClick={() => !portada.isUploading && abrirMenuCamara((f) => handleSubirPortada(f))}
@@ -761,9 +806,14 @@ export default function TabImagenes({
                 <div className={`relative bg-white rounded-xl border-2 border-slate-300 flex items-center justify-center overflow-hidden shadow-sm cursor-pointer group w-36 h-20 ${mostrarLogo ? 'lg:w-full lg:h-28 2xl:h-32' : 'lg:w-28 lg:h-16 2xl:w-36 2xl:h-20'}`}
                   onClick={() => portada.imageUrl && abrirImagenUnica(portada.imageUrl)}>
                   {portada.imageUrl
-                    ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura} onClick={() => abrirImagenUnica(portada.imageUrl!)} />
+                    ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura}
+                        onClick={() => abrirImagenUnica(portada.imageUrl!)}
+                        posicion={arrastrePortada.posicion} arrastre={arrastrePortada} />
                     : <Image className="w-7 h-7 text-slate-300" />
                   }
+                  {portada.imageUrl && !portada.isUploading && (
+                    <Move className="absolute top-2 left-2 w-3.5 h-3.5 text-white/70 pointer-events-none drop-shadow" />
+                  )}
                 </div>
               </BloquImagen>
             </div>
@@ -787,14 +837,14 @@ export default function TabImagenes({
           </div>
           <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Galería de Fotos</span>
           <div className="ml-auto flex items-center gap-2.5">
-            <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${(galeriaUrls?.length || 0) >= 10 ? 'text-red-400' : 'text-white/70'}`}>
-              {galeriaUrls?.length || 0}/10
+            <span className={`text-sm lg:text-xs 2xl:text-sm font-bold ${(galeriaUrls?.length || 0) >= 12 ? 'text-red-400' : 'text-white/70'}`}>
+              {galeriaUrls?.length || 0}/12
             </span>
-            <label className={`w-7 h-7 flex items-center justify-center rounded-lg transition-opacity cursor-pointer ${galeriaUrls.length < 10 ? 'bg-white/15 hover:bg-white/25 opacity-100' : 'opacity-30 cursor-not-allowed pointer-events-none'}`}>
+            <label className={`w-7 h-7 flex items-center justify-center rounded-lg transition-opacity cursor-pointer ${galeriaUrls.length < 12 ? 'bg-white/15 hover:bg-white/25 opacity-100' : 'opacity-30 cursor-not-allowed pointer-events-none'}`}>
               <Plus className="w-4 h-4 text-white" />
               <input type="file" accept=".png,.jpg,.jpeg,.webp" multiple name="imagenGaleria"
                 onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length > 0) handleSubirGaleria(files); e.target.value = ''; }}
-                disabled={galeriaUrls.length >= 10 || subiendoGaleria} className="hidden" />
+                disabled={galeriaUrls.length >= 12 || subiendoGaleria} className="hidden" />
             </label>
           </div>
         </div>

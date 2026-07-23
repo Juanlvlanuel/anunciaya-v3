@@ -183,7 +183,7 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
 
                 {/* ── Header dark gradiente ── */}
                 <div
-                    className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-xl 2xl:rounded-t-2xl"
+                    className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
                     style={{ background: GRADIENTE.bg, boxShadow: `0 4px 16px ${GRADIENTE.shadow}` }}
                 >
                     <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />

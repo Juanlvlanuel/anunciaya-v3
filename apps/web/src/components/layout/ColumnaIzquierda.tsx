@@ -420,8 +420,8 @@ export function ColumnaIzquierda() {
 
           {/* Nombre y subtítulo */}
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-sm lg:text-xs 2xl:text-base truncate">{nombreNegocio}</p>
-            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">
+            <p className="font-bold text-white text-sm lg:text-sm 2xl:text-base truncate">{nombreNegocio}</p>
+            <span className="text-xs lg:text-xs 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">
               {onboardingCompletado ? 'Ver Perfil' : 'Pendiente de configurar'}
             </span>
           </div>
@@ -453,10 +453,10 @@ export function ColumnaIzquierda() {
             <ChartNoAxesCombined className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" strokeWidth={2.2} />
           </div>
           <div className="flex-1 min-w-0 leading-tight">
-            <span className="font-bold text-white text-sm lg:text-xs 2xl:text-base block">
+            <span className="font-bold text-white text-sm lg:text-sm 2xl:text-base block">
               {onboardingCompletado ? 'Business Studio' : 'Configura tu Negocio'}
             </span>
-            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">
+            <span className="text-xs lg:text-xs 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">
               {onboardingCompletado ? 'Gestionar Negocio' : 'Completar registro'}
             </span>
           </div>
@@ -473,8 +473,8 @@ export function ColumnaIzquierda() {
               <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-cover scale-[1]" />
             </div>
             <div className="flex-1 min-w-0 leading-tight">
-              <span className="font-bold text-white text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">Registrar Ventas</span>
+              <span className="font-bold text-white text-sm lg:text-sm 2xl:text-base block">ScanYA</span>
+              <span className="text-xs lg:text-xs 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">Registrar Ventas</span>
             </div>
             <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/50 shrink-0" />
           </button>
@@ -492,8 +492,8 @@ export function ColumnaIzquierda() {
               </div>
             </div>
             <div className="flex-1 min-w-0 leading-tight text-left">
-              <span className="font-bold text-white/40 text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[11px] 2xl:text-xs text-white/30 -mt-0.5 block">{hintScanyaBloqueado}</span>
+              <span className="font-bold text-white/40 text-sm lg:text-sm 2xl:text-base block">ScanYA</span>
+              <span className="text-xs lg:text-xs 2xl:text-xs text-white/30 -mt-0.5 block">{hintScanyaBloqueado}</span>
             </div>
             <Lock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/40" />
           </div>
@@ -679,7 +679,7 @@ function ContenidoComercial() {
           {/* Header */}
           <div className="px-3 lg:px-2.5 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 flex items-center gap-2" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
             <BarChart3 className="w-4 h-4 text-white shrink-0" />
-            <p className="font-bold text-white text-sm lg:text-xs 2xl:text-base flex-1 whitespace-nowrap">
+            <p className="font-bold text-white text-sm lg:text-sm 2xl:text-base flex-1 min-w-0 truncate">
               Resumen del Día
             </p>
             {tieneMuchasSuc && sucActual && (
@@ -691,7 +691,7 @@ function ContenidoComercial() {
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <span className="text-sm lg:text-[11px] 2xl:text-sm text-white/70 font-bold">
+                <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-bold">
                   {indiceSuc + 1}/{sucursales.length}
                 </span>
                 <button
@@ -710,7 +710,7 @@ function ContenidoComercial() {
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
                 <MapPin className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white truncate">
+              <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-white truncate">
                 {sucActual.esPrincipal ? 'Matriz' : sucActual.nombre}
               </p>
             </div>
@@ -723,8 +723,8 @@ function ContenidoComercial() {
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center shrink-0">
                 <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-emerald-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white flex-1">Ventas</p>
-              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-400 mr-1">${ventasTotales.toLocaleString()}</p>
+              <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-white flex-1">Ventas</p>
+              <p className="text-base lg:text-base 2xl:text-base font-black text-emerald-400 mr-1">${ventasTotales.toLocaleString()}</p>
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 shrink-0" />
             </div>
 
@@ -736,8 +736,8 @@ function ContenidoComercial() {
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
                 <Users className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white flex-1">Clientes</p>
-              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-400 mr-1">{clientes}</p>
+              <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-white flex-1">Clientes</p>
+              <p className="text-base lg:text-base 2xl:text-base font-black text-emerald-400 mr-1">{clientes}</p>
               <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white/50 shrink-0" />
             </button>
 
@@ -749,8 +749,8 @@ function ContenidoComercial() {
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-indigo-500/20 rounded-lg flex items-center justify-center shrink-0">
                 <Receipt className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-indigo-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white flex-1">Transacciones</p>
-              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-400 mr-1">{transacciones}</p>
+              <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-white flex-1">Transacciones</p>
+              <p className="text-base lg:text-base 2xl:text-base font-black text-emerald-400 mr-1">{transacciones}</p>
               <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white/50 shrink-0" />
             </button>
           </div>
@@ -761,13 +761,13 @@ function ContenidoComercial() {
         <div className="rounded-xl p-3 lg:p-2.5 2xl:p-3" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
           {/* Label arriba */}
           <div className="flex items-center gap-2 mb-2 lg:mb-1.5 2xl:mb-2">
-            <span className="text-base lg:text-sm 2xl:text-base">💡</span>
-            <span className="text-sm lg:text-xs 2xl:text-base font-bold text-amber-400">
+            <span className="text-base lg:text-base 2xl:text-base">💡</span>
+            <span className="text-sm lg:text-sm 2xl:text-base font-bold text-amber-400">
               Tip del Día
             </span>
           </div>
           {/* Tip text */}
-          <p className="text-sm lg:text-xs 2xl:text-sm leading-relaxed font-medium text-white/85 line-clamp-3 lg:line-clamp-2 2xl:line-clamp-3 italic">
+          <p className="text-sm lg:text-sm 2xl:text-sm leading-relaxed font-medium text-white/85 line-clamp-3 lg:line-clamp-2 2xl:line-clamp-3 italic">
             {tipDelDia}
           </p>
         </div>

@@ -257,7 +257,7 @@ export function Modal({
       <div
         className={`
           relative w-full ${anchos[ancho]}
-          bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl shadow-xl
+          bg-white rounded-2xl lg:rounded-2xl 2xl:rounded-2xl shadow-xl
           ${esContenido ? 'max-h-full' : 'max-h-[85vh] lg:max-h-[90vh]'} overflow-hidden
           flex flex-col
           duration-200

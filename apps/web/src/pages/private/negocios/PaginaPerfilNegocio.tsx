@@ -225,36 +225,35 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
 
     return createPortal(
         <div
-            className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] flex items-center justify-center p-3 @5xl:p-4 @[96rem]:p-6 z-9999"
+            className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] flex items-center justify-center p-3 lg:p-4 2xl:p-6 z-9999"
             onClick={onClose}
         >
             {/* Contenedor principal */}
             <div
-                className="relative w-full max-w-3xl @5xl:max-w-3xl @[96rem]:max-w-5xl bg-white rounded-xl @5xl:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-                style={{ height: '75vh' }}
+                className="relative w-full max-w-3xl lg:max-w-4xl 2xl:max-w-5xl h-[75vh] lg:h-[88vh] 2xl:h-[75vh] bg-white rounded-xl lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* HEADER OSCURO */}
                 <div style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
-                    <div className="flex items-center justify-between px-4 py-3 @5xl:px-5 @5xl:py-3 @[96rem]:px-6 @[96rem]:py-4">
+                    <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-3 2xl:px-6 2xl:py-4">
                         {/* Info del negocio */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                             {negocio.logoUrl ? (
                                 <img
                                     src={negocio.logoUrl}
                                     alt={negocio.negocioNombre}
-                                    className="shrink-0 w-10 h-10 @5xl:w-11 @5xl:h-11 @[96rem]:w-12 @[96rem]:h-12 rounded-full object-cover border-2 border-white/20"
+                                    className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 rounded-full object-cover border-2 border-white/20"
                                 />
                             ) : (
-                                <div className="shrink-0 w-10 h-10 @5xl:w-11 @5xl:h-11 @[96rem]:w-12 @[96rem]:h-12 bg-white/15 rounded-xl flex items-center justify-center border-2 border-white/20">
+                                <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-white/15 rounded-xl flex items-center justify-center border-2 border-white/20">
                                     <span className="text-lg font-bold text-white">{negocio.negocioNombre.charAt(0)}</span>
                                 </div>
                             )}
                             <div className="min-w-0 flex-1">
-                                <h3 className="text-base @5xl:text-lg @[96rem]:text-xl font-bold text-white truncate">
+                                <h3 className="text-base lg:text-lg 2xl:text-xl font-bold text-white truncate">
                                     {negocio.negocioNombre}
                                 </h3>
-                                <p className="text-sm @5xl:text-sm @[96rem]:text-base text-white/60 font-medium truncate">
+                                <p className="text-sm lg:text-sm 2xl:text-base text-white/60 font-medium truncate">
                                     {negocio.direccion}
                                 </p>
                             </div>
@@ -267,16 +266,16 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                     const url = `https://www.google.com/maps/dir/?api=1&destination=${negocio.latitud},${negocio.longitud}`;
                                     window.open(url, '_blank');
                                 }}
-                                className="flex items-center gap-2 px-3 py-2 @5xl:px-4 @5xl:py-2 @[96rem]:px-5 @[96rem]:py-2.5 bg-white text-slate-800 font-bold text-sm @5xl:text-sm @[96rem]:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
+                                className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5 bg-white text-slate-800 font-bold text-sm lg:text-sm 2xl:text-base rounded-xl shadow-md cursor-pointer active:scale-95"
                             >
-                                <Navigation className="w-4 h-4 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
+                                <Navigation className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                 <span className="hidden @[40rem]:inline">Cómo llegar</span>
                             </button>
                             <button
                                 onClick={onClose}
-                                className="w-9 h-9 @5xl:w-10 @5xl:h-10 @[96rem]:w-11 @[96rem]:h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 cursor-pointer"
+                                className="w-9 h-9 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 cursor-pointer"
                             >
-                                <X className="w-5 h-5 @5xl:w-5 @5xl:h-5 @[96rem]:w-6 @[96rem]:h-6 text-white" />
+                                <X className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" />
                             </button>
                         </div>
                     </div>
@@ -316,26 +315,26 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                     map.flyTo({ center: [negocio.longitud, negocio.latitud], zoom: 16 });
                                 }
                             }}
-                            className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Centrar mapa"
                         >
-                            <Crosshair className="w-5 h-5 @5xl:w-4 @5xl:h-4 text-white" />
+                            <Crosshair className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
                         </button>
                         <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
                             onClick={() => mapRef.current?.zoomIn()}
-                            className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Acercar"
                         >
-                            <Plus className="w-5 h-5 @5xl:w-4 @5xl:h-4 text-white" />
+                            <Plus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
                         </button>
                         <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
                             onClick={() => mapRef.current?.zoomOut()}
-                            className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                            className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Alejar"
                         >
-                            <Minus className="w-5 h-5 @5xl:w-4 @5xl:h-4 text-white" />
+                            <Minus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
                         </button>
                     </div>
 
@@ -984,6 +983,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         src={negocio.portadaUrl}
                         alt={negocio.negocioNombre}
                         className="w-full h-full object-cover cursor-pointer"
+                        style={{ objectPosition: `${negocio.portadaPosX}% ${negocio.portadaPosY}%` }}
                         onClick={() => abrirImagenUnica(negocio.portadaUrl!)}
                     />
                 ) : (
@@ -1225,12 +1225,12 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 tamaño; solo contorno, igual criterio que el resto
                                                 de íconos de esta fila. */}
                                             <ThumbsUp className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-500 animate-bounce" style={{ animationDuration: '2s' }} />
-                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} me gusta</span>
+                                            <span className="@5xl:text-base @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} me gusta</span>
                                         </div>
                                         <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
                                         <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4">
                                             <Eye className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-slate-500 animate-bounce" style={{ animationDuration: '2.5s' }} />
-                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalVisitas ?? 0} visitas</span>
+                                            <span className="@5xl:text-base @[96rem]:text-lg font-semibold text-slate-700">{totalVisitas ?? 0} visitas</span>
                                         </div>
                                         <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
                                         <button
@@ -1247,7 +1247,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                             }} className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4 cursor-pointer hover:opacity-80"
                                         >
                                             <Star className={`@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 animate-bounce ${tieneCalificacion ? 'text-yellow-500 fill-current' : 'text-yellow-400'}`} style={{ animationDuration: '3s' }} />
-                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">
+                                            <span className="@5xl:text-base @[96rem]:text-lg font-semibold text-slate-700">
                                                 {tieneCalificacion ? `${promedioResenas.toFixed(1)} (${negocio?.totalCalificaciones ?? 0})` : '0'}
                                             </span>
                                         </button>
@@ -1258,7 +1258,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                     "me gusta"/"visitas"/rating: solo ícono + texto. */}
                                                 <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4">
                                                     <MapPin className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-600 animate-pulse" style={{ animationDuration: '2s' }} />
-                                                    <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">
+                                                    <span className="@5xl:text-base @[96rem]:text-lg font-semibold text-slate-700">
                                                         {distanciaKm < 1 ? `${Math.round(distanciaKm * 1000)} m` : `${distanciaKm.toFixed(1)} km`}
                                                     </span>
                                                 </div>
@@ -1268,17 +1268,17 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                                     {/* BADGES - Uno debajo del otro */}
                                     {(negocio.tieneEnvioDomicilio || negocio.tieneServicioDomicilio) && (
-                                        <div className="flex flex-col gap-1 @5xl:gap-1 @[96rem]:gap-1.5 @5xl:items-start @[96rem]:items-end">
+                                        <div className="flex flex-col gap-1 @5xl:gap-1 @[96rem]:gap-1.5 @5xl:items-end @[96rem]:items-end">
                                             {negocio.tieneEnvioDomicilio && (
-                                                <div className="flex items-center gap-1.5 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
-                                                    <Truck className="@5xl:w-3.5 @5xl:h-3.5 @[96rem]:w-4 @[96rem]:h-4 text-white" />
-                                                    <span className="@5xl:text-[11px] @[96rem]:text-sm font-semibold text-white">Envíos</span>
+                                                <div className="flex items-center gap-1.5 @5xl:px-3.5 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Truck className="@5xl:w-4 @5xl:h-4 @[96rem]:w-4 @[96rem]:h-4 text-white" />
+                                                    <span className="@5xl:text-xs @[96rem]:text-sm font-semibold text-white">Envíos</span>
                                                 </div>
                                             )}
                                             {negocio.tieneServicioDomicilio && (
-                                                <div className="flex items-center gap-1.5 @5xl:px-3 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
-                                                    <Home className="@5xl:w-3.5 @5xl:h-3.5 @[96rem]:w-4 @[96rem]:h-4 text-white" />
-                                                    <span className="@5xl:text-[11px] @[96rem]:text-sm font-semibold text-white">Servicio a Domicilio</span>
+                                                <div className="flex items-center gap-1.5 @5xl:px-3.5 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2 rounded-full" style={{ background: 'linear-gradient(135deg, #64748b, #334155)' }}>
+                                                    <Home className="@5xl:w-4 @5xl:h-4 @[96rem]:w-4 @[96rem]:h-4 text-white" />
+                                                    <span className="@5xl:text-xs @[96rem]:text-sm font-semibold text-white">Servicio a Domicilio</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1388,8 +1388,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                         {/* DESKTOP: Solo ubicación (horario va en sidebar) */}
                         <div className="hidden @5xl:flex items-center gap-2 @5xl:ml-4 @[96rem]:ml-0 @5xl:mb-4 @[96rem]:mb-0">
-                            <MapPin className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-slate-400 shrink-0" />
-                            <p className="text-slate-800 @5xl:text-sm @[96rem]:text-lg font-semibold">
+                            <MapPin className="@5xl:w-6 @5xl:h-6 @[96rem]:w-7 @[96rem]:h-7 text-slate-400 shrink-0" />
+                            <p className="text-slate-800 @5xl:text-base @[96rem]:text-lg font-semibold">
                                 {negocio.direccion}, {negocio.ciudad}
                             </p>
                         </div>
@@ -1402,26 +1402,27 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 {/* Línea separadora antes de contenido - Solo móvil */}
                 <div className="w-3/4 mx-auto h-0.5 bg-linear-to-r from-transparent via-slate-300 to-transparent my-5 @5xl:hidden" />
 
-                <div className="grid grid-cols-1 @5xl:grid-cols-[1fr_240px] @[96rem]:grid-cols-[1fr_320px] @5xl:gap-4 @[96rem]:gap-8 @5xl:mt-0 @[96rem]:mt-4">
+                <div className="grid grid-cols-1 @5xl:grid-cols-[1fr_280px] @[96rem]:grid-cols-[1fr_320px] @5xl:gap-0 @[96rem]:gap-8 @5xl:mt-0 @[96rem]:mt-4">
 
                     {/* ============ COLUMNA PRINCIPAL ============ */}
                     <div className="space-y-6">
 
                         {/* ============ PROMOCIONES Y OFERTAS ============ */} 
                         {!seccionExpandida && tieneOfertas && (
-                            <div className="px-5 @5xl:px-0">
+                            <div className="px-5 @5xl:px-4 @[96rem]:px-0">
                                 <SeccionOfertas
                                     ofertas={ofertas}
                                     whatsapp={negocio?.whatsapp}
                                     negocioNombre={negocio?.negocioNombre}
                                     negocioUsuarioId={negocio?.usuarioId}
+                                    esRutaPublica={esRutaPublica}
                                 />
                             </div>
                         )}
 
                         {/* ============ CATÁLOGO ============ */}
                         {catalogo.length > 0 && !seccionExpandida && (
-                            <div className="px-5 @5xl:px-0">
+                            <div className="px-5 @5xl:px-4 @[96rem]:px-0">
                                 <SeccionCatalogo
                                     catalogo={catalogo}
                                     whatsapp={negocio?.whatsapp}
@@ -1429,12 +1430,13 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     sucursalId={sucursalId}
                                     negocioNombre={negocio?.negocioNombre}
                                     logoUrl={negocio?.logoUrl}
+                                    esRutaPublica={esRutaPublica}
                                 />
                             </div>
                         )}
                         {/* ============ GALERÍA ============ */}
                         {!seccionExpandida && galeriaImagenes.length > 0 && (
-                            <div className="px-5 @5xl:px-0">
+                            <div className="px-5 @5xl:px-4 @[96rem]:px-0">
                                 {/* Header — mismo estilo que Ofertas y Catálogo */}
                                 <button
                                     onClick={() => setModalGaleriaAbierto(true)}
@@ -1461,10 +1463,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     <div className="pointer-events-none absolute top-0 bottom-2 right-0 w-12 bg-gradient-to-l from-black/90 via-black/50 to-transparent @5xl:hidden z-20" />
                                     <div
                                         ref={refScrollGaleria}
-                                        className="flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pb-0 @5xl:grid @5xl:grid-cols-3 @[96rem]:grid-cols-4 @5xl:gap-3 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                                        className={`flex gap-3 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pb-0 @5xl:grid ${esRutaPublica ? '@5xl:grid-cols-4' : '@5xl:grid-cols-3'} @[96rem]:grid-cols-4 @5xl:gap-3 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
                                     >
                                     {(() => {
-                                        const limitDesktop = window.innerWidth >= 1536 ? 4 : 3;
+                                        const limitDesktop = window.innerWidth >= 1536 ? 4 : (esRutaPublica ? 4 : 3);
                                         const limit = window.innerWidth < 1024 ? 10 : limitDesktop;
                                         return galeriaImagenes.slice(0, limit).map((imagen, index) => {
                                         const esUltimaDesktop = window.innerWidth >= 1024 && index === limit - 1 && galeriaImagenes.length > limit;
@@ -1509,7 +1511,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     </div>
 
                     {/* ============ SIDEBAR CONTACTO (SIN STICKY) ============ */}
-                    <div className="px-5 @5xl:px-0 mt-6 @5xl:mt-0">
+                    <div className="px-5 @5xl:pl-0 @5xl:pr-[4px] @[96rem]:px-0 mt-6 @5xl:mt-0">
                         <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-6 @5xl:p-4 @[96rem]:p-6">
 
                             {/* HORARIO - Solo desktop */}
@@ -1879,7 +1881,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                 {/* ============ RESEÑAS - ANCHO COMPLETO ============ */}
                 {!seccionExpandida && (
-                    <div className="px-5 @5xl:px-4 @[96rem]:px-0 mt-6 @5xl:mt-4 @[96rem]:mt-6 ">
+                    <div className="px-5 @5xl:pl-4 @5xl:pr-[4px] @[96rem]:px-0 mt-6 @5xl:mt-4 @[96rem]:mt-6 ">
                         <SeccionResenas
                             resenas={resenasData}
                             promedioRating={promedioResenas}
@@ -2209,7 +2211,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 {galeriaImagenes.map((imagen, index) => (
                                     <div
                                         key={`modal-galeria-${imagen.id}`}
-                                        className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-200 cursor-pointer"
+                                        className="relative h-[21vh] rounded-xl overflow-hidden bg-slate-200 cursor-pointer"
                                         onClick={() => abrirGaleria(index)}
                                     >
                                         <img src={imagen.url} alt={imagen.titulo || 'Imagen'} loading="lazy" className="w-full h-full object-cover" />
@@ -2223,9 +2225,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         abierto={modalGaleriaAbierto}
                         onCerrar={() => setModalGaleriaAbierto(false)}
                         mostrarHeader={false}
-                        ancho="lg"
+                        ancho="full"
                         paddingContenido="none"
-                        className="flex flex-col h-[80vh]!"
+                        className="flex flex-col h-[75vh]! lg:h-[90vh]! 2xl:h-[80vh]!"
                     >
                         {/* Header con gradiente slate */}
                         <div
@@ -2246,7 +2248,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0 p-3 @[96rem]:p-4">
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-3 gap-3">
                                 {galeriaImagenes.map((imagen, index) => (
                                     <div
                                         key={`modal-galeria-${imagen.id}`}

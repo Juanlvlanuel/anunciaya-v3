@@ -77,7 +77,7 @@ const ContenidoOfertas = ({ ofertas, onClickOferta, esMobile }: ContenidoOfertas
     //     visibles a la vez, mejor relación visual que 1 horizontal por fila).
     //   - Desktop real: 2 columnas con cards verticales.
     return (
-        <div className={esMobile ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-3 2xl:gap-4'}>
+        <div className={esMobile ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-3 2xl:gap-4'}>
             {ofertas.map((oferta) => (
                 <OfertaCard
                     key={getId(oferta)}
@@ -158,13 +158,13 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
                         abierto={isOpen}
                         onCerrar={onClose}
                         mostrarHeader={false}
-                        ancho="md"
+                        ancho="full"
                         paddingContenido="none"
-                        className="flex flex-col h-[75vh]! lg:h-[80vh]!"
+                        className="flex flex-col h-[75vh]! lg:h-[90vh]! 2xl:h-[80vh]!"
                     >
                         {/* Header con gradiente emerald */}
                         <div
-                            className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl lg:rounded-t-xl 2xl:rounded-t-2xl"
+                            className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl lg:rounded-t-2xl 2xl:rounded-t-2xl"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
                         >
                             <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />

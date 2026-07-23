@@ -40,6 +40,11 @@ interface FabPublicarProps {
      *  comportamiento original "+ Publicar"). Pásalo para reusar el mismo
      *  FAB con otro propósito (ej. toggle Mapa/Feed de Negocios). */
     icon?: ReactNode;
+    /** Clases de posición horizontal (Tailwind). Default: offset compartido
+     *  MP/Servicios/Negocios. Pasar un valor propio para call sites cuyo
+     *  layout de columnas cambió (ej. Negocios, ancho de columna derecha
+     *  distinto) sin afectar a los demás consumidores. */
+    claseRight?: string;
 }
 
 export function FabPublicar({
@@ -53,6 +58,7 @@ export function FabPublicar({
     bottomNavVisible,
     labelConCardEscritorio = false,
     icon,
+    claseRight = 'right-4 lg:right-[330px] 2xl:right-[394px]',
 }: FabPublicarProps) {
     return (
         <button
@@ -64,14 +70,14 @@ export function FabPublicar({
                 ...(esEscritorio ? { top: `${topPublicar}px` } : {}),
                 transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1), bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
             }}
-            className={`fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 lg:right-[330px] 2xl:right-[394px] ${
+            className={`fixed ${claseRight} z-30 flex cursor-pointer flex-col items-center gap-1 ${
                 esEscritorio ? '' : bottomNavVisible ? 'bottom-20' : 'bottom-4'
             }`}
         >
-            <span className={`flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform hover:scale-105 ${claseColor}`}>
+            <span className={`flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform hover:scale-105 lg:h-12 lg:w-12 2xl:h-14 2xl:w-14 ${claseColor}`}>
                 {icon ?? (
                     <Plus
-                        className="h-6 w-6"
+                        className="h-6 w-6 lg:h-5 lg:w-5 2xl:h-6 2xl:w-6"
                         strokeWidth={2.75}
                         style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
                     />

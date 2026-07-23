@@ -183,7 +183,7 @@ export default function ModalDetalleCanjeBS({
       <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
       {/* ── Header dark con estado ── */}
       <div
-        className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-xl 2xl:rounded-t-2xl"
+        className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
         style={{ background: gradiente.bg, boxShadow: `0 4px 16px ${gradiente.shadow}` }}
       >
         {/* Círculos decorativos */}

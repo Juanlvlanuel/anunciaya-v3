@@ -41,6 +41,9 @@ interface SeccionOfertasProps {
     negocioNombre?: string;
     negocioUsuarioId?: string | null;
     className?: string;
+    /** Página pública de negocio (/p/negocio/...): más ancho disponible
+     *  (sin ColumnaIzquierda/Derecha) → 3 ofertas en laptop en vez de 2. */
+    esRutaPublica?: boolean;
 }
 
 // =============================================================================
@@ -55,7 +58,7 @@ const getId = (oferta: Oferta): string => {
 // COMPONENTE PRINCIPAL: SeccionOfertas
 // =============================================================================
 
-export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negocioUsuarioId, className = '' }: SeccionOfertasProps) {
+export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negocioUsuarioId, className = '', esRutaPublica = false }: SeccionOfertasProps) {
     const [modalAbierto, setModalAbierto] = useState(false);
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<Oferta | null>(null);
     const { esMobile, esDesktop } = useBreakpoint();
@@ -64,8 +67,8 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
     const refScroll = useRef<HTMLDivElement>(null);
     useDragScroll(refScroll);
 
-    // Ofertas visibles según breakpoint: móvil=3, laptop=2, desktop=3
-    const ofertasVisiblesCount = esMobile ? 3 : (esDesktop ? 3 : 2);
+    // Ofertas visibles según breakpoint: móvil=3, laptop=2 (3 en ruta pública), desktop=3
+    const ofertasVisiblesCount = esMobile ? 3 : (esDesktop ? 3 : (esRutaPublica ? 3 : 2));
 
     // ===========================================================================
     // ORDENAR OFERTAS POR FECHA DE VENCIMIENTO
@@ -218,7 +221,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                         [&_*]:cursor-grab fuerza cursor en descendientes (cards tienen cursor-pointer propio). */}
                     <div
                         ref={refScroll}
-                        className="flex gap-3 overflow-x-auto pt-4 pb-4 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pt-0 @5xl:pb-0 @5xl:grid @5xl:grid-cols-2 @[96rem]:grid-cols-3 @5xl:gap-5 @[96rem]:gap-6 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                        className={`flex gap-3 overflow-x-auto pt-4 pb-4 cursor-grab active:cursor-grabbing select-none [&_*]:cursor-grab @5xl:[&_*]:cursor-pointer @5xl:pt-0 @5xl:pb-0 @5xl:grid ${esRutaPublica ? '@5xl:grid-cols-3' : '@5xl:grid-cols-2'} @[96rem]:grid-cols-3 @5xl:gap-5 @[96rem]:gap-6 @5xl:overflow-visible @5xl:cursor-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
                     >
                         {(esMobile ? ofertasOrdenadas.slice(0, 10) : ofertasVisibles).map((oferta, index) => {
                             const esUltimoDesktop = !esMobile && index === ofertasVisibles.length - 1 && tienemasOfertas;

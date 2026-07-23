@@ -16,16 +16,17 @@
  * - Carga de datos existentes al montar
  * - Logo: opcional, 1 imagen cuadrada, max 500px, mismo alto que portada
  * - Portada: OBLIGATORIA, 1 imagen horizontal 16:9, max 1600px
- * - Galería: mínimo 1, máximo 10 imágenes, carpeta `galeria/`, max 1200px
+ * - Galería: mínimo 1, máximo 12 imágenes, carpeta `galeria/`, max 1200px
  * - Grid responsive (2/3/4 columnas)
  * - Layout 2 columnas para logo+portada en laptop/desktop
  * - Validación en tiempo real
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2, Move } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
+import { useArrastrePortada } from '@/hooks/useArrastrePortada';
 import { notificar } from '@/utils/notificaciones';
 import { api } from '@/services/api';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
@@ -72,12 +73,22 @@ interface ZonaUploadProps {
     placeholder: string;
     uploadingText: string;
     onImageClick?: () => void;
+    /** % del encuadre (object-position); si se omite, usa el centrado por defecto */
+    posicion?: { x: number; y: number };
+    /** Handlers de arrastre (drag-to-reposition), ver useArrastrePortada */
+    arrastre?: {
+        arrastrando: boolean;
+        onPointerDown: (e: React.PointerEvent<HTMLImageElement>) => void;
+        onPointerMove: (e: React.PointerEvent<HTMLImageElement>) => void;
+        onPointerUp: (e: React.PointerEvent<HTMLImageElement>) => void;
+        onClickCapture: (e: React.MouseEvent) => void;
+    };
 }
 
 function ZonaUpload({
     imageUrl, miniatura, isUploading, r2Url: _r2Url, inputRef, isDragging, aspect,
     onFileChange, onDelete, onDragEnter, onDragOver, onDragLeave, onDrop,
-    placeholder, uploadingText, onImageClick,
+    placeholder, uploadingText, onImageClick, posicion, arrastre,
 }: ZonaUploadProps) {
     // Trackear QUÉ URL ya cargó (síncrono, sin delay de useEffect)
     const [urlCargada, setUrlCargada] = useState<string | null>(null);
@@ -85,6 +96,7 @@ function ZonaUpload({
 
     // URL para capa blur: miniatura propia (blob separado) o imageUrl actual
     const urlBlur = miniatura || imageUrl;
+    const objectPosition = posicion ? `${posicion.x}% ${posicion.y}%` : undefined;
 
     return (
         <div
@@ -124,15 +136,27 @@ function ZonaUpload({
             {urlBlur && (
                 <img src={urlBlur} alt=""
                     className="absolute inset-0 w-full h-full object-cover"
-                    style={{ filter: 'blur(8px)' }} />
+                    style={{ filter: 'blur(8px)', objectPosition }} />
             )}
 
             {/* Capa 2: Imagen real — opacity 0 hasta que carga, luego fade-in */}
             {imageUrl && (
                 <img src={imageUrl} alt=""
                     className={`absolute inset-0 w-full h-full object-cover duration-500 ${cargada && onImageClick ? 'group-hover:scale-110 cursor-pointer' : ''}`}
-                    style={{ opacity: cargada ? 1 : 0 }}
-                    onLoad={() => setUrlCargada(imageUrl)} />
+                    style={{
+                        opacity: cargada ? 1 : 0,
+                        objectPosition,
+                        ...(arrastre && { cursor: arrastre.arrastrando ? 'grabbing' : 'grab', touchAction: 'none' }),
+                    }}
+                    onLoad={() => setUrlCargada(imageUrl)}
+                    onClickCapture={arrastre?.onClickCapture}
+                    onPointerDown={arrastre?.onPointerDown}
+                    onPointerMove={arrastre?.onPointerMove}
+                    onPointerUp={arrastre?.onPointerUp}
+                    onPointerCancel={arrastre?.onPointerUp} />
+            )}
+            {imageUrl && arrastre && !isUploading && (
+                <Move className="absolute top-2.5 left-2.5 w-4 h-4 text-white/70 pointer-events-none drop-shadow" />
             )}
 
             {/* Capa 3: Overlay + spinner durante upload */}
@@ -254,8 +278,19 @@ export function PasoImagenes() {
         onSuccess: async (url) => {
             const { guardarBorradorPaso5 } = useOnboardingStore.getState();
             await guardarBorradorPaso5({ portadaUrl: url });
+            // Imagen nueva → el backend reinicia el encuadre al centro (50/50).
+            setPortadaPos({ x: 50, y: 50 });
         },
     });
+
+    // Encuadre (posición) de la portada — arrastre estilo Facebook
+    const [portadaPos, setPortadaPos] = useState({ x: 50, y: 50 });
+    const guardarPosicionPortada = async ({ x, y }: { x: number; y: number }) => {
+        setPortadaPos({ x, y });
+        const { guardarBorradorPaso5 } = useOnboardingStore.getState();
+        await guardarBorradorPaso5({ portadaPosX: x, portadaPosY: y });
+    };
+    const arrastrePortada = useArrastrePortada(portadaPos, guardarPosicionPortada);
 
     const [cargandoDatos, setCargandoDatos] = useState(true);
 
@@ -302,6 +337,10 @@ export function PasoImagenes() {
                 if (datos.sucursal?.portadaUrl) {
                     portada.setR2Url(datos.sucursal.portadaUrl);
                     portada.setImageUrl(datos.sucursal.portadaUrl);
+                    setPortadaPos({
+                        x: datos.sucursal.portadaPosX ?? 50,
+                        y: datos.sucursal.portadaPosY ?? 50,
+                    });
                 }
 
                 // Cargar galería (con limpieza de duplicados)
@@ -505,6 +544,7 @@ export function PasoImagenes() {
         if (portadaMiniatura) { URL.revokeObjectURL(portadaMiniatura); setPortadaMiniatura(null); }
         const { guardarBorradorPaso5 } = useOnboardingStore.getState();
         guardarBorradorPaso5({ portadaUrl: '' });
+        setPortadaPos({ x: 50, y: 50 });
         if (urlAnterior && urlAnterior.startsWith('http')) {
             eliminarImagenHuerfana(urlAnterior).catch(() => { /* silencioso */ });
         }
@@ -576,7 +616,7 @@ export function PasoImagenes() {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        const archivos = Array.from(files).slice(0, 10 - galeriaUrls.length);
+        const archivos = Array.from(files).slice(0, 12 - galeriaUrls.length);
         if (archivos.length === 0) return;
 
         // Crear previews inmediatos (blob URLs para blur de fondo)
@@ -752,6 +792,7 @@ export function PasoImagenes() {
                                 onDragLeave={handlePortadaDragLeave} onDrop={handlePortadaDrop}
                                 placeholder="Portada horizontal" uploadingText="Subiendo portada..."
                                 onImageClick={() => portada.imageUrl && setModalImagenes({ isOpen: true, images: [portada.imageUrl], initialIndex: 0 })}
+                                posicion={arrastrePortada.posicion} arrastre={arrastrePortada}
                             />
                         </div>
                     </div>
@@ -773,10 +814,10 @@ export function PasoImagenes() {
                         <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Galería de Fotos <span className="font-medium text-white/60">(Mínimo 1)</span></span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className={`text-sm lg:text-sm 2xl:text-base font-bold ${(galeriaUrls.length) >= 10 ? 'text-red-400' : 'text-white/60'}`}>
-                            {galeriaUrls.length}/10
+                        <span className={`text-sm lg:text-sm 2xl:text-base font-bold ${(galeriaUrls.length) >= 12 ? 'text-red-400' : 'text-white/60'}`}>
+                            {galeriaUrls.length}/12
                         </span>
-                        {galeriaUrls.length < 10 && (
+                        {galeriaUrls.length < 12 && (
                             <label className="w-7 h-7 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-all">
                                 <Plus className="w-4 h-4 text-white" />
                                 <input ref={galeriaInputRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple onChange={handleGaleriaChange} className="hidden" disabled={subiendoGaleria} />
@@ -861,7 +902,7 @@ export function PasoImagenes() {
                             />
                         ))}
 
-                        {(galeriaUrls.length + galeriaSubiendo.length) < 10 && (
+                        {(galeriaUrls.length + galeriaSubiendo.length) < 12 && (
                             <div
                                 onClick={() => !subiendoGaleria && galeriaInputRef.current?.click()}
                                 onDragEnter={handleGaleriaDragEnter} onDragOver={handleGaleriaDragOver}

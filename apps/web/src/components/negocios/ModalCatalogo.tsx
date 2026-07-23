@@ -306,155 +306,120 @@ function ContenidoCatalogo({
 
   return (
     <>
-      {/* ============ BUSCADOR ============ */}
+      {/* ============ BUSCADOR + DESKTOP: Tabs + Dropdown categoría, todo en 1 fila ============ */}
       <div className="px-3 py-2 lg:px-3 lg:py-2 2xl:px-4 2xl:py-2.5 border-b border-slate-300 shrink-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600" />
-          <input
-            id="input-buscar-catalogo"
-            name="input-buscar-catalogo"
-            type="text"
-            placeholder="Buscar productos o servicios..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full h-11 lg:h-10 2xl:h-11 pl-10 pr-10 bg-white rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 border-2 border-slate-300 focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none"
-          />
-          {busqueda && (
-            <button
-              onClick={() => setBusqueda('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-blue-50 rounded-full cursor-pointer"
-            >
-              <X className="w-4 h-4 text-slate-600" />
-            </button>
+        <div className="flex items-center gap-2">
+          {/* Buscador */}
+          <div className="relative flex-1 min-w-[140px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600" />
+            <input
+              id="input-buscar-catalogo"
+              name="input-buscar-catalogo"
+              type="text"
+              placeholder="Buscar productos o servicios..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full h-11 lg:h-10 2xl:h-11 pl-10 pr-10 bg-white rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 border-2 border-slate-300 focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none"
+            />
+            {busqueda && (
+              <button
+                onClick={() => setBusqueda('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-blue-50 rounded-full cursor-pointer"
+              >
+                <X className="w-4 h-4 text-slate-600" />
+              </button>
+            )}
+          </div>
+
+          {/* Botones Productos/Servicios — solo desktop */}
+          {mostrarTabs && tieneAmbos && (
+            <>
+              <button
+                onClick={() => handleCambiarTipo('producto')}
+                className={`h-11 lg:h-10 2xl:h-11 px-2.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer shrink-0 ${
+                  tipoSeleccionado === 'producto'
+                    ? 'bg-slate-800 border-slate-800 text-white'
+                    : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                Productos
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                  tipoSeleccionado === 'producto' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
+                }`}>
+                  {totalProductos}
+                </span>
+              </button>
+              <button
+                onClick={() => handleCambiarTipo('servicio')}
+                className={`h-11 lg:h-10 2xl:h-11 px-2.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer shrink-0 ${
+                  tipoSeleccionado === 'servicio'
+                    ? 'bg-slate-800 border-slate-800 text-white'
+                    : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                }`}
+              >
+                <Wrench className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
+                Servicios
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                  tipoSeleccionado === 'servicio' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
+                }`}>
+                  {totalServicios}
+                </span>
+              </button>
+            </>
+          )}
+
+          {/* Dropdown Categoría — móvil y desktop, misma fila que el buscador */}
+          {categorias.length > 0 && (
+            <div ref={dropdownCatRef} className="relative shrink-0 w-40 lg:w-56 2xl:w-56">
+              <button
+                onClick={() => setDropdownCatAbierto(!dropdownCatAbierto)}
+                className={`w-full flex items-center justify-between gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 pr-2.5 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${
+                  categoriaSeleccionada
+                    ? 'bg-slate-300 border-slate-400 text-slate-800'
+                    : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                }`}
+              >
+                <span className="truncate max-w-[160px]">{categoriaSeleccionada || 'Categoría'}</span>
+                <ChevronDown className={`w-4 h-4 shrink-0 ${dropdownCatAbierto ? 'rotate-180' : ''}`} />
+              </button>
+
+              {dropdownCatAbierto && (
+                <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-xl border-2 border-slate-300 shadow-lg py-1 z-50 overflow-hidden">
+                  <button
+                    onClick={() => { setCategoriaSeleccionada(null); setDropdownCatAbierto(false); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                      !categoriaSeleccionada ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!categoriaSeleccionada ? 'bg-slate-700' : 'bg-slate-300'}`}>
+                      {!categoriaSeleccionada && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                    Todas
+                  </button>
+                  {categorias.map((cat) => {
+                    const activo = categoriaSeleccionada === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => { setCategoriaSeleccionada(cat); setDropdownCatAbierto(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                          activo ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-slate-700' : 'bg-slate-300'}`}>
+                          {activo && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
-
-      {/* ============ DESKTOP: Tabs + Dropdown categoría en 1 fila ============ */}
-      {mostrarTabs && (
-        <div className="px-3 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 border-b border-slate-300 shrink-0">
-          <div className="flex items-center gap-2">
-            {/* Botones Productos/Servicios */}
-            {tieneAmbos && (
-              <>
-                <button
-                  onClick={() => handleCambiarTipo('producto')}
-                  className={`flex-1 h-10 2xl:h-11 px-2.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                    tipoSeleccionado === 'producto'
-                      ? 'bg-slate-800 border-slate-800 text-white'
-                      : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                  Productos
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                    tipoSeleccionado === 'producto' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
-                  }`}>
-                    {totalProductos}
-                  </span>
-                </button>
-                <button
-                  onClick={() => handleCambiarTipo('servicio')}
-                  className={`flex-1 h-10 2xl:h-11 px-2.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer ${
-                    tipoSeleccionado === 'servicio'
-                      ? 'bg-slate-800 border-slate-800 text-white'
-                      : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                  }`}
-                >
-                  <Wrench className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
-                  Servicios
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                    tipoSeleccionado === 'servicio' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
-                  }`}>
-                    {totalServicios}
-                  </span>
-                </button>
-              </>
-            )}
-
-            {/* Dropdown Categoría */}
-            {categorias.length > 0 && (
-              <div ref={dropdownCatRef} className="relative flex-1">
-                <button
-                  onClick={() => setDropdownCatAbierto(!dropdownCatAbierto)}
-                  className={`w-full flex items-center justify-between gap-1.5 h-10 2xl:h-11 pl-3 pr-2.5 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold border-2 cursor-pointer ${
-                    categoriaSeleccionada
-                      ? 'bg-slate-300 border-slate-400 text-slate-800'
-                      : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
-                  }`}
-                >
-                  <span className="truncate max-w-[120px]">{categoriaSeleccionada || 'Categoría'}</span>
-                  <ChevronDown className={`w-4 h-4 shrink-0 ${dropdownCatAbierto ? 'rotate-180' : ''}`} />
-                </button>
-
-                {dropdownCatAbierto && (
-                  <div className="absolute top-full left-0 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg py-1 z-50 overflow-hidden">
-                    <button
-                      onClick={() => { setCategoriaSeleccionada(null); setDropdownCatAbierto(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
-                        !categoriaSeleccionada ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${!categoriaSeleccionada ? 'bg-slate-700' : 'bg-slate-300'}`}>
-                        {!categoriaSeleccionada && <Check className="w-3 h-3 text-white" />}
-                      </div>
-                      Todas
-                    </button>
-                    {categorias.map((cat) => {
-                      const activo = categoriaSeleccionada === cat;
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() => { setCategoriaSeleccionada(cat); setDropdownCatAbierto(false); }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
-                            activo ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-slate-700' : 'bg-slate-300'}`}>
-                            {activo && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                          {cat}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ============ MOBILE: PILLS CATEGORÍAS ============ */}
-      {!mostrarTabs && categorias.length > 0 && (
-        <div className="px-3 py-2 border-b border-slate-300 shrink-0">
-          <div className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <button
-              onClick={() => setCategoriaSeleccionada(null)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap cursor-pointer ${
-                categoriaSeleccionada === null
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-              }`}
-            >
-              Todos
-            </button>
-            {categorias.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoriaSeleccionada(cat)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap cursor-pointer ${
-                  categoriaSeleccionada === cat
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ============ GRID DE PRODUCTOS ============ */}
       <div className="flex-1 overflow-y-auto min-h-0 p-2 lg:p-1.5 2xl:p-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -673,13 +638,13 @@ export function ModalCatalogo({
         abierto={abierto}
         onCerrar={onCerrar}
         mostrarHeader={false}
-        ancho="lg"
+        ancho="full"
         paddingContenido="none"
-        className="flex flex-col h-[75vh]! lg:h-[80vh]!"
+        className="flex flex-col h-[75vh]! lg:h-[90vh]! 2xl:h-[80vh]!"
       >
         {/* Header con gradiente slate */}
         <div
-          className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl lg:rounded-t-xl 2xl:rounded-t-2xl"
+          className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl lg:rounded-t-2xl 2xl:rounded-t-2xl"
           style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
         >
           <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />

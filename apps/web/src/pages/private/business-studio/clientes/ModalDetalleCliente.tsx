@@ -327,6 +327,7 @@ export default function ModalDetalleCliente({
       alturaMaxima="xl"
       className="lg:max-w-md 2xl:max-w-lg"
       headerOscuro
+      zIndice="z-90"
     >
       {/* ================================================================== */}
       {/* LOADING                                                           */}
@@ -344,7 +345,7 @@ export default function ModalDetalleCliente({
         <div className="flex flex-col max-h-[85vh] lg:max-h-[75vh]">
           {/* ── Header con gradiente (FIJO) ── */}
           <div
-            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-xl 2xl:rounded-t-2xl"
+            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
             style={{
               background: 'linear-gradient(135deg, #1e40af, #3b82f6)',
               boxShadow: '0 4px 16px rgba(59,130,246,0.3)',
