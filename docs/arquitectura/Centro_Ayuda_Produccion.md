@@ -1358,6 +1358,267 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 
 ---
 
+### 🎬 U-02 — "Crea tu cuenta y verifica tu correo" · 👤 · celular 9:16 · ~50-65 seg
+
+> **Nota:** categoría "Mis Primeros Pasos - Usuario", prioridad T2 🔴. Verificación por **código de 6 dígitos** (no link de correo). Sin verificar, la sesión no se inicia — no hay banner de "cuenta bloqueada", es implícito.
+
+> `[Pantalla: modal de login, tocas "Regístrate aquí"]`
+> **"¿Aún no tienes cuenta? Desde el login, toca 'Regístrate aquí'."**
+>
+> `[Formulario: "Personal", nombre, apellidos, correo, teléfono, ciudad, contraseña]`
+> **"Llena tus datos: nombre, apellidos, correo, tu teléfono, tu ciudad, y una contraseña segura."**
+>
+> `[Tocas "Crear cuenta"]`
+> **"Dale 'Crear cuenta'."**
+>
+> `[Modal "Verifica tu correo": 6 casillas]`
+> **"Te llega un código de 6 dígitos a tu correo. Escríbelo aquí para verificar tu cuenta."**
+>
+> `[Tocas "Verificar código"]`
+> **"Confirma con 'Verificar código'…"**
+>
+> `[Modal "¡Bienvenido a AnunciaYA!"]`
+> **"…y listo: tu cuenta ya está lista. Bienvenido a tu comunidad local."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Desde el login, toca **"Regístrate aquí"**.
+2. Llena tus datos: nombre, apellidos, correo, teléfono, ciudad y contraseña.
+3. Toca **"Crear cuenta"**.
+4. Revisa tu correo: te llega un código de 6 dígitos. Escríbelo y toca **"Verificar código"**.
+5. ¡Listo! Tu cuenta queda activa y verificada.
+
+---
+
+### 🎬 U-03 — "Elige tu ciudad (y por qué cambia lo que ves)" · 👤 · celular 9:16 · ~40-55 seg
+
+> **Nota:** categoría "Mis Primeros Pasos - Usuario", prioridad T2 🔴. Verificado en código: cambiar de ciudad SÍ filtra Negocios, MarketPlace, Ofertas y Servicios (todos consumen `latitud/longitud` del `useGpsStore`).
+
+> `[Pantalla: header, tocas el ícono de ubicación]`
+> **"AnunciaYA te muestra lo que hay en TU ciudad. Para elegirla, toca el ícono de ubicación arriba."**
+>
+> `["Elige una ubicación": buscador, "Usar GPS", "Ciudades Populares"]`
+> **"Busca tu ciudad, elígela de las populares, o toca 'Usar GPS' para detectarla automático."**
+>
+> `[Eliges una; el modal se cierra]`
+> **"Selecciónala… y listo."**
+>
+> `[Muestras Negocios/MarketPlace/Ofertas/Servicios cambiando]`
+> **"Esto no es solo cosmético: cambia literalmente lo que ves en Negocios, MarketPlace, Ofertas y Servicios. Todo se ajusta a tu ciudad."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Toca el ícono de ubicación en el header (o "Tu Ubicación" en el menú).
+2. Busca tu ciudad, elige una de las populares, o toca **"Usar GPS"**.
+3. Selecciónala — se actualiza al instante.
+4. Cambiar de ciudad cambia lo que ves en Negocios, MarketPlace, Ofertas y Servicios.
+
+---
+
+### 🎬 U-11 — "Publica tu artículo con fotos, paso a paso" · 👤 · celular 9:16 · ~65-80 seg
+
+> **Nota:** categoría "MarketPlace", prioridad T2 🔴. Distinto de U-10 (que fue una vista general compra/venta) — este se enfoca específicamente en el flujo de publicar, paso a paso, con énfasis en fotos.
+
+> `[Pantalla: tocas "Publicar"; modo "Vendo"]`
+> **"Para publicar, toca 'Publicar' y asegúrate de estar en modo 'Vendo'."**
+>
+> `["Fotos": "Agregar fotos"; "Tomar foto" / "Subir de galería"]`
+> **"Empieza con las fotos —son obligatorias. Toca 'Agregar fotos' y elige tomarlas o subirlas de tu galería."**
+>
+> `[Varias fotos; la primera queda "Portada"]`
+> **"Sube varias. La primera es tu portada: la que la gente ve primero, así que elige la mejor."**
+>
+> `[Título, Categoría, Precio]`
+> **"Ponle título, elige su categoría, y su precio."**
+>
+> `[Descripción]`
+> **"Y en la descripción, cuenta los detalles: marca, antigüedad, o por qué lo vendes."**
+>
+> `["Detalles": Condición, Zona]`
+> **"Aquí abajo agregas más: su condición —nuevo, seminuevo, usado— y tu zona, para que sepan dónde recoger."**
+>
+> `[Aceptas reglas; tocas "Publicar"]`
+> **"Acepta las reglas de publicación, y dale 'Publicar'."**
+>
+> `[Toast "¡Publicado!"]`
+> **"¡Publicado! Ya está visible para todos en tu ciudad."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Toca **"Publicar"** y confirma que estás en modo **"Vendo"**.
+2. Sube tus fotos (obligatorias) con **"Agregar fotos"** — la primera es tu portada.
+3. Ponle título, elige su categoría y su precio.
+4. Agrega una descripción con los detalles.
+5. En **"Detalles"**, agrega su condición y tu zona.
+6. Acepta las reglas y toca **"Publicar"**.
+
+---
+
+### 🎬 U-14 — "Encuentra ofertas y aprovecha las de 'últimas horas'" · 👤 · celular 9:16 · ~50-65 seg
+
+> **Nota:** categoría "Ofertas y Cupones", prioridad T2 🔴. No existe el texto literal "¡Últimas horas!" como badge en la card — es el título de la sección/carrusel; la urgencia real se comunica con "Vence hoy" / "Vence mañana" / "Vence en X días".
+
+> `[Pantalla: "Ofertas Locales"; chips "Recientes"/"Más vistos"/"Cerca de ti"/"Hoy"/"Esta semana"]`
+> **"En 'Ofertas' filtra por lo más reciente, lo más visto, lo que está cerca, o solo lo de hoy y esta semana."**
+>
+> `[Sección "Últimas horas" (eyebrow "Vencen pronto")]`
+> **"No te pierdas la sección 'Últimas horas': ofertas que están a punto de vencer."**
+>
+> `[Card "Vence hoy" con flama animada]`
+> **"Las que dicen 'Vence hoy' o 'Vence mañana', con la flama animada, son las más urgentes."**
+>
+> `[Tocas una card; detalle con "¡Vence Hoy!"]`
+> **"Tócala para ver el detalle completo: cuánto descuento, y cuánto tiempo te queda."**
+>
+> `[ChatYA o WhatsApp]`
+> **"Contacta al negocio directo por ChatYA o WhatsApp, antes de que se acabe."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. En **"Ofertas"**, filtra por "Recientes", "Más vistos", "Cerca de ti", "Hoy" o "Esta semana".
+2. Revisa la sección **"Últimas horas"**: ofertas por vencer.
+3. Las cards con **"Vence hoy"** o **"Vence mañana"** (con la flama) son las más urgentes.
+4. Toca una para ver el detalle y cuánto tiempo le queda.
+5. Contacta al negocio por **ChatYA** o **WhatsApp**.
+
+---
+
+### 🎬 U-15 — "Usa Mis Cupones: revela y muestra el código en la tienda" · 👤 · celular 9:16 · ~50-65 seg
+
+> **Nota:** categoría "Ofertas y Cupones", prioridad T2 🔴. El código es alfanumérico (no QR). Revelar requiere escribir la contraseña de la cuenta — es una medida de seguridad antideliberada. No hay copy fijo tipo "muestra este código al pagar"; el flujo lo asume implícito.
+
+> `[Pantalla: menú, "Mis Cupones"]`
+> **"Cuando reclamas un cupón, lo encuentras en 'Mis Cupones', en tu menú."**
+>
+> `[Tabs "Activos"/"Usados"; card con negocio y descuento, código oculto]`
+> **"Ahí ves tus cupones activos: el negocio, el descuento… pero el código está oculto."**
+>
+> `[Tocas "Ver cupón"]`
+> **"Toca 'Ver cupón' para abrirlo."**
+>
+> `["Código de Cupón": pones tu contraseña, tocas "Revelar código"]`
+> **"Para revelarlo, pon tu contraseña de AnunciaYA y toca 'Revelar código' — es una medida de seguridad, para que solo tú lo destapes."**
+>
+> `[Código alfanumérico visible]`
+> **"Y ahí está: muéstraselo al negocio al momento de pagar."**
+>
+> `[Cierre]`
+> **"Una vez usado, pasa automático a tu pestaña 'Usados'."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Entra a **"Mis Cupones"** desde el menú.
+2. En la pestaña **"Activos"**, toca **"Ver cupón"** en el que quieras usar.
+3. En **"Código de Cupón"**, escribe tu contraseña de AnunciaYA y toca **"Revelar código"**.
+4. Muestra el código al negocio al pagar.
+5. Al usarlo, el cupón pasa automáticamente a **"Usados"**.
+
+---
+
+### 🎬 U-17 — "Encuentra un servicio, un empleo o solicita algo" · 👤 · celular 9:16 · ~55-70 seg
+
+> **Nota:** categoría "Servicios", prioridad T2 🔴. Las **vacantes NO se publican desde esta pantalla** — el banner en la tab Vacantes ("¿Tienes un negocio? Publica vacantes desde Business Studio") lo confirma; los usuarios solo las consultan aquí.
+
+> `[Pantalla: "Servicios Locales"; tabs "Todos"/"Vacantes"/"Servicios"/"Solicitudes"]`
+> **"En 'Servicios' encuentras de todo: desde un plomero, hasta una vacante de trabajo. Cambia entre 'Vacantes', 'Servicios' y 'Solicitudes'."**
+>
+> `[Card con badge "VACANTE"/"SERVICIO"/"SOLICITUD"]`
+> **"Cada card trae su etiqueta: si es una vacante de empleo, un servicio que alguien ofrece, o algo que alguien está buscando."**
+>
+> `[Filtras en Solicitudes: "Urgente"/"Hogar"/"Cuidados"/"Eventos"]`
+> **"En 'Solicitudes' filtra por categoría: hogar, cuidados, eventos, o marca solo las 'Urgente'."**
+>
+> `[Tocas una; ChatYA o WhatsApp]`
+> **"Tócala para ver el detalle, y contacta directo por ChatYA o WhatsApp."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Entra a **"Servicios"** y cambia entre **"Vacantes"**, **"Servicios"** y **"Solicitudes"**.
+2. Cada card trae su etiqueta: **VACANTE**, **SERVICIO** o **SOLICITUD**.
+3. En **"Solicitudes"**, filtra por categoría (Hogar, Cuidados, Eventos) o marca **"Urgente"**.
+4. Toca una publicación para ver su detalle.
+5. Contacta directo por **ChatYA** o **WhatsApp**.
+
+---
+
+### 🎬 U-24 — "Edita tu perfil: foto, datos y ciudad" · 👤 · celular 9:16 · ~50-65 seg
+
+> **Nota:** categoría "Mi Cuenta y Seguridad", prioridad T2 🔴. El correo es de **solo lectura** en este tab (se cambia desde "Seguridad").
+
+> `[Pantalla: menú, "Mi Perfil"; tab "Datos Personales"]`
+> **"En 'Mi Perfil', pestaña 'Datos Personales', actualizas tu información cuando quieras."**
+>
+> `[Tocas "Cambiar" en la foto]`
+> **"Toca tu foto para cambiarla."**
+>
+> `[Nombre, apellidos, teléfono, fecha de nacimiento, género]`
+> **"Actualiza tu nombre, tus apellidos, tu teléfono, tu fecha de nacimiento y tu género."**
+>
+> `[Tocas "Ciudad"]`
+> **"Y tu ciudad: tócala para buscar y elegir otra."**
+>
+> `[Correo de solo lectura]`
+> **"Tu correo no se cambia aquí; para eso ve a la pestaña 'Seguridad'."**
+>
+> `[Tocas "Guardar cambios"]`
+> **"Cuando termines, dale 'Guardar cambios'."**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Entra a **"Mi Perfil"** → pestaña **"Datos Personales"**.
+2. Toca tu foto para cambiarla.
+3. Edita tu nombre, apellidos, teléfono, fecha de nacimiento y género.
+4. Toca **"Ciudad"** para buscar y elegir otra.
+5. Tu correo es de solo lectura (para cambiarlo, ve a **"Seguridad"**).
+6. Toca **"Guardar cambios"**.
+
+---
+
+### 🎬 (venta) — "¿Por qué AnunciaYA para tu negocio? No es Facebook, ni WhatsApp" (pitch de venta) · mixto (PC+celular) → exportar vertical 9:16 · ~110-135 seg
+
+> **Nota:** este video **NO es un tutorial** del Centro de Ayuda — es material de **venta**, para que Juan (o un vendedor) lo deje con dueños de negocio interesados que no tienen tiempo de atender una demo en ese momento. Se comparte por WhatsApp/redes, no se sube como artículo del Panel de Ayuda. Tono: beneficios primero, no instrucciones de clic. Grabar sobre el **negocio demo ya poblado** (Taquería Peñasco) para que las pantallas se vean con datos reales — se pueden reutilizar clips ya grabados de los tutoriales (Dashboard, Puntos y Recompensas, ScanYA) en vez de regrabar todo.
+> **Precio correcto: $864/mes** (no $849 — confirmado 21-jul-2026; `CLAUDE.md` y el resto del código/documentación ya corregidos). **CardYA es opcional** (el negocio decide si participa, toggle "¿Participar en CardYA?" en Onboarding/Puntos). Los **sellos de la Tarjeta de Sellos se ganan bajo las condiciones que el negocio define**, no automáticamente por cada visita/compra.
+
+> `[Gancho: cámara a Coyo o al logo, texto en pantalla "¿Tienes 90 segundos?"]`
+> **"Sé que estás ocupado ahora mismo — dame minuto y medio, y te explico por qué tu negocio necesita estar en AnunciaYA. Y no, esto no es Facebook, ni es WhatsApp."**
+>
+> `[Comparación visual simple: feed genérico vs. app enfocada]`
+> **"En Facebook compites contra memes y política en un feed que nadie controla; aquí la gente te busca porque quiere comprarte, ahorita, cerca de donde está. Y en WhatsApp, si no tienen tu número, ni te conocen; aquí te descubren aunque nunca hayan oído de ti."**
+>
+> `[App: sección Negocios, tu ficha con pill "Abierto", ubicación, reseñas reales]`
+> **"Tu negocio aparece verificado: tu horario real —para que no lleguen y te encuentren cerrado—, tu ubicación exacta, y reseñas de clientes reales de tu ciudad. Nada de esto lo tiene Facebook."**
+>
+> `[Business Studio: Puntos y Recompensas — toggle "¿Participar en CardYA?" + niveles + Tarjeta de Sellos]`
+> **"Si quieres, activa CardYA —es opcional—: tus clientes ganan puntos por sus compras y suben de nivel, o llenan una Tarjeta de Sellos digital, con las condiciones que tú pongas. Algo que ni Facebook ni WhatsApp te dan."**
+>
+> `[Business Studio: Promociones — Cupones privados]`
+> **"Y a tus clientes más frecuentes, les mandas cupones privados directo por ChatYA."**
+>
+> `[ChatYA: chat con billetera del cliente visible]`
+> **"Que tampoco es WhatsApp: aquí, al chatear con tu cliente, ves su nivel y sus puntos contigo, sin salir del chat."**
+>
+> `[ScanYA: Registrar Venta en tablet/celular]`
+> **"Y todo esto lo operas desde tu caja con ScanYA: registras la venta, das los puntos o el sello, y listo."**
+>
+> `[Business Studio: Dashboard con KPIs y gráfica de ventas]`
+> **"Desde tu computadora ves todo, en tiempo real — algo que ninguna página de Facebook te puede mostrar."**
+>
+> `[Pantalla con texto grande: "$864/mes · Todo incluido"]`
+> **"Todo esto, por 864 pesos al mes. Sin anuncios invasivos, sin vender tus datos ni los de tus clientes."**
+>
+> `[Cierre: logo + datos de contacto]`
+> **"¿Tienes 5 minutos esta semana? Escríbeme y te ayudo a dar de alta tu negocio. AnunciaYA, la comunidad local de tu ciudad — no una red social más."**
+
+**Por qué esta estructura:** el mensaje "no es Facebook ni WhatsApp" se repite **3 veces con evidencia concreta** (feed ruidoso vs. búsqueda con intención / descubrimiento sin tener tu número / lealtad+chat con billetera integrada+dashboard que ninguno de los dos ofrece), y cierra con "no una red social más" para amarrar todo el mensaje. No es un solo golpe genérico al inicio y ya — la diferenciación se sostiene a lo largo de todo el video.
+
+**Puntos clave (resumen para el vendedor — no son "pasos" de tutorial):**
+- Gancho: respeta su tiempo + planta la diferenciación desde el segundo 1 ("no es Facebook, ni WhatsApp").
+- Diferenciación 1: Facebook = feed ruidoso sin intención de compra; AnunciaYA = búsqueda con intención, cerca de ti.
+- Diferenciación 2: WhatsApp = solo si ya tienen tu número; AnunciaYA = te descubren sin conocerte.
+- Solución — Visibilidad: perfil verificado en Negocios (horario, ubicación, reseñas reales) — "nada de esto lo tiene Facebook".
+- Solución — Lealtad (opcional): CardYA — puntos, niveles, o Tarjeta de Sellos con condiciones propias — "ni Facebook ni WhatsApp te dan esto".
+- Solución — Cupones privados: premios directos a clientes frecuentes por ChatYA.
+- Diferenciación 3: ChatYA muestra la billetera del cliente en el chat — "tampoco es WhatsApp".
+- Solución — Operación: ScanYA en el punto de venta.
+- Solución — Control: Dashboard de Business Studio en tiempo real — "ninguna página de Facebook te puede mostrar esto".
+- Precio: **$864/mes**, todo incluido, sin publicidad invasiva ni venta de datos.
+- CTA + remate: "no una red social más".
+
+---
+
 *(Los guiones U-21, … se agregan debajo conforme se escriben en el chat de producción.)*
 
 ---
@@ -1405,6 +1666,13 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 | 37 | S-· | Instala ScanYA en tu tablet o teléfono | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 38 | S-· | Activa las notificaciones de ChatYA y responde chats desde ScanYA | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 39 | S-· | Registra visitas en una Tarjeta de Sellos | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 40 | U-02 | Crea tu cuenta y verifica tu correo | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 41 | U-03 | Elige tu ciudad (y por qué cambia lo que ves) | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 42 | U-11 | Publica tu artículo con fotos, paso a paso | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 43 | U-14 | Encuentra ofertas y aprovecha las de "últimas horas" | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 44 | U-15 | Usa Mis Cupones: revela y muestra el código en la tienda | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 45 | U-17 | Encuentra un servicio, un empleo o solicita algo | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 46 | U-24 | Edita tu perfil: foto, datos y ciudad | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 
 > **Publicados en redes:** U-01 y U-06 también están en TikTok y Facebook (descripciones en §5/chat). U-10 y U-19: publicados en el Panel — confirmar si van a redes.
 > **Títulos reales del Panel (14-jul-2026):** algunos artículos se publicaron con un título ligeramente distinto al propuesto en el guion — la tabla ya refleja el título REAL visible en el Panel, no el de trabajo.
@@ -1428,7 +1696,7 @@ Se graba en el **orden del viaje del comerciante**, de modo que cada video reuti
 ### Orden de grabación
 | # | ID | Video | Dónde | Guion |
 |---|---|---|---|:--:|
-| 0 | (venta) | ¿Por qué AnunciaYA para tu negocio? (pitch) | mixto | ⬜ |
+| 0 | (venta) | ¿Por qué AnunciaYA para tu negocio? No es Facebook, ni WhatsApp (pitch) | mixto → exportar 9:16 | ✅ |
 | 1 | C-01 | Da de alta tu negocio (Onboarding) | PC 16:9 | ✅ |
 | 2 | C-04 | Sube tu primer producto (Catálogo) | PC 16:9 | ✅ |
 | 3 | C-09 | Configura puntos y recompensas | PC 16:9 | ✅ |
