@@ -25,7 +25,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Image, Trash2, Plus, Loader2, Store, UserCircle, Images, Camera, Move } from 'lucide-react';
 import type { DatosImagenes, DatosInformacion } from '../hooks/usePerfil';
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
-import { useArrastrePortada } from '../../../../../hooks/useArrastrePortada';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { api } from '../../../../../services/api';
 import { notificar } from '../../../../../utils/notificaciones';
@@ -39,13 +38,14 @@ async function generarUrlUploadNegocio(nombreArchivo: string, contentType: strin
 }
 import { ModalImagenes, ModalBottom } from '../../../../../components/ui';
 import Tooltip from '../../../../../components/ui/Tooltip';
+import ModalAjustarPortada from '../../../../../components/negocios/ModalAjustarPortada';
 
 // =============================================================================
 // IMAGEN CON BLUR — Patrón 3 capas (blur → fade → nítida)
 // =============================================================================
 
 function ImagenConBlur({
-  src, miniatura, className, onClick, posicion, arrastre,
+  src, miniatura, className, onClick, posicion,
 }: {
   src: string | null;
   miniatura: string | null;
@@ -53,14 +53,6 @@ function ImagenConBlur({
   onClick?: () => void;
   /** % del encuadre (object-position); si se omite, usa el centrado por defecto */
   posicion?: { x: number; y: number };
-  /** Handlers de arrastre (drag-to-reposition), ver useArrastrePortada */
-  arrastre?: {
-    arrastrando: boolean;
-    onPointerDown: (e: React.PointerEvent<HTMLImageElement>) => void;
-    onPointerMove: (e: React.PointerEvent<HTMLImageElement>) => void;
-    onPointerUp: (e: React.PointerEvent<HTMLImageElement>) => void;
-    onClickCapture: (e: React.MouseEvent) => void;
-  };
 }) {
   const [urlCargada, setUrlCargada] = useState<string | null>(() => {
     if (!src) return null;
@@ -77,25 +69,16 @@ function ImagenConBlur({
     <>
       {/* Capa 1: Blur (miniatura o src actual) */}
       {urlBlur && (
-        <img src={urlBlur} alt=""
+        <img src={urlBlur} alt="" draggable={false}
           className="absolute inset-0 w-full h-full object-cover"
           style={{ filter: 'blur(8px)', objectPosition }} />
       )}
       {/* Capa 2: Imagen real — fade-in al cargar */}
       {src && (
-        <img src={src} alt=""
+        <img src={src} alt="" draggable={false}
           className={`absolute inset-0 w-full h-full object-cover transition-transform duration-200 ${cargada && onClick ? 'group-hover:scale-110 cursor-pointer' : ''} ${className || ''}`}
-          style={{
-            opacity: cargada ? 1 : 0,
-            objectPosition,
-            ...(arrastre && { cursor: arrastre.arrastrando ? 'grabbing' : 'grab', touchAction: 'none' }),
-          }}
+          style={{ opacity: cargada ? 1 : 0, objectPosition }}
           onClick={() => cargada && onClick?.()}
-          onClickCapture={arrastre?.onClickCapture}
-          onPointerDown={arrastre?.onPointerDown}
-          onPointerMove={arrastre?.onPointerMove}
-          onPointerUp={arrastre?.onPointerUp}
-          onPointerCancel={arrastre?.onPointerUp}
           onLoad={() => setUrlCargada(src)} />
       )}
     </>
@@ -282,20 +265,19 @@ export default function TabImagenes({
   // Guarda el encuadre (posición) de la portada ya subida, sin re-subir el archivo
   const guardarPosicionPortada = async ({ x, y }: { x: number; y: number }) => {
     if (!negocioId) return;
-    setDatosImagenes({ ...datosImagenes, portadaPosX: x, portadaPosY: y });
     try {
       await api.patch(`/negocios/${negocioId}/portada/posicion`, { posX: x, posY: y });
+      setDatosImagenes({ ...datosImagenes, portadaPosX: x, portadaPosY: y });
       invalidarCachesNegocio();
+      notificar.exito('Posición de portada guardada');
     } catch (error) {
       console.error('Error al guardar posición de portada:', error);
       notificar.error('Error al guardar la posición de la portada');
+      throw error;
     }
   };
 
-  const arrastrePortada = useArrastrePortada(
-    { x: datosImagenes.portadaPosX, y: datosImagenes.portadaPosY },
-    guardarPosicionPortada,
-  );
+  const [modalAjustarPortadaAbierto, setModalAjustarPortadaAbierto] = useState(false);
 
   // ==========================================================================
   // HANDLERS DE UPLOAD CON MINIATURA (blur layer)
@@ -577,7 +559,7 @@ export default function TabImagenes({
   // Helper: bloque de imagen individual (logo / perfil / portada)
   const BloquImagen = ({
     titulo, subtitulo, children, onUpload, onDelete, isUploading, imageUrl, disabled,
-    labelSubir, labelCambiar, expandPreview,
+    labelSubir, labelCambiar, expandPreview, onAjustar,
   }: {
     titulo: React.ReactNode; subtitulo?: string;
     children: React.ReactNode;
@@ -585,6 +567,8 @@ export default function TabImagenes({
     isUploading: boolean; imageUrl: string | null | undefined;
     disabled?: boolean; labelSubir: string; labelCambiar: string;
     expandPreview?: boolean;
+    /** Si se pasa, agrega un botón "Ajustar" (reposicionar encuadre) — solo aplica a portada */
+    onAjustar?: () => void;
   }) => (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 whitespace-nowrap">
@@ -598,7 +582,7 @@ export default function TabImagenes({
         <div className="flex flex-col gap-1.5 pt-1 shrink-0">
           <Tooltip text={imageUrl ? labelCambiar : labelSubir} position="bottom" className="2xl:hidden">
             <label
-              className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-white rounded-lg cursor-pointer whitespace-nowrap shadow-sm hover:opacity-90 transition-opacity ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-28 px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-white rounded-lg cursor-pointer whitespace-nowrap shadow-sm hover:opacity-90 transition-opacity ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <Camera className="w-3.5 h-3.5 shrink-0" />
@@ -608,10 +592,19 @@ export default function TabImagenes({
                 disabled={isUploading || disabled} className="hidden" />
             </label>
           </Tooltip>
+          {imageUrl && onAjustar && (
+            <Tooltip text="Ajustar posición" position="bottom" className="2xl:hidden">
+              <button type="button" onClick={onAjustar} disabled={isUploading}
+                className="h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-28 px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 bg-white border-2 border-slate-300 rounded-lg hover:text-slate-900 hover:border-slate-400 hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <Move className="w-3.5 h-3.5" />
+                <span className="lg:hidden 2xl:inline">Ajustar</span>
+              </button>
+            </Tooltip>
+          )}
           {imageUrl && (
             <Tooltip text="Eliminar" position="bottom" className="2xl:hidden">
               <button type="button" onClick={onDelete} disabled={isUploading}
-                className="h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-auto px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 bg-white border-2 border-slate-300 rounded-lg hover:text-red-600 hover:border-red-300 hover:bg-red-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                className="h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-28 px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 bg-white border-2 border-slate-300 rounded-lg hover:text-red-600 hover:border-red-300 hover:bg-red-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="lg:hidden 2xl:inline">Eliminar</span>
               </button>
@@ -729,14 +722,17 @@ export default function TabImagenes({
                 {portada.imageUrl
                   ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura} className="cursor-pointer"
                       onClick={() => abrirImagenUnica(portada.imageUrl!)}
-                      posicion={arrastrePortada.posicion} arrastre={arrastrePortada} />
+                      posicion={{ x: datosImagenes.portadaPosX, y: datosImagenes.portadaPosY }} />
                   : <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 text-slate-300" /></div>
                 }
-                {portada.imageUrl && !portada.isUploading && (
-                  <Move className="absolute top-2.5 left-2.5 w-4 h-4 text-white/70 pointer-events-none drop-shadow" />
-                )}
                 <div className="absolute bottom-0 inset-x-0 flex items-center justify-end gap-2.5 py-2.5 px-3"
                   style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}>
+                  {portada.imageUrl && (
+                    <button type="button" onClick={() => setModalAjustarPortadaAbierto(true)} disabled={portada.isUploading}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 cursor-pointer active:scale-95 disabled:opacity-50">
+                      <Move className="w-5 h-5 text-white" />
+                    </button>
+                  )}
                   <button type="button" onClick={() => !portada.isUploading && abrirMenuCamara((f) => handleSubirPortada(f))}
                     disabled={portada.isUploading}
                     className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 cursor-pointer active:scale-95 disabled:opacity-50">
@@ -800,6 +796,7 @@ export default function TabImagenes({
                 subtitulo="1600×900px"
                 imageUrl={portada.imageUrl} isUploading={portada.isUploading}
                 onUpload={handleSubirPortada} onDelete={handleEliminarPortada}
+                onAjustar={() => setModalAjustarPortadaAbierto(true)}
                 labelSubir="Subir Portada" labelCambiar="Cambiar Portada"
                 expandPreview={mostrarLogo}
               >
@@ -808,12 +805,9 @@ export default function TabImagenes({
                   {portada.imageUrl
                     ? <ImagenConBlur src={portada.imageUrl} miniatura={portadaMiniatura}
                         onClick={() => abrirImagenUnica(portada.imageUrl!)}
-                        posicion={arrastrePortada.posicion} arrastre={arrastrePortada} />
+                        posicion={{ x: datosImagenes.portadaPosX, y: datosImagenes.portadaPosY }} />
                     : <Image className="w-7 h-7 text-slate-300" />
                   }
-                  {portada.imageUrl && !portada.isUploading && (
-                    <Move className="absolute top-2 left-2 w-3.5 h-3.5 text-white/70 pointer-events-none drop-shadow" />
-                  )}
                 </div>
               </BloquImagen>
             </div>
@@ -989,6 +983,16 @@ export default function TabImagenes({
         isOpen={modalImagenes.isOpen}
         onClose={cerrarModalImagenes}
       />
+
+      {portada.imageUrl && (
+        <ModalAjustarPortada
+          abierto={modalAjustarPortadaAbierto}
+          onCerrar={() => setModalAjustarPortadaAbierto(false)}
+          src={portada.imageUrl}
+          posicionInicial={{ x: datosImagenes.portadaPosX, y: datosImagenes.portadaPosY }}
+          onGuardar={guardarPosicionPortada}
+        />
+      )}
 
     </div>
   );

@@ -6,10 +6,13 @@
  * queda visible. Sin zoom — solo paneo libre en X/Y, expresado como
  * object-position en porcentaje (0-100).
  *
+ * La posición vive solo en memoria mientras se arrastra (preview en vivo);
+ * quien use el hook decide cuándo persistirla (ver ModalAjustarPortada).
+ *
  * UBICACIÓN: apps/web/src/hooks/useArrastrePortada.ts
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 export interface PosicionPortada {
   x: number;
@@ -23,22 +26,12 @@ interface InicioArrastre {
   posicion: PosicionPortada;
 }
 
-export function useArrastrePortada(
-  posicionInicial: PosicionPortada,
-  onSoltar: (posicion: PosicionPortada) => void,
-) {
+export function useArrastrePortada(posicionInicial: PosicionPortada) {
   const [posicion, setPosicion] = useState(posicionInicial);
   const [arrastrando, setArrastrando] = useState(false);
   const inicio = useRef<InicioArrastre | null>(null);
   const posicionActual = useRef(posicionInicial);
   const huboMovimiento = useRef(false);
-  const bloquearSiguienteClick = useRef(false);
-
-  // Sincronizar si la posición inicial cambia desde fuera (ej: carga async del perfil)
-  useEffect(() => {
-    setPosicion(posicionInicial);
-    posicionActual.current = posicionInicial;
-  }, [posicionInicial.x, posicionInicial.y]);
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -74,27 +67,10 @@ export function useArrastrePortada(
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!inicio.current) return;
     inicio.current = null;
-    if (huboMovimiento.current) {
-      huboMovimiento.current = false;
-      bloquearSiguienteClick.current = true;
-      setArrastrando(false);
-      const final = {
-        x: Math.round(posicionActual.current.x),
-        y: Math.round(posicionActual.current.y),
-      };
-      onSoltar(final);
-    }
+    huboMovimiento.current = false;
+    setArrastrando(false);
     e.currentTarget.releasePointerCapture(e.pointerId);
-  }, [onSoltar]);
-
-  // Si hubo arrastre, el click sintético que sigue al pointerup no debe abrir el lightbox.
-  const onClickCapture = useCallback((e: React.MouseEvent) => {
-    if (bloquearSiguienteClick.current) {
-      bloquearSiguienteClick.current = false;
-      e.stopPropagation();
-      e.preventDefault();
-    }
   }, []);
 
-  return { posicion, arrastrando, onPointerDown, onPointerMove, onPointerUp, onClickCapture };
+  return { posicion, arrastrando, onPointerDown, onPointerMove, onPointerUp };
 }

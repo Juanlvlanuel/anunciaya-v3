@@ -26,7 +26,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2, Move } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
-import { useArrastrePortada } from '@/hooks/useArrastrePortada';
+import ModalAjustarPortada from '@/components/negocios/ModalAjustarPortada';
 import { notificar } from '@/utils/notificaciones';
 import { api } from '@/services/api';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
@@ -75,20 +75,14 @@ interface ZonaUploadProps {
     onImageClick?: () => void;
     /** % del encuadre (object-position); si se omite, usa el centrado por defecto */
     posicion?: { x: number; y: number };
-    /** Handlers de arrastre (drag-to-reposition), ver useArrastrePortada */
-    arrastre?: {
-        arrastrando: boolean;
-        onPointerDown: (e: React.PointerEvent<HTMLImageElement>) => void;
-        onPointerMove: (e: React.PointerEvent<HTMLImageElement>) => void;
-        onPointerUp: (e: React.PointerEvent<HTMLImageElement>) => void;
-        onClickCapture: (e: React.MouseEvent) => void;
-    };
+    /** Si se pasa, muestra un botón "Ajustar" (reposicionar encuadre) — solo aplica a portada */
+    onAjustar?: () => void;
 }
 
 function ZonaUpload({
     imageUrl, miniatura, isUploading, r2Url: _r2Url, inputRef, isDragging, aspect,
     onFileChange, onDelete, onDragEnter, onDragOver, onDragLeave, onDrop,
-    placeholder, uploadingText, onImageClick, posicion, arrastre,
+    placeholder, uploadingText, onImageClick, posicion, onAjustar,
 }: ZonaUploadProps) {
     // Trackear QUÉ URL ya cargó (síncrono, sin delay de useEffect)
     const [urlCargada, setUrlCargada] = useState<string | null>(null);
@@ -134,29 +128,17 @@ function ZonaUpload({
 
             {/* Capa 1: Blur — miniatura o imageUrl con blur (placeholder visual permanente) */}
             {urlBlur && (
-                <img src={urlBlur} alt=""
+                <img src={urlBlur} alt="" draggable={false}
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{ filter: 'blur(8px)', objectPosition }} />
             )}
 
             {/* Capa 2: Imagen real — opacity 0 hasta que carga, luego fade-in */}
             {imageUrl && (
-                <img src={imageUrl} alt=""
+                <img src={imageUrl} alt="" draggable={false}
                     className={`absolute inset-0 w-full h-full object-cover duration-500 ${cargada && onImageClick ? 'group-hover:scale-110 cursor-pointer' : ''}`}
-                    style={{
-                        opacity: cargada ? 1 : 0,
-                        objectPosition,
-                        ...(arrastre && { cursor: arrastre.arrastrando ? 'grabbing' : 'grab', touchAction: 'none' }),
-                    }}
-                    onLoad={() => setUrlCargada(imageUrl)}
-                    onClickCapture={arrastre?.onClickCapture}
-                    onPointerDown={arrastre?.onPointerDown}
-                    onPointerMove={arrastre?.onPointerMove}
-                    onPointerUp={arrastre?.onPointerUp}
-                    onPointerCancel={arrastre?.onPointerUp} />
-            )}
-            {imageUrl && arrastre && !isUploading && (
-                <Move className="absolute top-2.5 left-2.5 w-4 h-4 text-white/70 pointer-events-none drop-shadow" />
+                    style={{ opacity: cargada ? 1 : 0, objectPosition }}
+                    onLoad={() => setUrlCargada(imageUrl)} />
             )}
 
             {/* Capa 3: Overlay + spinner durante upload */}
@@ -172,6 +154,12 @@ function ZonaUpload({
                 <>
                     <div className="absolute bottom-0 inset-x-0 h-12"
                         style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }} />
+                    {onAjustar && (
+                        <button onClick={(e) => { e.stopPropagation(); onAjustar(); }}
+                            className="absolute bottom-2 right-12 w-9 h-9 bg-black/30 hover:bg-slate-700 text-white rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-colors">
+                            <Move className="w-5 h-5" />
+                        </button>
+                    )}
                     <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
                         className="absolute bottom-2 right-2 w-9 h-9 bg-black/30 hover:bg-red-600 text-white rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-colors">
                         <Trash2 className="w-5 h-5" />
@@ -283,14 +271,20 @@ export function PasoImagenes() {
         },
     });
 
-    // Encuadre (posición) de la portada — arrastre estilo Facebook
+    // Encuadre (posición) de la portada — se ajusta en ModalAjustarPortada
     const [portadaPos, setPortadaPos] = useState({ x: 50, y: 50 });
+    const [modalAjustarPortadaAbierto, setModalAjustarPortadaAbierto] = useState(false);
     const guardarPosicionPortada = async ({ x, y }: { x: number; y: number }) => {
-        setPortadaPos({ x, y });
-        const { guardarBorradorPaso5 } = useOnboardingStore.getState();
-        await guardarBorradorPaso5({ portadaPosX: x, portadaPosY: y });
+        try {
+            const { guardarBorradorPaso5 } = useOnboardingStore.getState();
+            await guardarBorradorPaso5({ portadaPosX: x, portadaPosY: y });
+            setPortadaPos({ x, y });
+        } catch (error) {
+            console.error('Error al guardar posición de portada:', error);
+            notificar.error('No se pudo guardar la posición de la portada');
+            throw error;
+        }
     };
-    const arrastrePortada = useArrastrePortada(portadaPos, guardarPosicionPortada);
 
     const [cargandoDatos, setCargandoDatos] = useState(true);
 
@@ -792,7 +786,8 @@ export function PasoImagenes() {
                                 onDragLeave={handlePortadaDragLeave} onDrop={handlePortadaDrop}
                                 placeholder="Portada horizontal" uploadingText="Subiendo portada..."
                                 onImageClick={() => portada.imageUrl && setModalImagenes({ isOpen: true, images: [portada.imageUrl], initialIndex: 0 })}
-                                posicion={arrastrePortada.posicion} arrastre={arrastrePortada}
+                                posicion={portadaPos}
+                                onAjustar={() => setModalAjustarPortadaAbierto(true)}
                             />
                         </div>
                     </div>
@@ -928,6 +923,16 @@ export function PasoImagenes() {
                 isOpen={modalImagenes.isOpen}
                 onClose={() => setModalImagenes({ isOpen: false, images: [], initialIndex: 0 })}
             />
+
+            {portada.imageUrl && (
+                <ModalAjustarPortada
+                    abierto={modalAjustarPortadaAbierto}
+                    onCerrar={() => setModalAjustarPortadaAbierto(false)}
+                    src={portada.imageUrl}
+                    posicionInicial={portadaPos}
+                    onGuardar={guardarPosicionPortada}
+                />
+            )}
         </div>
     );
 }
