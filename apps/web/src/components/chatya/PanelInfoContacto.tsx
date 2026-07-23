@@ -668,6 +668,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                   <ModalHorarios
                     horarios={negocioEfectivo.horarios}
                     onClose={() => setModalHorariosAbierto(false)}
+                    zIndice="z-90"
                   />
                 )}
 

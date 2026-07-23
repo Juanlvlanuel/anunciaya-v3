@@ -1244,11 +1244,12 @@ export function PaginaNegocios() {
                       >
                         <Store className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
                       </div>
-                      <div className="flex items-baseline">
+                      {/* lg: título en 2 líneas apiladas. 2xl: vuelve a 1 sola línea. */}
+                      <div className="flex lg:flex-col 2xl:flex-row lg:items-start 2xl:items-baseline lg:leading-none">
                         <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
                           Negocios
                         </span>
-                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">
+                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight lg:-mt-1.5">
                           Locales
                         </span>
                       </div>
@@ -1406,15 +1407,16 @@ export function PaginaNegocios() {
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* CONTENIDO                                                        */}
-        {/* Ancho FIJO derivado del ancho de 3 cards lado a lado:            */}
-        {/*   - lg:  `max-w-[940px]`  = 3×300 + 2×20 (gap-5)                 */}
-        {/*   - 2xl: `max-w-[1068px]` = 3×340 + 2×24 (gap-6)                 */}
+        {/* lg: MISMA fórmula que el header (`max-w-7xl` + `px-6`) en vez de  */}
+        {/*     un px fijo — así coincide exacto en cualquier ancho de        */}
+        {/*     viewport dentro del rango lg, no solo cuando toca el tope de  */}
+        {/*     1280px. cards+gap+feed llenan ese ancho vía `flex-1` del feed.*/}
+        {/* 2xl: `max-w-[1068px]` + `px-0` = 3×340 + 2×24 (gap-6) — sin tocar,*/}
+        {/*     revierte el padding de lg para no cambiar el ancho de 2xl.   */}
         {/* Mismo ancho en ambos tabs (lista y mapa) → al alternar entre     */}
-        {/* vistas el área visible no cambia. Sin padding lateral en lg+     */}
-        {/* para que el ancho coincida exacto con cards+gaps (sin "sobra"    */}
-        {/* que reordene el centrado). El header arriba mantiene max-w-7xl.  */}
+        {/* vistas el área visible no cambia.                                */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        <div ref={cuerpoRef} className={`relative z-0 flex-1 min-h-0 overflow-y-auto overscroll-contain lg:flex-none lg:overflow-visible lg:mx-auto p-4 pb-24 lg:px-0 lg:max-w-[940px] 2xl:max-w-[1068px] ${
+        <div ref={cuerpoRef} className={`relative z-0 flex-1 min-h-0 overflow-y-auto overscroll-contain lg:flex-none lg:overflow-visible lg:mx-auto p-4 pb-24 lg:px-6 lg:max-w-7xl 2xl:px-0 2xl:max-w-[1068px] ${
           tabActiva === 'mapa' ? 'lg:py-3 2xl:py-3' : 'lg:py-6 2xl:py-8'
         }`}>
 
@@ -1456,13 +1458,16 @@ export function PaginaNegocios() {
                 columna, mismos gaps) para que el ancho visible no salte al
                 alternar entre tabs. */}
             {tabActiva === 'feed' && (
-              <div className="flex gap-5 2xl:gap-6 items-start">
+              // lg: gap reducido (`gap-2`) y columna de cards angosta
+              // (`w-[320px]`), pegada al feed — el resto del ancho (igualado
+              // al header) lo toma el feed vía `flex-1`. 2xl sin tocar.
+              <div className="flex gap-2 2xl:gap-6 items-start">
                 {/* Placeholder `relative`: reserva el ancho/alto exactos de
                     la columna en el flujo normal (para que el feed no salte)
                     y sirve de referencia de posición para medir su `left`. */}
                 <div
                   ref={cardsPlaceholderRef}
-                  className="relative w-[300px] 2xl:w-[340px] shrink-0"
+                  className="relative w-[320px] 2xl:w-[340px] shrink-0"
                   style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
                 >
                   {/* Cards: SIEMPRE fija (no espera a que empieces a
@@ -1471,7 +1476,7 @@ export function PaginaNegocios() {
                       (getBoundingClientRect, no solo su alto). */}
                   <div
                     ref={cardsScrollRef}
-                    className="negocios-cards-scroll w-[300px] 2xl:w-[340px] overflow-y-auto overflow-x-visible pr-1 z-10 lg:fixed"
+                    className="negocios-cards-scroll w-[320px] 2xl:w-[340px] overflow-y-auto overflow-x-visible pr-1 z-10 lg:fixed"
                     style={{
                       top: `${headerBottom + 16}px`,
                       left: cardsLeft !== null ? `${cardsLeft}px` : undefined,
@@ -1481,7 +1486,7 @@ export function PaginaNegocios() {
                     {loading && negocios.length === 0 ? (
                       <div className="flex flex-col gap-5">
                         {Array.from({ length: 4 }).map((_, i) => (
-                          <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
+                          <div key={i} className="h-[210px] 2xl:h-[220px] bg-slate-100 rounded-2xl animate-pulse">
                             <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
                             <div className="p-3 space-y-2">
                               <div className="h-4 bg-slate-200 rounded w-3/4" />
@@ -1504,6 +1509,7 @@ export function PaginaNegocios() {
                               negocio={negocio}
                               seleccionado={negocio.sucursalId === negocioSeleccionadoId}
                               onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
+                              claseAltura="h-60 lg:h-[210px] 2xl:h-[220px]"
                             />
                           </div>
                         ))}
@@ -1526,20 +1532,18 @@ export function PaginaNegocios() {
             )}
 
             {/* Tab Mapa: Cards izquierda + Mapa derecha.
-                gaps `lg:gap-5 2xl:gap-6` para coincidir EXACTO con los
-                gaps del grid de la vista Lista (Sprint 9.3 balance):
-                card 300 + gap 20 + mapa 620 = 940px = 3 cards lista. */}
+                lg: mismo ancho de card (320px) y mismo gap (gap-2) que el
+                tab Feed — el mapa es `flex-1` y absorbe el resto del ancho
+                del contenedor (compartido con Feed, igualado al header) sin
+                necesidad de un ancho fijo propio. 2xl sin tocar. */}
             {tabActiva === 'mapa' && (
-              <div className="flex gap-5 2xl:gap-6" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)' }}>
-                {/* Cards scrollable izquierda — Sprint 9.3: bajadas de
-                    380/420px a 300/340px para que el mapa de la derecha
-                    gane ~80px adicionales dentro del container acotado a
-                    `max-w-[920px]`. */}
-                <div ref={cardsScrollRef} className="negocios-cards-scroll w-[300px] 2xl:w-[340px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
+              <div className="flex gap-2 2xl:gap-6" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)' }}>
+                {/* Cards scrollable izquierda */}
+                <div ref={cardsScrollRef} className="negocios-cards-scroll w-[320px] 2xl:w-[340px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
                   {loading && negocios.length === 0 ? (
                     <div className="flex flex-col gap-5">
                       {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
+                        <div key={i} className="h-[210px] 2xl:h-[220px] bg-slate-100 rounded-2xl animate-pulse">
                           <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
                           <div className="p-3 space-y-2">
                             <div className="h-4 bg-slate-200 rounded w-3/4" />
@@ -1562,6 +1566,7 @@ export function PaginaNegocios() {
                             negocio={negocio}
                             seleccionado={negocio.sucursalId === negocioSeleccionadoId}
                             onSelect={() => handleSeleccionarNegocio(negocio.sucursalId)}
+                            claseAltura="h-60 lg:h-[210px] 2xl:h-[220px]"
                           />
                         </div>
                       ))}
@@ -1607,7 +1612,7 @@ export function PaginaNegocios() {
             // sigue en `2xl:right-[368px]`.
             right={
               !esModoComercialConNegocio && esEscritorio
-                ? 'left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]'
+                ? 'left-4 lg:left-auto lg:right-[240px] 2xl:right-[394px]'
                 : 'left-4 lg:left-auto lg:right-[330px] 2xl:right-[368px]'
             }
             // `anclarDerechaRef` SOLO en escritorio + Modo Comercial: en
@@ -1665,11 +1670,12 @@ export function PaginaNegocios() {
                 testId="toggle-mapa-feed-escritorio"
                 label={opuesta.label}
                 claseColor="bg-linear-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30"
-                icon={<IconoOpuesta className="h-6 w-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />}
+                icon={<IconoOpuesta className="h-6 w-6 lg:h-5 lg:w-5 2xl:h-6 2xl:w-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />}
                 topPublicar={topPublicar}
                 esEscritorio={esEscritorio}
                 bottomNavVisible={bottomNavVisible}
                 labelConCardEscritorio
+                claseRight="right-4 lg:right-[240px] 2xl:right-[394px]"
               />
             );
           }
@@ -1680,9 +1686,9 @@ export function PaginaNegocios() {
               data-testid="toggle-mapa-feed-escritorio"
               onClick={() => setTabActiva(opuesta.id)}
               aria-label={`Cambiar a vista ${opuesta.label}`}
-              className="hidden lg:flex fixed bottom-4 right-4 lg:right-[330px] 2xl:right-[394px] z-30 h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30 hover:scale-105 active:scale-95"
+              className="hidden lg:flex fixed bottom-4 right-4 lg:right-[240px] 2xl:right-[394px] z-30 h-14 w-14 lg:h-12 lg:w-12 2xl:h-14 2xl:w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-300/30 hover:scale-105 active:scale-95"
             >
-              <IconoOpuesta className="w-6 h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
+              <IconoOpuesta className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" strokeWidth={2.5} style={{ animation: 'fab-toggle-wiggle 2.4s ease-in-out infinite' }} />
             </button>,
             document.body
           );
@@ -1702,6 +1708,7 @@ export function PaginaNegocios() {
             esEscritorio={esEscritorio}
             bottomNavVisible={bottomNavVisible}
             labelConCardEscritorio
+            claseRight="right-4 lg:right-[240px] 2xl:right-[394px]"
           />
         )}
 

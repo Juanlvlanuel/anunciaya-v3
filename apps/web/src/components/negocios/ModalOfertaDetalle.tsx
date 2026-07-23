@@ -546,11 +546,11 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                 </div>
                 
                 <div
-                    className="relative bg-white rounded-2xl w-full max-h-[90vh] lg:max-h-[90vh] overflow-visible shadow-2xl"
+                    className="relative bg-white rounded-2xl lg:rounded-xl 2xl:rounded-2xl w-full max-h-[90vh] lg:max-h-[90vh] overflow-visible shadow-2xl"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Contenedor con scroll solo vertical */}
-                    <div className="overflow-y-auto overflow-x-hidden max-h-[90vh] lg:max-h-[90vh] rounded-2xl">
+                    <div className="overflow-y-auto overflow-x-hidden max-h-[90vh] lg:max-h-[90vh] rounded-2xl lg:rounded-xl 2xl:rounded-2xl">
                         {/* Card de oferta ampliada */}
                         <div className="relative flex flex-col">
 

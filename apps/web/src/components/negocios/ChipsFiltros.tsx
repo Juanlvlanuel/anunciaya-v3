@@ -288,7 +288,7 @@ export function ChipsFiltros({
             setDropdownSubcategoria(false);
             setDropdownCategoria(!dropdownCategoria);
           }}
-          className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 w-[140px] lg:w-[124px] 2xl:w-[140px] ${
+          className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 w-[140px] lg:w-[150px] 2xl:w-[140px] ${
             categoria ? chipActivo : chipInactivo
           }`}
           data-testid="chip-categoria"
@@ -331,10 +331,11 @@ export function ChipsFiltros({
         </div>
       )}
 
-      {/* CardYA */}
+      {/* CardYA — oculto solo en lg (no cabe con el resto de chips + KPI en
+          laptop); visible de nuevo en 2xl (más espacio) y en móvil. */}
       <button
         onClick={toggleSoloCardya}
-        className={`shrink-0 ${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 ${
+        className={`shrink-0 ${chipBase} flex lg:hidden 2xl:flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 ${
           soloCardya ? chipActivo : chipInactivo
         }`}
         data-testid="chip-cardya"
@@ -348,7 +349,7 @@ export function ChipsFiltros({
           negocios con envío O servicio a domicilio (o ambos). */}
       <button
         onClick={toggleADomicilio}
-        className={`shrink-0 ${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 whitespace-nowrap ${aDomicilio ? chipActivo : chipInactivo
+        className={`shrink-0 ${chipBase} flex lg:hidden 2xl:flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 whitespace-nowrap ${aDomicilio ? chipActivo : chipInactivo
           }`}
         data-testid="chip-a-domicilio"
       >

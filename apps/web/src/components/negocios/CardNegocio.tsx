@@ -59,6 +59,10 @@ export interface CardNegocioProps {
   onSelect: () => void;
   modoPreview?: boolean;
   onVerPerfil?: () => void;
+  /** Clases de altura (Tailwind). Default: proporción usada en el preview de
+   *  Business Studio (@container, no viewport). Pasar `lg:h-[] 2xl:h-[]` para
+   *  contextos con ancho de columna fijo por breakpoint (ej. PaginaNegocios). */
+  claseAltura?: string;
 }
 
 // =============================================================================
@@ -137,7 +141,7 @@ if (typeof document !== 'undefined' && !document.getElementById(CARD_STYLES_ID))
 // COMPONENTE
 // =============================================================================
 
-export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = false, onVerPerfil }: CardNegocioProps) {
+export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = false, onVerPerfil, claseAltura = 'h-60 @[96rem]:h-[220px]' }: CardNegocioProps) {
   const navigate = useNavigate();
 
   // ✅ Estado de visibilidad para pausar efectos cuando está fuera de pantalla
@@ -351,8 +355,6 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       : `${Number(negocio.distanciaKm).toFixed(1)} km`
     : null;
 
-  const calificacion = negocio.calificacionPromedio ? parseFloat(negocio.calificacionPromedio) : 0;
-  const tieneResenas = negocio.totalCalificaciones > 0;
   const categoriaNombre = negocio.categorias?.[0]?.nombre || 'Negocio';
 
   // =========================================================================
@@ -583,7 +585,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   // =========================================================================
   const renderCard = () => (
     <div
-      className="relative w-full h-60 @[96rem]:h-[220px] rounded-2xl transition-all duration-300 hover:shadow-2xl"
+      className={`relative w-full ${claseAltura} rounded-2xl transition-all duration-300 hover:shadow-2xl`}
       style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06)' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -645,7 +647,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
             >
               {negocio.negocioNombre}
             </h3>
-            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mt-0.5 min-w-0">
               {/*
                 Lógica del subtítulo (Sprint 9.3 — iteración):
                 Prioridad sucursal > categoría. El subtítulo SIEMPRE debe
@@ -669,28 +671,18 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
                   return categoriaNombre || 'Matriz';
                 })()}
               </span>
-              {tieneResenas && (
-                <span className="flex items-center gap-0.5 shrink-0">
-                  {/* Sprint 9.3: badge rating reducido para igualar al
-                      badge de distancia del CardServicio (text-[11px] + icon h-3). */}
-                  <Icon icon={ICONOS.rating} className="w-3 h-3" style={{ color: '#fbbf24' }} />
-                  <span className="text-[11px] font-extrabold text-white"
-                    style={{ WebkitTextStroke: '1.2px rgba(0,0,0,1)', paintOrder: 'stroke fill', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000' }}
-                  >{calificacion.toFixed(1)}</span>
-                </span>
+              {/* Distancia — en la línea de sucursal/matriz, alineada a la
+                  orilla derecha (`justify-between` del contenedor). Sprint
+                  9.3: tamaños igualados al badge de distancia del
+                  CardServicio (text-[11px] + icon h-3 + px-2 py-1). */}
+              {distanciaTexto && (
+                <div className="flex items-center gap-1 shrink-0 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+                  <Icon icon={ICONOS.ubicacion} className="w-3 h-3" style={{ color: 'white' }} />
+                  <span className="text-[11px] font-bold text-white">{distanciaTexto}</span>
+                </div>
               )}
             </div>
           </div>
-
-          {/* Distancia resaltada — Sprint 9.3: tamaños igualados al
-              badge de distancia del CardServicio (text-[11px] + icon h-3
-              + px-2 py-1) para coherencia entre módulos. */}
-          {distanciaTexto && (
-            <div className="flex items-center gap-1 shrink-0 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-              <Icon icon={ICONOS.ubicacion} className="w-3 h-3" style={{ color: 'white' }} />
-              <span className="text-[11px] font-bold text-white">{distanciaTexto}</span>
-            </div>
-          )}
         </div>
 
         {/* Glass action bar */}
