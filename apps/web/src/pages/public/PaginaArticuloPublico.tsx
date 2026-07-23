@@ -317,9 +317,12 @@ export function PaginaArticuloPublico() {
                                 </div>
                             </div>
 
-                            {/* ─── COLUMNA DERECHA — solo desktop, sticky ─── */}
+                            {/* ─── COLUMNA DERECHA — solo desktop. Sin sticky:
+                                mismo criterio que la vista privada (evita 2
+                                scrolls sensación de "pegado"), fluye con el
+                                resto de la página en un solo scroll. ─── */}
                             <div className="hidden min-w-0 lg:flex lg:flex-col">
-                                <div className="sticky top-24 flex min-w-0 flex-col gap-3">
+                                <div className="flex min-w-0 flex-col gap-3">
                                     {/* Card consolidada: info + acciones */}
                                     <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
                                         <BloqueInfoArticulo articulo={articulo} esServicio={esServicio} compacto />

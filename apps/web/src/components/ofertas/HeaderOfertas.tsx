@@ -272,7 +272,7 @@ export default function HeaderOfertas({
         {/* Logo + Título a la izq · Chips centro · KPI derecha.           */}
         {/* ══════════════════════════════════════════════════════════════ */}
         <div className="hidden lg:block">
-          <div className="flex items-center justify-between gap-4 px-6 py-4 2xl:px-8 2xl:py-5">
+          <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-5">
             {/* Bloque izquierdo: flecha + logo + título (agrupados) */}
             <div className="flex items-center gap-3 shrink-0">
               {/* Flecha ← regresar al inicio (solo desktop) */}
@@ -280,27 +280,27 @@ export default function HeaderOfertas({
                 data-testid="btn-volver-ofertas-desktop"
                 onClick={handleVolver}
                 aria-label="Volver al inicio"
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
               >
                 <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
               </button>
               {/* Logo */}
               <div
-                className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
                 style={{
                   background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                 }}
               >
                 <Tag
-                  className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white"
+                  className="w-6 h-6 lg:w-[18px] lg:h-[18px] 2xl:w-6.5 2xl:h-6.5 text-white"
                   strokeWidth={2.5}
                 />
               </div>
-              <div className="flex lg:flex-col 2xl:flex-row lg:items-start 2xl:items-baseline lg:leading-none">
-                <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+              <div className="flex items-baseline">
+                <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-white tracking-tight">
                   Ofertas
                 </span>
-                <span className="text-2xl 2xl:text-3xl font-extrabold text-amber-400 tracking-tight lg:-mt-1.5">
+                <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-amber-400 tracking-tight">
                   Locales
                 </span>
               </div>
@@ -337,16 +337,17 @@ export default function HeaderOfertas({
               </div>
             </div>
 
-            {/* Derecha: KPI dos líneas — mismo patrón que Negocios.
-                Número grande arriba, label en color de marca abajo. */}
+            {/* Derecha: KPI — en laptop solo el valor (sin el label
+                "Ofertas" debajo), estilo compacto del header de Detalle.
+                En PC se mantiene el patrón de 2 líneas con label. */}
             <div className="flex flex-col items-end shrink-0">
               <span
                 data-testid="kpi-total-ofertas"
-                className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                className="text-3xl lg:text-2xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
               >
                 {totalOfertas}
               </span>
-              <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-amber-400/80 uppercase tracking-wider mt-1">
+              <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-sm font-semibold text-amber-400/80 uppercase tracking-wider">
                 Ofertas
               </span>
             </div>

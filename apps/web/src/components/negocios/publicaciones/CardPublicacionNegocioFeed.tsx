@@ -170,12 +170,12 @@ export function CardPublicacionNegocioFeed({
                         <img
                             src={publicacion.sucursalAvatarUrl}
                             alt=""
-                            className="h-14 w-14 rounded-full object-cover"
+                            className="h-14 w-14 rounded-full object-cover ring-2 ring-slate-200"
                         />
                     ) : (
                         <div
                             aria-hidden
-                            className="h-14 w-14 rounded-full bg-blue-600 grid place-items-center text-white"
+                            className="h-14 w-14 rounded-full bg-blue-600 grid place-items-center text-white ring-2 ring-slate-200"
                         >
                             <Store className="h-6 w-6" strokeWidth={2} />
                         </div>

@@ -381,47 +381,49 @@ export function CardArticuloFeed({
             {/* Solo el título es link al detalle. Precio/chips son info,        */}
             {/* descripción es texto plano que expande/colapsa con click.        */}
             <div className={`px-4 ${modoModal ? 'pb-2' : 'pb-3'}`}>
-                {/* Título primero — es lo que ancla al lector ("¿qué es esto?").
-                    El precio queda debajo como el dato comercial principal. */}
-                <h3>
-                    <button
-                        type="button"
-                        data-testid={`card-feed-titulo-${articulo.id}`}
-                        onClick={irAlDetalle}
-                        className="line-clamp-2 block w-full text-left text-lg font-bold text-slate-900 leading-snug lg:cursor-pointer lg:hover:underline"
-                    >
-                        {articulo.titulo}
-                    </button>
-                </h3>
-                {/* Precio — protagonista en su propia línea, sin competir con
-                    chips de estado. Solo lleva junto lo directamente ligado
-                    al precio: "Se busca" (prefijo del modo) o la unidad de
-                    venta. El resto de los chips baja a su propia fila. */}
-                <div className="mt-1.5 flex items-baseline gap-2">
-                    {articulo.modo === 'busco' && (
-                        <span className="self-center rounded-md bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-700">
-                            Se busca
+                {/* Título + precio en la misma línea — el precio queda fijo a
+                    la derecha (shrink-0) mientras el título ocupa el resto
+                    del ancho y puede seguir usando 2 líneas si es largo. */}
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                    <h3 className="max-w-[70%]">
+                        <button
+                            type="button"
+                            data-testid={`card-feed-titulo-${articulo.id}`}
+                            onClick={irAlDetalle}
+                            className="line-clamp-2 block text-left text-lg font-bold text-slate-900 leading-snug lg:cursor-pointer lg:hover:underline"
+                        >
+                            {articulo.titulo}
+                        </button>
+                    </h3>
+                    {/* Precio — pegado justo después del título, no a la
+                        orilla. Solo lleva junto lo directamente ligado a él:
+                        "Se busca" (prefijo del modo) o la unidad de venta.
+                        El resto de los chips baja a su propia fila. */}
+                    <div className="flex shrink-0 items-baseline gap-2">
+                        {articulo.modo === 'busco' && (
+                            <span className="self-center rounded-md bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-700">
+                                Se busca
+                            </span>
+                        )}
+                        <span className="text-2xl font-extrabold text-teal-700">
+                            {etiquetaPrecioArticulo(articulo)}
                         </span>
-                    )}
-                    <span className="text-2xl font-extrabold text-teal-700">
-                        {etiquetaPrecioArticulo(articulo)}
-                    </span>
-                    {articulo.modo !== 'busco' && articulo.unidadVenta && (
-                        <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
-                            {articulo.unidadVenta}
-                        </span>
-                    )}
+                        {articulo.modo !== 'busco' && articulo.unidadVenta && (
+                            <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
+                                {articulo.unidadVenta}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
-                {/* Chips secundarios — categoría + estado, todos en UNA fila
-                    (antes la categoría vivía sola en su propia línea,
-                    desperdiciando espacio horizontal). */}
-                {(articulo.categoriaNombre
-                    || condicionLabel
-                    || articulo.aceptaOfertas
-                    || (articulo.modo === 'busco' && articulo.urgente)) && (
+                {/* Chips secundarios — categoría + estado. Categoría, "Acepta
+                    ofertas" y condición (Seminuevo/etc.) solo se muestran en
+                    el detalle (`modoModal`) — en el feed quedan fuera para
+                    no saturar la card. "Urgente" sigue en ambos porque es
+                    una señal de tiempo, no de catálogo. */}
+                {(articulo.modo === 'busco' && articulo.urgente) || (modoModal && (articulo.categoriaNombre || condicionLabel || articulo.aceptaOfertas)) ? (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {articulo.categoriaNombre && (
+                        {modoModal && articulo.categoriaNombre && (
                             <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-sm font-medium text-slate-500">
                                 {articulo.categoriaNombre}
                             </span>
@@ -434,12 +436,12 @@ export function CardArticuloFeed({
                               )
                             : (
                                   <>
-                                      {articulo.aceptaOfertas && (
+                                      {modoModal && articulo.aceptaOfertas && (
                                           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
                                               Acepta ofertas
                                           </span>
                                       )}
-                                      {condicionLabel && (
+                                      {modoModal && condicionLabel && (
                                           <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
                                               {condicionLabel}
                                           </span>
@@ -447,18 +449,16 @@ export function CardArticuloFeed({
                                   </>
                               )}
                     </div>
-                )}
+                ) : null}
 
-                {/* Descripción — más separación arriba (mt-2.5) para marcar
-                    el corte entre el bloque de datos (título/precio/chips)
-                    y el texto libre. "Ver más" es texto REAL dentro del
-                    mismo párrafo (recorte por caracteres, no `line-clamp` +
+                {/* Descripción — "Ver más" es texto REAL dentro del mismo
+                    párrafo (recorte por caracteres, no `line-clamp` +
                     overlay flotante) — se lee como continuación de la
                     oración, no como un elemento aparte. Siempre visible
                     (CTA al detalle), aunque el texto sea corto y no haga
                     falta recortarlo con "…". */}
                 {articulo.descripcion && !modoModal && (
-                    <p className="mt-2.5 text-base font-medium leading-relaxed text-slate-600">
+                    <p className="mt-1 text-base font-medium leading-relaxed text-slate-600">
                         {descripcionCorta}
                         {descripcionRecortada ? '… ' : ' '}
                         <button

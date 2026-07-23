@@ -359,49 +359,101 @@ export function PaginaArticuloMarketplace() {
                 </div>
 
             {/* ════════════════════════════════════════════════════════════════
-                CONTENIDO — wrapper propio `max-w-[920px]` (acotado al ancho
-                del feed de MP). El header de arriba mantiene `max-w-7xl`.
+                CONTENIDO — lg: misma fórmula que el header (`max-w-7xl` +
+                `px-6`), igual que el feed de MP, así el contenido nunca
+                queda más ancho que el header. 2xl: `max-w-[920px]` + `px-4`
+                — sin tocar, revierte el padding de lg.
                 En móvil: sin padding-top — la galería queda pegada al header
                 (visualmente continua, sin franja del fondo azul de la app).
                 En desktop: padding arriba y abajo (lg:py-8).
             ════════════════════════════════════════════════════════════════ */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[150px] lg:flex-none lg:overflow-visible lg:py-8 lg:mx-auto lg:max-w-[920px] lg:px-4">
-                    {/* ─── DESKTOP: 2 columnas 60/40 con fracciones (fr).
-                        Se usa `3fr_2fr` (no `60%_40%`) porque CSS Grid suma el
-                        gap DESPUÉS de calcular los porcentajes, causando
-                        overflow horizontal del grid sobre su contenedor. Las
-                        fr se distribuyen sobre el espacio restante tras el
-                        gap, evitando el desbordamiento.
-                    ─────────────────────────────────────────────────────── */}
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[150px] lg:flex-none lg:overflow-visible lg:py-8 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[920px] 2xl:px-4">
+                    {/* ─── HERO: Galería (izq) + Info/precio/CTA + Vendedor (der),
+                        emparejados en 2 columnas SOLO para este bloque — es la
+                        única pareja de contenido que de verdad tiene sentido
+                        ver lado a lado (imagen grande junto al precio/CTA,
+                        patrón Mercado Libre). Se usa `3fr_2fr` (no `60%_40%`)
+                        porque CSS Grid suma el gap DESPUÉS de calcular los
+                        porcentajes, causando overflow horizontal.
+                        Todo lo demás (descripción, características, mapa,
+                        comentarios) va DEBAJO a ancho completo — antes vivía
+                        repartido en 2 columnas de alto muy distinto (galería+
+                        mapa+comentarios a la izq. vs. 4 cards cortas a la
+                        der.), dejando un hueco vacío grande bajo la columna
+                        derecha. Con el hero acotado a Galería+Info/Vendedor
+                        (alturas mucho más parecidas) y el resto a ancho
+                        completo, ya no hay tramo donde una columna "cuelgue"
+                        vacía junto a la otra. ─────────────────────────────── */}
                     <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
-                    {/* ─── COLUMNA IZQUIERDA (full width en móvil) ─────────
-                        `min-w-0` Sprint 9.3 (iteración): por default los grid
-                        items tienen `min-width: auto` que les permite crecer
-                        al ancho de su contenido. Sin esto, los inputs/textareas
-                        de SeccionPreguntas (que tienen `w-full`) fuerzan al
-                        column track a expandirse, "empujando" el grid fuera del
-                        wrapper `max-w-[920px]` del padre. Con `min-w-0` el
-                        column respeta su fracción (3fr) y el contenido se
-                        ajusta. */}
-                    <div className="min-w-0 space-y-5 lg:space-y-6">
-                        {/* Galería */}
-                        <div className="relative">
+                        {/* Galería — `min-w-0` para que no empuje el column
+                            track del grid padre. */}
+                        <div className="relative min-w-0">
                             <GaleriaArticulo
                                 fotos={articulo.fotos}
                                 titulo={articulo.titulo}
                                 fotoPortadaIndex={articulo.fotoPortadaIndex}
                             />
                             {overlayEstado && <OverlayEstado estado={overlayEstado} />}
+
+                            {/* Bloque info — SOLO en móvil. En desktop va en col-derecha. */}
+                            <div className="mx-3 mt-5 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">
+                                <BloqueInfo articulo={articulo} />
+                            </div>
                         </div>
 
-                        {/* Bloque info — SOLO en móvil. En desktop va en col-derecha.
-                            Card propia con la misma estética que Descripción y
-                            Características (border slate-300 + shadow-md). */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">
-                            <BloqueInfo articulo={articulo} />
-                        </div>
+                        {/* Columna derecha del hero — solo desktop. SIN sticky
+                            ni scroll propio: antes tenía `sticky` +
+                            `overflow-y-auto` interno, lo que generaba DOS
+                            scrolls independientes en la página (uno para esta
+                            columna, otro para la izquierda) — confuso para
+                            saber qué se está viendo. Ahora fluye en el mismo
+                            scroll que el resto de la página. */}
+                        <div className="hidden lg:block min-w-0">
+                            <div className="space-y-2">
+                                {/* Card consolidada: info + CTAs (estilo MercadoLibre). */}
+                                <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]">
+                                    <BloqueInfo articulo={articulo} compacto />
 
-                        {/* Descripción — card propia tipo Mercado Libre */}
+                                    <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
+                                        {/*
+                                          Si el visitante es el dueño Y el artículo está
+                                          pausado, mostramos botón Reactivar EN LUGAR de
+                                          la BarraContacto (no tiene sentido contactarse
+                                          a uno mismo).
+                                        */}
+                                        {usuarioActual?.id === articulo.vendedor.id &&
+                                        articulo.estado === 'pausada' ? (
+                                            <BotonReactivar
+                                                onClick={handleReactivar}
+                                                cargando={reactivarMutation.isPending}
+                                            />
+                                        ) : usuarioActual?.id === articulo.vendedor.id ? (
+                                            <p className="text-sm font-medium text-slate-600">
+                                                Esta es tu publicación.
+                                            </p>
+                                        ) : (
+                                            // CTAs principales: WhatsApp + ChatYA.
+                                            // El botón "Hacer una pregunta" vive en la
+                                            // sección Q&A más abajo — evita duplicación.
+                                            <BarraContacto articulo={articulo} variante="desktop" />
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Card vendedor — padding unificado con el resto. */}
+                                <CardVendedor vendedor={articulo.vendedor} className="p-4" />
+
+                                {/* Compra segura — justo debajo de los datos del vendedor. */}
+                                <CardCompraSegura />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ─── RESTO DEL CONTENIDO — ancho completo (sin columnas),
+                        misma que antes: mx-3 en móvil, mx-0 en desktop. ── */}
+                    <div className="min-w-0 space-y-5 lg:space-y-6 mt-5 lg:mt-6">
+                        {/* Descripción — ancho completo, mejor lectura para
+                            texto largo (no compite por espacio horizontal). */}
                         <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
                             <h2 className="mb-2 text-base font-bold text-slate-900">
                                 Descripción
@@ -414,39 +466,40 @@ export function PaginaArticuloMarketplace() {
                             </p>
                         </div>
 
-                        {/* Características — solo móvil. En desktop va en
-                            el panel sticky derecho (estilo Mercado Libre,
-                            datos clave junto al precio). */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">
-                            <h2 className="mb-3 text-base font-bold text-slate-900">
-                                Características
-                            </h2>
-                            <CaracteristicasTabla articulo={articulo} />
-                        </div>
-
-                        {/* Card vendedor — SOLO en móvil. En desktop va en col-derecha */}
+                        {/* Card vendedor — SOLO en móvil (desktop ya la
+                            muestra en el hero, junto al precio/CTA). */}
                         <div className="px-3 lg:hidden">
                             <CardVendedor vendedor={articulo.vendedor} />
                         </div>
 
-                        {/* Mapa — card propia */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
-                            <h2 className="mb-2 text-base font-bold text-slate-900">
-                                Ubicación aproximada
-                            </h2>
-                            <MapaUbicacion
-                                lat={articulo.ubicacionAproximada.lat}
-                                lng={articulo.ubicacionAproximada.lng}
-                                zonaAproximada={articulo.zonaAproximada}
-                            />
+                        {/* Características + Mapa — mismo renglón en desktop:
+                            son las 2 cards de peso visual parecido (tabla +
+                            mapa), apiladas en móvil. */}
+                        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+                            <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0">
+                                <h2 className="mb-3 text-base font-bold text-slate-900">
+                                    Características
+                                </h2>
+                                <CaracteristicasTabla articulo={articulo} />
+                            </div>
+
+                            <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
+                                <h2 className="mb-2 text-base font-bold text-slate-900">
+                                    Ubicación aproximada
+                                </h2>
+                                <MapaUbicacion
+                                    lat={articulo.ubicacionAproximada.lat}
+                                    lng={articulo.ubicacionAproximada.lng}
+                                    zonaAproximada={articulo.zonaAproximada}
+                                />
+                            </div>
                         </div>
 
-                        {/* Preguntas y Respuestas — card propia.
-                            `min-w-0` defensivo Sprint 9.3 (iteración): el
-                            wrapper también respeta el ancho del column
-                            track del grid padre, por si algún input/textarea
-                            interno de `SeccionPreguntas` tiene contenido
-                            largo sin word-break que intente expandir. */}
+                        {/* Preguntas y Respuestas — ancho completo, un hilo
+                            de comentarios se lee mejor sin columna angosta.
+                            `min-w-0` defensivo: por si algún input/textarea
+                            interno tiene contenido largo sin word-break que
+                            intente expandir. */}
                         <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
                             <SeccionComentarios
                                 articuloId={articulo.id}
@@ -454,69 +507,6 @@ export function PaginaArticuloMarketplace() {
                             />
                         </div>
                     </div>
-
-                    {/* ─── COLUMNA DERECHA — solo desktop, sticky.
-                        max-h calculado para que TODOS los cards quepan en el
-                        viewport sin scroll de página. Si excede (pantallas
-                        cortas), el panel scrollea INTERNAMENTE con scrollbar
-                        oculto — el usuario sigue viendo todo el contenido y
-                        la columna izquierda hace su scroll independiente. */}
-                    <div className="hidden lg:block min-w-0">
-                        <div
-                            className="sticky top-24 space-y-2 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                            style={{ maxHeight: 'calc(100vh - 7rem)' }}
-                        >
-                            {/* Card consolidada: info + CTAs (estilo MercadoLibre).
-                                Padding `p-4` unificado en todas las cards del
-                                panel sticky (mismo patrón en la pública). */}
-                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]">
-                                <BloqueInfo articulo={articulo} compacto />
-
-                                <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
-                                    {/*
-                                      Si el visitante es el dueño Y el artículo está
-                                      pausado, mostramos botón Reactivar EN LUGAR de
-                                      la BarraContacto (no tiene sentido contactarse
-                                      a uno mismo).
-                                    */}
-                                    {usuarioActual?.id === articulo.vendedor.id &&
-                                    articulo.estado === 'pausada' ? (
-                                        <BotonReactivar
-                                            onClick={handleReactivar}
-                                            cargando={reactivarMutation.isPending}
-                                        />
-                                    ) : usuarioActual?.id === articulo.vendedor.id ? (
-                                        <p className="text-sm font-medium text-slate-600">
-                                            Esta es tu publicación.
-                                        </p>
-                                    ) : (
-                                        // CTAs principales: WhatsApp + ChatYA.
-                                        // El botón "Hacer una pregunta" vive en la
-                                        // sección Q&A (columna izquierda) — evita
-                                        // duplicación y libera espacio vertical
-                                        // en el panel sticky.
-                                        <BarraContacto articulo={articulo} variante="desktop" />
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Card vendedor — padding unificado con el resto. */}
-                            <CardVendedor vendedor={articulo.vendedor} className="p-4" />
-
-                            {/* Características — solo desktop, debajo del
-                                card vendedor. Padding `p-4` consistente. */}
-                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]">
-                                <h2 className="mb-1.5 text-base font-bold text-slate-900">
-                                    Características
-                                </h2>
-                                <CaracteristicasTabla articulo={articulo} compacto />
-                            </div>
-
-                            {/* Compra segura — tips de seguridad estilo MP. */}
-                            <CardCompraSegura />
-                        </div>
-                    </div>
-                </div>
             </div>{/* /wrapper contenido max-w-[920px] */}
 
             {/* ════════════════════════════════════════════════════════════════

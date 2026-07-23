@@ -22,6 +22,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, AlertCircle, Send, Loader2, CornerDownRight, Reply, Pencil, MoreVertical, ChevronDown } from 'lucide-react';
 import { BotonComentarista } from './BotonComentarista';
@@ -201,7 +202,9 @@ function ComentarioFila({
     const [error, setError] = useState<string | null>(null);
     const [guardando, setGuardando] = useState(false);
     const [menuAbierto, setMenuAbierto] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+    const [posMenu, setPosMenu] = useState<{ top: number; left: number } | null>(null);
+    const btnMenuRef = useRef<HTMLButtonElement>(null);
+    const panelMenuRef = useRef<HTMLDivElement>(null);
     const iniciarChat = useIniciarChatDirectoPersona();
 
     const esAutor = !!usuarioActual && usuarioActual.id === comentario.autorId;
@@ -220,17 +223,32 @@ function ComentarioFila({
             avatarUrl: comentario.autorAvatarUrl,
         });
 
-    // Cerrar el menú ⋮ al hacer click fuera.
+    // Cerrar el menú ⋮ al hacer click fuera (botón o panel — el panel vive
+    // en un PORTAL a document.body, ya no es descendiente del botón).
     useEffect(() => {
         if (!menuAbierto) return;
         const onFuera = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            const t = e.target as Node;
+            if (!btnMenuRef.current?.contains(t) && !panelMenuRef.current?.contains(t)) {
                 setMenuAbierto(false);
             }
         };
+        const onResize = () => setMenuAbierto(false);
         document.addEventListener('mousedown', onFuera);
-        return () => document.removeEventListener('mousedown', onFuera);
+        window.addEventListener('resize', onResize);
+        return () => {
+            document.removeEventListener('mousedown', onFuera);
+            window.removeEventListener('resize', onResize);
+        };
     }, [menuAbierto]);
+
+    const alternarMenu = () => {
+        if (!menuAbierto && btnMenuRef.current) {
+            const rect = btnMenuRef.current.getBoundingClientRect();
+            setPosMenu({ top: rect.bottom + 4, left: Math.max(8, rect.right - 190) });
+        }
+        setMenuAbierto((v) => !v);
+    };
 
     const iniciarEdicion = () => {
         setTexto(comentario.texto);
@@ -277,20 +295,29 @@ function ComentarioFila({
                     }`}
                 >
                     {/* Menú ⋮ — SOLO móvil. Agrupa Contactar/Editar/Eliminar
-                        (Responder queda visible fuera, en la fila de acciones). */}
+                        (Responder queda visible fuera, en la fila de acciones).
+                        El panel va en un PORTAL a document.body (posición
+                        `fixed` calculada del botón) porque el contenedor de
+                        comentarios tiene `overflow-y-auto` y recortaba el
+                        menú si vivía `absolute` dentro de la burbuja. */}
                     {tieneAccionesMenu && !editando && (
-                        <div ref={menuRef} className="absolute right-1 top-1">
+                        <div className="absolute right-1 top-1">
                             <button
+                                ref={btnMenuRef}
                                 type="button"
                                 data-testid={`comentario-menu-${comentario.id}`}
                                 aria-label="Más opciones"
-                                onClick={() => setMenuAbierto((v) => !v)}
+                                onClick={alternarMenu}
                                 className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 active:bg-slate-300 lg:cursor-pointer lg:hover:bg-slate-300"
                             >
                                 <MoreVertical className="h-5 w-5" strokeWidth={2} />
                             </button>
-                            {menuAbierto && (
-                                <div className="absolute right-0 top-full z-20 mt-1 min-w-[190px] overflow-hidden rounded-xl border border-slate-300 bg-white py-1.5 shadow-lg">
+                            {menuAbierto && posMenu && createPortal(
+                                <div
+                                    ref={panelMenuRef}
+                                    style={{ position: 'fixed', top: posMenu.top, left: posMenu.left, zIndex: 60 }}
+                                    className="min-w-[190px] overflow-hidden rounded-xl border border-slate-300 bg-white py-1.5 shadow-lg"
+                                >
                                     {puedeContactar && (
                                         <button
                                             type="button"
@@ -338,7 +365,8 @@ function ComentarioFila({
                                             Eliminar
                                         </button>
                                     )}
-                                </div>
+                                </div>,
+                                document.body
                             )}
                         </div>
                     )}

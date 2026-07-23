@@ -673,7 +673,7 @@ export function PaginaMarketplace() {
                                 Layout: Logo + Título a la izquierda · chips
                                 centro · KPI compacto + Publicar derecha. */}
                             <div className="hidden lg:block">
-                                <div className="flex items-center justify-between gap-4 px-6 py-4 2xl:px-8 2xl:py-5">
+                                <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-5">
                                     {/* Izquierda: flecha + logo + título (agrupados) */}
                                     <div className="flex shrink-0 items-center gap-3">
                                         {/* Flecha ← regresar al inicio (solo desktop) */}
@@ -681,27 +681,27 @@ export function PaginaMarketplace() {
                                             data-testid="btn-volver-marketplace-desktop"
                                             onClick={handleVolver}
                                             aria-label="Volver al inicio"
-                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white cursor-pointer"
+                                            className="flex h-9 w-9 lg:h-8 lg:w-8 2xl:h-9 2xl:w-9 shrink-0 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white cursor-pointer"
                                         >
                                             <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                                         </button>
                                         <div
-                                            className="flex h-11 w-11 items-center justify-center rounded-lg 2xl:h-12 2xl:w-12"
+                                            className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-12 2xl:w-12"
                                             style={{
                                                 background:
                                                     'linear-gradient(135deg, #2dd4bf, #0d9488)',
                                             }}
                                         >
                                             <ShoppingCart
-                                                className="h-6 w-6 text-white 2xl:h-6.5 2xl:w-6.5"
+                                                className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-6.5 2xl:w-6.5"
                                                 strokeWidth={2.5}
                                             />
                                         </div>
                                         <div className="flex items-baseline">
-                                            <span className="text-2xl font-extrabold tracking-tight text-white 2xl:text-3xl">
+                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-3xl">
                                                 Market
                                             </span>
-                                            <span className="text-2xl font-extrabold tracking-tight text-teal-400 2xl:text-3xl">
+                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-teal-400 2xl:text-3xl">
                                                 Place
                                             </span>
                                         </div>
@@ -715,7 +715,7 @@ export function PaginaMarketplace() {
                                         para que las 3 secciones públicas se vean coherentes). */}
                                     <div className="flex shrink-0 items-center gap-4">
                                         <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
-                                        <div className="min-w-0">
+                                        <div className="hidden 2xl:block min-w-0">
                                             <ChipsFiltrosFeed
                                                 valor={orden}
                                                 onCambio={setOrden}
@@ -732,11 +732,11 @@ export function PaginaMarketplace() {
                                             <div className="flex flex-col items-end shrink-0">
                                                 <span
                                                     data-testid="kpi-total-articulos"
-                                                    className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                                                    className="text-3xl lg:text-2xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
                                                 >
                                                     {totalArticulos}
                                                 </span>
-                                                <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-teal-400/80 uppercase tracking-wider mt-1">
+                                                <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-sm font-semibold text-teal-400/80 uppercase tracking-wider">
                                                     Publicaciones
                                                 </span>
                                             </div>
@@ -755,12 +755,14 @@ export function PaginaMarketplace() {
             {/* ════════════════════════════════════════════════════════════════
                 CONTENIDO
 
-                Ancho fijo igual a Negocios (`max-w-[940px]` lg / `[1068px]`
-                2xl = 3 cards de 300/340px + 2 gaps) — mismo layout en ambas
-                secciones. Solo el header sticky negro de arriba mantiene
-                `max-w-7xl`. Reels, composer y feed heredan este ancho.
+                lg: MISMA fórmula que el header (`max-w-7xl` + `px-6`) —
+                igual que Negocios — en vez de un ancho fijo, así coincide
+                exacto con el header en cualquier ancho de viewport dentro
+                del rango lg. 2xl: `max-w-[1068px]` + `px-0` = 3×340 + 2×24
+                (gap-6) — sin tocar, revierte el padding de lg.
+                Reels, composer y feed heredan este ancho.
             ════════════════════════════════════════════════════════════════ */}
-            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
+            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[1068px] 2xl:px-0 lg:py-6 2xl:py-8">
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque
@@ -958,15 +960,15 @@ export function PaginaMarketplace() {
                         </div>
 
                         {/* ── ESCRITORIO ── */}
-                        <div className="hidden lg:flex lg:items-start lg:gap-5 2xl:gap-6">
+                        <div className="hidden lg:flex lg:items-start gap-2 2xl:gap-6">
                             {hayColumnaCards && (
                                 <div
                                     ref={cardsPlaceholderRef}
-                                    className="relative w-[300px] 2xl:w-[340px] shrink-0"
+                                    className="relative w-[320px] 2xl:w-[340px] shrink-0"
                                     style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
                                 >
                                     <div
-                                        className="w-[300px] 2xl:w-[340px] z-10 lg:fixed"
+                                        className="w-[320px] 2xl:w-[340px] z-10 lg:fixed"
                                         style={{
                                             top: `${headerBottom + 16}px`,
                                             left: cardsLeft !== null ? `${cardsLeft}px` : undefined,
@@ -1002,13 +1004,13 @@ export function PaginaMarketplace() {
                             {/* Sin columna "Recién publicado" (orden ≠ recientes, o
                                 modo "busco"): la card NO se estira a lo ancho del
                                 contenedor completo — mantiene el mismo ancho que
-                                tendría junto a la columna (940-300-20 / 1068-340-24)
+                                tendría junto a la columna (1280-320-8 / 1068-340-24)
                                 y se centra horizontalmente. */}
                             <div
                                 className={
                                     hayColumnaCards
                                         ? 'min-w-0 flex-1'
-                                        : 'mx-auto w-full max-w-[620px] 2xl:max-w-[704px]'
+                                        : 'mx-auto w-full max-w-[952px] 2xl:max-w-[704px]'
                                 }
                             >
                                 <div className="space-y-4">
@@ -1178,6 +1180,7 @@ export function PaginaMarketplace() {
                     esEscritorio={esEscritorio}
                     bottomNavVisible={bottomNavVisible}
                     labelConCardEscritorio
+                    claseRight="right-4 lg:right-[240px] 2xl:right-[394px]"
                 />
             )}
 
@@ -1186,7 +1189,7 @@ export function PaginaMarketplace() {
                 canal derecho, alineada al eje del Publicar que vive arriba. */}
             <BotonIrArriba
                 testId="marketplace-ir-arriba"
-                right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]"
+                right="left-4 lg:left-auto lg:right-[240px] 2xl:right-[394px]"
             />
 
             {/* Overlay del buscador: ahora se monta GLOBALMENTE en `MainLayout`
@@ -1381,8 +1384,8 @@ function DropdownCategoriaFeed({
                         : 'border-white/15 bg-white/5 text-slate-200 lg:hover:border-teal-400/60 lg:hover:bg-white/10 lg:hover:text-white')
                 }
             >
-                <Tag className="h-4 w-4" strokeWidth={2.5} />
-                <span className="whitespace-nowrap">
+                <Tag className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                <span className="max-w-[90px] truncate">
                     {seleccionada ? seleccionada.nombre : 'Categoría'}
                 </span>
                 <ChevronDown

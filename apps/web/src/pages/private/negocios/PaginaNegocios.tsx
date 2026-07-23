@@ -1225,7 +1225,7 @@ export function PaginaNegocios() {
                     Logo + tabs Mapa/Lista + chips de filtros + KPI.
                     Los tabs y chips viven en la fila externa SOLO en móvil. ══ */}
                 <div className="hidden lg:block">
-                  <div className="flex items-center gap-4 px-6 py-4 2xl:px-8 2xl:py-5">
+                  <div className="flex items-center gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-5">
                     {/* Bloque izquierdo: flecha + logo + título (agrupados) */}
                     <div className="flex items-center gap-3 shrink-0">
                       {/* Flecha ← regresar al inicio (solo desktop) */}
@@ -1233,23 +1233,23 @@ export function PaginaNegocios() {
                         data-testid="btn-volver-negocios-desktop"
                         onClick={handleVolver}
                         aria-label="Volver al inicio"
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                        className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
                       >
                         <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
                       </button>
                       {/* Logo */}
                       <div
-                        className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                        className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
                         style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
                       >
-                        <Store className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                        <Store className="w-6 h-6 lg:w-[18px] lg:h-[18px] 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
                       </div>
-                      {/* lg: título en 2 líneas apiladas. 2xl: vuelve a 1 sola línea. */}
-                      <div className="flex lg:flex-col 2xl:flex-row lg:items-start 2xl:items-baseline lg:leading-none">
-                        <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                      {/* Título en 1 sola línea en todas las resoluciones. */}
+                      <div className="flex items-baseline">
+                        <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-white tracking-tight">
                           Negocios
                         </span>
-                        <span className="text-2xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight lg:-mt-1.5">
+                        <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-blue-400 tracking-tight">
                           Locales
                         </span>
                       </div>
@@ -1272,15 +1272,17 @@ export function PaginaNegocios() {
                       </div>
                     </div>
 
-                    {/* KPI dos líneas — mismo patrón que Ofertas/MP */}
+                    {/* KPI — en laptop solo el valor (sin el label "Negocios"
+                        debajo), estilo compacto del header de Detalle. En PC
+                        se mantiene el patrón de 2 líneas con label. */}
                     <div className="flex flex-col items-end shrink-0">
                       <span
                         data-testid="kpi-total-negocios"
-                        className="text-3xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                        className="text-3xl lg:text-2xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
                       >
                         {negocios.length}
                       </span>
-                      <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-400/80 uppercase tracking-wider mt-1">
+                      <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-sm font-semibold text-blue-400/80 uppercase tracking-wider">
                         Negocios
                       </span>
                     </div>
