@@ -168,7 +168,7 @@ export function ModalDuplicar({ articulo, onDuplicar, onCerrar }: ModalDuplicarP
 
         {/* ── Header dark con gradiente azul ── */}
         <div
-          className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
+          className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-xl 2xl:rounded-t-2xl"
           style={{
             background: 'linear-gradient(135deg, #1e3a5f, #1e40af)',
             boxShadow: '0 4px 16px rgba(37,99,235,0.4)',

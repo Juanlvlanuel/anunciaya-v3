@@ -157,7 +157,7 @@ function VistaProgreso({ completado, onFinalizar }: { completado: boolean; onFin
 
 			{/* Header — mismo estilo que el formulario */}
 			<div
-				className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-3 lg:py-3 2xl:py-4 lg:rounded-t-2xl transition-all duration-700"
+				className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-3 lg:py-3 2xl:py-4 lg:rounded-t-xl 2xl:rounded-t-2xl transition-all duration-700"
 				style={{
 					background: completado
 						? 'linear-gradient(135deg, #064e3b, #065f46)'
@@ -481,7 +481,7 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 
 						{/* Header */}
 						<div
-							className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-3 lg:py-3 2xl:py-4 lg:rounded-t-2xl"
+							className="shrink-0 px-4 lg:px-3 2xl:px-4 pt-8 pb-3 lg:py-3 2xl:py-4 lg:rounded-t-xl 2xl:rounded-t-2xl"
 							style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 4px 16px rgba(30,41,59,0.3)' }}
 						>
 							<div className="flex items-center gap-3">

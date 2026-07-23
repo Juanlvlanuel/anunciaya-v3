@@ -326,7 +326,7 @@ export function ModalEscribirResena({
         >
             {/* Header con gradiente amber */}
             <div
-                className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl"
+                className="relative px-4 lg:px-3 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 shrink-0 overflow-hidden rounded-t-2xl lg:rounded-t-xl 2xl:rounded-t-2xl"
                 style={{ background: '#e8910a' }}
             >
                 <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />

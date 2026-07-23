@@ -25,6 +25,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { useMainScrollStore } from '../../stores/useMainScrollStore';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 // Componentes de layout
 import { MobileHeader } from './MobileHeader';
@@ -96,7 +97,16 @@ export function MainLayout() {
   // En Business Studio (escritorio) la FranjaBusinessStudio va debajo del Navbar
   // (barra AY). Medimos ambos: el menú/contenido arrancan pegados a la franja
   // (navbar + franja, sin gap) y el ChatYA usa `--ay-navbar-h` para taparla.
-  const columnsTop = esBusinessStudio ? `${navbarH + franjaH}px` : COLUMNS_TOP;
+  const { esLaptop } = useBreakpoint();
+  // En laptop el navbar mide ~64px (vs el 83px fijo que asumía COLUMNS_TOP,
+  // pensado para el navbar más alto de 2xl) — con el valor fijo quedaba un
+  // espacio de sobra entre el header y las columnas. Usamos la medida real
+  // (navbarH, ya publicada por el ResizeObserver de abajo) + 8px de aire.
+  const columnsTop = esBusinessStudio
+    ? `${navbarH + franjaH}px`
+    : esLaptop
+      ? `${navbarH + 8}px`
+      : COLUMNS_TOP;
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
