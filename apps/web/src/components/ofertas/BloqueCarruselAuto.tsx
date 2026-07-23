@@ -18,8 +18,8 @@
  * Ubicación: apps/web/src/components/ofertas/BloqueCarruselAuto.tsx
  */
 
-import { useEffect, useMemo, type ComponentType } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import { useEffect, useMemo, useRef, type ComponentType } from 'react';
+import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import CardOfertaCarrusel from './CardOfertaCarrusel';
 import TituloDeBloque from './TituloDeBloque';
 import type { OfertaFeed } from '@/types/ofertas';
@@ -62,8 +62,10 @@ const STYLES_CSS = `
   will-change: transform;
 }
 
-/* Pausa al hover (desktop) o press (móvil/touch) */
-.carrusel-auto-viewport:hover .carrusel-auto-track,
+/* Pausa al hover (desktop) o press (móvil/touch) — el hover vive en el
+   wrapper exterior (incluye las flechas) para que pasar el mouse sobre
+   ellas también pause, y se reanude apenas el mouse sale del bloque. */
+.carrusel-auto-wrapper:hover .carrusel-auto-track,
 .carrusel-auto-viewport:active .carrusel-auto-track {
   animation-play-state: paused;
 }
@@ -114,6 +116,16 @@ export default function BloqueCarruselAuto({
 
   const slug = useMemo(() => slugify(eyebrow), [eyebrow]);
 
+  // Flechas manuales: desplazan el viewport (overflow-x-hidden permite
+  // `scrollBy` aunque no muestre scrollbar). No pausan nada de forma
+  // permanente — el propio `:hover` del wrapper ya pausa el autoplay
+  // mientras el mouse está encima (incluye las flechas) y lo reanuda al
+  // salir, así que no hace falta estado propio.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const desplazar = (direccion: 1 | -1) => {
+    viewportRef.current?.scrollBy({ left: direccion * 240, behavior: 'smooth' });
+  };
+
   // Lista vacía después de cargar → bloque silencio (ni título)
   if (!cargando && ofertas.length === 0) return null;
 
@@ -146,20 +158,50 @@ export default function BloqueCarruselAuto({
           ))}
         </div>
       ) : (
-        // Viewport: oculta el desbordamiento del track infinito.
-        // En móvil sangra a los bordes (-mx-4) para full-width.
-        <div className="carrusel-auto-viewport relative overflow-x-hidden -mx-4 lg:mx-0">
-          <div className="carrusel-auto-track">
-            {/* Originales + duplicado para loop sin corte */}
-            {[...ofertas, ...ofertas].map((oferta, idx) => (
-              <CardOfertaCarrusel
-                key={`${oferta.ofertaId}-${idx}`}
-                oferta={oferta}
-                microsenal={microsenales?.[oferta.ofertaId] ?? null}
-                onClick={() => onClickOferta(oferta)}
-              />
-            ))}
+        // Wrapper exterior FIJO (no scrollea): ancla las flechas y controla
+        // el hover-pausa. El viewport interior es el único que se scrollea
+        // (scrollBy de las flechas), así los botones no se arrastran con
+        // las imágenes.
+        <div className="carrusel-auto-wrapper group/carrusel relative -mx-4 lg:mx-0">
+          <div
+            ref={viewportRef}
+            className="carrusel-auto-viewport overflow-x-hidden"
+          >
+            <div className="carrusel-auto-track">
+              {/* Originales + duplicado para loop sin corte */}
+              {[...ofertas, ...ofertas].map((oferta, idx) => (
+                <CardOfertaCarrusel
+                  key={`${oferta.ofertaId}-${idx}`}
+                  oferta={oferta}
+                  microsenal={microsenales?.[oferta.ofertaId] ?? null}
+                  onClick={() => onClickOferta(oferta)}
+                />
+              ))}
+            </div>
           </div>
+
+          {/* Flechas manuales — mismo estilo dark que MarketPlace/Servicios.
+              Solo desktop (lg+); en móvil el usuario desliza directo. */}
+          {ofertas.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Anterior"
+                onClick={() => desplazar(-1)}
+                className="hidden lg:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity duration-200 group-hover/carrusel:opacity-100 cursor-pointer"
+              >
+                <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
+              </button>
+              <button
+                type="button"
+                aria-label="Siguiente"
+                onClick={() => desplazar(1)}
+                className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity duration-200 group-hover/carrusel:opacity-100 cursor-pointer"
+              >
+                <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
+              </button>
+            </>
+          )}
         </div>
       )}
     </section>

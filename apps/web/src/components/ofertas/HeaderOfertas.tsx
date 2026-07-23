@@ -296,11 +296,11 @@ export default function HeaderOfertas({
                   strokeWidth={2.5}
                 />
               </div>
-              <div className="flex items-baseline">
+              <div className="flex lg:flex-col 2xl:flex-row lg:items-start 2xl:items-baseline lg:leading-none">
                 <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
                   Ofertas
                 </span>
-                <span className="text-2xl 2xl:text-3xl font-extrabold text-amber-400 tracking-tight">
+                <span className="text-2xl 2xl:text-3xl font-extrabold text-amber-400 tracking-tight lg:-mt-1.5">
                   Locales
                 </span>
               </div>
@@ -314,13 +314,16 @@ export default function HeaderOfertas({
               <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {CHIPS.map(({ id, label, icono: Icono }) => {
                   const activo = chipActivo === id;
+                  // 'hoy' y 'esta_semana' se ocultan solo en laptop (vuelven en 2xl).
+                  const ocultoEnLaptop = id === 'hoy' || id === 'esta_semana';
                   return (
                     <button
                       key={id}
                       data-testid={`chip-situacional-${id}`}
                       onClick={() => setChipActivo(id)}
                       className={[
-                        'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                        'shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                        ocultoEnLaptop ? 'hidden lg:hidden 2xl:flex' : 'flex',
                         activo
                           ? 'bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20'
                           : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-amber-400/60',

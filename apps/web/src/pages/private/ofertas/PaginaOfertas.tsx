@@ -439,7 +439,7 @@ export default function PaginaOfertas() {
       {/* feed de MP, Servicios y Negocios para coherencia visual entre     */}
       {/* secciones). El header sticky de arriba mantiene `max-w-7xl`.      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-6 pb-24 lg:flex-none lg:overflow-visible lg:px-4 lg:max-w-[920px] lg:mx-auto lg:pt-8 lg:pb-16">
+      <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-6 pb-24 lg:flex-none lg:overflow-visible lg:px-6 lg:max-w-7xl lg:mx-auto lg:pt-8 lg:pb-0 2xl:px-4 2xl:max-w-[920px] 2xl:pb-0">
         {/* Refresco tipo Facebook: ícono de Ofertas (Tag) con anillo
             giratorio amber — `absolute` relativo a este contenedor, así
             queda ENCIMA de todo el feed sin importar el orden del DOM. */}
@@ -641,7 +641,7 @@ export default function PaginaOfertas() {
           flecha de Servicios/MarketPlace. */}
       <BotonIrArriba
         testId="ofertas-ir-arriba"
-        right="right-4 lg:right-[330px] 2xl:right-[394px]"
+        right="right-4 lg:right-[240px] 2xl:right-[394px]"
       />
     </div>
   );
@@ -870,17 +870,17 @@ function CarruselRotativoSwipe({
             type="button"
             aria-label="Oferta anterior"
             onClick={(e) => { e.stopPropagation(); anterior(); }}
-            className="hidden lg:flex absolute top-[30%] -translate-y-1/2 left-2 z-20 w-9 h-9 items-center justify-center rounded-full bg-white/80 hover:bg-white shadow-md text-[#1a1a1a] opacity-0 group-hover/swipe:opacity-100 transition-opacity duration-200 cursor-pointer"
+            className="hidden lg:flex absolute top-[30%] -translate-y-1/2 left-2 z-20 h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover/swipe:opacity-100 transition-opacity duration-200 cursor-pointer"
           >
-            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+            <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
           </button>
           <button
             type="button"
             aria-label="Oferta siguiente"
             onClick={(e) => { e.stopPropagation(); siguiente(); }}
-            className="hidden lg:flex absolute top-[30%] -translate-y-1/2 right-2 z-20 w-9 h-9 items-center justify-center rounded-full bg-white/80 hover:bg-white shadow-md text-[#1a1a1a] opacity-0 group-hover/swipe:opacity-100 transition-opacity duration-200 cursor-pointer"
+            className="hidden lg:flex absolute top-[30%] -translate-y-1/2 right-2 z-20 h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover/swipe:opacity-100 transition-opacity duration-200 cursor-pointer"
           >
-            <ChevronRight className="w-5 h-5" strokeWidth={2.5} />
+            <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
           </button>
         </>
       )}
