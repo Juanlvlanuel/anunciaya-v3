@@ -423,6 +423,11 @@ export const negocioSucursales = pgTable("negocio_sucursales", {
 	correo: varchar({ length: 100 }),
 	fotoPerfil: text('foto_perfil'),
 	portadaUrl: text("portada_url"),
+	// Posición del encuadre (0-100, % desde la esquina superior izquierda) para
+	// aplicar como object-position del <img> — permite reposicionar la portada
+	// ya subida sin volver a subir el archivo. Default 50/50 = centrado.
+	portadaPosX: smallint('portada_pos_x').default(50).notNull(),
+	portadaPosY: smallint('portada_pos_y').default(50).notNull(),
 	redesSociales: jsonb("redes_sociales"),
 	tieneEnvioDomicilio: boolean('tiene_envio_domicilio').default(false),
 	tieneServicioDomicilio: boolean('tiene_servicio_domicilio').default(false), // ← NUEVO

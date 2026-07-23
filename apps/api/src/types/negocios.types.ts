@@ -34,6 +34,8 @@ export interface PerfilSucursalRow {
     sucursal_nombre: string;
     es_principal: boolean;
     portada_url: string | null;
+    portada_pos_x: number;
+    portada_pos_y: number;
     foto_perfil: string | null;
     redes_sociales: Record<string, string> | null;
     direccion: string | null;

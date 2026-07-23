@@ -39,6 +39,7 @@ import {
     actualizarLogoNegocio,
     actualizarFotoPerfilSucursal,
     actualizarPortadaSucursal,
+    actualizarPosicionPortada,
     agregarImagenesGaleria,
     actualizarMetodosPagoNegocio,
     actualizarEnvioDomicilio,
@@ -454,6 +455,44 @@ export async function subirPortadaController(req: Request, res: Response) {
         res.status(500).json({
             success: false,
             message: error instanceof Error ? error.message : 'Error al subir portada',
+        });
+    }
+}
+
+/**
+ * PATCH /api/negocios/:id/portada/posicion
+ * Actualiza el encuadre (posición) de la portada ya subida, sin re-subir el archivo
+ */
+export async function actualizarPosicionPortadaController(req: Request, res: Response) {
+    try {
+        const { posX, posY } = req.body;
+        const sucursalId = req.query.sucursalId as string;
+
+        if (!sucursalId) {
+            return res.status(400).json({
+                success: false,
+                message: 'sucursalId es requerido',
+            });
+        }
+
+        if (
+            typeof posX !== 'number' || typeof posY !== 'number' ||
+            posX < 0 || posX > 100 || posY < 0 || posY > 100
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: 'posX y posY deben ser números entre 0 y 100',
+            });
+        }
+
+        const resultado = await actualizarPosicionPortada(sucursalId, Math.round(posX), Math.round(posY));
+
+        res.status(200).json(resultado);
+    } catch (error) {
+        console.error('Error al actualizar posición de portada:', error);
+        res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Error al actualizar posición de portada',
         });
     }
 }
@@ -1027,6 +1066,7 @@ export default {
     subirLogoController,
     subirFotoPerfilController,
     subirPortadaController,
+    actualizarPosicionPortadaController,
     subirGaleriaController,
     eliminarLogoController,
     eliminarPortadaController,

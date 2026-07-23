@@ -166,6 +166,10 @@ export interface NegocioCompleto {
   negocioDescripcion: string | null;
   logoUrl: string | null;
   portadaUrl: string | null;
+  /** % horizontal del encuadre de portada (0-100), para object-position */
+  portadaPosX: number;
+  /** % vertical del encuadre de portada (0-100), para object-position */
+  portadaPosY: number;
   sitioWeb: string | null;
   redesSociales: RedesSociales | null;
   aceptaCardya: boolean;

@@ -95,6 +95,9 @@ export interface DatosImagenes {
   logoUrl: string | null;
   fotoPerfilUrl: string | null;
   portadaUrl: string | null;
+  /** % del encuadre de portada (0-100) — object-position */
+  portadaPosX: number;
+  portadaPosY: number;
   galeria: Array<{
     id: number;
     url: string;
@@ -124,6 +127,8 @@ interface PerfilCompleto {
   correo: string | null;
   fotoPerfilUrl: string | null;
   portadaUrl: string | null;
+  portadaPosX: number;
+  portadaPosY: number;
   tieneEnvioDomicilio: boolean;
   tieneServicioDomicilio: boolean;
 
@@ -240,6 +245,8 @@ export function usePerfil() {
     logoUrl: null,
     fotoPerfilUrl: null,
     portadaUrl: null,
+    portadaPosX: 50,
+    portadaPosY: 50,
     galeria: [],
   });
 
@@ -333,6 +340,8 @@ export function usePerfil() {
       logoUrl: perfil.logoUrl,
       fotoPerfilUrl: perfil.fotoPerfilUrl,
       portadaUrl: perfil.portadaUrl,
+      portadaPosX: perfil.portadaPosX ?? 50,
+      portadaPosY: perfil.portadaPosY ?? 50,
       galeria: perfil.galeria,
     });
 

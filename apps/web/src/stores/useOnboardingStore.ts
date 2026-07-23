@@ -218,6 +218,9 @@ interface OnboardingState {
     guardarBorradorPaso5: (datos: {
         logoUrl?: string;
         portadaUrl?: string;
+        /** % del encuadre de portada (0-100) — reposicionar sin re-subir */
+        portadaPosX?: number;
+        portadaPosY?: number;
         galeriaUrls?: string[];
     }) => Promise<void>;
 
@@ -758,9 +761,11 @@ export const useOnboardingStore = create<OnboardingState>()(
                     }
 
                     // Portada
-                    if (datos.portadaUrl !== undefined) {
+                    if (datos.portadaUrl !== undefined || datos.portadaPosX !== undefined || datos.portadaPosY !== undefined) {
                         await api.patch(`/onboarding/${negocioId}/portada/draft`, {
-                            portadaUrl: datos.portadaUrl
+                            ...(datos.portadaUrl !== undefined && { portadaUrl: datos.portadaUrl }),
+                            ...(datos.portadaPosX !== undefined && { posX: datos.portadaPosX }),
+                            ...(datos.portadaPosY !== undefined && { posY: datos.portadaPosY }),
                         });
                     }
 

@@ -17,6 +17,7 @@
  * - GET    /api/negocios/:id/galeria            - Imágenes de galería (auth)
  * - DELETE /api/negocios/:id/logo               - Eliminar logo (auth)
  * - DELETE /api/negocios/:id/portada            - Eliminar portada (auth)
+ * - PATCH  /api/negocios/:id/portada/posicion    - Reposicionar portada sin re-subir (auth)
  * - DELETE /api/negocios/:id/galeria/:imageId   - Eliminar imagen (auth)
  * 
  * ACTUALIZADO: Fase 5.3 - Agregadas rutas de lista y perfil completo
@@ -33,6 +34,7 @@ import {
     subirLogoController,
     subirFotoPerfilController,
     subirPortadaController,
+    actualizarPosicionPortadaController,
     subirGaleriaController,
     eliminarLogoController,
     eliminarPortadaController,
@@ -294,6 +296,26 @@ router.post(
     verificarNegocio,
     validarAccesoSucursal,
     subirPortadaController
+);
+
+/**
+ * PATCH /api/negocios/:id/portada/posicion
+ * Actualiza el encuadre (posición) de la portada ya subida, sin re-subir el archivo
+ *
+ * Query: ?sucursalId=xxx
+ * Body: { posX: number, posY: number } — porcentajes 0-100
+ *
+ * Response 200:
+ * {
+ *   "success": true,
+ *   "message": "Posición de portada actualizada correctamente"
+ * }
+ */
+router.patch(
+    '/:id/portada/posicion',
+    verificarNegocio,
+    validarAccesoSucursal,
+    actualizarPosicionPortadaController
 );
 
 /**

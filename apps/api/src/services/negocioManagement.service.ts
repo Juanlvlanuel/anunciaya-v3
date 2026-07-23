@@ -572,6 +572,9 @@ export const actualizarPortadaSucursal = async (
             .update(negocioSucursales)
             .set({
                 portadaUrl: portadaUrl,
+                // Imagen nueva → el encuadre anterior ya no aplica, se reinicia al centro.
+                portadaPosX: 50,
+                portadaPosY: 50,
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocioSucursales.id, sucursalId));
@@ -587,6 +590,36 @@ export const actualizarPortadaSucursal = async (
     } catch (error) {
         console.error('Error al actualizar portada:', error);
         throw new Error('Error al actualizar portada');
+    }
+};
+
+/**
+ * Actualiza únicamente el encuadre (posición) de la portada ya subida —
+ * sin tocar el archivo en R2 ni la URL.
+ *
+ * @param sucursalId - UUID de la sucursal
+ * @param posX - % horizontal del encuadre (0-100)
+ * @param posY - % vertical del encuadre (0-100)
+ */
+export const actualizarPosicionPortada = async (
+    sucursalId: string,
+    posX: number,
+    posY: number
+) => {
+    try {
+        await db
+            .update(negocioSucursales)
+            .set({
+                portadaPosX: posX,
+                portadaPosY: posY,
+                updatedAt: new Date().toISOString(),
+            })
+            .where(eq(negocioSucursales.id, sucursalId));
+
+        return { success: true, message: 'Posición de portada actualizada correctamente' };
+    } catch (error) {
+        console.error('Error al actualizar posición de portada:', error);
+        throw new Error('Error al actualizar posición de portada');
     }
 };
 
@@ -1278,6 +1311,8 @@ export const crearSucursal = async (
 					// el Recolector R2 no los toca mientras se comparten.
 					fotoPerfil: matriz.fotoPerfil,
 					portadaUrl: matriz.portadaUrl,
+					portadaPosX: matriz.portadaPosX,
+					portadaPosY: matriz.portadaPosY,
 				}),
 			})
 			.returning();
@@ -1950,6 +1985,7 @@ export default {
     // Imágenes
     actualizarLogoNegocio,
     actualizarPortadaSucursal,
+    actualizarPosicionPortada,
     agregarImagenesGaleria,
     eliminarLogoNegocio,
     eliminarPortadaSucursal,

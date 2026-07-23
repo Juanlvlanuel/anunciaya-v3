@@ -358,6 +358,8 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                     whatsapp: negocioSucursales.whatsapp,
                     correo: negocioSucursales.correo,
                     portadaUrl: negocioSucursales.portadaUrl,
+                    portadaPosX: negocioSucursales.portadaPosX,
+                    portadaPosY: negocioSucursales.portadaPosY,
                     latitud: sql<number>`ST_Y(${negocioSucursales.ubicacion}::geometry)`,
                     longitud: sql<number>`ST_X(${negocioSucursales.ubicacion}::geometry)`,
                 })
@@ -416,6 +418,8 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                 whatsapp: sucursal.whatsapp || null,
                 correo: sucursal.correo || null,
                 portadaUrl: sucursal.portadaUrl || null,
+                portadaPosX: sucursal.portadaPosX,
+                portadaPosY: sucursal.portadaPosY,
             } : null,
             horarios: horariosData,
             metodosPago: metodosPago,
@@ -703,7 +707,7 @@ export const guardarBorradorPortada = async (
     data: PortadaDraft
 ) => {
     try {
-        if (data.portadaUrl !== undefined) {
+        if (data.portadaUrl !== undefined || data.posX !== undefined || data.posY !== undefined) {
             // Buscar sucursal principal
             const [sucursal] = await db
                 .select()
@@ -724,7 +728,14 @@ export const guardarBorradorPortada = async (
             await db
                 .update(negocioSucursales)
                 .set({
-                    portadaUrl: data.portadaUrl || null, // ← Convierte "" a null
+                    ...(data.portadaUrl !== undefined && {
+                        portadaUrl: data.portadaUrl || null, // ← Convierte "" a null
+                        // Imagen nueva (o borrada) → el encuadre anterior ya no aplica.
+                        portadaPosX: 50,
+                        portadaPosY: 50,
+                    }),
+                    ...(data.posX !== undefined && { portadaPosX: Math.round(data.posX) }),
+                    ...(data.posY !== undefined && { portadaPosY: Math.round(data.posY) }),
                     updatedAt: new Date().toISOString()
                 })
                 .where(eq(negocioSucursales.id, sucursal.id));

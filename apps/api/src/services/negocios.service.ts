@@ -135,6 +135,8 @@ function mapearPerfilCompleto(row: PerfilSucursalRow) {
         negocioDescripcion: row.negocio_descripcion,
         logoUrl: row.logo_url,
         portadaUrl: row.portada_url,
+        portadaPosX: row.portada_pos_x,
+        portadaPosY: row.portada_pos_y,
         fotoPerfilUrl: row.foto_perfil,
         // Alias coherente con `NegocioResumen` para el avatar de ChatYA.
         fotoPerfil: row.foto_perfil ?? null,
@@ -574,6 +576,8 @@ export async function obtenerPerfilSucursal(
                 s.nombre as sucursal_nombre,
                 s.es_principal,
                 s.portada_url,
+                s.portada_pos_x,
+                s.portada_pos_y,
                 s.foto_perfil,
                 s.redes_sociales,
                 s.direccion,

@@ -371,6 +371,8 @@ export const logoDraftSchema = z.object({
 
 export const portadaDraftSchema = z.object({
   portadaUrl: z.union([z.string(), z.null()]).optional(),
+  posX: z.number().min(0).max(100).optional(),
+  posY: z.number().min(0).max(100).optional(),
 });
 
 export const galeriaDraftSchema = z.object({
