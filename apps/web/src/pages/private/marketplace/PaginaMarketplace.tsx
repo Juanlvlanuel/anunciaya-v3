@@ -60,15 +60,8 @@ import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 
-// Canaleta + barra de scroll de la columna "Recién publicado" — misma
-// estética que `.negocios-cards-scroll` en PaginaNegocios.tsx (thumb gris,
-// track transparente, sin flechas).
-const MARKETPLACE_CARDS_SCROLL_STYLES = `
-  .marketplace-cards-scroll::-webkit-scrollbar { width: 12px; }
-  .marketplace-cards-scroll::-webkit-scrollbar-track { background: transparent; }
-  .marketplace-cards-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
-  .marketplace-cards-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
-`;
+// La columna "Recién publicado" usa la canaleta global (ver index.css) —
+// ya no hace falta redefinirla aquí.
 
 export function PaginaMarketplace() {
     // ─── Stores ────────────────────────────────────────────────────────────────
@@ -489,7 +482,6 @@ export function PaginaMarketplace() {
 
     return (
         <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
-            <style>{MARKETPLACE_CARDS_SCROLL_STYLES}</style>
             {/* ════════════════════════════════════════════════════════════════
                 HEADER — móvil: bloque fijo (shrink-0) FUERA del scroll; desktop: sticky
             ════════════════════════════════════════════════════════════════ */}

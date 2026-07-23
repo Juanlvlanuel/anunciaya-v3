@@ -27,7 +27,7 @@ export function FeedVacio({ onEnfocar, onUsarEjemplo }: FeedVacioProps) {
     return (
         <div className="flex items-start justify-center pt-4 px-2 lg:items-center lg:pt-0 lg:min-h-[calc(100vh-10rem)]">
             <div className="flex flex-col items-center text-center gap-2 max-w-md">
-                <div className="relative shrink-0 w-32 h-32 lg:w-36 lg:h-36">
+                <div className="relative shrink-0 w-32 h-32 lg:w-24 lg:h-24 2xl:w-36 2xl:h-36">
                     <span
                         aria-hidden
                         className="absolute inset-0 rounded-full"
@@ -41,8 +41,8 @@ export function FeedVacio({ onEnfocar, onUsarEjemplo }: FeedVacioProps) {
                     />
                 </div>
                 <div>
-                    <h3 className="text-lg lg:text-xl font-bold text-slate-800">Aún no hay preguntas hoy</h3>
-                    <p className="mt-1.5 text-sm lg:text-base text-slate-600 font-medium leading-relaxed">
+                    <h3 className="text-lg lg:text-base 2xl:text-xl font-bold text-slate-800">Aún no hay preguntas hoy</h3>
+                    <p className="mt-1.5 text-sm lg:text-xs 2xl:text-base text-slate-600 font-medium leading-relaxed">
                         Haz la primera pregunta del día y Coyo te responderá al instante con negocios, ofertas y
                         servicios de tu ciudad.
                     </p>

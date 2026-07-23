@@ -129,6 +129,8 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   marketplace_respuesta_comentario: 'comunidad',
   negocio_publicacion_nuevo_comentario: 'comunidad',
   negocio_publicacion_respuesta_comentario: 'comunidad',
+  servicios_nuevo_comentario: 'comunidad',
+  servicios_respuesta_comentario: 'comunidad',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -384,6 +386,22 @@ const panelNotifCss = `
     transform-origin: top right;
     animation: pn-pop 320ms cubic-bezier(.2,.7,.35,1) both;
   }
+  /* Variante laptop (1024–1535px): un poco más chica y con el card
+     estirado a casi toda la altura disponible (ver --pn-max-height en JS). */
+  .pn-shell.pn-lg { width: 340px; }
+  .pn-lg .pn-header { padding: 12px 14px 6px; }
+  .pn-lg .pn-bellbubble { width: 26px; height: 26px; }
+  .pn-lg .pn-htitle { font-size: 15px; }
+  .pn-lg .pn-hcount { min-width: 22px; height: 22px; font-size: 12px; }
+  .pn-lg .pn-closebtn { width: 32px; height: 32px; }
+  .pn-lg .pn-tab { padding: 8px 10px 13px; font-size: 12.5px; }
+  .pn-lg .pn-row { min-height: 76px; padding: 9px 12px 9px 15px; }
+  .pn-lg .pn-av-wrap, .pn-lg .pn-av { width: 44px; height: 44px; }
+  .pn-lg .pn-person, .pn-lg .pn-title { font-size: 13px; }
+  .pn-lg .pn-msg, .pn-lg .pn-msg-quoted { font-size: 12.5px; }
+  .pn-lg .pn-age { font-size: 12px; }
+  .pn-lg .pn-footer { padding: 8px 12px 12px; }
+  .pn-lg .pn-cta { padding: 10px 14px; font-size: 13.5px; }
   @keyframes pn-pop {
     from { transform: translate(6px,-10px) scale(.96); }
     to   { transform: translate(0,0) scale(1); }
@@ -1016,9 +1034,11 @@ interface PanelContenidoProps {
   onClose: () => void;
   /** Si true, el botón X del header se renderiza dentro del título. */
   conBotonCerrarHeader: boolean;
+  /** true en laptop (1024–1535px): aplica la variante reducida `.pn-lg`. */
+  esLaptop?: boolean;
 }
 
-function PanelContenido({ onClose, conBotonCerrarHeader }: PanelContenidoProps) {
+function PanelContenido({ onClose, conBotonCerrarHeader, esLaptop = false }: PanelContenidoProps) {
   const notificaciones = useNotificacionesStore((s) => s.notificaciones);
   const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
   const marcarLeidaPorId = useNotificacionesStore((s) => s.marcarLeidaPorId);
@@ -1103,7 +1123,7 @@ function PanelContenido({ onClose, conBotonCerrarHeader }: PanelContenidoProps) 
 
   return (
     <div
-      className="pn-shell"
+      className={`pn-shell ${esLaptop ? 'pn-lg' : ''}`}
       role="menu"
       aria-label="Notificaciones"
       data-testid="panel-notif"
@@ -1267,12 +1287,13 @@ function PanelContenido({ onClose, conBotonCerrarHeader }: PanelContenidoProps) 
 
 interface PanelDesktopProps {
   onClose: () => void;
+  esLaptop: boolean;
 }
 
 // Anclar el panel al botón de campana del Navbar (rect dinámico). El botón
 // se marca con `data-notificaciones-boton="true"`. Calculamos también el
 // maxHeight para que el panel crezca hasta casi llegar al fondo.
-function calcularPosicionPanel(): { top: number; right: number; maxHeight: number } | null {
+function calcularPosicionPanel(esLaptop: boolean): { top: number; right: number; maxHeight: number } | null {
   const btn = document.querySelector<HTMLElement>('button[data-notificaciones-boton="true"]');
   if (!btn) return null;
   const rect = btn.getBoundingClientRect();
@@ -1280,25 +1301,27 @@ function calcularPosicionPanel(): { top: number; right: number; maxHeight: numbe
   return {
     top,
     right: Math.max(8, window.innerWidth - rect.right),
-    // 116 px de margen abajo (~100 px más corto que el cálculo "hasta el
-    // fondo"). Math.max con 460 respeta el min-height y evita que choque
-    // con el footer del CTA en pantallas chicas.
-    maxHeight: Math.max(460, window.innerHeight - top - 116),
+    // En laptop (1024–1535px) usamos casi toda la pantalla (solo 16px de
+    // margen abajo) para aprovechar el poco alto disponible. En el resto
+    // (2xl), 116px de margen — igual que antes.
+    maxHeight: esLaptop
+      ? Math.max(460, window.innerHeight - top - 16)
+      : Math.max(460, window.innerHeight - top - 116),
   };
 }
 
-function PanelDesktop({ onClose }: PanelDesktopProps) {
+function PanelDesktop({ onClose, esLaptop }: PanelDesktopProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Calculado en el initializer (síncrono, antes del primer paint) para que
   // el panel nazca ya anclado al botón — evita el salto de "aparece arriba
   // y luego brinca debajo de la campana".
-  const [posicion, setPosicion] = useState(calcularPosicionPanel);
+  const [posicion, setPosicion] = useState(() => calcularPosicionPanel(esLaptop));
 
   useEffect(() => {
-    const recalcular = () => setPosicion(calcularPosicionPanel());
+    const recalcular = () => setPosicion(calcularPosicionPanel(esLaptop));
     window.addEventListener('resize', recalcular);
     return () => window.removeEventListener('resize', recalcular);
-  }, []);
+  }, [esLaptop]);
 
   // Click fuera cierra (ignora el propio botón de campana del Navbar)
   useEffect(() => {
@@ -1339,7 +1362,7 @@ function PanelDesktop({ onClose }: PanelDesktopProps) {
         ['--pn-max-height' as string]: posicion ? `${posicion.maxHeight}px` : '620px',
       }}
     >
-      <PanelContenido onClose={onClose} conBotonCerrarHeader={false} />
+      <PanelContenido onClose={onClose} conBotonCerrarHeader={false} esLaptop={esLaptop} />
     </div>
   );
 }
@@ -1427,13 +1450,13 @@ function PanelMovil({ onClose }: PanelMovilProps) {
 export function PanelNotificaciones() {
   const panelAbierto = useNotificacionesStore((s) => s.panelAbierto);
   const cerrarPanel = useNotificacionesStore((s) => s.cerrarPanel);
-  const { esMobile } = useBreakpoint();
+  const { esMobile, esLaptop } = useBreakpoint();
 
   if (!panelAbierto) return null;
   return esMobile ? (
     <PanelMovil onClose={cerrarPanel} />
   ) : (
-    <PanelDesktop onClose={cerrarPanel} />
+    <PanelDesktop onClose={cerrarPanel} esLaptop={esLaptop} />
   );
 }
 

@@ -68,18 +68,18 @@ export function ColumnaDerecha() {
   return (
     <div className="absolute inset-0 flex flex-col">
       {/* Publicidad arriba (alto natural) + Fundadores anclado abajo (mt-auto). overflow-hidden = sin scroll. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:gap-1.5 2xl:gap-3 overflow-hidden p-3 lg:p-2 2xl:p-3">
         <SeccionPublicidad grandes={grandes} chicos={chicos} onAmpliar={abrir} />
         <SeccionFundadores items={fundadores} onAmpliar={abrir} />
       </div>
 
       {/* CTA fijo abajo (fuera del área que reparte el alto → nunca empuja ni scrollea). */}
-      <div className="shrink-0 px-3 py-2.5">
+      <div className="shrink-0 px-3 py-2.5 lg:px-2 lg:py-1.5 2xl:px-3 2xl:py-2.5">
         <button
           type="button"
           data-testid="columna-anunciate"
           onClick={() => navegar('/anunciate')}
-          className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 text-[12.5px] font-bold text-white shadow-sm transition hover:bg-slate-800"
+          className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 lg:py-2 2xl:py-2.5 text-[12.5px] font-bold text-white shadow-sm transition hover:bg-slate-800"
         >
           <Megaphone className="h-3.5 w-3.5" /> Anúnciate aquí
         </button>
@@ -108,13 +108,13 @@ function SeccionPublicidad({
   const vacio = grandes.length === 0 && chicos.length === 0;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5 lg:gap-1.5 2xl:gap-2.5">
       {/* Título inline (sin card) */}
-      <div className="flex shrink-0 items-center gap-2 px-0.5">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-blue-600 text-white shadow-sm">
-          <Megaphone className="h-3.5 w-3.5" />
+      <div className="flex shrink-0 items-center gap-2 lg:gap-1.5 2xl:gap-2 px-0.5">
+        <span className="grid h-6 w-6 lg:h-5 lg:w-5 2xl:h-6 2xl:w-6 place-items-center rounded-md bg-blue-600 text-white shadow-sm">
+          <Megaphone className="h-3.5 w-3.5 lg:h-3 lg:w-3 2xl:h-3.5 2xl:w-3.5" />
         </span>
-        <span className="text-[11.5px] font-bold uppercase tracking-wide text-slate-700">Publicidad</span>
+        <span className="text-[11.5px] lg:text-[11px] 2xl:text-[11.5px] font-bold uppercase tracking-wide text-slate-700">Publicidad</span>
       </div>
 
       {vacio ? (
@@ -161,8 +161,8 @@ function SeccionFundadores({ items, onAmpliar }: { items: AnuncioPublico[]; onAm
     // mt-auto ancla el carrusel al fondo del área flex: haya o no anuncio CHICO
     // arriba, Fundadores siempre baja hasta pegar con el CTA (nunca "sube" a
     // llenar el hueco de la publicidad faltante).
-    <div className="mt-auto shrink-0 overflow-hidden py-1.5">
-      <div className="marquee-logos flex w-max items-center gap-3 2xl:gap-3.5" style={{ '--marquee-dur': dur } as CSSProperties}>
+    <div className="mt-auto shrink-0 overflow-hidden py-1.5 lg:py-1 2xl:py-1.5">
+      <div className="marquee-logos flex w-max items-center gap-3 lg:gap-2 2xl:gap-3.5" style={{ '--marquee-dur': dur } as CSSProperties}>
         {fila.map((it, idx) => (
           <button
             type="button"
@@ -174,7 +174,7 @@ function SeccionFundadores({ items, onAmpliar }: { items: AnuncioPublico[]; onAm
             <img
               src={it.imagenUrl}
               alt="Fundador"
-              className="h-20 w-20 rounded-full border-2 border-white object-cover shadow-md ring-1 ring-slate-200 transition-transform duration-300 group-hover:scale-110 2xl:h-24 2xl:w-24"
+              className="h-20 w-20 lg:h-16 lg:w-16 2xl:h-24 2xl:w-24 rounded-full border-2 border-white object-cover shadow-md ring-1 ring-slate-200 transition-transform duration-300 group-hover:scale-110"
             />
           </button>
         ))}

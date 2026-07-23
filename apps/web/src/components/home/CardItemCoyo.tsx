@@ -115,7 +115,7 @@ function ImagenItem({ url, alt }: { url: string | null; alt: string }) {
     const mostrar = !!url && !error;
     return (
         <div
-            className="relative h-28 shrink-0 flex items-center justify-center overflow-hidden"
+            className="relative h-28 lg:h-24 2xl:h-28 shrink-0 flex items-center justify-center overflow-hidden"
             style={{ background: 'repeating-linear-gradient(135deg, #e2e8f0 0 8px, #eef2f6 8px 16px)' }}
         >
             {mostrar ? (
@@ -152,7 +152,7 @@ function CardItemCoyoBase({ item }: CardItemCoyoProps) {
             onClick={handleClick}
             data-testid={`coyo-tarjeta-${item.tipo}-${item.id}`}
             aria-label={`Ver ${item.titulo}`}
-            className="group/card shrink-0 w-48 lg:w-52 h-60 flex flex-col text-left bg-white rounded-xl overflow-hidden ring-1 ring-slate-300 shadow-sm lg:hover:shadow-md lg:hover:ring-blue-300 lg:cursor-pointer active:scale-[0.99] transition-all duration-200"
+            className="group/card shrink-0 w-48 lg:w-40 2xl:w-52 h-60 lg:h-52 2xl:h-60 flex flex-col text-left bg-white rounded-xl overflow-hidden ring-1 ring-slate-300 shadow-sm lg:hover:shadow-md lg:hover:ring-blue-300 lg:cursor-pointer active:scale-[0.99] transition-all duration-200"
         >
             <div className="relative">
                 <ImagenItem url={item.imagen} alt={item.titulo} />
@@ -167,12 +167,12 @@ function CardItemCoyoBase({ item }: CardItemCoyoProps) {
                         src={item.logo}
                         alt=""
                         aria-hidden="true"
-                        className="absolute bottom-2 left-2 h-9 w-9 rounded-full border-2 border-white bg-white object-cover shadow-sm"
+                        className="absolute bottom-2 left-2 h-9 w-9 lg:h-7 lg:w-7 2xl:h-9 2xl:w-9 rounded-full border-2 border-white bg-white object-cover shadow-sm"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                 )}
             </div>
-            <div className="flex-1 min-h-0 p-3 flex flex-col gap-1">
+            <div className="flex-1 min-h-0 p-3 lg:p-2.5 2xl:p-3 flex flex-col gap-1">
                 <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 lg:group-hover/card:text-blue-700">
                     {item.titulo}
                 </p>

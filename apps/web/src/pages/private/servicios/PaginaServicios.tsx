@@ -80,14 +80,8 @@ import type {
     PublicacionFeed,
 } from '../../../types/servicios';
 
-// Canaleta + barra de scroll del rail fijo "Recién publicado" (desktop) —
-// misma estética que `.marketplace-cards-scroll`/`.negocios-cards-scroll`.
-const SERVICIOS_RAIL_SCROLL_STYLES = `
-  .servicios-rail-scroll::-webkit-scrollbar { width: 12px; }
-  .servicios-rail-scroll::-webkit-scrollbar-track { background: transparent; }
-  .servicios-rail-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
-  .servicios-rail-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
-`;
+// El rail fijo "Recién publicado" usa la canaleta global (ver index.css) —
+// ya no hace falta redefinirla aquí.
 
 // =============================================================================
 // CONSTANTES
@@ -674,8 +668,6 @@ export function PaginaServicios() {
 
             {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
             <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
-                <style>{SERVICIOS_RAIL_SCROLL_STYLES}</style>
-
                 {/* Refresco tipo Facebook: ícono de Servicios (Wrench) con
                     anillo giratorio sky — `absolute` relativo a `cuerpoRef`
                     (arriba), así queda ENCIMA del reel/composer sin importar

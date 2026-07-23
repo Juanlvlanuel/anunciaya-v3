@@ -29,6 +29,7 @@ import {
     usePregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useMinDuracionVisible } from '../../hooks/useMinDuracionVisible';
 import { BotonIrArriba } from '../../components/ui/BotonIrArriba';
@@ -90,7 +91,7 @@ function SegmentoFeed({
                         type="button"
                         onClick={() => onChange(id)}
                         data-testid={`home-segmento-${id}`}
-                        className={`flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-full text-sm font-bold lg:cursor-pointer ${activo ? 'text-white shadow-sm' : 'text-slate-600'}`}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 lg:gap-1 2xl:gap-1.5 h-9 lg:h-8 2xl:h-9 px-3 lg:px-2.5 2xl:px-3 rounded-full text-sm lg:text-xs 2xl:text-sm font-bold lg:cursor-pointer ${activo ? 'text-white shadow-sm' : 'text-slate-600'}`}
                         style={activo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
                         <Icon size={15} strokeWidth={2.25} />
@@ -98,7 +99,7 @@ function SegmentoFeed({
                         {typeof conteo === 'number' && conteo > 0 && (
                             <span
                                 data-testid={`home-segmento-badge-${id}`}
-                                className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-bold ${activo ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-700'}`}
+                                className={`inline-flex items-center justify-center min-w-5 lg:min-w-4 2xl:min-w-5 h-5 lg:h-4 2xl:h-5 px-1.5 lg:px-1 2xl:px-1.5 rounded-full text-xs font-bold ${activo ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-700'}`}
                             >
                                 {conteo > 99 ? '99+' : conteo}
                             </span>
@@ -127,7 +128,7 @@ function FeedHeader({
 }) {
     return (
         <div className="flex items-center justify-between gap-3 px-1">
-            <h2 className="min-w-0 text-lg lg:text-xl tracking-tight leading-tight truncate">
+            <h2 className="min-w-0 text-lg lg:text-base 2xl:text-xl tracking-tight leading-tight truncate">
                 {segmento === 'mias' ? (
                     <>
                         <span className="font-medium text-slate-600">Mis </span>
@@ -475,6 +476,7 @@ export function PaginaInicio() {
     const conteosSegmento = { comunidad: totalComunidad, mias: totalMias };
 
     const esMovil = useEsMovil();
+    const { esLaptop } = useBreakpoint();
 
     // Rail izquierdo de Coyo (escritorio) — FIJO por JS, mismo patrón que la
     // columna de cards de PaginaNegocios.tsx/PaginaMarketplace.tsx: con
@@ -811,7 +813,7 @@ export function PaginaInicio() {
 
     // ── DESKTOP ──────────────────────────────────────────────────────────
     return (
-        <div className="w-full px-4 lg:px-5 2xl:px-6 py-4 lg:py-6">
+        <div className="w-full px-4 lg:px-5 2xl:px-6 pb-4 lg:pb-6 pt-4 lg:pt-0 2xl:pt-0">
             <div className="flex flex-col lg:flex-row lg:justify-center gap-5 2xl:gap-7 items-start">
                 {/* Rail izquierdo: Coyo (mascota + burbujas + input) alineado
                     arriba + adorno decorativo (huellitas + pin) anclado a la
@@ -820,11 +822,11 @@ export function PaginaInicio() {
                     real va `lg:fixed` (ver comentario de `railPlaceholderRef`). */}
                 <div
                     ref={railPlaceholderRef}
-                    className="relative w-full lg:w-[336px] 2xl:w-[412px] shrink-0"
+                    className="relative w-full lg:w-[280px] 2xl:w-[412px] shrink-0"
                     style={{ height: 'calc(100vh - var(--ay-navbar-h, 77px) - 32px)' }}
                 >
                     <div
-                        className="w-full lg:w-[336px] 2xl:w-[412px] lg:fixed"
+                        className="w-full lg:w-[280px] 2xl:w-[412px] lg:fixed"
                         style={{
                             top: 'calc(var(--ay-navbar-h, 77px) + 16px)',
                             left: railLeft !== null ? `${railLeft}px` : undefined,
@@ -834,6 +836,7 @@ export function PaginaInicio() {
                         <EscenaCoyo
                             nombreUsuario={nombreUsuario}
                             estadoCoyo={estadoCoyoVisual}
+                            reducidoLg={esLaptop}
                             hayCiudad={hayCiudad}
                             texto={texto}
                             onTextoChange={setTexto}

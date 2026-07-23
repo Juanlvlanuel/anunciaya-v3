@@ -173,9 +173,9 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                     estado="pensando"
                     align="center"
                     alt="Coyo está pensando"
-                    className="shrink-0 w-16 h-16 lg:w-20 lg:h-20"
+                    className="shrink-0 w-16 h-16 lg:w-14 lg:h-14 2xl:w-20 2xl:h-20"
                 />
-                <span className="text-base lg:text-lg 2xl:text-lg font-extrabold">
+                <span className="text-base lg:text-sm 2xl:text-lg font-extrabold">
                     <span style={{ color: '#d97534' }}>Coyo</span>
                     <span className="text-slate-600"> está pensando</span>
                 </span>
@@ -207,9 +207,9 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                     src="/cabeza-coyo.webp"
                     alt=""
                     aria-hidden="true"
-                    className="w-11 h-11 lg:w-12 lg:h-12 shrink-0 object-contain"
+                    className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-12 2xl:h-12 shrink-0 object-contain"
                 />
-                <span className="text-base lg:text-lg 2xl:text-lg font-extrabold">
+                <span className="text-base lg:text-sm 2xl:text-lg font-extrabold">
                     <span style={{ color: '#d97534' }}>Coyo</span>
                     <span className="text-slate-700">{encabezado.replace('Coyo', '')}</span>
                 </span>
@@ -348,7 +348,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
         <li
             id={`feed-${pregunta.id}`}
             data-testid={`pregunta-${pregunta.id}`}
-            className={`scroll-mt-24 rounded-xl p-4 lg:p-5 ${
+            className={`scroll-mt-24 rounded-xl p-4 lg:p-3.5 2xl:p-5 ${
                 pregunta.estadoPregunta === 'oculta'
                     ? 'bg-red-50/70 ring-1 ring-red-200 shadow-sm'
                     : 'bg-white shadow-md'
@@ -411,7 +411,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                     onCerrar={() => setEditando(false)}
                 />
             ) : (
-                <p className="mt-3 text-lg lg:text-lg 2xl:text-xl font-semibold text-slate-800 leading-snug text-balance wrap-break-word">
+                <p className="mt-3 text-lg lg:text-base 2xl:text-xl font-semibold text-slate-800 leading-snug text-balance wrap-break-word">
                     {pregunta.texto}
                 </p>
             )}

@@ -853,14 +853,15 @@ export function ChatOverlay() {
 
       {/* Panel principal */}
       {/* X flotante esquina superior derecha — solo desktop y sin chat activo.
-          z-45: por encima del panel del chat (z-41) y por debajo del navbar AY
-          (z-50). `top` = justo debajo del navbar (var publicada por MainLayout). */}
+          z-[61]: por encima del panel del chat (z-[60]) — el panel va DESPUÉS
+          en el DOM, así que con el mismo z-index lo tapaba (mismo apilamiento,
+          gana el que pinta último). También por encima del navbar (z-50). */}
       {esDesktop && !conversacionActivaId && (
         <button
           onClick={cerrarChatYA}
           aria-label="Cerrar ChatYA"
-          style={{ top: 'calc(var(--ay-navbar-h, 83px) + 12px)' }}
-          className="fixed z-45 right-4 w-9 h-9 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 text-gray-500 hover:text-red-500 cursor-pointer transition-colors"
+          style={{ top: '12px' }}
+          className="fixed z-[61] right-4 w-9 h-9 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 text-gray-500 hover:text-red-500 cursor-pointer transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -868,11 +869,10 @@ export function ChatOverlay() {
 
       <div
         ref={panelRef}
-        style={esDesktop ? { top: 'var(--ay-navbar-h, 83px)' } : undefined}
         className={`
           fixed bg-black lg:bg-blue-100 overflow-hidden flex
           ${esDesktop
-            ? `z-41 bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
+            ? `z-[60] top-0 bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
             : `z-50 top-0 left-0 w-full h-dvh flex-col`
           }
         `}

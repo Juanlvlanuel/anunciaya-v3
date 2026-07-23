@@ -109,7 +109,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
             <button
                 data-testid="btn-mis-cupones"
                 onClick={() => navegarASeccion('/mis-cupones')}
-                className={`w-full flex items-center gap-3 px-4 py-3 lg:py-2.5 2xl:py-3 cursor-pointer
+                className={`w-full flex items-center gap-3 px-4 lg:px-2 2xl:px-4 py-3 lg:py-2.5 2xl:py-3 cursor-pointer
                          border-l-4 border-l-transparent ${tema.listHoverBg} hover:border-l-blue-400`}
             >
                 <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full flex items-center justify-center shrink-0"
@@ -129,7 +129,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
 
             {/* Carousel — solo si hay cupones y no estamos en /mis-cupones */}
             {!esMisCupones && cuponesActivos.length > 0 && (
-                <div className="px-4 lg:px-3 2xl:px-4 pb-1 lg:pb-0.5 2xl:pb-1">
+                <div className="px-4 lg:px-2 2xl:px-4 pb-1 lg:pb-0.5 2xl:pb-1">
                     {/* Cards */}
                     <div
                         ref={scrollRef}

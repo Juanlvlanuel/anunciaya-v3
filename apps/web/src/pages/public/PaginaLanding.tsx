@@ -103,9 +103,9 @@ function BotonGoogleIcono({ onCode }: { onCode: (code: string) => void }) {
             <button
                 type="button"
                 onClick={() => login()}
-                className="p-2 lg:p-1 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
+                className="p-2 lg:p-1.5 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
             >
-                <IconoGoogle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                <IconoGoogle className="w-7 h-7 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8" />
             </button>
         </Tooltip>
     );
@@ -138,9 +138,9 @@ function ToggleIdioma() {
         <Tooltip text={esEspanol ? 'English' : 'Español'} position="bottom" autoHide={1500}>
             <button
                 onClick={() => i18n.changeLanguage(esEspanol ? 'en' : 'es')}
-                className="p-1.5 lg:p-1 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
+                className="p-1.5 lg:p-1.5 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
             >
-                <Globe className="w-7 h-7 lg:w-5 lg:h-5 2xl:w-7 2xl:h-7 text-slate-600" />
+                <Globe className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 text-slate-600" />
             </button>
         </Tooltip>
     );
@@ -161,7 +161,7 @@ function NavbarLanding({
             <img
                 src="/logo-anunciaya-blanco.webp"
                 alt="AnunciaYA"
-                className="h-14 lg:h-11 2xl:h-14 w-auto shrink-0"
+                className="h-14 lg:h-12 2xl:h-14 w-auto shrink-0"
             />
 
             {/* Acciones */}
@@ -172,18 +172,18 @@ function NavbarLanding({
                 {/* Entrar — solo desktop */}
                 <button
                     onClick={abrirModalLogin}
-                    className="hidden lg:flex items-center gap-1.5 lg:px-3 lg:py-1 2xl:px-4 2xl:py-1.5 bg-white border-2 border-slate-300 rounded-full lg:text-sm 2xl:text-base font-semibold text-slate-700 hover:bg-slate-200 lg:cursor-pointer"
+                    className="hidden lg:flex items-center gap-1.5 lg:px-4 lg:py-1.5 2xl:px-4 2xl:py-1.5 bg-white border-2 border-slate-300 rounded-full lg:text-base 2xl:text-base font-semibold text-slate-700 hover:bg-slate-200 lg:cursor-pointer"
                 >
-                    <Mail className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                    <Mail className="lg:w-5 lg:h-5 2xl:w-5 2xl:h-5" />
                     <span>{t('navbar.entrar')}</span>
                 </button>
 
                 {/* Únete — solo desktop */}
                 <button
                     onClick={() => navigate('/registro')}
-                    className="hidden lg:flex items-center gap-1.5 lg:px-3 lg:py-1 2xl:px-5 2xl:py-1.5 rounded-full lg:text-sm 2xl:text-base font-bold text-white bg-slate-800 border-2 border-slate-700 lg:cursor-pointer hover:bg-slate-600 hover:border-slate-500"
+                    className="hidden lg:flex items-center gap-1.5 lg:px-5 lg:py-1.5 2xl:px-5 2xl:py-1.5 rounded-full lg:text-base 2xl:text-base font-bold text-white bg-slate-800 border-2 border-slate-700 lg:cursor-pointer hover:bg-slate-600 hover:border-slate-500"
                 >
-                    <Users className="lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                    <Users className="lg:w-5 lg:h-5 2xl:w-5 2xl:h-5" />
                     {t('navbar.unete')}
                 </button>
 

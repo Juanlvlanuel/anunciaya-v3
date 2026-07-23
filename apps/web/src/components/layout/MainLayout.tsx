@@ -410,11 +410,11 @@ export function MainLayout() {
                       : 'pr-0'
                     : esPerfilNegocio
                       ? tieneScroll
-                        ? 'lg:pr-[270px] 2xl:pr-[350px]'
-                        : 'lg:pr-64 2xl:pr-[328px]'
+                        ? 'lg:pr-[238px] 2xl:pr-[350px]'
+                        : 'lg:pr-56 2xl:pr-[328px]'
                       : tieneScroll
-                        ? 'lg:pr-[270px] 2xl:pr-80'
-                        : 'lg:pr-64 2xl:pr-80'
+                        ? 'lg:pr-[238px] 2xl:pr-80'
+                        : 'lg:pr-56 2xl:pr-80'
                   }`}
                 style={{
                   top: columnsTop,
@@ -440,7 +440,7 @@ export function MainLayout() {
               {/* Columna Derecha - Posición dinámica según scroll */}
               {!esBusinessStudio && (
                 <aside
-                  className="fixed lg:w-64 2xl:w-80 bg-white shadow-lg overflow-y-auto z-30 transition-all"
+                  className="fixed lg:w-56 2xl:w-80 bg-white shadow-lg overflow-y-auto z-30 transition-all"
                   style={{
                     top: columnsTop,
                     right: tieneScroll ? '14px' : '0',

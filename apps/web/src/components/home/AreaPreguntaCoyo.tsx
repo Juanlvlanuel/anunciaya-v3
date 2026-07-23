@@ -60,13 +60,13 @@ export function CoyoInput({
 
     // Pill ancha estilo escena (personalidad handoff): generosa, redondeada,
     // con el botón de enviar INLINE a la derecha dentro de la misma cápsula.
-    const altura = compact ? 'h-16' : 'h-16';
-    const tamBoton = compact ? 'w-11 h-11' : 'w-10 h-10';
+    const altura = compact ? 'h-16 lg:h-11 2xl:h-16' : 'h-16 lg:h-11 2xl:h-16';
+    const tamBoton = compact ? 'w-11 h-11 lg:w-7 lg:h-7 2xl:w-11 2xl:h-11' : 'w-10 h-10 lg:w-7 lg:h-7 2xl:w-10 2xl:h-10';
 
     return (
         <form onSubmit={handleSubmit}>
             <div
-                className={`flex items-center gap-2 bg-white rounded-full border-2 border-slate-200 focus-within:border-slate-400 pl-6 pr-2 ${altura}`}
+                className={`flex items-center gap-2 bg-white rounded-full border-2 border-slate-200 focus-within:border-slate-400 pl-6 pr-2 lg:pl-4 lg:pr-1.5 2xl:pl-6 2xl:pr-2 ${altura}`}
                 style={{ boxShadow: '0 6px 18px rgba(40,70,120,0.10)' }}
             >
                 <input
@@ -82,7 +82,7 @@ export function CoyoInput({
                     autoCorrect="off"
                     spellCheck={false}
                     data-testid="home-pregunta-input"
-                    className={`flex-1 min-w-0 bg-transparent outline-none font-medium text-slate-800 placeholder:text-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed ${compact ? 'text-lg' : 'text-base 2xl:text-lg'}`}
+                    className={`flex-1 min-w-0 bg-transparent outline-none font-medium text-slate-800 placeholder:text-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed ${compact ? 'text-lg' : 'text-base lg:text-sm 2xl:text-lg'}`}
                 />
                 {texto && !enviando && (
                     <button
@@ -92,9 +92,9 @@ export function CoyoInput({
                             onTextoChange('');
                             ref.current?.focus();
                         }}
-                        className={`shrink-0 inline-flex items-center justify-center rounded-full bg-slate-400 hover:bg-slate-500 lg:cursor-pointer ${compact ? 'w-7 h-7' : 'w-6 h-6'}`}
+                        className={`shrink-0 inline-flex items-center justify-center rounded-full bg-slate-400 hover:bg-slate-500 lg:cursor-pointer ${compact ? 'w-7 h-7' : 'w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6'}`}
                     >
-                        <X className={`text-white ${compact ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} strokeWidth={2.5} />
+                        <X className={`text-white ${compact ? 'w-4 h-4' : 'w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5'}`} strokeWidth={2.5} />
                     </button>
                 )}
                 <button
@@ -191,7 +191,7 @@ export function SaludoTecleado({ nombre, night = false }: { nombre: string; nigh
 
     return (
         <h1
-            className={`text-2xl 2xl:text-3xl font-extrabold tracking-tight ${night ? 'text-white' : 'text-slate-900'}`}
+            className={`text-2xl lg:text-xl 2xl:text-3xl font-extrabold tracking-tight ${night ? 'text-white' : 'text-slate-900'}`}
             aria-label={completo}
         >
             <span aria-hidden>{prefijo.slice(0, finPre)}</span>
@@ -241,21 +241,21 @@ export function AreaPreguntaCoyo({
     puedeEnviar = false,
 }: AreaPreguntaCoyoProps) {
     return (
-        <div className="flex flex-col items-center text-center gap-6 lg:gap-7">
+        <div className="flex flex-col items-center text-center gap-6 lg:gap-5 2xl:gap-7">
             {/* Saludo arriba (encabezado) con efecto máquina de escribir */}
             <SaludoTecleado nombre={nombreUsuario} />
 
             {/* Coyo + su burbuja de diálogo (pico apuntando hacia Coyo) */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-3 lg:gap-2 2xl:gap-3">
                 <CoyoAnimado
                     estado={estadoCoyo}
                     align="center"
                     alt="Coyo, asistente de AnunciaYA"
-                    className="shrink-0 h-44 w-44 lg:h-48 lg:w-48 2xl:h-52 2xl:w-52 select-none overflow-visible transition-transform duration-300 ease-out lg:hover:-translate-y-2 lg:hover:rotate-6 lg:hover:scale-105"
+                    className="shrink-0 h-44 w-44 lg:h-36 lg:w-36 2xl:h-52 2xl:w-52 select-none overflow-visible transition-transform duration-300 ease-out lg:hover:-translate-y-2 lg:hover:rotate-6 lg:hover:scale-105"
                     style={ESTILO_COYO_HERO}
                 />
                 <div
-                    className="relative bg-white border-[3px] border-blue-200 rounded-2xl px-5 py-2.5"
+                    className="relative bg-white border-[3px] border-blue-200 rounded-2xl px-5 py-2.5 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5"
                     style={{ boxShadow: '0 10px 28px rgba(37,99,235,0.10), 0 2px 4px rgba(15,23,42,0.06)' }}
                 >
                     {/* Pico apuntando hacia arriba (a Coyo) */}
@@ -272,7 +272,7 @@ export function AreaPreguntaCoyo({
                     <TextoTecleado
                         texto="¿Qué andas buscando hoy?"
                         retrasoMs={`¡Hola, ${nombreUsuario}!`.length * 65 + 350}
-                        className="text-base 2xl:text-lg font-semibold text-slate-700 leading-snug"
+                        className="text-base lg:text-sm 2xl:text-lg font-semibold text-slate-700 leading-snug"
                     />
                 </div>
             </div>

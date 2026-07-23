@@ -228,10 +228,7 @@ const POPUP_STYLES = `
   }
   .negocios-tabs::-webkit-scrollbar { display: none; }
   .negocios-tabs { -ms-overflow-style: none; scrollbar-width: none; }
-  .negocios-cards-scroll::-webkit-scrollbar { width: 12px; }
-  .negocios-cards-scroll::-webkit-scrollbar-track { background: transparent; }
-  .negocios-cards-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; }
-  .negocios-cards-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+  /* Misma canaleta global (ver index.css) — no hace falta redefinirla aquí. */
 `;
 
 // =============================================================================

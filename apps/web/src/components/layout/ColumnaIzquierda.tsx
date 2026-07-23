@@ -528,7 +528,7 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
   return (
     <>
       {/* Widget CardYA */}
-      <div className={`p-4 lg:p-3 2xl:p-4  `}>
+      <div className={`p-4 lg:p-2 2xl:p-4  `}>
         <WidgetCardYA dark={tema.widgetDark} />
       </div>
 
@@ -541,7 +541,7 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
       {/* CTA PARA NEGOCIOS - Solo mostrar si NO tiene modo comercial */}
       {!tieneModoComercial && (
         <div className={`${tema.ctaBg}`}>
-          <div className="w-full px-4 py-5 lg:py-4 2xl:py-5 text-left">
+          <div className="w-full px-4 lg:px-2 2xl:px-4 py-5 lg:py-3 2xl:py-5 text-left">
             {/* Header del CTA */}
             <div className="flex items-center gap-3 mb-3">
               <div className="w-11 h-11 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-xl flex items-center justify-center shadow-lg"

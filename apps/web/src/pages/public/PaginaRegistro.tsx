@@ -647,10 +647,10 @@ export function PaginaRegistro() {
         <BrandingColumn tipoCuenta={tipoCuentaActiva} hayVendedor={!!codigoReferido} />
 
         {/* Columna derecha: Formulario con scroll */}
-        <div className="lg:flex lg:items-center lg:justify-center lg:p-4 2xl:p-8 lg:overflow-y-auto lg:h-screen"
+        <div className="lg:flex lg:justify-center lg:p-4 2xl:p-8 lg:overflow-y-auto lg:h-screen lg:min-h-0"
             style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
         >
-          <div className="w-full">
+          <div className="w-full lg:my-auto">
             <FormularioRegistro
               // Fuerza el remontaje al entrar/salir de "reanudar" para que el form re-inicialice su
               // estado con los valores prellenados (useState no reacciona a cambios de props — OBS-12).

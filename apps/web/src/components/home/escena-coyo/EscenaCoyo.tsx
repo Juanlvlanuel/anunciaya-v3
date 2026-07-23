@@ -38,6 +38,9 @@ interface EscenaCoyoProps {
     puedeEnviar?: boolean;
     /** true en móvil (medidas/altura más compactas). */
     compact?: boolean;
+    /** true en laptop (1024–1535px): variante intermedia, más chica que desktop
+     *  (que sigue usando las medidas originales). No aplica si `compact`. */
+    reducidoLg?: boolean;
     /** id del <input> (móvil usa 'coyo-input-movil' para enfoque/observer). */
     idInput?: string;
 }
@@ -53,6 +56,7 @@ export function EscenaCoyo({
     enviando = false,
     puedeEnviar = false,
     compact = false,
+    reducidoLg = false,
     idInput,
 }: EscenaCoyoProps) {
     const { variant } = useAmbient();
@@ -66,7 +70,7 @@ export function EscenaCoyo({
             className="relative flex flex-col overflow-hidden"
             style={{
                 height: '100%',
-                minHeight: compact ? 520 : 600,
+                minHeight: compact ? 520 : reducidoLg ? 480 : 600,
                 background: `linear-gradient(180deg, ${p.skyA} 0%, ${p.skyB} 46%, ${p.skyB} 100%)`,
                 fontFamily: FUENTE,
                 borderRadius: compact ? '0 0 20px 20px' : 18,
@@ -82,33 +86,33 @@ export function EscenaCoyo({
             {/* ---- TOP: saludo + burbuja + input (componentes vivos) ---- */}
             <div
                 className="relative flex flex-col items-center text-center"
-                style={{ padding: compact ? '16px 22px 4px' : '28px 26px 6px', zIndex: 3 }}
+                style={{ padding: compact ? '16px 22px 4px' : reducidoLg ? '8px 8px 8px' : '28px 26px 6px', zIndex: 3 }}
             >
                 <SaludoTecleado nombre={nombreUsuario} night={night} />
 
-                <div style={{ marginTop: compact ? 16 : 22 }}>
+                <div style={{ marginTop: compact ? 16 : reducidoLg ? 16 : 22 }}>
                     <div
                         style={{
                             display: 'inline-block', background: '#fff', border: `1px solid ${BRAND.border}`,
-                            borderRadius: 24, padding: '12px 24px', whiteSpace: 'nowrap',
+                            borderRadius: 24, padding: reducidoLg ? '9px 18px' : '12px 24px', whiteSpace: 'nowrap',
                             boxShadow: '0 6px 16px rgba(40,70,120,.10)',
                         }}
                     >
                         <TextoTecleado
                             texto="¿Qué andas buscando hoy?"
                             retrasoMs={`¡Hola, ${nombreUsuario}!`.length * 65 + 350}
-                            className="text-lg 2xl:text-xl font-extrabold leading-snug text-[#2C3E5C]"
+                            className="text-lg lg:text-sm 2xl:text-xl font-extrabold leading-snug text-[#2C3E5C]"
                         />
                     </div>
                 </div>
 
                 {conInput && (
-                    <div className="w-full" style={{ marginTop: 38 }}>
+                    <div className="w-full" style={{ marginTop: reducidoLg ? 26 : 38 }}>
                         <p
-                            className="flex items-center gap-2 pl-1 mb-2 text-base 2xl:text-lg font-extrabold"
+                            className="flex items-center gap-2 pl-1 mb-2 text-base lg:text-sm 2xl:text-lg font-extrabold"
                             style={{ color: night ? '#CFE0FF' : '#34507A' }}
                         >
-                            <Sparkles size={19} strokeWidth={2.5} className="text-amber-500" />
+                            <Sparkles size={reducidoLg ? 16 : 19} strokeWidth={2.5} className="text-amber-500" />
                             <span>Pregúntale a <span style={{ color: '#d97534' }}>Coyo</span></span>
                         </p>
                         <CoyoInput
@@ -126,41 +130,41 @@ export function EscenaCoyo({
             </div>
 
             {/* ---- MEDIO: cielo abierto con chispas ---- */}
-            <div className="relative" style={{ flex: '0 1 auto', minHeight: compact ? 20 : 34, zIndex: 2 }}>
+            <div className="relative" style={{ flex: '0 1 auto', minHeight: compact ? 20 : reducidoLg ? 24 : 34, zIndex: 2 }}>
                 <Sparkle x="28%" y="42%" s={12} c={night ? '#FFE9A8' : BRAND.orange} delay={0.5} />
                 <Sparkle x="72%" y="66%" s={11} c={night ? '#CFE8FF' : '#9DBDEC'} delay={1.1} />
                 <Dot x="60%" y="24%" s={6} c={night ? '#7EC8FF' : '#9DBDEC'} delay={0.3} />
             </div>
 
             {/* ---- ABAJO: la cueva (su casa) con Coyo Rive saliendo ---- */}
-            <div className="relative" style={{ minHeight: compact ? 200 : 272, flex: '1 0 auto', zIndex: 2 }}>
+            <div className="relative" style={{ minHeight: compact ? 200 : reducidoLg ? 195 : 272, flex: '1 0 auto', zIndex: 2 }}>
                 <ColumnHill id={`${uid}-b`} p={p} night={night} layer="back" />
 
                 {/* letrero por ENCIMA de Coyo y su sombra (zIndex 3 > Coyo 2):
                     Coyo está cargado a la derecha, así que no le tapa la cola. */}
                 <div style={{ position: 'absolute', left: '3%', bottom: '24%', zIndex: 3 }}>
-                    <Sign text="Casa de Coyo" />
+                    <Sign text="Casa de Coyo" s={reducidoLg ? 0.85 : 1} />
                 </div>
 
-                <CoyoEmerge estado={estadoCoyo} p={p} night={night} width={compact ? 210 : 258} />
+                <CoyoEmerge estado={estadoCoyo} p={p} night={night} width={compact ? 210 : reducidoLg ? 185 : 258} />
                 <ColumnHill id={`${uid}-f`} p={p} night={night} layer="front" />
 
                 {/* adornos por ambiente */}
                 <div className="absolute inset-0" style={{ zIndex: 5 }}>
                     {variant === 'grass' && (<>
-                        <div style={{ position: 'absolute', right: '5%', bottom: '11%', transform: 'scale(1.5)', transformOrigin: 'bottom right' }}><Bush /></div>
-                        <div style={{ position: 'absolute', right: '15%', bottom: '9%' }}><Mushroom /></div>
-                        <div style={{ position: 'absolute', left: '14%', top: 34 }}><Lantern s={1.1} /></div>
+                        <div style={{ position: 'absolute', right: '5%', bottom: '11%', transform: `scale(${reducidoLg ? 1.28 : 1.5})`, transformOrigin: 'bottom right' }}><Bush /></div>
+                        <div style={{ position: 'absolute', right: '15%', bottom: '9%' }}><Mushroom s={reducidoLg ? 0.85 : 1} /></div>
+                        <div style={{ position: 'absolute', left: '14%', top: 34 }}><Lantern s={reducidoLg ? 0.95 : 1.1} /></div>
                     </>)}
                     {variant === 'sand' && (<>
-                        <div style={{ position: 'absolute', right: '6%', bottom: '10%', transform: 'scale(1.2)', transformOrigin: 'bottom right' }}><Cactus /></div>
-                        <div style={{ position: 'absolute', left: '14%', top: 30 }}><Lantern s={1.15} /></div>
+                        <div style={{ position: 'absolute', right: '6%', bottom: '10%', transform: `scale(${reducidoLg ? 1.02 : 1.2})`, transformOrigin: 'bottom right' }}><Cactus /></div>
+                        <div style={{ position: 'absolute', left: '14%', top: 30 }}><Lantern s={reducidoLg ? 0.98 : 1.15} /></div>
                     </>)}
                     {variant === 'night' && (<>
-                        <div style={{ position: 'absolute', left: '12%', top: 30 }}><Lantern s={1.15} /></div>
-                        <div style={{ position: 'absolute', right: '12%', top: 36 }}><Lantern s={1} /></div>
-                        <div style={{ position: 'absolute', right: '6%', bottom: '11%', transform: 'scale(1.3)', transformOrigin: 'bottom right' }}><Mushroom glow /></div>
-                        <div style={{ position: 'absolute', right: '16%', bottom: '9%', transform: 'scale(0.9)', transformOrigin: 'bottom right' }}><Mushroom glow /></div>
+                        <div style={{ position: 'absolute', left: '12%', top: 30 }}><Lantern s={reducidoLg ? 0.98 : 1.15} /></div>
+                        <div style={{ position: 'absolute', right: '12%', top: 36 }}><Lantern s={reducidoLg ? 0.85 : 1} /></div>
+                        <div style={{ position: 'absolute', right: '6%', bottom: '11%', transform: `scale(${reducidoLg ? 1.1 : 1.3})`, transformOrigin: 'bottom right' }}><Mushroom glow /></div>
+                        <div style={{ position: 'absolute', right: '16%', bottom: '9%', transform: `scale(${reducidoLg ? 0.76 : 0.9})`, transformOrigin: 'bottom right' }}><Mushroom glow /></div>
                     </>)}
                 </div>
             </div>
