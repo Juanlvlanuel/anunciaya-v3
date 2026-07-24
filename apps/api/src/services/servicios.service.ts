@@ -181,6 +181,11 @@ export interface PublicacionConOferenteRow extends PublicacionRow {
         /** Total de sucursales activas del negocio (0 si no hay negocio asociado). */
         totalSucursales: number;
     };
+    /** Sprint 9.4: distancia en metros desde la ubicación del visitante
+     *  (query params `lat`/`lng`). `null` cuando no se mandaron coords —
+     *  igual que en el feed, calculada con `ST_Distance` sobre
+     *  `ubicacion_aproximada`. */
+    distanciaMetros: number | null;
 }
 
 export interface PublicacionFeedRow extends PublicacionRow {
@@ -679,7 +684,11 @@ export async function crearPublicacion(
  * Visible para todos: activa | pausada. NO visible: eliminada.
  * El controller decide si bloquea el contacto cuando está pausada.
  */
-export async function obtenerPublicacionPorId(publicacionId: string, usuarioActualId?: string) {
+export async function obtenerPublicacionPorId(
+    publicacionId: string,
+    usuarioActualId?: string,
+    coords?: { lat: number; lng: number },
+) {
     try {
         // Para vacantes-empresa, también traemos info del negocio + sucursal
         // (LEFT JOIN — quedará null para servicios publicados por personas).
@@ -702,6 +711,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
+            dist_m: number | null;
             // Sprint 9.3: ubicación exacta (sin offset) — la query SIEMPRE
             // la extrae, pero el mapper solo la incluye en el response
             // cuando es vacante-empresa (los servicios personales mantienen
@@ -712,6 +722,15 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
         }>(sql`
             SELECT
                 ${COLUMNAS_PUBLICACION},
+                -- Distancia al visitante (query params lat/lng) — mismo
+                -- cálculo que el feed. NULL cuando no se mandaron coords
+                -- (visitante sin GPS activo).
+                ${coords
+                    ? sql`ST_Distance(
+                        sp.ubicacion_aproximada::geography,
+                        ST_SetSRID(ST_MakePoint(${coords.lng}, ${coords.lat}), 4326)::geography
+                      )`
+                    : sql`NULL`} AS dist_m,
                 u.id              AS oferente_id,
                 u.nombre          AS oferente_nombre,
                 u.apellidos       AS oferente_apellidos,
@@ -805,6 +824,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
+            dist_m: number | null;
             ubicacion_exacta_lat: number | null;
             ubicacion_exacta_lng: number | null;
             guardado: boolean;
@@ -828,6 +848,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
         const data: PublicacionConOferenteRow = {
             ...base,
             guardado: row.guardado,
+            distanciaMetros: row.dist_m !== null ? Math.round(row.dist_m) : null,
             ...(ubicacionExacta ? { ubicacionExacta } : {}),
             oferente: {
                 id: row.oferente_id,

@@ -34,6 +34,7 @@ import { useUiStore } from '../stores/useUiStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { notificar } from '../utils/notificaciones';
 import {
+    formatearPresupuesto,
     formatearPrecioServicio,
     modalidadLabel,
     obtenerFotoPortada,
@@ -99,12 +100,20 @@ export function useIniciarChatServicio() {
         // `esVacante` se pasa al formatter para que en vacantes el
         // precio sin definir aparezca como "Sueldo a tratar" (no
         // "A tratar" genérico) — coherente con cómo se ve en el card
-        // del feed y el detalle.
+        // del feed y el detalle. En Solicito, `precio` siempre es
+        // {kind:'a-convenir'} — el rango real vive en `presupuesto`, hay
+        // que priorizarlo o el chat siempre mostraba "A tratar" aunque
+        // el usuario sí haya puesto un rango.
+        const esSolicito = tipo === 'solicito';
+        const precioTexto =
+            esSolicito && publicacion.presupuesto
+                ? formatearPresupuesto(publicacion.presupuesto)
+                : formatearPrecioServicio(precio, { esVacante: esVacanteEmpresa });
         const cardData = {
             subtipo: 'servicio_publicacion' as const,
             titulo,
             imagen: fotoUrl,
-            precio: formatearPrecioServicio(precio, { esVacante: esVacanteEmpresa }),
+            precio: precioTexto,
             modalidad: modalidadLabel(modalidad),
         };
 

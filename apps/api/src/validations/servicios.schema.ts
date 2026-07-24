@@ -469,6 +469,7 @@ export const actualizarPublicacionSchema = z
         (data) =>
             data.fotoPortadaIndex === undefined ||
             data.fotos === undefined ||
+            data.fotos.length === 0 ||
             data.fotoPortadaIndex < data.fotos.length,
         {
             message: 'fotoPortadaIndex debe ser menor que la cantidad de fotos',

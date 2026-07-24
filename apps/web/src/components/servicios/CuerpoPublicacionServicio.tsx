@@ -50,6 +50,7 @@ export function CuerpoPublicacionServicio({ publicacion }: CuerpoPublicacionServ
           ? formatearPresupuesto(publicacion.presupuesto)
           : 'A tratar';
     const tonoPrecio = esVacante ? 'text-sky-700' : esOfrece ? 'text-emerald-700' : 'text-amber-700';
+    const etiquetaPrecio = esVacante ? 'Sueldo' : esOfrece ? 'Precio' : 'Presupuesto';
 
     const badgeTipo = esVacante
         ? { label: 'VACANTE', Icono: Briefcase, clase: 'bg-sky-600 text-white' }
@@ -63,16 +64,21 @@ export function CuerpoPublicacionServicio({ publicacion }: CuerpoPublicacionServ
 
     return (
         <>
-            <h3 className="text-lg font-bold text-slate-900 leading-snug">
-                {publicacion.titulo}
-            </h3>
-
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <h3 className="min-w-0 text-lg font-bold text-slate-900 leading-snug">
+                    {publicacion.titulo}
+                </h3>
                 <span
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-bold tracking-wide ${badgeTipo.clase}`}
+                    className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-bold tracking-wide ${badgeTipo.clase}`}
                 >
                     <badgeTipo.Icono className="h-3.5 w-3.5" strokeWidth={2.5} />
                     {badgeTipo.label}
+                </span>
+            </div>
+
+            <div className="flex items-baseline gap-1.5">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
+                    {etiquetaPrecio}
                 </span>
                 <span className={`text-2xl font-extrabold tabular-nums ${tonoPrecio}`}>
                     {precioMostrar}

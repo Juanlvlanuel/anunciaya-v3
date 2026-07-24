@@ -56,18 +56,37 @@ export function GaleriaArticulo({
     const carruselMovilRef = useRef<HTMLDivElement>(null);
     const thumbnailsRef = useRef<HTMLDivElement>(null);
 
+    // Marca cuando el scroll del carrusel principal lo disparamos nosotros
+    // (click en thumbnail) — el listener de abajo lo usa para NO
+    // sincronizar `indiceActual` con cada frame intermedio de la animación
+    // `smooth`, que si no, dispara el efecto de centrado de thumbnails una
+    // vez por cada índice de paso en vez de una sola vez al destino final,
+    // y la tira "vibra" en lugar de deslizarse fluida.
+    const scrollProgramaticoRef = useRef(false);
+    const limpiarProgramaticoRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
     // ─── Móvil: actualizar indicador "X/N" al hacer swipe ──────────────────────
     useEffect(() => {
         const el = carruselMovilRef.current;
         if (!el) return;
         const handler = () => {
+            if (scrollProgramaticoRef.current) {
+                clearTimeout(limpiarProgramaticoRef.current);
+                limpiarProgramaticoRef.current = setTimeout(() => {
+                    scrollProgramaticoRef.current = false;
+                }, 150);
+                return;
+            }
             const ancho = el.clientWidth;
             if (ancho === 0) return;
             const idx = Math.round(el.scrollLeft / ancho);
             setIndiceActual(idx);
         };
         el.addEventListener('scroll', handler, { passive: true });
-        return () => el.removeEventListener('scroll', handler);
+        return () => {
+            el.removeEventListener('scroll', handler);
+            clearTimeout(limpiarProgramaticoRef.current);
+        };
     }, [total]);
 
     const abrirLightbox = (idx: number) => {
@@ -94,6 +113,7 @@ export function GaleriaArticulo({
             const carrusel = carruselMovilRef.current;
             if (carrusel) {
                 const ancho = carrusel.clientWidth;
+                scrollProgramaticoRef.current = true;
                 carrusel.scrollTo({ left: ancho * idx, behavior: 'smooth' });
             }
         },

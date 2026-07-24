@@ -12,10 +12,12 @@
  * Ubicación: apps/web/src/components/marketplace/CardVendedor.tsx
  */
 
+import { useState } from 'react';
 import { ChevronRight, BadgeCheck, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { VendedorArticulo } from '../../types/marketplace';
 import { formatearUltimaConexion } from '../../utils/marketplace';
+import { ModalImagenes } from '../ui/ModalImagenes';
 
 interface CardVendedorProps {
     vendedor: VendedorArticulo;
@@ -37,6 +39,8 @@ export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
         vendedor.tiempoRespuestaMinutos !== undefined &&
         vendedor.tiempoRespuestaMinutos < 60;
 
+    const [avatarAbierto, setAvatarAbierto] = useState(false);
+
     return (
         // Card NO clickeable. Solo el link "Ver perfil →" navega al perfil.
         // Sprint 9.3: reordenado al mismo patrón que `SidebarSobreNegocio`
@@ -51,7 +55,10 @@ export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
             {/* Línea 1: avatar + nombre + verification */}
             <div className="flex items-center gap-2">
                 {/* Avatar con ring sutil */}
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                <div
+                    className={`h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200 ${vendedor.avatarUrl ? 'cursor-pointer' : ''}`}
+                    onClick={vendedor.avatarUrl ? () => setAvatarAbierto(true) : undefined}
+                >
                     {vendedor.avatarUrl ? (
                         <img
                             src={vendedor.avatarUrl}
@@ -128,6 +135,15 @@ export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
                     <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
             </div>
+
+            {avatarAbierto && vendedor.avatarUrl && (
+                <ModalImagenes
+                    images={[vendedor.avatarUrl]}
+                    initialIndex={0}
+                    isOpen={avatarAbierto}
+                    onClose={() => setAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }

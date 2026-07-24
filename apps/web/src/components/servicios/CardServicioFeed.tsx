@@ -109,6 +109,7 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
           ? formatearPresupuesto(publicacion.presupuesto)
           : 'A tratar';
     const tonoPrecio = esVacante ? 'text-sky-700' : esOfrece ? 'text-emerald-700' : 'text-amber-700';
+    const etiquetaPrecio = esVacante ? 'Sueldo' : esOfrece ? 'Precio' : 'Presupuesto';
 
     const metaSecundaria = esVacante && publicacion.tipoEmpleo
         ? ETIQUETA_TIPO_EMPLEO[publicacion.tipoEmpleo]
@@ -313,23 +314,28 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
 
             {/* ─── CUERPO: título + precio + chips + descripción ─────────── */}
             <div className="px-4 pb-3">
-                <h3>
-                    <button
-                        type="button"
-                        data-testid={`card-servicio-feed-titulo-${publicacion.id}`}
-                        onClick={irAlDetalle}
-                        className="line-clamp-2 block w-full text-left text-lg font-bold text-slate-900 leading-snug lg:cursor-pointer lg:hover:underline"
-                    >
-                        {publicacion.titulo}
-                    </button>
-                </h3>
-
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <h3 className="min-w-0">
+                        <button
+                            type="button"
+                            data-testid={`card-servicio-feed-titulo-${publicacion.id}`}
+                            onClick={irAlDetalle}
+                            className="line-clamp-2 text-left text-lg font-bold text-slate-900 leading-snug lg:cursor-pointer lg:hover:underline"
+                        >
+                            {publicacion.titulo}
+                        </button>
+                    </h3>
                     <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-bold tracking-wide ${badgeTipo.clase}`}
+                        className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-sm font-bold tracking-wide ${badgeTipo.clase}`}
                     >
                         <badgeTipo.Icono className="h-3.5 w-3.5" strokeWidth={2.5} />
                         {badgeTipo.label}
+                    </span>
+                </div>
+
+                <div className="mt-1.5 flex items-baseline gap-1.5">
+                    <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
+                        {etiquetaPrecio}
                     </span>
                     <span className={`text-2xl font-extrabold tabular-nums ${tonoPrecio}`}>
                         {precioMostrar}

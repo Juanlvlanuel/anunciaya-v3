@@ -28,8 +28,10 @@
  * Ubicación: apps/web/src/components/marketplace/MapaUbicacion.tsx
  */
 
-import { Mapa, Marker, Source, Layer, NavigationControl } from '../mapa/Mapa';
-import { circuloGeoJSON } from '../mapa/geo';
+import { useCallback, useRef } from 'react';
+import { Minus, Plus, LocateFixed } from 'lucide-react';
+import { Mapa, Marker, Source, Layer, type MapRef } from '../mapa/Mapa';
+import { circuloGeoJSON, circuloBounds } from '../mapa/geo';
 
 interface MapaUbicacionProps {
     /** Latitud (aproximada si `exacto=false`, exacta si `exacto=true`) */
@@ -48,6 +50,16 @@ interface MapaUbicacionProps {
      * (negocios → vacantes).
      */
     exacto?: boolean;
+    /**
+     * Sprint 9.4: habilita zoom con scroll del mouse + drag y muestra los
+     * controles dark (zoom in/out/centrado) también en modo APROXIMADO
+     * (por defecto ese modo es un mapa estático, sin interacción — MP y
+     * el resto de callers que no pasen esta prop no se ven afectados).
+     * En modo `exacto` los controles ya se mostraban; esta prop solo le
+     * agrega el botón de centrado y unifica el estilo dark con el modo
+     * aproximado.
+     */
+    controlesActivos?: boolean;
     /**
      * Texto opcional que reemplaza el mensaje de privacidad por defecto
      * (modo aproximado solamente). MP usa el default — "Mostraremos un
@@ -103,15 +115,85 @@ function PinExacto() {
 const MENSAJE_PRIVACIDAD_DEFAULT =
     'Mostraremos un círculo de 500m, no la dirección exacta. Acuerda el punto de encuentro por chat.';
 
+/**
+ * Cluster de controles dark (zoom in / zoom out / centrado) — reemplaza al
+ * `NavigationControl` default de maplibre (blanco) para que los 3 botones
+ * compartan un mismo estilo, tanto en modo exacto como aproximado.
+ * "Centrado" recibe el callback desde el caller porque el destino difiere:
+ * en exacto es un `flyTo` al pin; en aproximado es un `fitBounds` que
+ * garantiza el círculo completo visible (un zoom fijo no se ajusta al
+ * tamaño real del contenedor, que cambia entre móvil/laptop/PC).
+ */
+function ControlesMapaDark({
+    mapRef,
+    onRecentrar,
+}: {
+    mapRef: React.RefObject<MapRef | null>;
+    onRecentrar: () => void;
+}) {
+    return (
+        <div className="absolute top-3 right-3 z-10 flex flex-col divide-y divide-white/20 overflow-hidden rounded-lg bg-black/60 text-white shadow-lg backdrop-blur-sm">
+            <button
+                type="button"
+                aria-label="Acercar"
+                onClick={() => mapRef.current?.zoomIn()}
+                className="flex h-8 w-8 items-center justify-center lg:cursor-pointer lg:hover:bg-white/15"
+            >
+                <Plus className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <button
+                type="button"
+                aria-label="Alejar"
+                onClick={() => mapRef.current?.zoomOut()}
+                className="flex h-8 w-8 items-center justify-center lg:cursor-pointer lg:hover:bg-white/15"
+            >
+                <Minus className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <button
+                type="button"
+                aria-label="Centrar mapa"
+                onClick={onRecentrar}
+                className="flex h-8 w-8 items-center justify-center lg:cursor-pointer lg:hover:bg-white/15"
+            >
+                <LocateFixed className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+        </div>
+    );
+}
+
 export function MapaUbicacion({
     lat,
     lng,
     zonaAproximada,
     exacto = false,
+    controlesActivos = false,
     mensajePrivacidad,
 }: MapaUbicacionProps) {
     const zoom = exacto ? ZOOM_INICIAL_EXACTO : ZOOM_INICIAL_APROXIMADO;
     const textoPrivacidad = mensajePrivacidad ?? MENSAJE_PRIVACIDAD_DEFAULT;
+    const mapRef = useRef<MapRef>(null);
+    const interactivo = exacto || controlesActivos;
+
+    // En modo aproximado, `fitBounds` al círculo completo — un `zoom` fijo
+    // no garantiza que quepa entero porque el contenedor cambia de alto
+    // entre móvil/laptop/PC (antes se veía cortado por un borde). Se
+    // recalcula al cargar Y cada vez que se presiona "Centrado".
+    const ajustarAlCirculo = useCallback((instant = false) => {
+        const map = mapRef.current;
+        if (!map) return;
+        map.fitBounds(circuloBounds(lng, lat, RADIO_PRIVACIDAD_METROS), {
+            padding: 24,
+            duration: instant ? 0 : 800,
+        });
+    }, [lng, lat]);
+
+    const recentrar = useCallback(() => {
+        if (exacto) {
+            mapRef.current?.flyTo({ center: [lng, lat], zoom });
+        } else {
+            ajustarAlCirculo();
+        }
+    }, [exacto, lng, lat, zoom, ajustarAlCirculo]);
 
     return (
         <div data-testid="mapa-ubicacion-marketplace" className="space-y-2">
@@ -120,13 +202,19 @@ export function MapaUbicacion({
                 globales como el BottomNav o la BarraContacto fija. */}
             <div className="relative z-0 max-w-full overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-200 isolate h-48 w-full lg:h-56 2xl:h-64">
                 <Mapa
+                    ref={mapRef}
                     initialViewState={{ longitude: lng, latitude: lat, zoom }}
-                    interactive={exacto}
+                    interactive={interactivo}
                     attributionControl={false}
                     dragRotate={false}
+                    onLoad={() => {
+                        if (!exacto) ajustarAlCirculo(true);
+                    }}
                     style={{ width: '100%', height: '100%' }}
                 >
-                    {exacto && <NavigationControl showCompass={false} position="top-right" />}
+                    {interactivo && (
+                        <ControlesMapaDark mapRef={mapRef} onRecentrar={recentrar} />
+                    )}
                     {exacto ? (
                         <Marker longitude={lng} latitude={lat} anchor="bottom">
                             <PinExacto />
@@ -153,8 +241,10 @@ export function MapaUbicacion({
             </div>
 
             {zonaAproximada && (
-                <div className="text-sm font-medium text-slate-700">
-                    {zonaAproximada}
+                <div className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                        {zonaAproximada}
+                    </span>
                 </div>
             )}
 

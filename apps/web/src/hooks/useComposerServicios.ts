@@ -45,8 +45,11 @@ function claveDraft(ns: string) {
 }
 
 // Mismos límites que el backend (`validations/servicios.schema.ts`).
-const TITULO_MIN = 10;
-const TITULO_MAX = 80;
+// Exportados para que el composer muestre un contador/hint en vivo — sin
+// esto el usuario solo se enteraba del mínimo al chocar con el toast de
+// error al intentar guardar.
+export const TITULO_MIN = 10;
+export const TITULO_MAX = 80;
 const DESC_MAX = 500;
 const ZONAS_MAX = 10;
 
@@ -280,6 +283,8 @@ export function validarComposer(
     const max = parseEntero(d.budgetMax);
     if (min !== null && max !== null && min > max) {
         errores.presupuesto = 'El mínimo debe ser menor o igual al máximo.';
+    } else if ((min !== null) !== (max !== null)) {
+        errores.presupuesto = 'Ingresa mínimo y máximo, o deja ambos vacíos.';
     }
 
     if (d.zonasAproximadas.length > ZONAS_MAX) {

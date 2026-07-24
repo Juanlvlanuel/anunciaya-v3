@@ -57,6 +57,8 @@ import { ModalImagenes } from '../../ui/ModalImagenes';
 import {
     useComposerServicios,
     parseEntero,
+    TITULO_MIN,
+    TITULO_MAX,
     type ComposerServiciosDraft,
     type ErroresComposer,
 } from '../../../hooks/useComposerServicios';
@@ -207,6 +209,17 @@ export function ComposerServicios({
     function alternar(s: SeccionAbierta) {
         setSeccionAbierta((prev) => (prev === s ? null : s));
     }
+
+    // Al abrir un panel, el card queda al fondo del contenido scrollable
+    // (después del título/descripción/fotos) — sin esto, con varias fotos
+    // ya publicadas el usuario tiene que scrollear a mano para verlo.
+    const scrollContenidoRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!seccionAbierta) return;
+        const el = scrollContenidoRef.current;
+        if (!el) return;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }, [seccionAbierta]);
 
     // ─── Ver foto completa (ModalImagenes) ──
     const [indiceImagenAbierta, setIndiceImagenAbierta] = useState<number | null>(null);
@@ -470,7 +483,7 @@ export function ComposerServicios({
                     {/* Zona scrollable: título, descripción, fotos, panel abierto.
                         `scroll-discreto` = misma canaleta+barra de scroll que
                         el carrusel "Recién publicado" del feed en PC. */}
-                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-3 scroll-discreto">
+                    <div ref={scrollContenidoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-3 scroll-discreto">
                         <input
                             type="text"
                             data-testid="composer-titulo"
@@ -483,6 +496,16 @@ export function ComposerServicios({
                             }
                             className="w-full border-0 bg-transparent py-2 text-xl text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-bold outline-none"
                         />
+                        {/* Hint del mínimo de caracteres — antes solo se
+                            enteraba al chocar con el toast de error al
+                            guardar. */}
+                        <p
+                            className={`text-xs font-semibold ${
+                                errores.titulo ? 'text-red-600' : 'text-slate-400'
+                            }`}
+                        >
+                            {draft.titulo.trim().length}/{TITULO_MAX} · mínimo {TITULO_MIN} caracteres
+                        </p>
 
                         <textarea
                             data-testid="composer-descripcion"
@@ -560,6 +583,7 @@ export function ComposerServicios({
                                 <PanelCategoria
                                     valor={draft.categoria}
                                     onCambio={(c) => actualizar({ categoria: c })}
+                                    onQuitar={() => actualizar({ categoria: null })}
                                 />
                             </div>
                         )}
@@ -605,12 +629,12 @@ export function ComposerServicios({
                         Tarifa/Presupuesto + Zonas + (Urgente solo en solicito).
                         Carrusel deslizable en móvil, wrap en desktop. ── */}
                     <div className="shrink-0 px-4 py-3 border-t-2 border-slate-200">
-                        <div className="flex items-center gap-2 overflow-x-auto lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        <div className="flex items-center gap-2 lg:gap-1.5 overflow-x-auto lg:flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                             <button
                                 type="button"
                                 data-testid="composer-chip-galeria"
                                 onClick={fotosUploader.abrirGaleria}
-                                className="flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
+                                className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
                             >
                                 {draft.fotos.length === 0 ? (
                                     <Camera className="h-4 w-4" strokeWidth={2} />
@@ -803,7 +827,7 @@ function ChipDetalle({ id, Icono, label, activo, abierto, onClick }: ChipDetalle
             onClick={onClick}
             aria-pressed={abierto}
             className={
-                'relative flex shrink-0 items-center gap-2 rounded-full border-2 px-3.5 py-2 text-sm font-semibold lg:cursor-pointer ' +
+                'relative flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold lg:cursor-pointer ' +
                 (abierto
                     ? 'bg-sky-100 border-sky-500 text-sky-800'
                     : 'bg-white border-slate-300 text-slate-700 lg:hover:bg-slate-100')
@@ -849,9 +873,14 @@ function PanelWrapper({
 function PanelCategoria({
     valor,
     onCambio,
+    onQuitar,
 }: {
     valor: CategoriaClasificado | null;
     onCambio: (c: CategoriaClasificado) => void;
+    /** Categoría es 100% opcional (a diferencia de Modalidad, que siempre
+     *  cae en 'presencial' por default) — un segundo click en la pastilla
+     *  activa la regresa a `null` en vez de quedar pegada para siempre. */
+    onQuitar: () => void;
 }) {
     return (
         <PanelWrapper titulo="Categoría">
@@ -863,7 +892,7 @@ function PanelCategoria({
                             key={c.id}
                             type="button"
                             data-testid={`composer-cat-${c.id}`}
-                            onClick={() => onCambio(c.id)}
+                            onClick={() => (activa ? onQuitar() : onCambio(c.id))}
                             className={
                                 'inline-flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-semibold lg:cursor-pointer ' +
                                 (activa
@@ -1101,7 +1130,7 @@ function CheckboxLegal({
                 <ul className="mt-2 ml-7 space-y-1 text-[13px] text-slate-600 font-medium leading-snug list-disc list-inside">
                     <li>Es legal: no infringe leyes, ni es discriminatorio, sexual o de armas.</li>
                     <li>Es información verdadera: precio, fotos y datos reflejan lo real.</li>
-                    <li>AnunciaYA solo conecta. El pago y la entrega se acuerdan entre las personas.</li>
+                    <li>AnunciaYA solo conecta. El pago y la coordinación del servicio se acuerdan entre las personas.</li>
                 </ul>
             )}
         </div>

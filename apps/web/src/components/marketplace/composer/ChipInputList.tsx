@@ -78,7 +78,7 @@ export function ChipInputList({
                         }
                     }}
                     placeholder={placeholder}
-                    className="flex-1 rounded-xl border-[1.5px] border-slate-300 bg-white px-4 py-2.5 text-[15px] text-slate-900 placeholder:text-slate-500 font-medium outline-none focus:border-teal-500"
+                    className="min-w-0 flex-1 rounded-xl border-[1.5px] border-slate-300 bg-white px-4 py-2.5 text-[15px] text-slate-900 placeholder:text-slate-500 font-medium outline-none focus:border-teal-500"
                 />
                 <button
                     type="button"

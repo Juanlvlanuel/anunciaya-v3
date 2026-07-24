@@ -34,8 +34,11 @@ function claveDraft(ns: string) {
 }
 
 // Mismos límites que el backend (`validations/marketplace.schema.ts`).
-const TITULO_MIN = 10;
-const TITULO_MAX = 80;
+// Exportados para que el composer muestre un contador/hint en vivo — sin
+// esto el usuario solo se enteraba del mínimo al chocar con el toast de
+// error al intentar guardar.
+export const TITULO_MIN = 10;
+export const TITULO_MAX = 80;
 const DESC_MAX = 1000;
 const PRECIO_MAX = 999999;
 const ZONA_MAX = 150;

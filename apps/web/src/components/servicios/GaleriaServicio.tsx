@@ -31,9 +31,13 @@ import { ModalImagenes } from '../ui/ModalImagenes';
 
 interface GaleriaServicioProps {
     publicacion: PublicacionDetalle;
+    /** Solo aplica a `vacante-empresa`: en vez del alto fijo (256/288px)
+     *  estira la portada a `h-full` para igualar el alto del sidebar
+     *  derecho con el que se parea en el detalle. */
+    alturaCompleta?: boolean;
 }
 
-export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
+export function GaleriaServicio({ publicacion, alturaCompleta = false }: GaleriaServicioProps) {
     const fotos = publicacion.fotos ?? [];
     const portadaIdx = Math.max(
         0,
@@ -44,6 +48,15 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
     const carruselRef = useRef<HTMLDivElement>(null);
     const thumbnailsRef = useRef<HTMLDivElement>(null);
 
+    // Marca cuando el scroll del carrusel principal lo disparamos nosotros
+    // (flechas o click en thumbnail) — el listener de abajo lo usa para NO
+    // sincronizar `indiceActivo` con cada frame intermedio de la animación
+    // `smooth`, que si no, dispara el efecto de centrado de thumbnails una
+    // vez por cada índice de paso (2→3→4→5→6...) en vez de una sola vez al
+    // destino final, y la tira "vibra" en lugar de deslizarse fluida.
+    const scrollProgramaticoRef = useRef(false);
+    const limpiarProgramaticoRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
     // ─── Sync swipe móvil ↔ índice activo ────────────────────────────────
     // Escucha el scroll del carrusel y calcula el índice por `scrollLeft /
     // anchoSlide`. El listener es pasivo (no bloquea el render del browser).
@@ -51,17 +64,29 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
         const el = carruselRef.current;
         if (!el || fotos.length <= 1) return;
         const handler = () => {
+            if (scrollProgramaticoRef.current) {
+                // Sigue en curso el scroll `smooth` que nosotros iniciamos
+                // — reprograma el "fin" cada vez que llega un evento nuevo.
+                clearTimeout(limpiarProgramaticoRef.current);
+                limpiarProgramaticoRef.current = setTimeout(() => {
+                    scrollProgramaticoRef.current = false;
+                }, 150);
+                return;
+            }
             const ancho = el.clientWidth;
             if (ancho === 0) return;
             const nuevo = Math.round(el.scrollLeft / ancho);
             if (nuevo !== indiceActivo) setIndiceActivo(nuevo);
         };
         el.addEventListener('scroll', handler, { passive: true });
-        return () => el.removeEventListener('scroll', handler);
+        return () => {
+            el.removeEventListener('scroll', handler);
+            clearTimeout(limpiarProgramaticoRef.current);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fotos.length]);
 
-    // ─── Flechas desktop: scroll programático ──────────────────────────────
+    // ─── Flechas desktop + thumbnails: scroll programático ─────────────────
     const irA = useCallback(
         (idx: number) => {
             const el = carruselRef.current;
@@ -70,6 +95,7 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
                 return;
             }
             const ancho = el.clientWidth;
+            scrollProgramaticoRef.current = true;
             el.scrollTo({ left: ancho * idx, behavior: 'smooth' });
             setIndiceActivo(idx);
         },
@@ -115,7 +141,7 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
             : null;
         const iniciales = obtenerInicialesEmpresa(nombreNegocio, '');
         return (
-            <div className="aspect-[16/9] lg:aspect-auto lg:h-64 2xl:h-72 relative overflow-hidden">
+            <div className={`aspect-[16/9] lg:aspect-auto relative overflow-hidden ${alturaCompleta ? 'lg:h-full' : 'lg:h-64 2xl:h-72'}`}>
                 {/* Fondo: portada del local con fallback al gradient sky. */}
                 {portada ? (
                     <img

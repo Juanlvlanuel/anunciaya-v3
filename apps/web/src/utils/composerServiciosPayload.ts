@@ -141,7 +141,11 @@ export function construirPayloadEditar(
 
     return {
         titulo: d.titulo.trim(),
-        descripcion: descripcionTrim || undefined,
+        // A diferencia de crear, en edición SIEMPRE se manda (aunque sea
+        // ''), porque este payload va completo — omitirla cuando el
+        // usuario la borra hace que el backend interprete "no la toques"
+        // y la descripción vieja sobreviva.
+        descripcion: descripcionTrim,
         fotos: d.fotos,
         fotoPortadaIndex: d.fotoPortadaIndex,
         precio,
@@ -151,5 +155,10 @@ export function construirPayloadEditar(
         ciudad: d.ciudad!,
         zonasAproximadas: d.zonasAproximadas,
         presupuesto,
+        // Clasificados — solo aplican a modo='solicito' (mismo criterio
+        // que crear). Sin esto, "Categoría" y "Urgente" nunca llegaban al
+        // backend en edición y el cambio se perdía en silencio.
+        categoria: esSolicito ? (d.categoria ?? null) : undefined,
+        urgente: esSolicito ? d.urgente : undefined,
     };
 }

@@ -23,6 +23,7 @@ import { ModalUbicacionChat } from './ModalUbicacionChat';
 import { SelectorEmojis } from './SelectorEmojis';
 import { TextoConEmojis } from './TextoConEmojis';
 import { useChatYAStore } from '../../stores/useChatYAStore';
+import { useUiStore } from '../../stores/useUiStore';
 import { PreviewContextoInput } from './PreviewContextoInput';
 import { emitirEvento } from '../../services/socketService';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -316,6 +317,65 @@ export function InputMensaje({
 
     conversacionAnteriorRef.current = conversacionActivaId;
   }, [conversacionActivaId]);
+
+  // ---------------------------------------------------------------------------
+  // Cerrar sin enviar teniendo un contexto pendiente: ¿descartar el
+  // borrador o conservarlo?
+  // ---------------------------------------------------------------------------
+  // El input NO distinguía por sí solo un saludo AUTO-GENERADO ("Hola, me
+  // interesa tu publicación de...") de un mensaje que el usuario escribió
+  // de verdad — ambos viven en el mismo `texto`. La regla correcta:
+  //   - Si el usuario NUNCA tocó el saludo prellenado → es desechable,
+  //     bórralo junto con la card al cerrar sin enviar.
+  //   - Si el usuario SÍ escribió/editó encima → es un borrador real,
+  //     consérvalo como cualquier otro (ni el input ni el store lo tocan).
+  // `textoRef` siempre trae el valor MÁS RECIENTE de `texto` (el estado
+  // cambia en cada tecleo; leerlo directo en el effect de cierre de abajo
+  // usaría un closure viejo si `texto` no fuera dependencia — y ponerlo
+  // como dependencia dispararía el effect en cada tecleo).
+  const textoRef = useRef(texto);
+  textoRef.current = texto;
+
+  // Baseline del saludo prellenado — se captura la primera vez que la
+  // conversación activa tiene un contexto pendiente (el borrador recién
+  // cargado por el effect de arriba ES ese saludo, todavía sin editar).
+  const prellenadoBaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    prellenadoBaseRef.current =
+      conversacionActivaId && contextoPendiente
+        ? (borradores[conversacionActivaId] || null)
+        : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversacionActivaId, contextoPendiente]);
+
+  // Detecta "se cerró el chat sin enviar" (panel cerrado con X/back/
+  // Escape/swipe-down/etc., o se volvió a la lista) comparando el estado
+  // ANTES vs DESPUÉS de cada render — el overlay de ChatYA nunca
+  // desmonta este componente (usa `display:none`), así que un unmount
+  // normal no sirve como señal.
+  const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
+  const cierreAnteriorRef = useRef({ chatYAAbierto, conversacionActivaId });
+  useEffect(() => {
+    const prev = cierreAnteriorRef.current;
+    const sePerdioElChat =
+      (prev.chatYAAbierto && !chatYAAbierto) ||
+      (prev.conversacionActivaId && !conversacionActivaId);
+
+    if (sePerdioElChat && prev.conversacionActivaId && prellenadoBaseRef.current !== null) {
+      if (textoRef.current === prellenadoBaseRef.current) {
+        // Nunca lo tocó — descartar junto con la card.
+        limpiarBorrador(prev.conversacionActivaId);
+        setTexto('');
+      } else {
+        // Lo editó — guardarlo como borrador real (si no, se perdía:
+        // nada más lo persiste al cerrar sin cambiar de conversación).
+        guardarBorrador(prev.conversacionActivaId, textoRef.current);
+      }
+      prellenadoBaseRef.current = null;
+    }
+
+    cierreAnteriorRef.current = { chatYAAbierto, conversacionActivaId };
+  }, [chatYAAbierto, conversacionActivaId, guardarBorrador, limpiarBorrador]);
 
   useEffect(() => {
     if (!esMobile) {
@@ -1342,7 +1402,7 @@ export function InputMensaje({
                 spellCheck={false}
                 enterKeyHint="send"
                 style={{ fontFamily: 'Inter, "Noto Color Emoji", sans-serif' }}
-                className="flex-1 px-1 bg-transparent border-none outline-none text-[17px] lg:text-[15px] font-medium text-white/90 lg:text-gray-800 placeholder:text-white/40 lg:placeholder:text-gray-500 disabled:text-white/30 lg:disabled:text-gray-400 disabled:cursor-not-allowed"
+                className="min-w-0 flex-1 px-1 bg-transparent border-none outline-none text-[17px] lg:text-[15px] font-medium text-white/90 lg:text-gray-800 placeholder:text-white/40 lg:placeholder:text-gray-500 disabled:text-white/30 lg:disabled:text-gray-400 disabled:cursor-not-allowed"
               />
 
               {/* Botón clip — abre menú de adjuntos */}
@@ -1359,7 +1419,7 @@ export function InputMensaje({
                   }
                 }}
                 disabled={bloqueado || !!mensajeEditando}
-                className={`shrink-0 flex items-center justify-center w-7 h-7 -ml-6 rounded-full cursor-pointer hover:scale-110 active:scale-95
+                className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full cursor-pointer hover:scale-110 active:scale-95
                   ${menuClipAbierto ? 'text-blue-400 lg:text-blue-600' : ''}
                   ${bloqueado || mensajeEditando ? 'text-white/50 lg:text-gray-500 cursor-not-allowed' : 'text-white/50 hover:text-white/80 lg:text-gray-500 lg:hover:text-gray-700'}
                 `}

@@ -153,7 +153,13 @@ export async function getPublicacion(req: Request, res: Response) {
         const { id } = req.params;
         if (!validarUUID(id, res, 'ID de la publicación')) return;
 
-        const resultado = await obtenerPublicacionPorId(id, req.usuario?.usuarioId);
+        // lat/lng opcionales — cuando vienen, el service calcula
+        // `distanciaMetros` igual que en el feed (ver ficha "Cerca de ti").
+        const lat = req.query.lat !== undefined ? Number(req.query.lat) : NaN;
+        const lng = req.query.lng !== undefined ? Number(req.query.lng) : NaN;
+        const coords = !Number.isNaN(lat) && !Number.isNaN(lng) ? { lat, lng } : undefined;
+
+        const resultado = await obtenerPublicacionPorId(id, req.usuario?.usuarioId, coords);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
         console.error('Error en getPublicacion:', error);

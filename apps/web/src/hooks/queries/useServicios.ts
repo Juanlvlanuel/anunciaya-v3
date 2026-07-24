@@ -258,15 +258,25 @@ export function useBuscadorServiciosSugerencias(
  * `staleTime` 1 min — el detalle no cambia con frecuencia. La invalidación
  * llega cuando el dueño edita su publicación (mutación de update).
  */
-export function usePublicacionServicio(publicacionId: string | undefined) {
+export function usePublicacionServicio(
+    publicacionId: string | undefined,
+    coords?: { lat: number | null | undefined; lng: number | null | undefined },
+) {
     return useQuery({
+        // lat/lng NO entran al queryKey a propósito: la distancia es un
+        // dato "de cortesía" (badge), no queremos refetch cada vez que el
+        // GPS se recalibra un poco — el detalle en sí casi no cambia.
         queryKey: queryKeys.servicios.publicacion(publicacionId ?? ''),
         queryFn: async (): Promise<PublicacionDetalle | null> => {
             if (!publicacionId) return null;
+            const params =
+                coords?.lat != null && coords?.lng != null
+                    ? { lat: coords.lat, lng: coords.lng }
+                    : undefined;
             const response = await api.get<{
                 success: boolean;
                 data: PublicacionDetalle;
-            }>(`/servicios/publicaciones/${publicacionId}`);
+            }>(`/servicios/publicaciones/${publicacionId}`, { params });
             return response.data.success ? response.data.data : null;
         },
         enabled: !!publicacionId,

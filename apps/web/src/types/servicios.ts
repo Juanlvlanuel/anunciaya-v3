@@ -230,6 +230,9 @@ export interface PublicacionDetalle extends PublicacionServicio {
      *  sus guardados. false para visitantes anónimos o sin guardar. Lo
      *  usa el bookmark del detalle para arrancar con el estado real. */
     guardado: boolean;
+    /** Sprint 9.4: distancia en metros desde la ubicación del visitante.
+     *  `null` cuando el visitante no tiene GPS activo. */
+    distanciaMetros: number | null;
 }
 
 /** Respuesta del endpoint `/feed`. */

@@ -49,10 +49,15 @@ export function BarraContactoServicio({
     // botón ChatYA del card de Servicios en MisGuardados.
     const iniciarChatServicio = useIniciarChatServicio();
 
-    const { oferente, titulo } = publicacion;
+    const { oferente, titulo, tipo } = publicacion;
     const esDueno = usuarioActual?.id === oferente.id;
     const tieneTelefono =
         !!oferente.telefono && oferente.telefono.trim().length > 0;
+    // Mismo criterio que el resto del detalle: en vacante-empresa se
+    // contacta al negocio, no a la persona dueña de la cuenta.
+    const nombreContacto = tipo === 'vacante-empresa'
+        ? oferente.negocioNombre ?? `${oferente.nombre} ${oferente.apellidos}`.trim()
+        : oferente.nombre;
 
     if (esDueno) return null;
 
@@ -78,7 +83,7 @@ export function BarraContactoServicio({
     //   - Sin texto "WhatsApp", solo el ícono de marca.
     const claseContenedor =
         variante === 'mobile'
-            ? 'flex items-center gap-3 px-3 py-2'
+            ? 'flex items-center justify-between gap-3 px-4 py-2.5'
             : 'flex items-center gap-3';
 
     return (
@@ -86,6 +91,16 @@ export function BarraContactoServicio({
             data-testid={`barra-contacto-servicio-${variante}`}
             className={claseContenedor}
         >
+            {/* Móvil: etiqueta de contexto — mismo patrón que
+                `BarraContacto.tsx` de MarketPlace. */}
+            {variante === 'mobile' && (
+                <span className="min-w-0 truncate text-sm font-medium text-white/70">
+                    Contactar a{' '}
+                    <span className="font-semibold text-white">{nombreContacto}</span>
+                </span>
+            )}
+
+            <div className="flex shrink-0 items-center gap-3">
             {/* ChatYA — botón primario, inline. */}
             <button
                 data-testid="btn-chatya-servicio"
@@ -113,6 +128,7 @@ export function BarraContactoServicio({
                     <WhatsAppIcon className="h-7 w-7" />
                 </button>
             )}
+            </div>
         </div>
     );
 }

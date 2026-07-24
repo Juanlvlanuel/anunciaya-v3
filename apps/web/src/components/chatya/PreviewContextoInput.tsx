@@ -119,7 +119,9 @@ export function PreviewContextoInput({
           <div className="mt-0.5 flex items-center gap-2">
             {cardData.precio !== undefined && (
               <span className="text-sm font-extrabold text-slate-900">
-                {formatearPrecio(cardData.precio)}
+                {typeof cardData.precio === 'string' && isNaN(Number(cardData.precio))
+                    ? cardData.precio
+                    : formatearPrecio(cardData.precio)}
               </span>
             )}
             {cardData.condicion && (

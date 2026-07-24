@@ -59,6 +59,8 @@ import { CustomSelect } from '../../ui/CustomSelect';
 import { ModalSugerenciaModeracion } from '../ModalSugerenciaModeracion';
 import {
     useComposerMarketplace,
+    TITULO_MIN,
+    TITULO_MAX,
     type ComposerMarketplaceDraft,
     type ErroresComposerMP,
 } from '../../../hooks/useComposerMarketplace';
@@ -202,6 +204,17 @@ export function ComposerMarketplace({
     function alternar(s: SeccionAbierta) {
         setSeccionAbierta((prev) => (prev === s ? null : s));
     }
+
+    // Al abrir un panel, el card queda al fondo del contenido scrollable
+    // (después del título/descripción/fotos) — sin esto, con varias fotos
+    // ya publicadas el usuario tiene que scrollear a mano para verlo.
+    const scrollContenidoRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!seccionAbierta) return;
+        const el = scrollContenidoRef.current;
+        if (!el) return;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }, [seccionAbierta]);
 
     // ─── Ver foto completa (ModalImagenes) ──
     const [indiceImagenAbierta, setIndiceImagenAbierta] = useState<number | null>(null);
@@ -490,7 +503,7 @@ export function ComposerMarketplace({
                     {/* Zona scrollable: título, descripción, fotos, panel abierto.
                         `scroll-discreto` = misma canaleta+barra de scroll que
                         el carrusel "Recién publicado" del feed en PC. */}
-                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-3 scroll-discreto">
+                    <div ref={scrollContenidoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-3 scroll-discreto">
                         <input
                             type="text"
                             data-testid="composer-mp-titulo"
@@ -503,6 +516,16 @@ export function ComposerMarketplace({
                             }
                             className="w-full border-0 bg-transparent py-2 text-xl text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-bold outline-none"
                         />
+                        {/* Hint del mínimo de caracteres — antes solo se
+                            enteraba al chocar con el toast de error al
+                            guardar. */}
+                        <p
+                            className={`text-xs font-semibold ${
+                                errores.titulo ? 'text-red-600' : 'text-slate-400'
+                            }`}
+                        >
+                            {draft.titulo.trim().length}/{TITULO_MAX} · mínimo {TITULO_MIN} caracteres
+                        </p>
 
                         <textarea
                             data-testid="composer-mp-descripcion"
@@ -613,6 +636,7 @@ export function ComposerMarketplace({
                                 <PanelCondicion
                                     valor={draft.condicion}
                                     onCambio={(c) => actualizar({ condicion: c })}
+                                    onQuitar={() => actualizar({ condicion: null })}
                                 />
                             </div>
                         )}
@@ -645,12 +669,12 @@ export function ComposerMarketplace({
                     {/* ── Chip bar anclada: Galería + Categoría + Precio/Presupuesto
                         + (Condición/Ofertas/Unidad solo en vendo) + Zona. ── */}
                     <div className="shrink-0 px-4 py-3 border-t-2 border-slate-200">
-                        <div className="flex items-center gap-2 overflow-x-auto lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        <div className="flex items-center gap-2 lg:gap-1.5 overflow-x-auto lg:flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                             <button
                                 type="button"
                                 data-testid="composer-mp-chip-galeria"
                                 onClick={fotosUploader.abrirGaleria}
-                                className="flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
+                                className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
                             >
                                 {draft.fotos.length === 0 ? (
                                     <Camera className="h-4 w-4" strokeWidth={2} />
@@ -877,7 +901,7 @@ function ChipDetalle({ id, Icono, label, activo, abierto, onClick }: ChipDetalle
             onClick={onClick}
             aria-pressed={abierto}
             className={
-                'relative flex shrink-0 items-center gap-2 rounded-full border-2 px-3.5 py-2 text-sm font-semibold lg:cursor-pointer ' +
+                'relative flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold lg:cursor-pointer ' +
                 (abierto
                     ? 'bg-teal-100 border-teal-500 text-teal-800'
                     : 'bg-white border-slate-300 text-slate-700 lg:hover:bg-slate-100')
@@ -929,6 +953,9 @@ function PanelCategoria({
     valor: number | null;
     onCambio: (id: number) => void;
 }) {
+    // Sin `onClear`: a diferencia de Servicios, Categoría es OBLIGATORIA
+    // para publicar en MP (useComposerMarketplace valida "Elige una
+    // categoría." si queda null) — no tiene sentido ofrecer vaciarla.
     return (
         <PanelWrapper titulo="Categoría">
             <CustomSelect<string>
@@ -1055,9 +1082,14 @@ function PanelPresupuesto({
 function PanelCondicion({
     valor,
     onCambio,
+    onQuitar,
 }: {
     valor: CondicionArticulo | null;
     onCambio: (c: CondicionArticulo) => void;
+    /** Condición es 100% opcional (el propio panel ya lo dice) — un
+     *  segundo click en la pastilla activa la regresa a `null` en vez de
+     *  quedar pegada para siempre. */
+    onQuitar: () => void;
 }) {
     return (
         <PanelWrapper titulo="Condición">
@@ -1069,7 +1101,7 @@ function PanelCondicion({
                             key={c.id}
                             type="button"
                             data-testid={`composer-mp-cond-${c.id}`}
-                            onClick={() => onCambio(c.id)}
+                            onClick={() => (activa ? onQuitar() : onCambio(c.id))}
                             className={
                                 'inline-flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-semibold lg:cursor-pointer ' +
                                 (activa
@@ -1151,17 +1183,25 @@ function PanelUnidad({
                 className="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 font-semibold outline-none focus:border-teal-500"
             />
             <div className="mt-2 flex flex-wrap gap-1.5">
-                {sugerencias.map((s) => (
-                    <button
-                        key={s}
-                        type="button"
-                        data-testid={`composer-mp-unidad-sug-${s}`}
-                        onClick={() => onCambio(s)}
-                        className="px-3 py-1 rounded-full bg-white border-2 border-slate-300 text-[13px] font-semibold text-slate-700 hover:border-teal-500 hover:text-teal-700 lg:cursor-pointer"
-                    >
-                        {s}
-                    </button>
-                ))}
+                {sugerencias.map((s) => {
+                    const activa = valor.trim() === s;
+                    return (
+                        <button
+                            key={s}
+                            type="button"
+                            data-testid={`composer-mp-unidad-sug-${s}`}
+                            onClick={() => onCambio(activa ? '' : s)}
+                            className={
+                                'px-3 py-1 rounded-full text-[13px] font-semibold lg:cursor-pointer ' +
+                                (activa
+                                    ? 'bg-teal-600 text-white border-2 border-teal-700'
+                                    : 'bg-white border-2 border-slate-300 text-slate-700 hover:border-teal-500 hover:text-teal-700')
+                            }
+                        >
+                            {s}
+                        </button>
+                    );
+                })}
             </div>
             <p className="mt-2 text-[12px] text-slate-600 font-medium">
                 Opcional. Cuando existe, el card muestra "$15 c/u" en lugar de solo "$15".

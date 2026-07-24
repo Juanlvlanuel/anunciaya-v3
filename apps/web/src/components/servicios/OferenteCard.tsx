@@ -28,9 +28,11 @@
  * Ubicación: apps/web/src/components/servicios/OferenteCard.tsx
  */
 
+import { useState } from 'react';
 import { ChevronRight, BadgeCheck, Zap } from 'lucide-react';
 import type { PublicacionDetalle } from '../../types/servicios';
 import { formatearUltimaConexion } from '../../utils/servicios';
+import { ModalImagenes } from '../ui/ModalImagenes';
 
 interface OferenteCardProps {
     publicacion: PublicacionDetalle;
@@ -79,6 +81,8 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
         ? nombreEmpresa
         : `${oferente.nombre} ${oferente.apellidos}`.trim();
 
+    const [avatarAbierto, setAvatarAbierto] = useState(false);
+
     return (
         // Card NO clickeable. Solo el link "Ver perfil/negocio" navega.
         // Mismo patrón que `CardVendedor.tsx` del MP.
@@ -90,7 +94,10 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
             <div className="flex items-center gap-2">
                 {/* Avatar — circular para personas, cuadrado para empresas */}
                 {esEmpresa ? (
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
+                    <div
+                        className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100 ${avatarUrl ? 'cursor-pointer' : ''}`}
+                        onClick={avatarUrl ? () => setAvatarAbierto(true) : undefined}
+                    >
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -105,7 +112,10 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
                         )}
                     </div>
                 ) : (
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                    <div
+                        className={`h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200 ${avatarUrl ? 'cursor-pointer' : ''}`}
+                        onClick={avatarUrl ? () => setAvatarAbierto(true) : undefined}
+                    >
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -201,6 +211,15 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
                     <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
             </div>
+
+            {avatarAbierto && avatarUrl && (
+                <ModalImagenes
+                    images={[avatarUrl]}
+                    initialIndex={0}
+                    isOpen={avatarAbierto}
+                    onClose={() => setAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }

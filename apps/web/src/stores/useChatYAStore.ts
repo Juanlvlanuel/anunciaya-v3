@@ -613,6 +613,11 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   /** Vuelve a la lista de conversaciones, guardando mensajes y fijados en caché */
   volverALista: () => {
     const { conversacionActivaId, mensajes, totalMensajes, hayMasMensajes, mensajesFijados } = get();
+    // Nota: la decisión de qué hacer con el borrador al cerrar sin enviar
+    // (descartarlo si es el saludo auto-generado sin tocar, o guardarlo
+    // si el usuario ya escribió encima) vive en `InputMensaje.tsx` — es
+    // el único lugar con visibilidad del `texto` local en tiempo real
+    // para distinguir "prellenado intacto" de "editado a mano".
 
     // Guardar mensajes + fijados en caché antes de volver a la lista
     if (conversacionActivaId && mensajes.length > 0) {

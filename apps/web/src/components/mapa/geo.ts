@@ -35,3 +35,25 @@ export function circuloGeoJSON(
         geometry: { type: 'Polygon', coordinates: [coords] },
     };
 }
+
+/**
+ * Bounding box `[[minLng,minLat],[maxLng,maxLat]]` del mismo círculo de
+ * `circuloGeoJSON` — para `map.fitBounds(...)`. Un `zoom` fijo en
+ * `initialViewState` no garantiza que el círculo quepa completo: el
+ * contenedor del mapa cambia de alto entre móvil/laptop/PC (y el ancho
+ * de la card), así que a veces el círculo se veía cortado por un borde.
+ * `fitBounds` sí se ajusta al tamaño real del contenedor.
+ */
+export function circuloBounds(
+    lng: number,
+    lat: number,
+    radioMetros: number,
+): [[number, number], [number, number]] {
+    const radioKm = radioMetros / 1000;
+    const radioLat = radioKm / 110.574;
+    const radioLng = radioKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+    return [
+        [lng - radioLng, lat - radioLat],
+        [lng + radioLng, lat + radioLat],
+    ];
+}

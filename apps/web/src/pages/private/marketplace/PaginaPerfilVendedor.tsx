@@ -95,6 +95,7 @@ import {
 import { CardArticulo } from '../../../components/marketplace/CardArticulo';
 import { Spinner } from '../../../components/ui/Spinner';
 import Tooltip from '../../../components/ui/Tooltip';
+import { ModalImagenes } from '../../../components/ui/ModalImagenes';
 import { notificar } from '../../../utils/notificaciones';
 import { parsearFechaPostgres } from '../../../utils/marketplace';
 import { emitirCuandoConectado } from '../../../services/socketService';
@@ -408,23 +409,12 @@ export function PaginaPerfilVendedor() {
                                     }}
                                 >
                                     <BadgeCheck
-                                        className="h-[18px] w-[18px] text-black"
+                                        className="h-[18px] w-[18px] text-white"
                                         strokeWidth={2.5}
                                     />
                                 </div>
                                 <span className="ml-1.5 shrink-0 text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-white">
                                     Perfil
-                                </span>
-
-                                {/* Separador vertical */}
-                                <span
-                                    aria-hidden
-                                    className="ml-2 h-7 w-[1.5px] shrink-0 rounded-full bg-white/50"
-                                />
-
-                                {/* Nombre del usuario (truncado en móvil si excede) */}
-                                <span className="ml-1 min-w-0 truncate text-sm font-semibold text-white/85 lg:text-base">
-                                    {perfil.nombre} {perfil.apellidos}
                                 </span>
                             </div>
 
@@ -593,20 +583,22 @@ function HeroCard({
 }: HeroCardProps) {
     const hayAccionesContacto = !esUnoMismo && !estaBloqueado;
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-lg lg:rounded-2xl lg:px-6 lg:py-4">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-lg lg:rounded-2xl lg:px-6 lg:py-4">
             {/* ═══════════════════════════════════════════════════════════════
                 Layout 2 columnas en desktop, compacto: avatar chico + nombre
                 en 1 sola línea a la izquierda; KPIs + botones a la derecha.
-                En móvil se apila vertical (sin cambios ahí). ═══════════════ */}
+                Identidad en FILA (avatar izquierda, texto derecha) en TODAS
+                las resoluciones — antes en móvil era columna centrada.
+                ═══════════════════════════════════════════════════════════ */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center lg:gap-6">
                 {/* ── Columna izquierda: avatar + identidad, todo en 1 línea
                     en desktop (avatar chico + nombre + ciudad inline). ──── */}
-                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-center lg:gap-3 lg:text-left">
+                <div className="flex flex-row items-center gap-3 text-left">
                     <AvatarConAdornos
                         perfil={perfil}
                         estadoPresencia={estadoPresencia}
                     />
-                    <div className="flex min-w-0 flex-1 flex-col items-center lg:items-start">
+                    <div className="flex min-w-0 flex-1 flex-col items-start">
                         {/* Nombre en 1 sola línea (nombre + apellidos +
                             badge verificado juntos). BadgeCheck invertido:
                             fondo azul (`fill-blue-500`) con palomita blanca,
@@ -801,25 +793,32 @@ function AvatarConAdornos({
 }: AvatarConAdornosProps) {
     const iniciales = obtenerIniciales(perfil.nombre, perfil.apellidos);
 
-    // Color del status dot según estado de presencia.
+    // Color del status dot — SIEMPRE visible según estado de presencia.
     // - conectado → verde (emerald)
     // - ausente   → ámbar
-    // - desconectado / undefined → no se muestra
+    // - desconectado / undefined → gris
     const dotColor =
         estadoPresencia === 'conectado'
             ? 'bg-emerald-500'
             : estadoPresencia === 'ausente'
                 ? 'bg-amber-400'
-                : null;
+                : 'bg-slate-400';
 
     // Sprint 9.3 (iteración): avatar simplificado — círculo plano con
     // fondo sky cuando no hay foto. Se removió el ring gradient brand
     // estilo Instagram (era demasiada decoración para un perfil
     // comercial de marketplace; el diseño nuevo prioriza claridad y
     // densidad de información).
+    const [abierto, setAbierto] = useState(false);
+
     return (
         <div className="relative shrink-0">
-            <div className="h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-14 lg:w-14">
+            <div
+                className={`h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-14 lg:w-14 ${
+                    perfil.avatarUrl ? 'lg:cursor-pointer' : ''
+                }`}
+                onClick={perfil.avatarUrl ? () => setAbierto(true) : undefined}
+            >
                 {perfil.avatarUrl ? (
                     <img
                         src={perfil.avatarUrl}
@@ -842,15 +841,29 @@ function AvatarConAdornos({
 
             {/* Status dot — bottom-right, ligeramente empalmado sobre el
                 círculo del avatar. */}
-            {dotColor && (
-                <span
-                    aria-label={
-                        estadoPresencia === 'conectado' ? 'En línea' : 'Ausente'
-                    }
-                    title={
-                        estadoPresencia === 'conectado' ? 'En línea' : 'Ausente'
-                    }
-                    className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-3 lg:w-3 lg:bottom-0.5 lg:right-0.5 ${dotColor}`}
+            <span
+                aria-label={
+                    estadoPresencia === 'conectado'
+                        ? 'En línea'
+                        : estadoPresencia === 'ausente'
+                            ? 'Ausente'
+                            : 'Desconectado'
+                }
+                title={
+                    estadoPresencia === 'conectado'
+                        ? 'En línea'
+                        : estadoPresencia === 'ausente'
+                            ? 'Ausente'
+                            : 'Desconectado'
+                }
+                className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-3 lg:w-3 lg:bottom-0.5 lg:right-0.5 ${dotColor}`}
+            />
+            {abierto && perfil.avatarUrl && (
+                <ModalImagenes
+                    images={[perfil.avatarUrl]}
+                    initialIndex={0}
+                    isOpen={abierto}
+                    onClose={() => setAbierto(false)}
                 />
             )}
         </div>

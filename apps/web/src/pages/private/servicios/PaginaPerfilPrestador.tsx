@@ -35,6 +35,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
     BadgeCheck,
+    ChevronLeft,
     MapPin,
     MessageCircle,
     Package,
@@ -44,6 +45,7 @@ import {
     Wrench,
 } from 'lucide-react';
 import Tooltip from '../../../components/ui/Tooltip';
+import { ModalImagenes } from '../../../components/ui/ModalImagenes';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import {
@@ -51,12 +53,12 @@ import {
     usePublicacionesDelPrestador,
     useResenasDelPrestador,
 } from '../../../hooks/queries/useServicios';
-import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import { CardServicio } from '../../../components/servicios/CardServicio';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
+import { emitirCuandoConectado } from '../../../services/socketService';
 import { notificar } from '../../../utils/notificaciones';
 import {
     formatearTiempoRelativo,
@@ -70,6 +72,76 @@ import type {
 } from '../../../types/servicios';
 
 type TabActivo = 'servicios' | 'resenas';
+
+// =============================================================================
+// HEADER — mismo patrón que el detalle de MarketPlace/Servicios y el
+// perfil de MP (`PaginaPerfilVendedor.tsx`): fondo negro + glow sky +
+// grid pattern + acentos, título "Perfil" fijo (sin nombre — ya vive en
+// el HeroCard de abajo). Antes esta página reusaba el `ServiciosHeader`
+// genérico (con "ServiciosLocales" + pill "Perfil"), inconsistente con
+// el patrón "Detalle"/"Perfil" que usan las demás páginas de detalle.
+// =============================================================================
+function HeaderPerfilPrestador({ onBack }: { onBack: () => void }) {
+    return (
+        <div className="shrink-0 z-30 lg:sticky lg:top-0 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+            <div
+                className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                style={{ background: '#000000' }}
+            >
+                <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                        background:
+                            'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 55%)',
+                    }}
+                />
+                <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                        opacity: 0.08,
+                        backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                          repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                    }}
+                />
+                <div
+                    className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+                    style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                />
+                <div
+                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                    style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                />
+
+                <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5 lg:px-4 lg:py-2.5 2xl:px-3 2xl:pt-4 2xl:pb-2.5">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                        <button
+                            data-testid="btn-volver-perfil"
+                            onClick={onBack}
+                            aria-label="Volver"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white"
+                        >
+                            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                        </button>
+                        <div
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                            style={{
+                                background: 'linear-gradient(135deg, #38bdf8, #0369a1)',
+                            }}
+                        >
+                            <BadgeCheck
+                                className="h-[18px] w-[18px] text-white"
+                                strokeWidth={2.5}
+                            />
+                        </div>
+                        <span className="ml-1.5 shrink-0 text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-white">
+                            Perfil
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export function PaginaPerfilPrestador() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
@@ -91,6 +163,20 @@ export function PaginaPerfilPrestador() {
         isPending: cargandoPerfil,
         isError: errorPerfil,
     } = usePerfilPrestador(usuarioId);
+
+    // ─── Estado online REAL vía Socket.io (mismo patrón que el perfil
+    // de MarketPlace) — pide al servidor el estado actual del usuario
+    // perfilado y queda suscrito a updates en
+    // `useChatYAStore.estadosUsuarios[usuarioId]`.
+    const estadoUsuario = useChatYAStore((s) =>
+        usuarioId ? s.estadosUsuarios[usuarioId] : undefined,
+    );
+    useEffect(() => {
+        if (!usuarioId || !perfil) return;
+        if (usuarioActual?.id === usuarioId) return;
+        const cancelar = emitirCuandoConectado('chatya:consultar-estado', usuarioId);
+        return cancelar;
+    }, [usuarioId, perfil, usuarioActual?.id]);
 
     const {
         data: publicaciones = [],
@@ -174,7 +260,7 @@ export function PaginaPerfilPrestador() {
     if (cargandoPerfil) {
         return (
             <>
-                <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
+                <HeaderPerfilPrestador onBack={handleVolver} />
                 <div className="flex-1 min-h-0 bg-transparent flex items-center justify-center py-20 lg:flex-none lg:min-h-full">
                     <Spinner tamanio="lg" />
                 </div>
@@ -185,9 +271,9 @@ export function PaginaPerfilPrestador() {
     if (errorPerfil || !perfil) {
         return (
             <>
-                <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
+                <HeaderPerfilPrestador onBack={handleVolver} />
                 <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent lg:flex-none lg:overflow-visible lg:min-h-full">
-                    <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
+                    <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[920px] 2xl:px-4">
                         <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                             <div className="w-16 h-16 rounded-full bg-amber-50 grid place-items-center mb-4">
                                 <AlertCircle
@@ -221,22 +307,12 @@ export function PaginaPerfilPrestador() {
 
     return (
         <>
-            <ServiciosHeader
-                variante="pagina"
-                appShell
-                onBack={handleVolver}
-                slotDerecho={
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1.5 text-[12px] font-bold text-sky-300 ring-1 ring-sky-400/30">
-                        Perfil
-                    </span>
-                }
-                subtituloMobile={nombreCorto}
-            />
+            <HeaderPerfilPrestador onBack={handleVolver} />
 
             <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent pb-32 lg:flex-none lg:overflow-visible">
                 {/* Contenedor max 920px para igualar al feed de Servicios. */}
-                <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
-                    <div className="px-3 py-5 lg:px-0 lg:py-2">
+                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[920px] 2xl:px-4">
+                    <div className="px-3 py-5 lg:px-0 lg:py-4">
                         <HeroCard
                             perfil={perfil}
                             nombreCompleto={nombreCompleto}
@@ -245,9 +321,10 @@ export function PaginaPerfilPrestador() {
                             accionContactoEnCurso={accionContactoEnCurso}
                             onToggleContacto={handleToggleContacto}
                             onEnviarMensaje={handleEnviarMensaje}
+                            estadoPresencia={estadoUsuario?.estado}
                         />
 
-                        <div className="mt-6">
+                        <div className="mt-6 lg:mt-3">
                             <TabsSegmented
                                 tabActiva={tab}
                                 totalServicios={perfil.totalPublicacionesActivas}
@@ -255,7 +332,7 @@ export function PaginaPerfilPrestador() {
                                 onChange={setTab}
                             />
 
-                            <div className="mt-4">
+                            <div className="mt-4 lg:mt-2">
                                 {tab === 'servicios' ? (
                                     <SeccionPublicaciones
                                         cargando={cargandoPubs}
@@ -293,6 +370,7 @@ interface HeroCardProps {
     accionContactoEnCurso: boolean;
     onToggleContacto: () => void;
     onEnviarMensaje: () => void;
+    estadoPresencia: 'conectado' | 'ausente' | 'desconectado' | undefined;
 }
 
 function HeroCard({
@@ -302,66 +380,67 @@ function HeroCard({
     accionContactoEnCurso,
     onToggleContacto,
     onEnviarMensaje,
+    estadoPresencia,
 }: HeroCardProps) {
     // `esPrestador` = tiene al menos una publicación activa (equivalente
     // al `esVendedor` del perfil MP). Decide si mostrar KPIs + badge
     // verificado o solo el bloque de identidad básico.
     const esPrestador = perfil.totalPublicacionesActivas > 0;
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-lg lg:rounded-3xl lg:px-8 lg:py-5">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-10">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-lg lg:rounded-2xl lg:px-6 lg:py-4">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center lg:gap-6">
                 {/* ── Columna izquierda: avatar + identidad ────────────────── */}
-                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:text-left">
-                    <AvatarConRingSky perfil={perfil} />
-                    <div className="flex min-w-0 flex-1 flex-col items-center lg:items-start">
-                        {/* Nombre dividido en 2 líneas + badge verificado
-                            invertido al final del apellido (estilo Twitter/X
-                            con fondo azul + palomita blanca). */}
+                {/* Fila (avatar a la izquierda, identidad a la derecha) en
+                    TODAS las resoluciones — antes en móvil era columna
+                    centrada; ahora usa el mismo acomodo que desktop. */}
+                <div className="flex flex-row items-center gap-3 text-left">
+                    <AvatarConRingSky perfil={perfil} estadoPresencia={estadoPresencia} />
+                    <div className="flex min-w-0 flex-1 flex-col items-start">
+                        {/* Nombre en 1 sola línea en desktop + badge verificado
+                            invertido al final (estilo Twitter/X con fondo
+                            azul + palomita blanca). */}
                         <h1
                             data-testid="nombre-prestador"
-                            className="text-xl font-extrabold tracking-tight text-slate-950 leading-tight lg:text-2xl"
+                            className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight text-slate-950 leading-tight lg:text-lg"
                         >
-                            <span className="block">{perfil.nombre}</span>
-                            <span className="flex items-center justify-center gap-1.5 lg:justify-start">
-                                {perfil.apellidos}
-                                {esPrestador && (
-                                    <BadgeCheck
-                                        className="h-5 w-5 shrink-0 fill-blue-500 text-white lg:h-6 lg:w-6"
-                                        strokeWidth={2.5}
-                                        aria-label="Prestador con publicaciones"
-                                    />
-                                )}
-                            </span>
+                            {perfil.nombre} {perfil.apellidos}
+                            {esPrestador && (
+                                <BadgeCheck
+                                    className="h-5 w-5 shrink-0 fill-blue-500 text-white lg:h-[18px] lg:w-[18px]"
+                                    strokeWidth={2.5}
+                                    aria-label="Prestador con publicaciones"
+                                />
+                            )}
                         </h1>
                         {perfil.ciudad && (
-                            <div className="mt-6 flex items-center gap-1.5 text-base font-medium text-slate-600 lg:mt-8">
+                            <div className="mt-1 flex items-center gap-1.5 text-base font-medium text-slate-600 lg:mt-1 lg:text-sm">
                                 <MapPin
-                                    className="h-4 w-4 shrink-0 text-slate-500"
+                                    className="h-4 w-4 shrink-0 text-slate-500 lg:h-3.5 lg:w-3.5"
                                     strokeWidth={2}
                                 />
                                 {perfil.ciudad}
                             </div>
                         )}
-                        <p className="mt-0.5 text-sm font-medium text-slate-500">
+                        <p className="mt-0.5 text-sm font-medium text-slate-500 lg:text-xs">
                             Miembro desde: {formatearMiembroDesde(perfil.miembroDesde)}
                         </p>
                     </div>
                 </div>
 
                 {/* ── Columna derecha: KPIs + botones de contacto ──────────── */}
-                <div className="flex flex-col gap-3 lg:gap-4">
+                <div className="flex flex-col gap-3 lg:gap-2">
                     {esPrestador && (
                         <div
                             data-testid="kpis-prestador"
                             className="grid grid-cols-2 divide-x-2 divide-slate-300 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100"
                         >
                             <KpiCard
-                                icono={<Package className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
+                                icono={<Package className="h-5 w-5 lg:h-4 lg:w-4" strokeWidth={1.75} />}
                                 valor={String(perfil.totalPublicacionesActivas)}
                                 label="Publicaciones"
                             />
                             <KpiCard
-                                icono={<Star className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
+                                icono={<Star className="h-5 w-5 lg:h-4 lg:w-4" strokeWidth={1.75} />}
                                 valor={
                                     perfil.ratingPromedio !== null
                                         ? perfil.ratingPromedio.toFixed(1)
@@ -390,7 +469,7 @@ function HeroCard({
                                 <img
                                     src="/ChatYA.webp"
                                     alt="ChatYA"
-                                    className="h-9 w-auto shrink-0 object-contain"
+                                    className="h-9 lg:h-7 w-auto shrink-0 object-contain"
                                 />
                             </button>
                             {/* Agregar contacto — icon-only sky con tooltip.
@@ -418,12 +497,12 @@ function HeroCard({
                                 >
                                     {esContacto ? (
                                         <UserCheck
-                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            className="h-7 w-7 lg:h-6 lg:w-6 shrink-0 text-sky-600"
                                             strokeWidth={2.25}
                                         />
                                     ) : (
                                         <UserPlus
-                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            className="h-7 w-7 lg:h-6 lg:w-6 shrink-0 text-sky-600"
                                             strokeWidth={2.25}
                                         />
                                     )}
@@ -441,11 +520,33 @@ function HeroCard({
 // Sprint 9.3 (iteración): se removió el ring gradient brand para alinear
 // con el nuevo diseño del perfil (más limpio, menos decoración).
 
-function AvatarConRingSky({ perfil }: { perfil: PerfilPrestador }) {
+function AvatarConRingSky({
+    perfil,
+    estadoPresencia,
+}: {
+    perfil: PerfilPrestador;
+    estadoPresencia: 'conectado' | 'ausente' | 'desconectado' | undefined;
+}) {
     const iniciales = obtenerIniciales(perfil.nombre, perfil.apellidos);
+    const [abierto, setAbierto] = useState(false);
+
+    // Punto de estado — SIEMPRE visible: verde (conectado) / ámbar
+    // (ausente) / gris (desconectado o aún sin respuesta del socket).
+    const dotColor =
+        estadoPresencia === 'conectado'
+            ? 'bg-emerald-500'
+            : estadoPresencia === 'ausente'
+                ? 'bg-amber-400'
+                : 'bg-slate-400';
+
     return (
         <div className="relative shrink-0">
-            <div className="h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-[104px] lg:w-[104px]">
+            <div
+                className={`h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-14 lg:w-14 ${
+                    perfil.avatarUrl ? 'lg:cursor-pointer' : ''
+                }`}
+                onClick={perfil.avatarUrl ? () => setAbierto(true) : undefined}
+            >
                 {perfil.avatarUrl ? (
                     <img
                         src={perfil.avatarUrl}
@@ -454,7 +555,7 @@ function AvatarConRingSky({ perfil }: { perfil: PerfilPrestador }) {
                     />
                 ) : (
                     <div
-                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white lg:text-3xl"
+                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white lg:text-base"
                         style={{
                             background:
                                 'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
@@ -464,6 +565,31 @@ function AvatarConRingSky({ perfil }: { perfil: PerfilPrestador }) {
                     </div>
                 )}
             </div>
+            <span
+                aria-label={
+                    estadoPresencia === 'conectado'
+                        ? 'En línea'
+                        : estadoPresencia === 'ausente'
+                            ? 'Ausente'
+                            : 'Desconectado'
+                }
+                title={
+                    estadoPresencia === 'conectado'
+                        ? 'En línea'
+                        : estadoPresencia === 'ausente'
+                            ? 'Ausente'
+                            : 'Desconectado'
+                }
+                className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-3 lg:w-3 lg:bottom-0.5 lg:right-0.5 ${dotColor}`}
+            />
+            {abierto && perfil.avatarUrl && (
+                <ModalImagenes
+                    images={[perfil.avatarUrl]}
+                    initialIndex={0}
+                    isOpen={abierto}
+                    onClose={() => setAbierto(false)}
+                />
+            )}
         </div>
     );
 }
@@ -484,11 +610,11 @@ interface KpiCardProps {
 
 function KpiCard({ icono, valor, label }: KpiCardProps) {
     return (
-        <div className="flex flex-col items-center justify-center gap-1 px-3 py-2 text-center lg:py-2.5">
-            <div className="text-xl font-black tracking-tight text-slate-950 leading-none lg:text-2xl">
+        <div className="flex flex-col items-center justify-center gap-1 px-3 py-2 text-center lg:py-1.5">
+            <div className="text-xl font-black tracking-tight text-slate-950 leading-none lg:text-lg">
                 {valor}
             </div>
-            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:text-base">
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:text-xs">
                 <span className="text-slate-500">{icono}</span>
                 {label}
             </div>
@@ -551,7 +677,7 @@ function TabUnderline({ activa, icono, label, count, onClick, testId }: TabUnder
             onClick={onClick}
             role="tab"
             aria-selected={activa}
-            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:text-lg ${
+            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:pb-1.5 lg:pt-1 lg:text-lg ${
                 activa
                     ? 'border-sky-500 text-sky-700'
                     : 'border-transparent text-slate-600 hover:text-slate-800'

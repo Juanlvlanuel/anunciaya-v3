@@ -31,7 +31,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 
 export interface SelectOption<T extends string = string> {
     value: T;
@@ -64,6 +64,10 @@ interface Props<T extends string> {
      *  `overflow-hidden` o scroll (ej. un modal) que recortaría el menú.
      *  Default false (comportamiento histórico, inline). */
     portal?: boolean;
+    /** Opt-in: muestra una "×" junto al chevron cuando hay valor
+     *  seleccionado, para volver a `null` sin tener que abrir el menú.
+     *  Solo úsalo cuando el campo sea genuinamente opcional. */
+    onClear?: () => void;
 }
 
 export function CustomSelect<T extends string>({
@@ -79,17 +83,37 @@ export function CustomSelect<T extends string>({
     claseControl = 'px-3.5 py-2.5',
     claseActivo = 'border-slate-900 ring-2 ring-slate-900/15',
     portal = false,
+    onClear,
 }: Props<T>) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const listaRef = useRef<HTMLUListElement>(null);
-    const [posicion, setPosicion] = useState<{ top: number; left: number; width: number } | null>(null);
+    const [posicion, setPosicion] = useState<
+        { left: number; width: number; top: number; bottom?: undefined }
+        | { left: number; width: number; top?: undefined; bottom: number }
+        | null
+    >(null);
+
+    // Alto máx. del menú (debe coincidir con `max-h-[280px]` del <ul>). Si
+    // no cabe hacia abajo (ej. el trigger quedó pegado al fondo del modal
+    // porque ya hay varias fotos empujando el contenido) y sí hay más
+    // espacio arriba, el menú se abre hacia ARRIBA en vez de salir
+    // cortado por el borde del viewport.
+    const MENU_MAX_ALTO = 280;
+    const GAP = 6;
 
     const recalcularPosicion = useCallback(() => {
         if (!triggerRef.current) return;
         const rect = triggerRef.current.getBoundingClientRect();
-        setPosicion({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+        const espacioAbajo = window.innerHeight - rect.bottom;
+        const espacioArriba = rect.top;
+        const abrirArriba = espacioAbajo < MENU_MAX_ALTO + GAP && espacioArriba > espacioAbajo;
+        setPosicion(
+            abrirArriba
+                ? { bottom: window.innerHeight - rect.top + GAP, left: rect.left, width: rect.width }
+                : { top: rect.bottom + GAP, left: rect.left, width: rect.width }
+        );
     }, []);
 
     // Posiciona el menú portalizado al abrir, y lo reubica si el usuario
@@ -208,7 +232,8 @@ export function CustomSelect<T extends string>({
                 <span
                     className={
                         'flex-1 truncate ' +
-                        (selected ? '' : 'text-slate-500 font-medium')
+                        (selected ? '' : 'text-slate-500 font-medium') +
+                        (onClear && selected ? ' mr-5' : '')
                     }
                 >
                     {selected ? selected.label : placeholder}
@@ -221,6 +246,20 @@ export function CustomSelect<T extends string>({
                     strokeWidth={2}
                 />
             </button>
+
+            {onClear && selected && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClear();
+                    }}
+                    aria-label="Quitar selección"
+                    className="absolute right-8 top-1/2 -translate-y-1/2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-400 lg:cursor-pointer lg:hover:bg-slate-200 lg:hover:text-slate-700"
+                >
+                    <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </button>
+            )}
 
             {open && !portal && (
                 <ul
@@ -235,8 +274,18 @@ export function CustomSelect<T extends string>({
                 <ul
                     ref={listaRef}
                     role="listbox"
-                    style={{ position: 'fixed', top: posicion.top, left: posicion.left, width: posicion.width }}
-                    className="z-[70] max-h-[280px] overflow-y-auto p-1.5 bg-white border-2 border-slate-300 rounded-xl shadow-xl animate-in fade-in slide-in-from-top-1 duration-150"
+                    style={{
+                        position: 'fixed',
+                        ...(posicion.top !== undefined
+                            ? { top: posicion.top }
+                            : { bottom: posicion.bottom }),
+                        left: posicion.left,
+                        width: posicion.width,
+                    }}
+                    className={
+                        'z-[70] max-h-[280px] overflow-y-auto p-1.5 bg-white border-2 border-slate-300 rounded-xl shadow-xl animate-in fade-in duration-150 ' +
+                        (posicion.top !== undefined ? 'slide-in-from-top-1' : 'slide-in-from-bottom-1')
+                    }
                 >
                     {opciones}
                 </ul>,

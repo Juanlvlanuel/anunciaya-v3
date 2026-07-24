@@ -46,6 +46,7 @@ import Tooltip from '../../../components/ui/Tooltip';
 import { Icon } from '@/config/iconos';
 import { ICONOS } from '../../../config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { useGpsStore } from '../../../stores/useGpsStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
@@ -57,21 +58,24 @@ import {
 } from '../../../hooks/queries/useServicios';
 import {
     etiquetaTipoEmpleo,
+    formatearDistancia,
     formatearHorarioLegible,
     formatearPrecioServicio,
     formatearPresupuesto,
     formatearUltimaConexion,
+    labelCategoria,
     modalidadLabel,
     obtenerNombreCorto,
 } from '../../../utils/servicios';
 import { GaleriaServicio } from '../../../components/servicios/GaleriaServicio';
-import { OferenteCard } from '../../../components/servicios/OferenteCard';
 import { MapaUbicacion } from '../../../components/marketplace/MapaUbicacion';
 import { BarraContactoServicio } from '../../../components/servicios/BarraContactoServicio';
 import { ModalCrearResena } from '../../../components/servicios/ModalCrearResena';
 import { SeccionComentariosServicio } from '../../../components/servicios/SeccionComentariosServicio';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import { Spinner } from '../../../components/ui/Spinner';
+import { ModalImagenes } from '../../../components/ui/ModalImagenes';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import type { PublicacionDetalle } from '../../../types/servicios';
 
 const VISTA_REGISTRADA_STORAGE_PREFIX = 'aya:servicios:vista:';
@@ -83,8 +87,16 @@ export function PaginaServicio() {
     const handleVolver = useVolverAtras('/servicios');
     const cuerpoRef = useScrollAppShell();
     const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
+    // Sincroniza la barra de contacto fija con el BottomNav — mismo
+    // patrón que el detalle de MarketPlace.
+    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
 
-    const { data: publicacion, isPending, isError } = usePublicacionServicio(id);
+    const latitud = useGpsStore((s) => s.latitud);
+    const longitud = useGpsStore((s) => s.longitud);
+    const { data: publicacion, isPending, isError } = usePublicacionServicio(id, {
+        lat: latitud,
+        lng: longitud,
+    });
     const registrarVista = useRegistrarVistaServicio();
     const vistaYaRegistrada = useRef(false);
     const [modalResenaAbierto, setModalResenaAbierto] = useState(false);
@@ -150,7 +162,7 @@ export function PaginaServicio() {
             <>
                 <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
                 <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent lg:flex-none lg:overflow-visible lg:min-h-full">
-                    <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
+                    <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[920px] 2xl:px-4">
                         <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                             <div className="w-16 h-16 rounded-full bg-amber-50 grid place-items-center mb-4">
                                 <AlertCircle
@@ -214,20 +226,14 @@ export function PaginaServicio() {
     // galería con su estilo glass (renderizado más abajo).
     const cabeceraTituloPrecio = (
         <SeccionCard>
-            <div className="flex items-start justify-between gap-3">
-                <TipoChip tipo={publicacion.tipo} verificada={isVacante} />
-                {/* El botón guardar vive ahora en el header dark sticky
-                    superior (mismo patrón que el detalle de MarketPlace),
-                    no duplicado aquí. */}
-            </div>
-
-            {/* Título + tipo de empleo (solo vacantes) — los 2 datos más
-                importantes en una sola línea, separados por divisor vertical.
-                En móvil se apila si no cabe (flex-wrap). */}
-            <div className="mt-2 flex items-baseline gap-3 flex-wrap">
+            {/* Título + badge de tipo — el botón guardar vive ahora en el
+                header dark sticky superior (mismo patrón que el detalle de
+                MarketPlace), no duplicado aquí. */}
+            <div className="flex items-baseline gap-3 flex-wrap">
                 <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">
                     {publicacion.titulo}
                 </h1>
+                <TipoChip tipo={publicacion.tipo} verificada={isVacante} />
                 {isVacante && publicacion.tipoEmpleo && (
                     <div className="flex items-center gap-3">
                         <span
@@ -241,42 +247,33 @@ export function PaginaServicio() {
                 )}
             </div>
 
-            {/* Precio: visible en móvil dentro de la cabecera. En desktop el
-                precio se muestra en el sidebar derecho (sticky) para mantener
-                la cabecera limpia. */}
-            <div className="lg:hidden">
-                {isSolicito && publicacion.presupuesto ? (
-                    <div className="mt-1 flex items-baseline gap-2">
-                        <span className="text-sm font-bold uppercase tracking-wider text-amber-700">
-                            Presupuesto
-                        </span>
-                        <span className="text-[20px] font-extrabold text-slate-900">
-                            {formatearPresupuesto(publicacion.presupuesto)}
-                        </span>
-                    </div>
-                ) : (
-                    <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-                        <span className={`text-[20px] font-extrabold ${isVacante ? 'text-sky-700' : isSolicito ? 'text-amber-700' : 'text-emerald-700'}`}>
-                            {formatearPrecioServicio(publicacion.precio, {
-                                esVacante: isVacante,
-                            })}
-                        </span>
-                        <span className="text-sm font-semibold text-slate-600">
-                            · {modalidadLabel(publicacion.modalidad)} ·{' '}
-                            {publicacion.ciudad.split(',')[0]}
-                        </span>
-                    </div>
-                )}
-            </div>
+        </SeccionCard>
+    );
 
-            {/* OferenteCard solo en móvil — en desktop vive en el sidebar. */}
-            <div className="lg:hidden">
-                <OferenteCard
+    // Card fusionada (Pago/Presupuesto + badges + ciudad/distancia +
+    // "Sobre el oferente/solicitante") — mismo componente y mismo estilo
+    // visual que el sidebar de desktop, ahora también en móvil. Los
+    // Contactos (ChatYA/WhatsApp) se ocultan aquí porque móvil ya tiene
+    // su propia barra fija abajo.
+    const cardContactoMobile = (
+        <div className="lg:hidden bg-white rounded-2xl border border-slate-300 shadow-md">
+            <div className="px-4 py-3.5">
+                <SidebarContacto
                     publicacion={publicacion}
-                    onClick={irAPerfilDelOferente}
+                    isPausada={isPausada}
+                    isSolicito={isSolicito}
+                    sinWrapper
+                    ocultarContactos
                 />
             </div>
-        </SeccionCard>
+            <div className="border-t border-slate-200 px-4 py-3.5">
+                <SidebarSobreNegocio
+                    publicacion={publicacion}
+                    onVerNegocio={irAPerfilDelOferente}
+                    sinWrapper
+                />
+            </div>
+        </div>
     );
 
     const cardDescripcion = (
@@ -353,7 +350,7 @@ export function PaginaServicio() {
         : 'Ubicación aproximada';
     const mensajePrivacidadMapa = isVacante
         ? undefined
-        : 'Por privacidad mostramos solo la zona aproximada.\nCoordina los detalles por chat.';
+        : 'Por privacidad mostramos solo la zona aproximada. Coordina los detalles por chat.';
     const urlComoLlegar = esExacto && publicacion.ubicacionExacta
         ? `https://www.google.com/maps/dir/?api=1&destination=${publicacion.ubicacionExacta.lat},${publicacion.ubicacionExacta.lng}`
         : null;
@@ -400,6 +397,7 @@ export function PaginaServicio() {
                             : undefined
                     }
                     mensajePrivacidad={mensajePrivacidadMapa}
+                    controlesActivos
                 />
             )}
         </SeccionCard>
@@ -504,7 +502,7 @@ export function PaginaServicio() {
                     />
 
                     {/* Contenido del header */}
-                    <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5">
+                    <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5 lg:px-4 lg:py-2.5 2xl:px-3 2xl:pt-4 2xl:pb-2.5">
                         {/* Bloque izquierdo: ← + icono sky + Detalle | título */}
                         <div className="flex min-w-0 items-center gap-1.5">
                             <button
@@ -527,7 +525,7 @@ export function PaginaServicio() {
                                     strokeWidth={2.5}
                                 />
                             </div>
-                            <span className="ml-1.5 shrink-0 text-2xl font-extrabold tracking-tight text-white">
+                            <span className="ml-1.5 shrink-0 text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-white">
                                 Detalle
                             </span>
 
@@ -603,81 +601,191 @@ export function PaginaServicio() {
                 </div>
             </div>
             <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent pb-32 lg:flex-none lg:overflow-visible lg:pb-8">
-                <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
+                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[920px] 2xl:px-4 lg:py-6">
                     <div className="px-4 lg:px-0 space-y-3 lg:space-y-4">
-                        {/* Hero ancho completo — edge-to-edge mobile, card en desktop.
-                            Sprint 9.3 (iteración): el wrapper SOLO se
-                            renderiza si hay galería (vacantes-empresa
-                            siempre, o servicio-persona/solicito con
-                            fotos). Si no hay fotos en un servicio
-                            personal o solicitud, se omite el wrapper
-                            entero y el bookmark vive en el header de
-                            la cabecera (al lado del badge de tipo). */}
-                        {tieneGaleria && (
-                            <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
-                                <GaleriaServicio publicacion={publicacion} />
-                                {/* El botón guardar vive ahora en el header
-                                    dark sticky superior (mismo patrón que el
-                                    detalle de MarketPlace), no overlay sobre
-                                    la galería. */}
-                            </div>
-                        )}
+                        {isSolicito ? (
+                            /* ─── "BUSCO": jerarquía invertida ───
+                               Para una solicitud lo primero que importa es QUÉ
+                               se necesita, no cuánto se paga (casi siempre "a
+                               tratar"). Título arriba con realce, luego la
+                               descripción como contenido principal (+ foto si
+                               existe) y el Pago/Contactos/Solicitante como
+                               sidebar de apoyo — funciona igual con o sin
+                               foto porque la galería es opcional dentro de
+                               la misma columna izquierda. */
+                            <>
+                                <div className="lg:grid lg:grid-cols-5 lg:gap-4 2xl:gap-6 space-y-3 lg:space-y-0">
+                                    <div className="space-y-3 lg:space-y-4 lg:col-span-3 min-w-0">
+                                        {tieneGaleria && (
+                                            <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
+                                                <GaleriaServicio publicacion={publicacion} />
+                                            </div>
+                                        )}
+                                        {cabeceraTituloPrecio}
+                                        {cardContactoMobile}
+                                        {cardDescripcion}
+                                    </div>
 
-                        {isPausada && <BannerPausada />}
+                                    {/* Sin `items-start`: la card se estira al alto
+                                        de la columna izquierda (galería+título+
+                                        descripción) y "Sobre el solicitante" se
+                                        ancla abajo con `mt-auto` — evita el hueco
+                                        vacío feo cuando hay varias fotos o el
+                                        visitante es el dueño (sin Contactos). */}
+                                    <aside className="hidden lg:flex lg:flex-col lg:col-span-2 bg-white rounded-2xl border border-slate-300 shadow-md">
+                                        <div className="px-4 py-3.5">
+                                            <SidebarContacto
+                                                publicacion={publicacion}
+                                                isPausada={isPausada}
+                                                isSolicito={isSolicito}
+                                                sinWrapper
+                                            />
+                                        </div>
+                                        <div className="mt-auto border-t border-slate-200 px-4 py-3.5">
+                                            <SidebarSobreNegocio
+                                                publicacion={publicacion}
+                                                onVerNegocio={irAPerfilDelOferente}
+                                                sinWrapper
+                                            />
+                                        </div>
+                                    </aside>
+                                </div>
 
-                        {/* ─── LAYOUT 2-COL EN DESKTOP ───
-                            Sprint 9.3 (iteración): proporciones ajustadas
-                            de 2:1 (66/33) → 3:2 (60/40) para dar más
-                            ancho al sidebar derecho — la card de PAGO +
-                            datos + ChatYA/WhatsApp necesitaba más aire
-                            con la nueva tipografía. La izquierda se
-                            reduce un poco (sigue cómoda para descripción
-                            y mapa). */}
-                        <div className="lg:grid lg:grid-cols-5 lg:gap-4 2xl:gap-6 lg:items-start space-y-3 lg:space-y-0">
-                            {/* COL IZQUIERDA — contenido principal (3/5 = 60%) */}
-                            <div className="space-y-3 lg:space-y-4 lg:col-span-3 min-w-0">
-                                {cabeceraTituloPrecio}
-                                {cardDescripcion}
-                                {cardSkills}
-                                {/* Requisitos + Beneficios en 2-col en desktop
-                                    cuando ambos existen; full-width si solo
-                                    hay uno. */}
-                                {cardRequisitos && cardBeneficios ? (
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
-                                        {cardRequisitos}
-                                        {cardBeneficios}
+                                {isPausada && <BannerPausada />}
+
+                                <div className="space-y-3 lg:space-y-4">
+                                    {cardModalidadUbicacion}
+                                    {cardPreguntas}
+                                    {cardDejarResena}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* ─── HERO (mismo acomodo que el detalle de MarketPlace) ───
+                                    Galería a la izquierda + sidebar (Pago/Contacto +
+                                    Sobre el oferente) a la derecha, pareados a la misma
+                                    altura — sin sticky (un solo scroll para toda la
+                                    página). Si no hay galería, el sidebar se acomoda
+                                    en 2 columnas para no dejar la mitad izquierda vacía. */}
+                                {tieneGaleria ? (
+                                    <div className={`lg:grid lg:grid-cols-5 lg:gap-4 2xl:gap-6 ${isVacante ? '' : 'lg:items-start'}`}>
+                                        <div className={`relative -mx-4 lg:mx-0 lg:col-span-3 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300 ${isVacante ? 'lg:h-full' : ''}`}>
+                                            <GaleriaServicio publicacion={publicacion} alturaCompleta={isVacante} />
+                                            {/* El botón guardar vive ahora en el header
+                                                dark sticky superior (mismo patrón que el
+                                                detalle de MarketPlace), no overlay sobre
+                                                la galería. */}
+                                        </div>
+                                        <aside className="hidden lg:block lg:col-span-2 bg-white rounded-2xl border border-slate-300 shadow-md">
+                                            <div className="px-4 py-3.5">
+                                                <SidebarContacto
+                                                    publicacion={publicacion}
+                                                    isPausada={isPausada}
+                                                    isSolicito={isSolicito}
+                                                    sinWrapper
+                                                />
+                                            </div>
+                                            <div className="border-t border-slate-200 px-4 py-3.5">
+                                                <SidebarSobreNegocio
+                                                    publicacion={publicacion}
+                                                    onVerNegocio={irAPerfilDelOferente}
+                                                    sinWrapper
+                                                />
+                                            </div>
+                                        </aside>
                                     </div>
                                 ) : (
-                                    cardRequisitos || cardBeneficios
+                                    /* Sin galería no hay nada con qué "parear" el
+                                       sidebar en 2 columnas — apilar las 2 secciones
+                                       (con divisor horizontal) desperdiciaba el ancho
+                                       y sumaba el alto de ambas. Ahora comparten 1
+                                       sola card con divisor VERTICAL: cada sección
+                                       toma su alto natural (items-start) y el ancho
+                                       se usa completo. */
+                                    <div className="hidden lg:grid lg:grid-cols-2 lg:items-start bg-white rounded-2xl border border-slate-300 shadow-md">
+                                        <div className="px-4 py-3.5 lg:border-r lg:border-slate-200">
+                                            <SidebarContacto
+                                                publicacion={publicacion}
+                                                isPausada={isPausada}
+                                                isSolicito={isSolicito}
+                                                sinWrapper
+                                            />
+                                        </div>
+                                        <div className="px-4 py-3.5">
+                                            <SidebarSobreNegocio
+                                                publicacion={publicacion}
+                                                onVerNegocio={irAPerfilDelOferente}
+                                                sinWrapper
+                                            />
+                                        </div>
+                                    </div>
                                 )}
-                                {cardModalidadUbicacion}
-                                {cardPreguntas}
-                                {cardDejarResena}
-                            </div>
 
-                            {/* COL DERECHA — sidebar sticky (2/5 = 40%, solo desktop) */}
-                            <aside className="hidden lg:block lg:col-span-2 space-y-4 lg:sticky lg:top-24">
-                                <SidebarContacto
-                                    publicacion={publicacion}
-                                    isPausada={isPausada}
-                                    isSolicito={isSolicito}
-                                />
-                                <SidebarSobreNegocio
-                                    publicacion={publicacion}
-                                    onVerNegocio={irAPerfilDelOferente}
-                                />
-                            </aside>
-                        </div>
+                                {isPausada && <BannerPausada />}
+
+                                {/* ─── RESTO A ANCHO COMPLETO ───
+                                    Mismo criterio que MarketPlace: nada de columna
+                                    angosta para descripción/skills/mapa/comentarios —
+                                    evita el hueco vacío que dejaba el split 60/40 a
+                                    todo lo alto de la página. */}
+                                <div className="space-y-3 lg:space-y-4">
+                                    {cardSkills}
+                                    {/* Requisitos + Beneficios en 2-col en desktop
+                                        cuando ambos existen; full-width si solo
+                                        hay uno. */}
+                                    {cardRequisitos && cardBeneficios ? (
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+                                            {cardRequisitos}
+                                            {cardBeneficios}
+                                        </div>
+                                    ) : (
+                                        cardRequisitos || cardBeneficios
+                                    )}
+                                    {/* Descripción + Mapa en la misma fila en desktop
+                                        (mismo criterio que Características + Mapa en
+                                        el detalle de MarketPlace). El título va
+                                        DENTRO de la columna de Descripción (no a
+                                        todo el ancho de la fila) — así el Mapa
+                                        solo se pareja con Descripción, no con el
+                                        título por separado. Sin `items-start`: la
+                                        columna izquierda siempre se estira al alto
+                                        del Mapa (o viceversa). */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+                                        <div className="space-y-3 lg:space-y-4">
+                                            {cabeceraTituloPrecio}
+                                            {cardContactoMobile}
+                                            {cardDescripcion}
+                                        </div>
+                                        {cardModalidadUbicacion}
+                                    </div>
+                                    {cardPreguntas}
+                                    {cardDejarResena}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {/* Barra de contacto fija inferior en móvil */}
-                <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur border-t border-slate-300 lg:hidden">
+                {/* Barra de contacto fija inferior en móvil — mismo patrón
+                    que el detalle de MarketPlace: fondo negro, línea de
+                    acento sky (espejo del header) y se desplaza junto con
+                    el BottomNav al ocultarse/mostrarse en el scroll. */}
+                <div
+                    className="fixed inset-x-0 z-30 shadow-[0_-2px_8px_rgba(0,0,0,0.25)] transition-[bottom] duration-300 ease-out lg:hidden"
+                    style={{
+                        bottom: bottomNavVisible ? 'calc(var(--altura-bottomnav, 68px) - 1px)' : '0px',
+                        background: '#000000',
+                    }}
+                >
+                    <div
+                        className="pointer-events-none absolute top-0 left-0 right-0 h-[3px]"
+                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                    />
                     {isPausada ? (
                         <div className="px-3 py-3">
                             <button
                                 disabled
-                                className="w-full py-3 rounded-xl bg-slate-200 text-slate-600 font-bold text-sm cursor-not-allowed"
+                                className="w-full py-3 rounded-xl bg-slate-700 text-slate-300 font-bold text-sm cursor-not-allowed"
                             >
                                 Contacto deshabilitado
                             </button>
@@ -827,17 +935,28 @@ function SidebarContacto({
     publicacion,
     isPausada,
     isSolicito,
+    sinWrapper = false,
+    ocultarContactos = false,
 }: {
     publicacion: PublicacionDetalle;
     isPausada: boolean;
     isSolicito: boolean;
+    /** Omite la card blanca propia — para cuando se fusiona con otro
+     *  sidebar dentro de un wrapper compartido (caso sin galería). */
+    sinWrapper?: boolean;
+    /** Móvil ya tiene su propia barra fija de Contactos (ChatYA/WhatsApp)
+     *  abajo — evita duplicarla dentro de esta card. */
+    ocultarContactos?: boolean;
 }) {
     // `esVacante` se deriva dentro del componente — no se pasa como prop
     // para no cambiar la firma. Es necesario para que el helper devuelva
     // "Sueldo a tratar" (vacante) vs "A tratar" (servicio) cuando el
     // precio es 'a-convenir'.
     const esVacante = publicacion.tipo === 'vacante-empresa';
-    const hayBadges = (esVacante && publicacion.tipoEmpleo) || Boolean(publicacion.modalidad);
+    const hayBadges = (esVacante && publicacion.tipoEmpleo)
+        || Boolean(publicacion.modalidad)
+        || Boolean(isSolicito && publicacion.categoria)
+        || publicacion.urgente;
 
     // Sprint 9.3 (iteración): determinamos si el visitante es el dueño
     // de la publicación para NO renderizar la sección "Contactos" en
@@ -849,7 +968,7 @@ function SidebarContacto({
     const mostrarContactos = !esDuenio;
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-3.5">
+        <div className={sinWrapper ? 'space-y-2' : 'bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-3.5'}>
             {/* Precio destacado — Sprint 9.3 (iteración): tamaño bajado de
                 22/26px a 18/20px porque "Sueldo a tratar" es texto largo
                 y se veía sobredimensionado. Para precios numéricos (ej
@@ -857,17 +976,17 @@ function SidebarContacto({
                 jerárquico vs el título "Pago" (11/14px). */}
             {isSolicito && publicacion.presupuesto ? (
                 <div>
-                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-amber-700 mb-1.5">
+                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-900 mb-1.5">
                         Presupuesto
                     </div>
-                    <div className="text-lg 2xl:text-xl font-extrabold text-slate-900 leading-tight">
+                    <div className="text-lg 2xl:text-xl font-extrabold text-amber-700 leading-tight">
                         {formatearPresupuesto(publicacion.presupuesto)}
                     </div>
                 </div>
             ) : (
                 <div>
                     <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                        Pago
+                        {esVacante ? 'Sueldo' : 'Precio'}
                     </div>
                     <div className={`text-lg 2xl:text-xl font-extrabold leading-tight ${esVacante ? 'text-sky-700' : isSolicito ? 'text-amber-700' : 'text-emerald-700'}`}>
                         {formatearPrecioServicio(publicacion.precio, {
@@ -895,17 +1014,33 @@ function SidebarContacto({
                             {modalidadLabel(publicacion.modalidad)}
                         </span>
                     )}
+                    {isSolicito && publicacion.categoria && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                            {labelCategoria(publicacion.categoria)}
+                        </span>
+                    )}
+                    {publicacion.urgente && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-600">
+                            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            Urgente
+                        </span>
+                    )}
                 </div>
             )}
 
             {/* Ciudad + horario — debajo de los badges, separados por línea. */}
-            <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-200">
+            <div className={`flex flex-col gap-1.5 border-t border-slate-200 ${sinWrapper ? 'pt-2' : 'pt-3'}`}>
                 <div className="flex items-center gap-2 text-[13px] 2xl:text-sm text-slate-700 font-medium">
                     <MapPin
                         className="w-3.5 h-3.5 text-slate-500 shrink-0"
                         strokeWidth={2}
                     />
                     {publicacion.ciudad.split(',')[0]}
+                    {publicacion.distanciaMetros !== null && (
+                        <span className="text-slate-500">
+                            · {formatearDistancia(publicacion.distanciaMetros)}
+                        </span>
+                    )}
                 </div>
                 {publicacion.horario && (() => {
                     const lineas = formatearHorarioLegible(publicacion.horario);
@@ -942,8 +1077,8 @@ function SidebarContacto({
                 Solo se renderiza si el visitante NO es el dueño de la
                 publicación (en ese caso la barra retornaría null y
                 quedaría un título colgado sin botones). */}
-            {mostrarContactos && (
-                <div className="pt-3 border-t border-slate-200">
+            {mostrarContactos && !ocultarContactos && (
+                <div className={`border-t border-slate-200 ${sinWrapper ? 'pt-2' : 'pt-3'}`}>
                     <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-2">
                         Contactos
                     </div>
@@ -977,9 +1112,13 @@ function SidebarContacto({
 function SidebarSobreNegocio({
     publicacion,
     onVerNegocio,
+    sinWrapper = false,
 }: {
     publicacion: PublicacionDetalle;
     onVerNegocio: () => void;
+    /** Omite la card blanca propia — para cuando se fusiona con otro
+     *  sidebar dentro de un wrapper compartido (caso sin galería). */
+    sinWrapper?: boolean;
 }) {
     const { oferente, tipo } = publicacion;
     const esEmpresa = tipo === 'vacante-empresa';
@@ -1024,9 +1163,10 @@ function SidebarSobreNegocio({
     // Subtítulo solo para empresas con sucursal extra (Matriz / nombre
     // de la sucursal). Personas no muestran ciudad.
     const subtitulo = esEmpresa ? sufijoSucursal : null;
+    const [avatarAbierto, setAvatarAbierto] = useState(false);
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-2.5">
+        <div className={sinWrapper ? 'space-y-1.5' : 'bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-2.5'}>
             <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600">
                 {titulo}
             </div>
@@ -1043,7 +1183,10 @@ function SidebarSobreNegocio({
                   - Subtítulo: sucursal o ciudad */}
             <div className="flex items-center gap-2.5">
                 {esEmpresa ? (
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
+                    <div
+                        className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100 ${avatarUrl ? 'lg:cursor-pointer' : ''}`}
+                        onClick={avatarUrl ? () => setAvatarAbierto(true) : undefined}
+                    >
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -1058,7 +1201,10 @@ function SidebarSobreNegocio({
                         )}
                     </div>
                 ) : (
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                    <div
+                        className={`h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200 ${avatarUrl ? 'lg:cursor-pointer' : ''}`}
+                        onClick={avatarUrl ? () => setAvatarAbierto(true) : undefined}
+                    >
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -1145,6 +1291,15 @@ function SidebarSobreNegocio({
                     <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
             </div>
+
+            {avatarAbierto && avatarUrl && (
+                <ModalImagenes
+                    images={[avatarUrl]}
+                    initialIndex={0}
+                    isOpen={avatarAbierto}
+                    onClose={() => setAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }

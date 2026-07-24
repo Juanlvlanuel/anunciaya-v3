@@ -273,7 +273,7 @@ export function PaginaArticuloMarketplace() {
                                     }}
                                 >
                                     <ShoppingCart
-                                        className="h-[18px] w-[18px] text-black"
+                                        className="h-[18px] w-[18px] text-white"
                                         strokeWidth={2.5}
                                     />
                                 </div>
@@ -491,6 +491,7 @@ export function PaginaArticuloMarketplace() {
                                     lat={articulo.ubicacionAproximada.lat}
                                     lng={articulo.ubicacionAproximada.lng}
                                     zonaAproximada={articulo.zonaAproximada}
+                                    controlesActivos
                                 />
                             </div>
                         </div>

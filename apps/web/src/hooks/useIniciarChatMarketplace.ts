@@ -29,6 +29,7 @@ import { useChatYAStore } from '../stores/useChatYAStore';
 import { useUiStore } from '../stores/useUiStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { notificar } from '../utils/notificaciones';
+import { formatearPresupuesto } from '../utils/marketplace';
 import type { ArticuloMarketplaceDetalle } from '../types/marketplace';
 
 export function useIniciarChatMarketplace() {
@@ -51,7 +52,7 @@ export function useIniciarChatMarketplace() {
             return;
         }
 
-        const { vendedor, titulo, id, precio, condicion, fotos, fotoPortadaIndex } =
+        const { vendedor, titulo, id, precio, condicion, fotos, fotoPortadaIndex, modo, presupuesto } =
             articulo;
 
         // Auto-rechazo si el visitante es el dueño (defensa extra; la
@@ -80,12 +81,19 @@ export function useIniciarChatMarketplace() {
         };
 
         // Preview de la card encima del input (no se persiste hasta enviar).
+        // En modo 'busco' el precio siempre es null — el rango real vive en
+        // `presupuesto`. Sin esto, el preview del chat no mostraba nada
+        // aunque el usuario sí hubiera puesto un presupuesto (mismo bug
+        // que "A tratar" en Servicios/Solicito).
+        const precioTexto =
+            modo === 'busco'
+                ? formatearPresupuesto(presupuesto)
+                : (precio ?? undefined);
         const cardData = {
             subtipo: 'articulo_marketplace' as const,
             titulo,
             imagen: fotoUrl,
-            // En modo 'busco' el precio es null; el preview del chat no lo muestra.
-            precio: precio ?? undefined,
+            precio: precioTexto,
             condicion: condicion ?? undefined,
         };
 
