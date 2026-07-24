@@ -39,7 +39,6 @@ type IconoComponente = React.ComponentType<{ className?: string; strokeWidth?: n
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
-const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { useVolverAtras } from '../../hooks/useVolverAtras';
@@ -58,10 +57,9 @@ interface HeaderOfertasProps {
 }
 
 // Chips situacionales visibles (orden alineado a MarketPlace y Negocios).
-// Default activo: 'recientes'. El chip 'mas_vistas' antes era un CTA blanco
-// destacado; ahora es un chip más en la fila para mantener uniformidad.
+// 'recientes' ya NO es un chip clickeable — es el estado por defecto (ningún
+// chip activo). Click en un chip activo lo desactiva y vuelve a 'recientes'.
 const CHIPS: { id: ChipSituacional; label: string; icono?: IconoComponente }[] = [
-  { id: 'recientes', label: 'Recientes', icono: Clock },
   { id: 'mas_vistas', label: 'Más vistos', icono: Eye },
   { id: 'cerca', label: 'Cerca de ti', icono: Locate },
   { id: 'hoy', label: 'Hoy', icono: Calendar },
@@ -272,7 +270,7 @@ export default function HeaderOfertas({
         {/* Logo + Título a la izq · Chips centro · KPI derecha.           */}
         {/* ══════════════════════════════════════════════════════════════ */}
         <div className="hidden lg:block">
-          <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-5">
+          <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-3.5">
             {/* Bloque izquierdo: flecha + logo + título (agrupados) */}
             <div className="flex items-center gap-3 shrink-0">
               {/* Flecha ← regresar al inicio (solo desktop) */}
@@ -280,27 +278,27 @@ export default function HeaderOfertas({
                 data-testid="btn-volver-ofertas-desktop"
                 onClick={handleVolver}
                 aria-label="Volver al inicio"
-                className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
               >
                 <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
               </button>
               {/* Logo */}
               <div
-                className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
+                className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 rounded-lg flex items-center justify-center"
                 style={{
                   background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                 }}
               >
                 <Tag
-                  className="w-6 h-6 lg:w-[18px] lg:h-[18px] 2xl:w-6.5 2xl:h-6.5 text-white"
+                  className="w-6 h-6 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5 text-white"
                   strokeWidth={2.5}
                 />
               </div>
               <div className="flex items-baseline">
-                <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-white tracking-tight">
+                <span className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold text-white tracking-tight">
                   Ofertas
                 </span>
-                <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-amber-400 tracking-tight">
+                <span className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold text-amber-400 tracking-tight">
                   Locales
                 </span>
               </div>
@@ -320,7 +318,7 @@ export default function HeaderOfertas({
                     <button
                       key={id}
                       data-testid={`chip-situacional-${id}`}
-                      onClick={() => setChipActivo(id)}
+                      onClick={() => setChipActivo(activo ? 'recientes' : id)}
                       className={[
                         'shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
                         ocultoEnLaptop ? 'hidden lg:hidden 2xl:flex' : 'flex',
@@ -343,11 +341,11 @@ export default function HeaderOfertas({
             <div className="flex flex-col items-end shrink-0">
               <span
                 data-testid="kpi-total-ofertas"
-                className="text-3xl lg:text-2xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                className="text-3xl lg:text-2xl 2xl:text-3xl font-extrabold text-white leading-none tabular-nums"
               >
                 {totalOfertas}
               </span>
-              <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-sm font-semibold text-amber-400/80 uppercase tracking-wider">
+              <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-xs font-semibold text-amber-400/80 uppercase tracking-wider">
                 Ofertas
               </span>
             </div>
@@ -371,7 +369,7 @@ export default function HeaderOfertas({
                   <button
                     key={id}
                     data-testid={`chip-situacional-movil-${id}`}
-                    onClick={() => setChipActivo(id)}
+                    onClick={() => setChipActivo(activo ? 'recientes' : id)}
                     className={[
                       'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
                       activo

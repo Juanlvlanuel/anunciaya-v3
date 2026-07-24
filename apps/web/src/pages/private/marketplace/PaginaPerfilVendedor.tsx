@@ -389,7 +389,7 @@ export function PaginaPerfilVendedor() {
                         {/* Contenido del header — patrón MP:
                             izquierda: [← volver][icono teal][título] juntos
                             derecha: [menú] */}
-                        <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5">
+                        <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5 lg:px-4 lg:py-2.5 2xl:px-3 2xl:pt-4 2xl:pb-2.5">
                             {/* Bloque izquierdo: volver + icono + Perfil | Nombre */}
                             <div className="flex min-w-0 items-center gap-1.5">
                                 <button
@@ -412,7 +412,7 @@ export function PaginaPerfilVendedor() {
                                         strokeWidth={2.5}
                                     />
                                 </div>
-                                <span className="ml-1.5 shrink-0 text-2xl font-extrabold tracking-tight text-white">
+                                <span className="ml-1.5 shrink-0 text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-white">
                                     Perfil
                                 </span>
 
@@ -476,8 +476,8 @@ export function PaginaPerfilVendedor() {
             </div>
 
             {/* CONTENEDOR — max 920px para igualar al feed de MP. Móvil: contenedor con scroll propio. */}
-            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[920px] lg:px-4">
-                <div className="px-3 py-5 lg:px-0 lg:py-8">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[920px] 2xl:px-4">
+                <div className="px-3 py-5 lg:px-0 lg:py-4">
 
                     <HeroCard
                         perfil={perfil}
@@ -495,7 +495,7 @@ export function PaginaPerfilVendedor() {
                     />
 
                     {esVendedor && (
-                        <div className="mt-6">
+                        <div className="mt-6 lg:mt-3">
                             <TabsSegmented
                                 tabActiva={tabActiva}
                                 totalActivos={totalActivos}
@@ -503,7 +503,7 @@ export function PaginaPerfilVendedor() {
                                 onChange={setTabActiva}
                             />
 
-                            <div className="mt-4">
+                            <div className="mt-4 lg:mt-2">
                                 {cargandoPublicaciones && articulos.length === 0 ? (
                                     <div className="flex min-h-40 items-center justify-center">
                                         <Spinner tamanio="md" />
@@ -593,83 +593,67 @@ function HeroCard({
 }: HeroCardProps) {
     const hayAccionesContacto = !esUnoMismo && !estaBloqueado;
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-lg lg:rounded-3xl lg:px-8 lg:py-5">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-lg lg:rounded-2xl lg:px-6 lg:py-4">
             {/* ═══════════════════════════════════════════════════════════════
-                Layout 2 columnas en desktop (Sprint 9.3 rediseño):
-                  · Col izquierda: avatar grande + identidad apilados
-                    verticalmente
-                  · Col derecha: 3 KPI cards individuales arriba +
-                    3 botones (grid 3 cols) abajo
-                En móvil se apila vertical. Card wrapper más generoso
-                (`p-6`/`lg:p-8`, `rounded-2xl`/`lg:rounded-3xl`).
-            ═══════════════════════════════════════════════════════════════ */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-10">
-                {/* ── Columna izquierda: avatar + identidad ──────────────────
-                    En desktop la identidad va AL LADO del avatar
-                    (flex-row); en móvil se apila vertical centrado.
-                    Sprint 9.3 (iteración): antes era flex-col siempre
-                    y el bloque de identidad caía debajo del avatar
-                    incluso en desktop, desperdiciando ancho útil. */}
-                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:text-left">
+                Layout 2 columnas en desktop, compacto: avatar chico + nombre
+                en 1 sola línea a la izquierda; KPIs + botones a la derecha.
+                En móvil se apila vertical (sin cambios ahí). ═══════════════ */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center lg:gap-6">
+                {/* ── Columna izquierda: avatar + identidad, todo en 1 línea
+                    en desktop (avatar chico + nombre + ciudad inline). ──── */}
+                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-center lg:gap-3 lg:text-left">
                     <AvatarConAdornos
                         perfil={perfil}
                         estadoPresencia={estadoPresencia}
                     />
                     <div className="flex min-w-0 flex-1 flex-col items-center lg:items-start">
-                        {/* Nombre dividido en 2 líneas: nombres arriba,
-                            apellidos + badge verificado en la 2ª línea.
-                            BadgeCheck invertido: fondo azul (`fill-blue-500`)
-                            con palomita blanca (`text-white` sobre el
-                            stroke del check), estilo "verified" tipo
-                            Twitter/X. */}
+                        {/* Nombre en 1 sola línea (nombre + apellidos +
+                            badge verificado juntos). BadgeCheck invertido:
+                            fondo azul (`fill-blue-500`) con palomita blanca,
+                            estilo "verified" tipo Twitter/X. */}
                         <h1
                             data-testid="nombre-vendedor"
-                            className="text-xl font-extrabold tracking-tight text-slate-950 leading-tight lg:text-2xl"
+                            className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight text-slate-950 leading-tight lg:text-lg"
                         >
-                            <span className="block">{perfil.nombre}</span>
-                            <span className="flex items-center justify-center gap-1.5 lg:justify-start">
-                                {perfil.apellidos}
-                                {esVendedor && (
-                                    <BadgeCheck
-                                        className="h-5 w-5 shrink-0 fill-blue-500 text-white lg:h-6 lg:w-6"
-                                        strokeWidth={2.5}
-                                        aria-label="Vendedor con publicaciones"
-                                    />
-                                )}
-                            </span>
+                            {perfil.nombre} {perfil.apellidos}
+                            {esVendedor && (
+                                <BadgeCheck
+                                    className="h-5 w-5 shrink-0 fill-blue-500 text-white lg:h-[18px] lg:w-[18px]"
+                                    strokeWidth={2.5}
+                                    aria-label="Vendedor con publicaciones"
+                                />
+                            )}
                         </h1>
-                        {/* Ciudad + miembro desde con separación visual
-                            mayor del nombre (mt-6/mt-8) para que se
-                            perciban como un bloque secundario distinto. */}
+                        {/* Ciudad + miembro desde — pegados al nombre. */}
                         {perfil.ciudad && (
-                            <div className="mt-6 flex items-center gap-1.5 text-base font-medium text-slate-600 lg:mt-8">
+                            <div className="mt-1 flex items-center gap-1.5 text-base font-medium text-slate-600 lg:mt-1 lg:text-sm">
                                 <MapPin
-                                    className="h-4 w-4 shrink-0 text-slate-500"
+                                    className="h-4 w-4 shrink-0 text-slate-500 lg:h-3.5 lg:w-3.5"
                                     strokeWidth={2}
                                 />
                                 {perfil.ciudad}
                             </div>
                         )}
-                        <p className="mt-0.5 text-sm font-medium text-slate-500">
+                        <p className="mt-0.5 text-sm font-medium text-slate-500 lg:text-xs">
                             Miembro desde: {formatearMiembroDesde(perfil.miembroDesde)}
                         </p>
                     </div>
                 </div>
 
                 {/* ── Columna derecha: KPIs (3 cards) + botones (3 cols) ───── */}
-                <div className="flex flex-col gap-3 lg:gap-4">
+                <div className="flex flex-col gap-3 lg:gap-2">
                     {esVendedor && (
                         <div
                             data-testid="kpis-vendedor"
                             className="grid grid-cols-2 divide-x-2 divide-slate-300 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100"
                         >
                             <KpiCard
-                                icono={<Package className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
+                                icono={<Package className="h-5 w-5 lg:h-4 lg:w-4" strokeWidth={1.75} />}
                                 valor={totalActivos.toString()}
                                 label="Publicaciones"
                             />
                             <KpiCard
-                                icono={<ShoppingBag className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
+                                icono={<ShoppingBag className="h-5 w-5 lg:h-4 lg:w-4" strokeWidth={1.75} />}
                                 valor={totalVendidos.toString()}
                                 label="Vendidos"
                             />
@@ -690,7 +674,7 @@ function HeroCard({
                                     aria-label="Contactar por WhatsApp"
                                     className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
                                 >
-                                    <WhatsAppIcon className="h-7 w-7" />
+                                    <WhatsAppIcon className="h-7 w-7 lg:h-6 lg:w-6" />
                                 </button>
                             )}
                             <button
@@ -703,7 +687,7 @@ function HeroCard({
                                 <img
                                     src="/ChatYA.webp"
                                     alt="ChatYA"
-                                    className="h-9 w-auto shrink-0 object-contain"
+                                    className="h-9 lg:h-7 w-auto shrink-0 object-contain"
                                 />
                             </button>
                             {/* Agregar contacto — icon-only en tonos teal
@@ -735,12 +719,12 @@ function HeroCard({
                                 >
                                     {esContacto ? (
                                         <UserCheck
-                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            className="h-7 w-7 lg:h-6 lg:w-6 shrink-0 text-sky-600"
                                             strokeWidth={2.25}
                                         />
                                     ) : (
                                         <UserPlus
-                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            className="h-7 w-7 lg:h-6 lg:w-6 shrink-0 text-sky-600"
                                             strokeWidth={2.25}
                                         />
                                     )}
@@ -786,15 +770,15 @@ interface KpiCardProps {
 
 function KpiCard({ icono, valor, label }: KpiCardProps) {
     return (
-        <div className="flex flex-col items-center justify-center gap-1 px-3 py-2 text-center lg:py-2.5">
-            <div className="text-xl font-black tracking-tight text-slate-950 leading-none lg:text-2xl">
+        <div className="flex flex-col items-center justify-center gap-1 px-3 py-2 text-center lg:py-1.5">
+            <div className="text-xl font-black tracking-tight text-slate-950 leading-none lg:text-lg">
                 {valor}
             </div>
             {/* Label en altas y bajas (Title Case) — Sprint 9.3:
                 antes era UPPERCASE con tracking-wider, se cambió a
                 Title Case porque se lee más natural en pantalla y
                 permite tipografía un punto más grande sin saturar. */}
-            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:text-base">
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:text-xs">
                 <span className="text-slate-500">{icono}</span>
                 {label}
             </div>
@@ -835,7 +819,7 @@ function AvatarConAdornos({
     // densidad de información).
     return (
         <div className="relative shrink-0">
-            <div className="h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-[104px] lg:w-[104px]">
+            <div className="h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-14 lg:w-14">
                 {perfil.avatarUrl ? (
                     <img
                         src={perfil.avatarUrl}
@@ -844,7 +828,7 @@ function AvatarConAdornos({
                     />
                 ) : (
                     <div
-                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white lg:text-3xl"
+                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white lg:text-base"
                         style={{
                             // Tonos teal — familia cromática de MarketPlace.
                             background:
@@ -866,7 +850,7 @@ function AvatarConAdornos({
                     title={
                         estadoPresencia === 'conectado' ? 'En línea' : 'Ausente'
                     }
-                    className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-4 lg:w-4 lg:bottom-1.5 lg:right-1.5 ${dotColor}`}
+                    className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-3 lg:w-3 lg:bottom-0.5 lg:right-0.5 ${dotColor}`}
                 />
             )}
         </div>
@@ -938,7 +922,7 @@ function TabUnderline({ activa, icono, label, count, onClick, testId }: TabUnder
             onClick={onClick}
             role="tab"
             aria-selected={activa}
-            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:text-lg ${
+            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:pb-1.5 lg:pt-1 lg:text-lg ${
                 activa
                     ? 'border-teal-500 text-teal-700'
                     : 'border-transparent text-slate-600 hover:text-slate-800'

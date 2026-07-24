@@ -150,7 +150,7 @@ export function CardServicioReel({ publicacion, variant = 'compacta' }: CardServ
             <article
                 data-testid={`card-servicio-reel-${publicacion.id}`}
                 onClick={handleClickCard}
-                className="group relative h-60 @[96rem]:h-[220px] w-full cursor-pointer overflow-hidden rounded-2xl shadow-md transition-shadow duration-300 lg:hover:shadow-xl"
+                className="group relative h-60 @5xl:h-[210px] @[96rem]:h-[220px] w-full cursor-pointer overflow-hidden rounded-2xl shadow-md transition-shadow duration-300 lg:hover:shadow-xl"
             >
                 <div className="absolute inset-0 bg-slate-200">
                     {fotoPortada ? (

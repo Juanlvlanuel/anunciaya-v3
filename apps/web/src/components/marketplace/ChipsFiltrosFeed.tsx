@@ -22,7 +22,6 @@ import type { OrdenFeedInfinito } from '../../types/marketplace';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 
 interface ChipsFiltrosFeedProps {
@@ -40,12 +39,9 @@ interface OpcionChip {
     icono: React.ReactNode;
 }
 
+// 'recientes' ya NO es un chip clickeable — es el estado por defecto (ningún
+// chip activo). Click en un chip activo lo desactiva y vuelve a 'recientes'.
 const OPCIONES: OpcionChip[] = [
-    {
-        valor: 'recientes',
-        etiqueta: 'Recientes',
-        icono: <Clock className="h-4 w-4" strokeWidth={2.5} />,
-    },
     {
         valor: 'vistos',
         etiqueta: 'Más vistos',
@@ -90,7 +86,7 @@ export function ChipsFiltrosFeed({
                         type="button"
                         key={opcion.valor}
                         data-testid={`chip-filtro-${opcion.valor}`}
-                        onClick={() => !disabled && onCambio(opcion.valor)}
+                        onClick={() => !disabled && onCambio(activo ? 'recientes' : opcion.valor)}
                         disabled={disabled}
                         aria-pressed={activo}
                         className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold lg:cursor-pointer ${activo ? clasesActivo : disabled ? clasesDisabled : clasesInactivo

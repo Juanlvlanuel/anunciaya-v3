@@ -254,7 +254,7 @@ export function PaginaArticuloMarketplace() {
                         />
 
                         {/* Contenido del header */}
-                        <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5">
+                        <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5 lg:px-4 lg:py-2.5 2xl:px-3 2xl:pt-4 2xl:pb-2.5">
                             {/* Bloque izquierdo: ← + icono teal + Detalle | título */}
                             <div className="flex min-w-0 items-center gap-1.5">
                                 <button
@@ -277,7 +277,7 @@ export function PaginaArticuloMarketplace() {
                                         strokeWidth={2.5}
                                     />
                                 </div>
-                                <span className="ml-1.5 shrink-0 text-2xl font-extrabold tracking-tight text-white">
+                                <span className="ml-1.5 shrink-0 text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-white">
                                     Detalle
                                 </span>
 

@@ -319,32 +319,32 @@ export function ServiciosHeader({
 
                         {/* ═══ DESKTOP HEADER (≥lg, una sola fila) ═══ */}
                         <div className="hidden lg:block">
-                            <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-5">
+                            <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-3.5">
                                 {/* Izquierda: back + logo + título (fijo) */}
                                 <div className="flex shrink-0 items-center gap-3">
                                     <button
                                         data-testid="btn-volver-servicios-desktop"
                                         onClick={onBack}
                                         aria-label="Volver al inicio"
-                                        className="flex h-9 w-9 lg:h-8 lg:w-8 2xl:h-9 2xl:w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                        className="flex h-9 w-9 lg:h-8 lg:w-8 2xl:h-8 2xl:w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
                                     >
                                         <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                                     </button>
                                     <div
-                                        className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-12 2xl:w-12"
+                                        className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-10 2xl:w-10"
                                         style={{
                                             background:
                                                 'linear-gradient(135deg, #38bdf8, #0369a1)',
                                         }}
                                     >
                                         <Wrench
-                                            className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-[26px] 2xl:w-[26px]"
+                                            className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
                                             strokeWidth={2.5}
                                         />
                                     </div>
                                     <div className="flex items-baseline">
-                                        <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-white tracking-tight">Servicios</span>
-                                        <span className="text-2xl lg:text-xl 2xl:text-3xl font-extrabold text-sky-400 tracking-tight">Locales</span>
+                                        <span className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold text-white tracking-tight">Servicios</span>
+                                        <span className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold text-sky-400 tracking-tight">Locales</span>
                                     </div>
                                     {/* Breadcrumb desktop — solo variante='pagina'. */}
                                     {!esFeed && breadcrumb && (
@@ -383,11 +383,11 @@ export function ServiciosHeader({
                                                 <div className="flex flex-col items-end shrink-0">
                                                     <span
                                                         data-testid="kpi-total-publicaciones"
-                                                        className="text-3xl lg:text-2xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                                                        className="text-3xl lg:text-2xl 2xl:text-3xl font-extrabold text-white leading-none tabular-nums"
                                                     >
                                                         {totalPublicaciones}
                                                     </span>
-                                                    <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-sm font-semibold text-sky-400/80 uppercase tracking-wider">
+                                                    <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-xs font-semibold text-sky-400/80 uppercase tracking-wider">
                                                         {totalPublicaciones === 1
                                                             ? 'Publicación'
                                                             : 'Publicaciones'}

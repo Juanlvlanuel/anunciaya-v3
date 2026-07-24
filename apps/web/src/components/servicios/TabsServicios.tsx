@@ -26,7 +26,7 @@
  * Ubicación: apps/web/src/components/servicios/TabsServicios.tsx
  */
 
-import { Briefcase, HelpCircle, SlidersHorizontal, Wrench } from 'lucide-react';
+import { Briefcase, HelpCircle, Wrench } from 'lucide-react';
 
 export type TabServicios = 'todos' | 'servicios' | 'solicitudes' | 'vacantes';
 
@@ -36,8 +36,9 @@ interface OpcionTab {
     Icono: typeof Wrench;
 }
 
+// 'todos' ya NO es un chip clickeable — es el estado por defecto (ningún
+// chip activo). Click en un chip activo lo desactiva y vuelve a 'todos'.
 const TABS: OpcionTab[] = [
-    { key: 'todos', label: 'Todos', Icono: SlidersHorizontal },
     { key: 'vacantes', label: 'Vacantes', Icono: Briefcase },
     { key: 'servicios', label: 'Servicios', Icono: Wrench },
     { key: 'solicitudes', label: 'Solicitudes', Icono: HelpCircle },
@@ -80,7 +81,7 @@ export function TabsServicios({
                             key={key}
                             type="button"
                             data-testid={`tab-${key}`}
-                            onClick={() => onChange(key)}
+                            onClick={() => onChange(isActiva ? 'todos' : key)}
                             aria-pressed={isActiva}
                             className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition lg:cursor-pointer ${
                                 isActiva
@@ -122,7 +123,7 @@ export function TabsServicios({
                         key={key}
                         type="button"
                         data-testid={`tab-${key}`}
-                        onClick={() => onChange(key)}
+                        onClick={() => onChange(isActiva ? 'todos' : key)}
                         aria-pressed={isActiva}
                         className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap lg:cursor-pointer ${
                             isActiva

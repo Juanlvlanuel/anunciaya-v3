@@ -604,7 +604,7 @@ export function PaginaServicios() {
                     ciudad={ciudad}
                     totalPublicaciones={null}
                 />
-                <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
+                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[1068px] 2xl:px-0">
                     <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                         <div className="w-20 h-20 rounded-full bg-sky-50 grid place-items-center mb-4">
                             <MapPin
@@ -667,7 +667,7 @@ export function PaginaServicios() {
             />
 
             {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
-            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-[940px] 2xl:max-w-[1068px] lg:px-0 lg:py-6 2xl:py-8">
+            <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[1068px] 2xl:px-0 lg:py-6 2xl:py-8">
                 {/* Refresco tipo Facebook: ícono de Servicios (Wrench) con
                     anillo giratorio sky — `absolute` relativo a `cuerpoRef`
                     (arriba), así queda ENCIMA del reel/composer sin importar
@@ -716,15 +716,15 @@ export function PaginaServicios() {
                     de cards de PaginaNegocios.tsx/PaginaMarketplace.tsx) +
                     contenido de la tab activa a la derecha. En móvil es
                     flujo normal de 1 columna (el `lg:flex` no aplica). */}
-                <div className="lg:flex lg:items-start lg:gap-5 2xl:gap-6">
+                <div className="lg:flex lg:items-start gap-2 2xl:gap-6">
                     {railData.length > 0 && (
                         <div
                             ref={railPlaceholderRef}
-                            className="relative hidden lg:block w-[300px] 2xl:w-[340px] shrink-0"
+                            className="relative hidden lg:block w-[320px] 2xl:w-[340px] shrink-0"
                             style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
                         >
                             <div
-                                className="w-[300px] 2xl:w-[340px] z-10 lg:fixed"
+                                className="w-[320px] 2xl:w-[340px] z-10 lg:fixed"
                                 style={{
                                     top: `${headerBottom + 16}px`,
                                     left: railLeft !== null ? `${railLeft}px` : undefined,
@@ -959,6 +959,7 @@ export function PaginaServicios() {
                     esEscritorio={esEscritorio}
                     bottomNavVisible={bottomNavVisible}
                     labelConCardEscritorio
+                    claseRight="right-4 lg:right-[240px] 2xl:right-[394px]"
                 />
             )}
 
@@ -967,7 +968,7 @@ export function PaginaServicios() {
                 canal derecho, alineada al eje del Publicar que vive arriba. */}
             <BotonIrArriba
                 testId="servicios-ir-arriba"
-                right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]"
+                right="left-4 lg:left-auto lg:right-[240px] 2xl:right-[394px]"
             />
         </div>
     );

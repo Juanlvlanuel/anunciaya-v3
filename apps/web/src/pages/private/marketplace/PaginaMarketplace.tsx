@@ -673,7 +673,7 @@ export function PaginaMarketplace() {
                                 Layout: Logo + Título a la izquierda · chips
                                 centro · KPI compacto + Publicar derecha. */}
                             <div className="hidden lg:block">
-                                <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-5">
+                                <div className="flex items-center justify-between gap-4 px-6 py-4 lg:px-4 lg:py-2.5 2xl:px-8 2xl:py-3.5">
                                     {/* Izquierda: flecha + logo + título (agrupados) */}
                                     <div className="flex shrink-0 items-center gap-3">
                                         {/* Flecha ← regresar al inicio (solo desktop) */}
@@ -681,27 +681,27 @@ export function PaginaMarketplace() {
                                             data-testid="btn-volver-marketplace-desktop"
                                             onClick={handleVolver}
                                             aria-label="Volver al inicio"
-                                            className="flex h-9 w-9 lg:h-8 lg:w-8 2xl:h-9 2xl:w-9 shrink-0 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white cursor-pointer"
+                                            className="flex h-9 w-9 lg:h-8 lg:w-8 2xl:h-8 2xl:w-8 shrink-0 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white cursor-pointer"
                                         >
                                             <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                                         </button>
                                         <div
-                                            className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-12 2xl:w-12"
+                                            className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-10 2xl:w-10"
                                             style={{
                                                 background:
                                                     'linear-gradient(135deg, #2dd4bf, #0d9488)',
                                             }}
                                         >
                                             <ShoppingCart
-                                                className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-6.5 2xl:w-6.5"
+                                                className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
                                                 strokeWidth={2.5}
                                             />
                                         </div>
                                         <div className="flex items-baseline">
-                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-3xl">
+                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
                                                 Market
                                             </span>
-                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-teal-400 2xl:text-3xl">
+                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-teal-400 2xl:text-2xl">
                                                 Place
                                             </span>
                                         </div>
@@ -732,11 +732,11 @@ export function PaginaMarketplace() {
                                             <div className="flex flex-col items-end shrink-0">
                                                 <span
                                                     data-testid="kpi-total-articulos"
-                                                    className="text-3xl lg:text-2xl 2xl:text-[40px] font-extrabold text-white leading-none tabular-nums"
+                                                    className="text-3xl lg:text-2xl 2xl:text-3xl font-extrabold text-white leading-none tabular-nums"
                                                 >
                                                     {totalArticulos}
                                                 </span>
-                                                <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-sm font-semibold text-teal-400/80 uppercase tracking-wider">
+                                                <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-xs font-semibold text-teal-400/80 uppercase tracking-wider">
                                                     Publicaciones
                                                 </span>
                                             </div>
