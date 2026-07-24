@@ -173,14 +173,14 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
             data-testid={`card-negocio-compacto-${negocio.sucursalId}`}
             onClick={onClick}
             className={
-                'group relative flex h-[280px] cursor-pointer flex-col overflow-hidden rounded-xl bg-white lg:h-[340px] lg:hover:shadow-md ' +
+                'group relative flex h-[240px] cursor-pointer flex-col overflow-hidden rounded-xl bg-white shadow-sm lg:h-[280px] 2xl:h-[340px] lg:hover:shadow-md ' +
                 (acentoHover === 'rose'
                     ? 'border-2 border-slate-300 transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-rose-400'
                     : 'border border-slate-300 lg:hover:border-rose-400')
             }
         >
             {/* ── Foto grande del negocio ──────────────────────────────────── */}
-            <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-200">
+            <div className="relative aspect-[4/3] w-full lg:h-[150px] 2xl:h-auto shrink-0 overflow-hidden bg-slate-200">
                 {fotoGrande ? (
                     <img
                         src={fotoGrande}
@@ -260,7 +260,7 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
             </div>
 
             {/* ── Panel info abajo ─────────────────────────────────────────── */}
-            <div className="flex min-h-0 flex-1 flex-col justify-between gap-1.5 p-3 lg:gap-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-1 2xl:gap-2 p-3">
                 {/* Línea 1: avatar + nombre del negocio + subtítulo de sucursal
                     (Sprint 9.3 — iteración): se agregó una segunda línea con
                     el label de sucursal ("Matriz" si es la principal, o el
@@ -307,25 +307,28 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
                     );
                 })()}
 
-                {/* Línea 2: logo de ChatYA clickeable, alineado a la derecha
-                    (Sprint 9.3 — iteración: antes estaba centrado con
-                    `mx-auto`, movido a `ml-auto` para que quede pegado al
-                    borde derecho y deje libre el espacio a la izquierda).
+                {/* Línea 2: logo de ChatYA clickeable — mismo patrón que
+                    CardArticuloGuardado (MP): footer pegado al fondo real
+                    del card vía `mt-auto` en su propio wrapper, no como
+                    hijo directo del flex-col. Centrado horizontal; en PC
+                    (2xl) alineado a la derecha (comportamiento histórico).
                     Solo si hay usuarioId (sin él no podemos crear conversación).
                     Click stopPropagation para no triggear el onClick de la card. */}
                 {usuarioId && (
-                    <button
-                        data-testid={`btn-chatya-card-negocio-${negocio.sucursalId}`}
-                        onClick={handleChatYA}
-                        aria-label={`Abrir ChatYA con ${nombre}`}
-                        className="ml-auto inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
-                    >
-                        <img
-                            src="/ChatYA.webp"
-                            alt="ChatYA"
-                            className="h-9 w-auto lg:h-9"
-                        />
-                    </button>
+                    <div className="mt-auto lg:mt-0 2xl:mt-auto pt-2 flex justify-center">
+                        <button
+                            data-testid={`btn-chatya-card-negocio-${negocio.sucursalId}`}
+                            onClick={handleChatYA}
+                            aria-label={`Abrir ChatYA con ${nombre}`}
+                            className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
+                        >
+                            <img
+                                src="/ChatYA.webp"
+                                alt="ChatYA"
+                                className="h-9 w-auto lg:h-9"
+                            />
+                        </button>
+                    </div>
                 )}
             </div>
         </article>

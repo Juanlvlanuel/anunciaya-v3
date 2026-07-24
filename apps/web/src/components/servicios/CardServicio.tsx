@@ -423,23 +423,28 @@ export function CardServicio({
                     del footer (entre título y meta), pero como hay
                     `mt-auto`, el efecto es que el meta queda pegado al
                     fondo sin importar la longitud del título. */}
-                <div className="mt-auto pt-2">
+                <div className={mostrarNegocioEnInfo ? 'mt-1' : 'mt-auto pt-2'}>
                     {/* Meta: modalidad (o tipoEmpleo) · tiempo. La distancia
-                        ya vive como badge sobre la foto — no se duplica aquí. */}
-                    <div className="flex items-center gap-1 text-xs lg:text-[11px] 2xl:text-xs font-medium leading-tight text-slate-600">
-                        <span className="truncate">{metaSecundaria}</span>
-                        <span aria-hidden className="text-slate-400">
-                            ·
-                        </span>
-                        <span className="shrink-0 tabular-nums">{tiempo}</span>
-                    </div>
+                        ya vive como badge sobre la foto — no se duplica aquí.
+                        Oculta en MisGuardados (`mostrarNegocioEnInfo`): en el
+                        cuerpo solo va el título, sin línea extra debajo. */}
+                    {!mostrarNegocioEnInfo && (
+                        <div className="flex items-center gap-1 text-xs lg:text-[11px] 2xl:text-xs font-medium leading-tight text-slate-600">
+                            <span className="truncate">{metaSecundaria}</span>
+                            <span aria-hidden className="text-slate-400">
+                                ·
+                            </span>
+                            <span className="shrink-0 tabular-nums">{tiempo}</span>
+                        </div>
+                    )}
 
-                    {/* Botón ChatYA alineado a la DERECHA — wrapper flex
-                        `justify-end` porque el contenedor padre es block.
-                        Hover-scale 110% + stopPropagation. Solo visible en
-                        MisGuardados + vacante + usuario no es dueño. */}
+                    {/* Botón ChatYA centrado horizontalmente. Solo visible en
+                        MisGuardados + vacante + usuario no es dueño (por eso
+                        este wrapper solo se monta cuando mostrarNegocioEnInfo
+                        ya es true — centrar acá no afecta el feed normal). Sin
+                        meta arriba, el `mt-1` del wrapper padre ya es el gap. */}
                     {mostrarChatYA && (
-                        <div className="mt-2 flex justify-end">
+                        <div className="flex justify-center">
                             <button
                                 data-testid={`btn-chatya-card-servicio-${publicacion.id}`}
                                 onClick={handleChatYA}

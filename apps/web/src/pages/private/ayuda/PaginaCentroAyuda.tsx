@@ -341,8 +341,56 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                 </div>
               </div>
 
-              {/* ══ DESKTOP (>= lg) ══ */}
-              <div className="hidden lg:block">
+              {/* ══ LAPTOP HEADER (lg únicamente — PC conserva el diseño
+                  original abajo) — fila única compacta, mismo tamaño que
+                  las páginas de sección: back+logo+título a la izquierda,
+                  chips de audiencia a la derecha. Sin subtítulo ni contador. ══ */}
+              <div className="hidden lg:flex 2xl:hidden items-center justify-between gap-4 px-4 py-2.5">
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-testid="btn-volver-ayuda-laptop"
+                    onClick={volver}
+                    aria-label="Volver"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 lg:cursor-pointer hover:bg-white/10 hover:text-white"
+                  >
+                    <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                  </button>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}>
+                    <HelpCircle className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
+                  </div>
+                  <span className="ml-1.5 text-xl font-extrabold tracking-tight text-white">
+                    Ayuda y <span className="text-sky-400">Tutoriales</span>
+                  </span>
+                </div>
+
+                {!soloAudiencia && tabsVisibles.length > 1 && (
+                  <div className="flex shrink-0 items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+                    {tabsVisibles.map((t) => {
+                      const on = tab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          type="button"
+                          data-testid={`ayuda-tab-laptop-${t.key}`}
+                          onClick={() => cambiarTab(t.key)}
+                          aria-pressed={on}
+                          className={`shrink-0 whitespace-nowrap rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all lg:cursor-pointer ${
+                            on
+                              ? 'border-sky-400 bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                              : 'border-white/15 bg-white/5 text-slate-200 hover:border-sky-400/60 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* ══ PC HEADER (>= 2xl) — layout original sin tocar ══ */}
+              <div className="hidden 2xl:block">
                 <div className="flex items-center justify-between gap-6 px-6 py-4 2xl:px-8 2xl:py-5">
                   {/* Izquierda: flecha + logo + título */}
                   <div className="flex shrink-0 items-center gap-3">
@@ -383,9 +431,11 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                 </div>
               </div>
 
-              {/* ── Tabs de audiencia (chips sobre negro) — solo si hay más de una ── */}
+              {/* ── Tabs de audiencia (chips sobre negro) — solo si hay más de una ──
+                  En laptop se ocultan: quedan fusionados en el header delgado
+                  de arriba. Móvil y PC sin cambios. ── */}
               {!soloAudiencia && tabsVisibles.length > 1 && (
-                <div className="flex items-center gap-2 overflow-x-auto px-3 pb-3 lg:px-6 lg:pb-3 2xl:px-8 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+                <div className="flex items-center gap-2 overflow-x-auto px-3 pb-3 lg:hidden 2xl:flex lg:px-6 lg:pb-3 2xl:px-8 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
                   <span className="shrink-0 text-sm font-semibold text-white/50">Cómo usar:</span>
                   {tabsVisibles.map((t) => {
                     const on = tab === t.key;

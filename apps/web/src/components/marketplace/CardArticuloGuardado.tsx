@@ -22,14 +22,14 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query';
-import { MapPin, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useIniciarChatMarketplace } from '../../hooks/useIniciarChatMarketplace';
 import { queryKeys } from '../../config/queryKeys';
 import { notificar } from '../../utils/notificaciones';
-import { formatearPrecio, formatearTiempoRelativo } from '../../utils/marketplace';
+import { formatearPrecio } from '../../utils/marketplace';
 import type {
     ArticuloFeed,
     ArticuloMarketplaceDetalle,
@@ -71,13 +71,9 @@ export function CardArticuloGuardado({
         Math.min(articulo.fotoPortadaIndex ?? 0, fotos.length - 1),
     );
     const fotoUrl = fotos[idxPortada] ?? fotos[0] ?? null;
-    const tiempo = formatearTiempoRelativo(articulo.createdAt);
     const condicionLabel = articulo.condicion
         ? ETIQUETA_CONDICION[articulo.condicion]
         : 'ARTÍCULO';
-
-    // Meta secundaria: zona aproximada (si existe) o ciudad como fallback.
-    const metaSecundaria = articulo.zonaAproximada || articulo.ciudad;
 
     // ─── Botón ChatYA (mismo patrón que CardServicio en MisGuardados) ──
     // El item guardado NO trae info del vendedor. Hacemos fetch del
@@ -166,7 +162,7 @@ export function CardArticuloGuardado({
                 </h3>
 
                 {/* Precio destacado — teal-700 (identidad visual MP). */}
-                <p className="mt-2 truncate text-sm lg:text-[13px] 2xl:text-base font-bold tabular-nums text-teal-700">
+                <p className="mt-2 truncate text-lg lg:text-base 2xl:text-xl font-bold tabular-nums text-teal-700">
                     {formatearPrecio(articulo.precio)}
                     {articulo.unidadVenta && (
                         <span className="ml-1 text-xs font-medium text-teal-700/80">
@@ -175,30 +171,13 @@ export function CardArticuloGuardado({
                     )}
                 </p>
 
-                {/* Footer (meta + ChatYA) — empujado al fondo con mt-auto
-                    para que la altura sea uniforme en el grid. */}
+                {/* Footer (ChatYA) — empujado al fondo con mt-auto para que
+                    la altura sea uniforme en el grid. */}
                 <div className="mt-auto pt-2">
-                    {/* Meta: zona/ciudad · tiempo. */}
-                    <div className="flex items-center gap-1 text-xs lg:text-[11px] 2xl:text-xs font-medium leading-tight text-slate-600">
-                        {metaSecundaria && (
-                            <>
-                                <MapPin
-                                    className="h-3 w-3 shrink-0 text-slate-500"
-                                    strokeWidth={2.5}
-                                />
-                                <span className="truncate">{metaSecundaria}</span>
-                                <span aria-hidden className="text-slate-400">
-                                    ·
-                                </span>
-                            </>
-                        )}
-                        <span className="shrink-0 tabular-nums">{tiempo}</span>
-                    </div>
-
-                    {/* Botón ChatYA alineado a la DERECHA. Solo visible
-                        cuando el usuario actual no es el vendedor. */}
+                    {/* Botón ChatYA centrado. Solo visible cuando el usuario
+                        actual no es el vendedor. */}
                     {mostrarChatYA && (
-                        <div className="mt-2 flex justify-end">
+                        <div className="flex justify-center">
                             <button
                                 data-testid={`btn-chatya-card-mp-${articulo.id}`}
                                 onClick={handleChatYA}

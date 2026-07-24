@@ -96,6 +96,14 @@ interface OfertaCardProps {
      * ni hover de contorno).
      */
     acentoHover?: 'rose';
+    /**
+     * MisGuardados: reduce el alto del card en móvil y laptop (todo menos
+     * PC/2xl), para igualar las proporciones del card de Negocios en esa
+     * misma página. No afecta PC (2xl) ni ningún otro consumidor de
+     * OfertaCard (SeccionOfertas, PaginaPerfilNegocio, ModalOfertas).
+     * Default `false` mantiene el comportamiento histórico.
+     */
+    compacto?: boolean;
 }
 
 // =============================================================================
@@ -487,6 +495,7 @@ export default function OfertaCard({
     esPopular = false,
     orientacion = 'auto',
     acentoHover,
+    compacto = false,
 }: OfertaCardProps) {
     // Clases extra que MisGuardados aplica al wrapper para unificar el
     // acento rose con los otros 3 cards (Negocios, MP, Servicios) en esa
@@ -498,7 +507,7 @@ export default function OfertaCard({
     // Si coinciden, prevalece "Popular" (tiene mayor valor informativo).
     const microsenalVariante: 'popular' | 'nueva' | null =
         esPopular ? 'popular' : esNueva ? 'nueva' : null;
-    const { esMobile } = useBreakpoint();
+    const { esMobile, esLaptop, esDesktop } = useBreakpoint();
     // Layout efectivo: horizontal solo si la prop lo pide explícitamente,
     // o si es 'auto' Y estamos en móvil. 'vertical' fuerza el layout
     // estilo desktop (imagen arriba, panel abajo) incluso en móvil.
@@ -616,7 +625,47 @@ export default function OfertaCard({
         },
     };
 
-    const s = usarLayoutHorizontal ? sizesMobile[size] : sizes[size];
+    // MisGuardados (compacto): mismas proporciones que el card de Negocios
+    // recién calibrado en esa página — alto total 280px, foto fija 150px.
+    // Pisa el tamaño en móvil y laptop; PC (2xl) sigue con `sizes[size]`
+    // normal, y ningún otro consumidor de OfertaCard se ve afectado porque
+    // el prop es opt-in (default false).
+    const sizeCompacto = {
+        card: 'w-full h-[280px]',
+        imagen: 'h-[150px]',
+        panel: 'h-[130px] py-2 px-2',
+        titulo: 'text-base',
+        descripcion: 'text-sm',
+        gradiente: 'w-1.5',
+    };
+
+    const s = usarLayoutHorizontal
+        ? sizesMobile[size]
+        : (compacto && !esDesktop ? sizeCompacto : sizes[size]);
+
+    // Móvil (compacto): el panel (130px) y el card (280px) de sizeCompacto
+    // se quedaron grandes para el contenido real (foto fija + título 1-2
+    // líneas + separador, ya sin descripción/meta). Solo en móvil se
+    // recorta ambos — laptop y PC conservan sus valores actuales.
+    const cardClase = compacto && esMobile
+        ? s.card.replace('280px', '230px')
+        : s.card;
+
+    // Ofertas en MisGuardados (compacto): menos padding superior entre la
+    // foto y el título, en móvil y PC — laptop conserva el padding
+    // original. `.replace` no muta `sizes.normal` (objeto compartido con
+    // SeccionOfertas/PaginaPerfilNegocio): genera un string nuevo.
+    let panelClase = compacto && !esLaptop
+        ? s.panel.replace('py-2', 'pt-1 pb-2')
+        : s.panel;
+    if (compacto && esMobile) {
+        panelClase = panelClase.replace('130px', '80px');
+    }
+    // `justify-center` (abajo, en el JSX) reparte el espacio libre del
+    // panel arriba Y abajo del título — por eso reducir solo el padding
+    // no acercaba el título a la foto. En móvil/PC ancla arriba en vez de
+    // centrar; laptop conserva el centrado original.
+    const panelJustifyClase = compacto && !esLaptop ? 'justify-start' : 'justify-center';
     // ModalOfertas/ModalOfertaDetalle portalean a document.body (fuera del
     // @container del layout) — los @5xl:/@[96rem]: de arriba nunca se activan
     // ahí, así que para el caso `inModal` se suma un breakpoint de viewport
@@ -758,7 +807,7 @@ export default function OfertaCard({
 
     // LAYOUT DESKTOP: Vertical (ORIGINAL - sin cambios)
     return (
-        <div ref={refCard} className={`${s.card} ${alturaCardModal} group cursor-pointer ${claseHoverRose} ${className}`} onClick={onClick}>
+        <div ref={refCard} className={`${cardClase} ${alturaCardModal} group cursor-pointer ${claseHoverRose} ${className}`} onClick={onClick}>
             <div className={`relative h-full flex flex-col overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                 {/* Badge */}
@@ -817,7 +866,7 @@ export default function OfertaCard({
                 </div>
 
                 {/* Panel info - Gradiente 3 tonos */}
-                <div className={`rounded-b-xl ${s.panel} relative flex flex-col justify-center items-start overflow-hidden`}
+                <div className={`rounded-b-xl ${panelClase} relative flex flex-col ${panelJustifyClase} items-start overflow-hidden`}
                     style={{ background: panelGradient }}>
                     {/* Barra lateral de color */}
                     <div className={`absolute left-0 top-0 bottom-0 ${s.gradiente} bg-linear-to-b ${config.barColor} rounded-bl-xl`} />
@@ -837,7 +886,7 @@ export default function OfertaCard({
                             className={`w-full flex items-center justify-center overflow-hidden ${usarTituloCompacto ? 'h-16 @5xl:h-14 @[96rem]:h-[64px]' : 'h-20 @5xl:h-[68px] @[96rem]:h-[88px]'}`}
                         >
                             <h4
-                                className="font-black text-white leading-tight text-center w-full tracking-tight drop-shadow-lg"
+                                className={`font-black text-white text-center w-full tracking-tight drop-shadow-lg ${compacto ? 'line-clamp-2 leading-tight' : 'leading-tight'}`}
                                 style={{
                                     fontSize: `${fontSize}px`,
                                     textShadow: '0 2px 8px rgba(0,0,0,0.5)',

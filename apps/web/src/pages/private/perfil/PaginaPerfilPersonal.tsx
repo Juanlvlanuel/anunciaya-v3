@@ -334,8 +334,57 @@ export default function PaginaPerfilPersonal() {
                                 </div>
                             </div>
 
-                            {/* ══ DESKTOP HEADER ══ */}
-                            <div className="hidden lg:block">
+                            {/* ══ LAPTOP HEADER (lg únicamente — PC conserva el
+                                diseño original abajo) — fila única compacta,
+                                mismo tamaño que las páginas de sección: back+
+                                logo+título a la izquierda, chips a la derecha.
+                                Sin subtítulo. ══ */}
+                            <div className="hidden lg:flex 2xl:hidden items-center justify-between gap-4 px-4 py-2.5">
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                        data-testid="btn-volver-perfil-laptop"
+                                        onClick={handleVolver}
+                                        aria-label="Volver al inicio"
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                    </button>
+                                    <div
+                                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)' }}
+                                    >
+                                        <User className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+                                    </div>
+                                    <span className="text-xl font-extrabold text-white tracking-tight ml-1.5">
+                                        Mi Perfil <span className="text-blue-400">Personal</span>
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+                                    {tabsVisibles.map(({ id, label, Icono }) => {
+                                        const activo = tabActivoEfectivo === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                data-testid={`tab-perfil-laptop-${id}`}
+                                                onClick={() => setTabActivo(id)}
+                                                className={[
+                                                    'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                                                    activo
+                                                        ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-500/20'
+                                                        : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-blue-400/60',
+                                                ].join(' ')}
+                                            >
+                                                <Icono className="w-4 h-4" strokeWidth={2.5} />
+                                                <span>{label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* ══ PC HEADER (>= 2xl) — layout original sin tocar ══ */}
+                            <div className="hidden 2xl:block">
                                 <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
                                     {/* Izquierda: flecha + logo + título */}
                                     <div className="flex items-center gap-3 shrink-0">
@@ -384,8 +433,10 @@ export default function PaginaPerfilPersonal() {
                                 </div>
                             </div>
 
-                            {/* ── TABS estilo CHIPS (alineado a CardYA / Mis Guardados) ── */}
-                            <div className="flex items-center px-3 pb-3 lg:px-0 lg:pb-0">
+                            {/* ── TABS estilo CHIPS (alineado a CardYA / Mis Guardados) ──
+                                En laptop se ocultan: quedan fusionados en el header
+                                delgado de arriba. Móvil y PC sin cambios. ── */}
+                            <div className="flex items-center px-3 pb-3 lg:hidden 2xl:flex lg:px-0 lg:pb-0">
                                 <div className="flex items-center gap-2 lg:flex-none overflow-x-auto flex-1 -mx-3 px-3 lg:mx-0 lg:px-6 lg:py-3 2xl:px-8 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
                                     {tabsVisibles.map(({ id, label, Icono }) => {
                                         const activo = tabActivoEfectivo === id;

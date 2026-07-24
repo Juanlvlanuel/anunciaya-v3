@@ -376,7 +376,7 @@ export function PaginaCardYA() {
                     <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">No tienes billeteras activas</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-4 2xl:gap-5">
+                <div className="grid grid-cols-1 lg:grid-cols-4 2xl:grid-cols-4 gap-4 lg:gap-4 2xl:gap-5">
                     {billeteras
                         .filter((b) => negocioFiltro === 'todos' || b.negocioNombre === negocioFiltro)
                         .map((billetera) => (
@@ -446,7 +446,7 @@ export function PaginaCardYA() {
                     <p className="text-base lg:text-lg font-medium text-gray-600 mt-1">No hay recompensas disponibles</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-4 2xl:gap-5">
+                <div className="grid grid-cols-1 lg:grid-cols-4 2xl:grid-cols-4 gap-4 lg:gap-4 2xl:gap-5">
                     {recompensasFiltradas.map((recompensa) => (
                         <CardRecompensaCliente
                             key={recompensa.id}
@@ -615,9 +615,74 @@ export function PaginaCardYA() {
                             </div>
 
                             {/* ═══════════════════════════════════════════════════
-                            DESKTOP HEADER (>= lg) — layout original
+                            LAPTOP HEADER (lg únicamente — PC conserva el
+                            diseño original abajo) — fila única compacta,
+                            mismo tamaño que las páginas de sección
+                            (Servicios/MP/Ofertas): back+logo+CardYA a la
+                            izquierda, tabs (chips) + filtros a la derecha.
+                            Sin KPIs ni texto descriptivo.
                         ═══════════════════════════════════════════════════ */}
-                            <div className="hidden lg:block">
+                            <div className="hidden lg:flex 2xl:hidden items-center justify-between gap-4 px-4 py-2.5">
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                        data-testid="btn-volver-cardya-laptop"
+                                        onClick={handleVolver}
+                                        aria-label="Volver al inicio"
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                    </button>
+                                    <div
+                                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                                    >
+                                        <Wallet className="w-[18px] h-[18px] text-black" strokeWidth={2.5} />
+                                    </div>
+                                    <span className="text-xl font-extrabold text-white tracking-tight ml-1.5">
+                                        Card<span className="text-amber-400">YA</span>
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {TABS_CONFIG.map(({ id, label, Icono }) => {
+                                        const activo = tabActiva === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                data-testid={`tab-cardya-laptop-${id}`}
+                                                onClick={() => setTabActiva(id)}
+                                                onMouseEnter={() => { if (!activo) precargarTab(id); }}
+                                                className={[
+                                                    'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                                                    activo
+                                                        ? 'bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20'
+                                                        : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-amber-400/60',
+                                                ].join(' ')}
+                                            >
+                                                <Icono className="w-4 h-4" strokeWidth={2.5} />
+                                                <span>{label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                    <DropdownFiltroEstado
+                                        tabActiva={tabActiva}
+                                        valor={filtroEstado}
+                                        onChange={setFiltroEstado}
+                                        compacto
+                                    />
+                                    <DropdownNegocio
+                                        negocios={billeteras.map((b) => b.negocioNombre).sort()}
+                                        valor={negocioFiltro}
+                                        onChange={setNegocioFiltro}
+                                        compacto
+                                    />
+                                </div>
+                            </div>
+
+                            {/* ═══════════════════════════════════════════════════
+                            PC HEADER (>= 2xl) — layout original sin tocar
+                        ═══════════════════════════════════════════════════ */}
+                            <div className="hidden 2xl:block">
                                 <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
                                     {/* Bloque izquierdo: flecha + logo + título (agrupados) */}
                                     <div className="flex items-center gap-3 shrink-0">
@@ -692,8 +757,11 @@ export function PaginaCardYA() {
                                 </div>
                             </div>
 
-                            {/* ── TABS estilo CHIPS (alineado a Ofertas/MP/Negocios) ── */}
-                            <div className="flex items-center px-3 pb-3 lg:px-0 lg:pb-0">
+                            {/* ── TABS estilo CHIPS (alineado a Ofertas/MP/Negocios) ──
+                                Oculta SOLO en laptop: ahí ya vive fusionada
+                                en la fila única de arriba. Sigue igual en
+                                móvil y PC. */}
+                            <div className="flex items-center px-3 pb-3 lg:hidden 2xl:flex lg:px-0 lg:pb-0">
                                 <div
                                     className="cardya-tabs flex items-center gap-2 lg:flex-none overflow-x-auto flex-1 -mx-3 px-3 lg:mx-0 lg:px-6 lg:py-3 2xl:px-8"
                                 >
@@ -777,13 +845,15 @@ export function PaginaCardYA() {
                         soloMovil
                         right="right-4 lg:right-[255px] 2xl:right-[330px]"
                     />
-                    {/* PC: opera sobre el scroll interno de la tabla, pero en
-                        la misma ubicación que la flecha de Recompensas. */}
+                    {/* PC: opera sobre el scroll interno de la tabla. En laptop
+                        se recorre más a la derecha (más cerca de la columna de
+                        publicidad) que la de Recompensas/Billeteras; en 2xl
+                        se mantiene igual. */}
                     <BotonIrArriba
                         testId="cardya-vouchers-ir-arriba-pc"
                         soloEscritorio
                         scrollRef={voucherScrollRef}
-                        right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                        right="right-4 lg:right-[223px] 2xl:right-[330px]"
                     />
                 </>
             )}
@@ -796,13 +866,15 @@ export function PaginaCardYA() {
                         soloMovil
                         right="right-4 lg:right-[255px] 2xl:right-[330px]"
                     />
-                    {/* PC: opera sobre el scroll interno de la tabla, pero en
-                        la misma ubicación que la flecha de Recompensas. */}
+                    {/* PC: opera sobre el scroll interno de la tabla. En laptop
+                        se recorre más a la derecha (más cerca de la columna de
+                        publicidad) que la de Recompensas/Billeteras; en 2xl
+                        se mantiene igual. */}
                     <BotonIrArriba
                         testId="cardya-historial-ir-arriba-pc"
                         soloEscritorio
                         scrollRef={comprasScrollRef}
-                        right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                        right="right-4 lg:right-[223px] 2xl:right-[330px]"
                     />
                 </>
             )}

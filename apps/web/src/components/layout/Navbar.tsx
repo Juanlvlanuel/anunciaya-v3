@@ -397,9 +397,11 @@ export const Navbar = () => {
                   <button
                     onClick={abrirModalUbicacion}
                     className="
-                      flex items-center gap-1 lg:gap-1.5 2xl:gap-2
-                      px-3 lg:px-3.5 2xl:px-4
-                      py-1.5 lg:py-2 2xl:py-2
+                      flex items-center gap-1 lg:gap-0 2xl:gap-2
+                      px-3 lg:px-0 2xl:px-4
+                      py-1.5 lg:py-0 2xl:py-2
+                      lg:w-10 lg:h-10 2xl:w-auto 2xl:h-auto
+                      lg:justify-center
                       text-white
                       bg-white/10 hover:bg-white/20
                       backdrop-blur-md
@@ -409,11 +411,14 @@ export const Navbar = () => {
                       shrink-0
                     "
                   >
-                    <MapPin className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-blue-300" />
-                    <span className="text-xs lg:text-sm 2xl:text-sm font-medium max-w-[100px] lg:max-w-[150px] 2xl:max-w-[180px] truncate">
+                    {/* En laptop queda solo el ícono (mismo tamaño/estilo
+                        que el botón de Notificaciones). El texto y el
+                        chevron se ocultan en `lg:` y vuelven en `2xl:`. */}
+                    <MapPin className="w-3.5 h-3.5 lg:w-6 lg:h-6 2xl:w-4 2xl:h-4 text-blue-300" />
+                    <span className="text-xs lg:hidden 2xl:inline 2xl:text-sm font-medium max-w-[100px] lg:max-w-[150px] 2xl:max-w-[180px] truncate">
                       {ubicacionTexto}
                     </span>
-                    <ChevronDown className="w-3 h-3 lg:w-4 lg:h-4 2xl:w-4 2xl:h-4 text-blue-300" />
+                    <ChevronDown className="w-3 h-3 lg:hidden 2xl:inline-block 2xl:w-4 2xl:h-4 text-blue-300" />
                   </button>
                 )}
 
@@ -471,8 +476,9 @@ export const Navbar = () => {
 
                     {/* Texto placeholder — `left-4 right-4` para respetar
                         el `px-4` del padre (CSS absolute se posiciona desde
-                        padding-box, NO content-box). Tipografía alineada al
-                        selector de ciudad: text-xs + font-medium.
+                        padding-box, NO content-box). Tipografía alineada a
+                        los chips de sección (Negocios/Ofertas/MP/Servicios):
+                        text-xs lg:text-sm 2xl:text-sm + font-medium.
                         FIX intermitente: la visibilidad depende SOLO de
                         `buscadorExpandido`. Antes también dependía de
                         `inputVisible` y eso creaba un estado limbo (span
@@ -484,7 +490,7 @@ export const Navbar = () => {
                     <span
                       className={`
                           absolute left-4 right-4 top-1/2 -translate-y-1/2
-                          text-xs lg:text-xs 2xl:text-sm font-medium text-white/80
+                          text-xs lg:text-sm 2xl:text-sm font-medium text-white/80
                           cursor-pointer select-none truncate
                           hover:text-white
                           transition-opacity duration-300 ease-out
@@ -550,7 +556,7 @@ export const Navbar = () => {
                             w-full
                             pr-6
                             bg-transparent
-                            text-xs lg:text-xs 2xl:text-sm
+                            text-xs lg:text-sm 2xl:text-sm
                             text-gray-800
                             placeholder:text-gray-400
                             focus:outline-none

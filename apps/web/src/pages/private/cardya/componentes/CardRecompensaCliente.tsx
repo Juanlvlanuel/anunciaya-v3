@@ -314,11 +314,11 @@ export default function CardRecompensaCliente({
         <div
           data-testid={`recompensa-desktop-${recompensa.id}`}
           onClick={() => onVerDetalle?.(recompensa)}
-          className={`hidden lg:flex lg:h-[327px] 2xl:h-[363px] group rounded-2xl overflow-hidden flex-col transition-all duration-300 ${desbloqueadaN1 ? 'hover:shadow-xl' : ''} shadow-md ${opacityClass} ${onVerDetalle ? 'cursor-pointer' : ''}`}
+          className={`hidden lg:flex lg:h-[278px] 2xl:h-[363px] group rounded-2xl overflow-hidden flex-col transition-all duration-300 ${desbloqueadaN1 ? 'hover:shadow-xl' : ''} shadow-md ${opacityClass} ${onVerDetalle ? 'cursor-pointer' : ''}`}
           style={{ background: 'linear-gradient(135deg, #000000, #020617, #0f172a)' }}
         >
           {/* Header: Imagen + overlay dark */}
-          <div className="w-full h-32 2xl:h-40 shrink-0 relative overflow-hidden">
+          <div className="w-full lg:h-28 2xl:h-40 shrink-0 relative overflow-hidden">
             {recompensa.imagenUrl ? (
               <img
                 src={recompensa.imagenUrl}
@@ -362,7 +362,7 @@ export default function CardRecompensaCliente({
           />
 
           {/* Contenido dark */}
-          <div className="flex-1 p-3.5 2xl:p-4 flex flex-col gap-1">
+          <div className="flex-1 p-3 2xl:p-4 flex flex-col gap-1">
             <h4 className="text-lg 2xl:text-xl font-bold text-white truncate leading-tight">
               {recompensa.nombre}
             </h4>
@@ -464,12 +464,12 @@ export default function CardRecompensaCliente({
         <div
           data-testid={`recompensa-desktop-${recompensa.id}`}
           onClick={() => onVerDetalle?.(recompensa)}
-          className={`hidden lg:flex lg:h-[327px] 2xl:h-[363px] group bg-white rounded-2xl overflow-hidden flex-col transition-all duration-300 ${puedesCanjear && !stockAgotado ? 'hover:shadow-xl' : ''} ${destacada ? 'border-2 border-amber-500' : 'shadow-md'} ${opacityClass} ${destacada ? 'animate-[glow_1.5s_ease-in-out_2]' : ''} ${onVerDetalle ? 'cursor-pointer' : ''}`}
+          className={`hidden lg:flex lg:h-[278px] 2xl:h-[363px] group bg-white rounded-2xl overflow-hidden flex-col transition-all duration-300 ${puedesCanjear && !stockAgotado ? 'hover:shadow-xl' : ''} ${destacada ? 'border-2 border-amber-500' : 'shadow-md'} ${opacityClass} ${destacada ? 'animate-[glow_1.5s_ease-in-out_2]' : ''} ${onVerDetalle ? 'cursor-pointer' : ''}`}
           style={{
             boxShadow: destacada ? '0 0 20px rgba(245,158,11,0.4), 0 0 40px rgba(245,158,11,0.15)' : undefined,
           }}
         >
-          <div className="w-full h-32 2xl:h-40 shrink-0 relative overflow-hidden">
+          <div className="w-full lg:h-28 2xl:h-40 shrink-0 relative overflow-hidden">
             {imagenRecompensa}
             <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
             {badgeEstado}
@@ -492,7 +492,7 @@ export default function CardRecompensaCliente({
 
           <div className="h-1.5 w-full shrink-0" style={{ background: 'linear-gradient(to right, #DD7C07, #000000)' }} />
 
-          <div className="flex-1 p-3.5 2xl:p-4 flex flex-col gap-2">
+          <div className="flex-1 p-3 2xl:p-4 flex flex-col lg:gap-1.5 2xl:gap-2">
             <h4 className="text-lg 2xl:text-xl font-bold text-slate-800 truncate leading-tight">
               {recompensa.nombre}
             </h4>

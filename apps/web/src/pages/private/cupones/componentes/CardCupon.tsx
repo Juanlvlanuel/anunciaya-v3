@@ -193,7 +193,7 @@ export default function CardCupon({
                 style={{ border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
             >
                 {/* Imagen + negocio overlay */}
-                <div className="w-full h-32 2xl:h-40 relative overflow-hidden">
+                <div className="w-full lg:h-24 2xl:h-40 relative overflow-hidden">
                     {imagenCupon}
                     <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
                     {franjaCirculacion}

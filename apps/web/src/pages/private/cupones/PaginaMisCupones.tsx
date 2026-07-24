@@ -218,8 +218,66 @@ export default function PaginaMisCupones() {
                                     </div>
                                 </div>
 
-                                {/* ══ DESKTOP HEADER (>= lg) ══ */}
-                                <div className="hidden lg:block">
+                                {/* ══ LAPTOP HEADER (lg únicamente — PC conserva el
+                                    diseño original abajo) — fila única compacta,
+                                    mismo tamaño que las páginas de sección: back+
+                                    logo+título a la izquierda, chips a la derecha.
+                                    Sin subtítulo ni KPIs. ══ */}
+                                <div className="hidden lg:flex 2xl:hidden items-center justify-between gap-4 px-4 py-2.5">
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <button
+                                            data-testid="btn-volver-cupones-laptop"
+                                            onClick={handleVolver}
+                                            aria-label="Volver al inicio"
+                                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                        </button>
+                                        <div
+                                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                                        >
+                                            <Ticket className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+                                        </div>
+                                        <span className="text-xl font-extrabold text-white tracking-tight ml-1.5">
+                                            Mis <span className="text-emerald-400">Cupones</span>
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {TABS.map(tab => {
+                                            const Icono = tab.icono;
+                                            const activo = tabActivo === tab.id;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    data-testid={`tab-laptop-${tab.id}`}
+                                                    onClick={() => setTabActivo(tab.id)}
+                                                    className={[
+                                                        'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
+                                                        activo
+                                                            ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20'
+                                                            : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-emerald-400/60',
+                                                    ].join(' ')}
+                                                >
+                                                    <Icono className="w-4 h-4" strokeWidth={2.5} />
+                                                    <span>{tab.label}</span>
+                                                    {tab.id === 'activos' && totalActivos > 0 && (
+                                                        <span className={[
+                                                            'text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center',
+                                                            activo ? 'bg-white text-emerald-600' : 'bg-emerald-500 text-white',
+                                                        ].join(' ')}>
+                                                            {totalActivos}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* ══ PC HEADER (>= 2xl) — layout original sin tocar ══ */}
+                                <div className="hidden 2xl:block">
                                     <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
                                         {/* Bloque izquierdo: flecha + logo + título (agrupados) */}
                                         <div className="flex items-center gap-3 shrink-0">
@@ -294,8 +352,10 @@ export default function PaginaMisCupones() {
                                     </div>
                                 </div>
 
-                                {/* ── TABS estilo CHIPS (alineado a CardYA/Ofertas/MP/Negocios) ── */}
-                                <div className="flex items-center px-3 pb-3 lg:px-0 lg:pb-0">
+                                {/* ── TABS estilo CHIPS (alineado a CardYA/Ofertas/MP/Negocios) ──
+                                    En laptop se ocultan: quedan fusionados en el header
+                                    delgado de arriba. Móvil y PC sin cambios. ── */}
+                                <div className="flex items-center px-3 pb-3 lg:hidden 2xl:flex lg:px-0 lg:pb-0">
                                     <div className="cupones-tabs flex items-center gap-2 lg:flex-none overflow-x-auto flex-1 -mx-3 px-3 lg:mx-0 lg:px-6 lg:py-3 2xl:px-8">
                                         {TABS.map(tab => {
                                             const Icono = tab.icono;
@@ -354,7 +414,7 @@ export default function PaginaMisCupones() {
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-3 2xl:gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-4 2xl:grid-cols-4 gap-4 lg:gap-3 2xl:gap-4">
                             {cuponesFiltrados.map(cupon => (
                                 <CardCupon
                                     key={cupon.cuponId}

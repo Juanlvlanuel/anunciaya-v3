@@ -151,7 +151,7 @@ export default function CardBilletera({
 
   const barraProgreso = !nivelesActivos ? null : esNivelMaximo ? (
     // Nivel Oro: barra dorada al 100%
-    <div className="mt-2 lg:mt-3.5">
+    <div className="lg:mt-2 2xl:mt-3.5">
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm lg:text-[11px] 2xl:text-sm text-yellow-600 font-semibold">
           ¡Nivel máximo!
@@ -173,7 +173,7 @@ export default function CardBilletera({
     </div>
   ) : puntosFaltantes !== null && (
     // Bronce/Plata: barra con progreso
-    <div className="mt-2 lg:mt-3.5">
+    <div className="lg:mt-2 2xl:mt-3.5">
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold">
           {billetera.progreso.siguienteNivel === 'plata' ? '🥈 Plata' : '🥇 Oro'}
@@ -311,10 +311,10 @@ export default function CardBilletera({
       ═══════════════════════════════════════════════════════════════════ */}
       <div
         data-testid={`billetera-desktop-${billetera.negocioId}`}
-        className="hidden lg:flex lg:h-[327px] 2xl:h-[363px] group bg-white rounded-2xl overflow-hidden flex-col transition-all duration-300 shadow-md hover:shadow-xl"
+        className="hidden lg:flex lg:h-[280px] 2xl:h-[363px] group bg-white rounded-2xl overflow-hidden flex-col transition-all duration-300 shadow-md hover:shadow-xl"
       >
         {/* Header: Portada del negocio */}
-        <div className="w-full h-32 2xl:h-40 shrink-0 relative overflow-hidden">
+        <div className="w-full lg:h-28 2xl:h-40 shrink-0 relative overflow-hidden">
           {imagenPortadaMovil}
           {/* Overlay gradiente abajo */}
           <div
@@ -348,7 +348,7 @@ export default function CardBilletera({
         />
 
         {/* Contenido */}
-        <div className="flex-1 p-3.5 2xl:p-4 flex flex-col">
+        <div className="flex-1 p-3 2xl:p-4 flex flex-col">
           {/* Puntos */}
           <div className="flex items-center gap-2.5">
             <div
@@ -392,7 +392,7 @@ export default function CardBilletera({
           )}
 
           {/* Botón */}
-          <div className="mt-auto pt-3.5">
+          <div className="mt-auto 2xl:pt-3.5">
             <button
               onClick={() => onClick(billetera)}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-white cursor-pointer active:scale-[0.97] hover:bg-slate-700 transition-colors duration-150"

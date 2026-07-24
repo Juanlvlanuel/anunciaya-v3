@@ -484,7 +484,147 @@ export function PaginaMisPublicaciones() {
                                 Bloque centro: subtítulo decorativo "Gestiona tus
                                 Publicaciones" + PANEL DEL VENDEDOR (sin cambios).
                                 La fila inferior bajo este header pasa a ser solo móvil. */}
-                            <div className="hidden lg:block">
+                            {/* ═══ LAPTOP HEADER (lg únicamente — PC conserva el
+                                diseño original abajo) — fila única compacta,
+                                mismo tamaño que las páginas de sección: back+
+                                logo+título a la izquierda; toggle MP/Servicios
+                                (icon-only) + divider + tabs de estado + botón
+                                Publicar (icon-only) a la derecha. Sin subtítulo
+                                ni panel del vendedor decorativo. ═══ */}
+                            <div className="hidden lg:flex 2xl:hidden items-center justify-between gap-3 px-4 py-2.5">
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                    <button
+                                        data-testid="btn-volver-mis-publicaciones-laptop"
+                                        onClick={handleVolver}
+                                        aria-label="Volver al inicio"
+                                        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                    >
+                                        <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                    </button>
+                                    <div
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                        style={{ background: 'linear-gradient(135deg, #22d3ee, #0891b2)' }}
+                                    >
+                                        <Package className="h-[18px] w-[18px] text-white" strokeWidth={2.5} />
+                                    </div>
+                                    <span className="ml-1.5 text-xl font-extrabold tracking-tight text-white">
+                                        Mis <span className="text-cyan-400">Publicaciones</span>
+                                    </span>
+                                </div>
+
+                                <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                                    {/* Toggle MP/Servicios — icon-only */}
+                                    <div
+                                        data-testid="selector-tipo-publicacion-laptop"
+                                        className="flex shrink-0 items-center gap-1.5"
+                                    >
+                                        {TIPOS.map((tipo) => {
+                                            const Icono = tipo.Icono;
+                                            const activo = tipoActivo === tipo.id;
+                                            const claseActivo =
+                                                tipo.id === 'marketplace'
+                                                    ? 'border-teal-400 bg-linear-to-br from-teal-500 to-teal-600 text-white shadow-md shadow-teal-500/30'
+                                                    : 'border-sky-500 bg-linear-to-br from-sky-600 to-sky-700 text-white shadow-md shadow-sky-700/30';
+                                            return (
+                                                <button
+                                                    key={tipo.id}
+                                                    data-testid={`selector-${tipo.id}-laptop`}
+                                                    onClick={() => setTipoActivo(tipo.id)}
+                                                    aria-label={tipo.label}
+                                                    aria-pressed={activo}
+                                                    className={[
+                                                        'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all',
+                                                        activo
+                                                            ? claseActivo
+                                                            : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30 hover:bg-white/10 hover:text-white',
+                                                    ].join(' ')}
+                                                >
+                                                    <Icono className="h-4 w-4" strokeWidth={2.5} />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Divider vertical sutil */}
+                                    <div className="h-7 w-px shrink-0 bg-white/20" />
+
+                                    {/* Tabs de estado por tipo — scrollables si no caben */}
+                                    <div
+                                        data-testid="tabs-mis-publicaciones-laptop"
+                                        className="flex min-w-0 shrink items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+                                    >
+                                        {TABS_POR_TIPO[tipoActivo].map((tab) => {
+                                            const Icono = tab.Icono;
+                                            const activo = tabActivo === tab.id;
+                                            const conteo =
+                                                tipoActivo === 'marketplace'
+                                                    ? conteoPorTab[tab.id]
+                                                    : tab.id === 'activa'
+                                                      ? conteosServicios.activa
+                                                      : tab.id === 'pausada'
+                                                        ? conteosServicios.pausada
+                                                        : 0;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    data-testid={`tab-${tab.id}-laptop`}
+                                                    onClick={() => setTabActivo(tab.id)}
+                                                    className={[
+                                                        'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all',
+                                                        activo
+                                                            ? `text-white shadow-md ${tabActivoClase}`
+                                                            : `border-white/15 bg-white/5 text-slate-200 ${tabHoverClase} hover:bg-white/10 hover:text-white`,
+                                                    ].join(' ')}
+                                                >
+                                                    <Icono className="h-4 w-4" strokeWidth={2.5} />
+                                                    <span>{tab.label}</span>
+                                                    {conteo > 0 && (
+                                                        <span
+                                                            className={[
+                                                                'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold',
+                                                                activo
+                                                                    ? `bg-white ${tabBadgeClase}`
+                                                                    : 'bg-white/20 text-white',
+                                                            ].join(' ')}
+                                                        >
+                                                            {conteo}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Divider vertical sutil */}
+                                    <div className="h-7 w-px shrink-0 bg-white/20" />
+
+                                    {/* Publicar — icon-only */}
+                                    <button
+                                        data-testid="btn-publicar-header-laptop"
+                                        onClick={
+                                            tipoActivo === 'marketplace'
+                                                ? irAPublicar
+                                                : () => navegar('/servicios?crear=ofrezco')
+                                        }
+                                        aria-label={
+                                            tipoActivo === 'marketplace'
+                                                ? 'Publicar artículo'
+                                                : 'Publicar servicio'
+                                        }
+                                        className={
+                                            'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md ring-2 transition-transform hover:scale-105 ' +
+                                            (tipoActivo === 'marketplace'
+                                                ? 'bg-linear-to-br from-teal-500 to-teal-700 shadow-teal-500/30 ring-teal-300/30'
+                                                : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30')
+                                        }
+                                    >
+                                        <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* ══ PC HEADER (>= 2xl) — layout original sin tocar ══ */}
+                            <div className="hidden 2xl:block">
                                 <div className="flex items-end justify-between gap-6 px-6 py-4 2xl:px-8 2xl:py-5">
                                     {/* Izquierda: título arriba, toggles+tabs centrados abajo */}
                                     <div className="flex shrink-0 flex-col items-start gap-3">
@@ -851,7 +991,7 @@ export function PaginaMisPublicaciones() {
                     // Ofertas y Marketplace): 2 / lg:3 / 2xl:4 con
                     // `max-w-[270px]` por card. Cada `CardArticuloMio` mantiene
                     // su layout vertical interno (foto + KPIs + menú "⋯").
-                    <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6">
                         {articulos.map((articulo) => (
                             <div
                                 key={articulo.id}

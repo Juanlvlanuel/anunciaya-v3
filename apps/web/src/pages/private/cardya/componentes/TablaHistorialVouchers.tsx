@@ -9,6 +9,7 @@
  */
 
 import { useState, type RefObject } from 'react';
+import { useBreakpoint } from '../../../../hooks/useBreakpoint';
 import {
   Ticket,
   CheckCircle,
@@ -126,7 +127,7 @@ function presentacionEstado(voucher: Voucher): { label: string; clases: string }
 export default function TablaHistorialVouchers({
   vouchers,
   onClickVoucher,
-  stickyTop: _stickyTop = 0,
+  stickyTop = 0,
   negocioFiltro: negocioFiltroExterno,
   onClickImagen,
   filtroEstado = 'todos',
@@ -145,6 +146,11 @@ export default function TablaHistorialVouchers({
 
   // Filtro de negocio viene del padre (header)
   const negocioFiltro = negocioFiltroExterno ?? 'todos';
+
+  // PC (2xl) conserva la fórmula original fija — el `style` inline no tiene
+  // variantes de breakpoint, así que sin esto un solo cambio de altura
+  // afectaría también a 2xl. Solo laptop usa la altura dinámica real.
+  const { esDesktop } = useBreakpoint();
 
   // Ordenamiento: null = default (fecha canje desc)
   const [orden, setOrden] = useState<EstadoOrden | null>(null);
@@ -326,7 +332,7 @@ export default function TablaHistorialVouchers({
         className="hidden lg:flex lg:flex-col rounded-xl overflow-hidden bg-white border-2 border-slate-300"
         style={{
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          height: 'calc(100vh - 300px)',
+          height: esDesktop ? 'calc(100vh - 300px)' : `calc(100vh - ${stickyTop}px - 115px)`,
           minHeight: '400px',
         }}
       >
@@ -339,7 +345,7 @@ export default function TablaHistorialVouchers({
         ) : (
           <>
             {/* Header fijo (no hace scroll) */}
-            <div className="shrink-0 h-12" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
+            <div className="shrink-0 lg:h-10 2xl:h-12" style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
               <table className="w-full h-full" style={{ tableLayout: 'fixed', marginRight: '15px', width: 'calc(100% - 15px)' }}>
                 <colgroup>
                   <col style={{ width: '22%' }} />
