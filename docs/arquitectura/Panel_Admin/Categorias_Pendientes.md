@@ -44,3 +44,18 @@
       el patrón funciona bien en Negocios.
 - [ ] Confirmación explícita al **desactivar** un giro con muchos negocios (hoy es directo;
       es reversible y no destruye datos, pero un aviso ayudaría).
+- [ ] Catálogo de propiedades en Business Studio para Inmobiliarias/Agentes Inmobiliarios
+      (campos específicos: recámaras, m², tipo de operación) — ver
+      `../Segmentacion_Giros_Negocios.md`.
+- [ ] Módulo de citas — ver [[project_modulo_citas_futuro]] (memoria) y
+      `../Segmentacion_Giros_Negocios.md` para el checklist mínimo y los 27 giros que
+      quedarían reactivables al construirlo.
+
+## Limpieza de catálogo — Fase 1 de venta (23 jul)
+- [x] Turismo y Bienes Raíces eliminados por completo (comprador no encaja con la app).
+- [x] Oficios freelance sin establecimiento sacados de Servicios/Movilidad/Educación/Mascotas
+      (van a la sección pública Servicios en su lugar).
+- [x] 27 subcategorías desactivadas (no aplican puntos/ScanYA hoy, pendientes de módulo de
+      citas) — ver `../Segmentacion_Giros_Negocios.md` para la lista completa y el criterio.
+- [x] DEV y PROD verificados idénticos: 10 categorías, 103 subcategorías (76 activas / 27
+      inactivas).

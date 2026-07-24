@@ -9,6 +9,11 @@
 > en dev+prod, harness verde. **Analítica por ciudad** (conteo de negocios reales por giro, filtrable
 > por ciudad) añadida el 2 jul. **Hard delete** (excepción controlada mientras se define el catálogo
 > de giros de la beta) añadido el 23 jul. **Última actualización:** 23 Julio 2026.
+>
+> **Criterio de qué giros van activos vs. inactivos en Fase 1 de venta:** ver
+> [`../Segmentacion_Giros_Negocios.md`](../Segmentacion_Giros_Negocios.md) — 76 subcategorías
+> activas (aplica puntos/ScanYA/Ofertas o catálogo+Ofertas), 27 inactivas pendientes del módulo
+> de citas.
 
 ---
 
