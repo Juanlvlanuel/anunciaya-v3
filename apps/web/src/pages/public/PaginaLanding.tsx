@@ -411,8 +411,8 @@ function ContenidoSlide({ slide, className }: { slide: SlideSeccion; className: 
             )}
             {/* Label — esquina arriba-derecha */}
             <div className="absolute top-2 right-2 lg:top-2 lg:right-2 2xl:top-3 2xl:right-3 z-10">
-                <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-2.5 lg:py-0.5 2xl:px-4 2xl:py-1.5 bg-black/55 backdrop-blur-md rounded-full text-xs lg:text-[11px] 2xl:text-base font-bold text-white whitespace-nowrap shadow-lg ring-1 ring-white/15">
-                    <Icono className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
+                <span className="flex items-center gap-1.5 px-2.5 py-1 lg:px-3 lg:py-1 2xl:px-4 2xl:py-1.5 bg-black/55 backdrop-blur-md rounded-full text-xs lg:text-sm 2xl:text-base font-bold text-white whitespace-nowrap shadow-lg ring-1 ring-white/15">
+                    <Icono className="w-3 h-3 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                     {slide.label}
                 </span>
             </div>
@@ -721,8 +721,8 @@ function SeccionPlanes() {
                 <div className="hidden lg:block relative overflow-hidden group">
                     <img src="/images/secciones/scanya.webp" alt="ScanYA" className="w-full h-full object-cover group-hover:scale-110 duration-500" loading="lazy" />
                     <div className="absolute bottom-2 lg:bottom-2 2xl:bottom-4 left-1/2 -translate-x-1/2">
-                        <span className="flex items-center gap-1.5 px-3 lg:px-3 2xl:px-5 py-0.5 lg:py-0.5 2xl:py-1.5 bg-black/50 backdrop-blur-sm rounded-full text-sm lg:text-[11px] 2xl:text-base font-bold text-white whitespace-nowrap">
-                            <Star className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-5 2xl:h-5" />
+                        <span className="flex items-center gap-1.5 px-3 lg:px-4 2xl:px-5 py-0.5 lg:py-1 2xl:py-1.5 bg-black/50 backdrop-blur-sm rounded-full text-sm lg:text-sm 2xl:text-base font-bold text-white whitespace-nowrap">
+                            <Star className="w-3.5 h-3.5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                             {t('collage.scanya')}
                         </span>
                     </div>

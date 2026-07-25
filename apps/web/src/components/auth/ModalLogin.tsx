@@ -166,7 +166,7 @@ export function ModalLogin() {
       headerOscuro
       colorHandle={GRADIENTE.handle}
     >
-      <div className="flex flex-col max-h-[85vh] lg:max-h-none">
+      <div className="flex flex-col max-h-[85vh] lg:max-h-[85vh] 2xl:max-h-[85vh]">
 
         {/* Header gradiente */}
         <div

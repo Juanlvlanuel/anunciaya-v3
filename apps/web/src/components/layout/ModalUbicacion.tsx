@@ -179,7 +179,7 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
             colorHandle={GRADIENTE.handle}
             headerOscuro
         >
-            <div className="flex flex-col max-h-[80vh] lg:max-h-[75vh]">
+            <div className="flex flex-col max-h-[80vh] lg:max-h-[85vh]">
 
                 {/* ── Header dark gradiente ── */}
                 <div
@@ -214,7 +214,7 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
                             placeholder="Buscar ciudad..."
-                            className="w-full pl-10 lg:pl-9 2xl:pl-10 pr-4 py-3 lg:py-2.5 2xl:py-3 border-2 border-slate-300 bg-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-400 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                            className={`w-full pl-10 lg:pl-9 2xl:pl-10 ${busqueda ? 'pr-10' : 'pr-4'} py-3 lg:py-2.5 2xl:py-3 border-2 border-slate-300 bg-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-400 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500`}
                             style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                         />
                         {busqueda && (
@@ -232,20 +232,20 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                         <button
                             onClick={handleDetectarGPS}
                             disabled={detectandoGPS}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-full text-sm font-bold border-2 border-slate-700 shadow-lg shadow-slate-700/30 disabled:opacity-60 lg:cursor-pointer active:scale-[0.98]"
+                            className="inline-flex items-center gap-2 lg:gap-1.5 2xl:gap-1.5 px-4 lg:px-3 2xl:px-3 py-2 lg:py-1.5 2xl:py-1.5 text-white rounded-full text-sm lg:text-xs 2xl:text-xs font-bold border-2 border-slate-700 shadow-lg shadow-slate-700/30 disabled:opacity-60 lg:cursor-pointer active:scale-[0.98]"
                             style={{ background: 'linear-gradient(135deg, #334155, #1e293b)' }}
                         >
                             {detectandoGPS ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-3.5 2xl:h-3.5 animate-spin" />
                             ) : (
-                                <Navigation className="w-4 h-4" />
+                                <Navigation className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-3.5 2xl:h-3.5" />
                             )}
                             <span>{detectandoGPS ? 'Detectando...' : 'Usar GPS'}</span>
                         </button>
 
                         {ciudad && (
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 border-2 border-emerald-300 text-emerald-700 rounded-full text-sm font-semibold">
-                                <Check className="w-4 h-4" />
+                            <div className="inline-flex items-center gap-2 lg:gap-1.5 2xl:gap-1.5 px-4 lg:px-3 2xl:px-3 py-2 lg:py-1.5 2xl:py-1.5 bg-emerald-100 border-2 border-emerald-300 text-emerald-700 rounded-full text-sm lg:text-xs 2xl:text-xs font-semibold">
+                                <Check className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-3.5 2xl:h-3.5" />
                                 <span className="truncate max-w-[140px]">{ciudad.nombreCompleto}</span>
                             </div>
                         )}
@@ -267,7 +267,7 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                             </span>
                         </div>
 
-                        <div className="lg:max-h-48 2xl:max-h-64 overflow-y-auto">
+                        <div className="lg:h-60 2xl:h-76 overflow-y-auto">
                             {ciudadesAMostrar.length > 0 ? (
                                 <ul className="space-y-1">
                                     {ciudadesAMostrar.map((c) => (
@@ -279,7 +279,7 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                                                 <div className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 rounded-full bg-slate-400 shrink-0" />
                                                 <div>
                                                     <p className="font-semibold text-slate-800 text-base lg:text-sm 2xl:text-base">{c.nombre}</p>
-                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{c.estado}</p>
+                                                    <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">{c.estado}</p>
                                                 </div>
                                             </button>
                                         </li>
