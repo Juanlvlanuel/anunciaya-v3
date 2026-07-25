@@ -14,10 +14,12 @@
  */
 
 import { create } from 'zustand';
+import axios from 'axios';
 import { esTokenExpirado } from '../utils/tokenUtils'; // ← AGREGAR ESTA LÍNEA
 import api from '../services/api';
 import { conectarSocket, desconectarSocket } from '../services/socketService';
 import { queryClient } from '../config/queryClient';
+import { notificar } from '../utils/notificaciones';
 
 // =============================================================================
 // CONSTANTES
@@ -30,6 +32,10 @@ const STORAGE_KEYS = {
   refreshToken: `${STORAGE_PREFIX}refresh_token`,
   usuario: `${STORAGE_PREFIX}usuario`,
 } as const;
+
+// URL base del backend (para llamar /auth/refresh directo con axios "crudo",
+// sin pasar por los interceptores de api.ts, durante la hidratación)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Tiempos de inactividad (en milisegundos) - ✅ VALORES DE PRODUCCIÓN
 const TIEMPO_INACTIVIDAD_TOTAL = 60 * 60 * 1000; // 60 minutos
@@ -737,8 +743,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       // Paso 1: Obtener tokens de localStorage
-      const accessToken = obtenerDeStorage(STORAGE_KEYS.accessToken);
-      const refreshToken = obtenerDeStorage(STORAGE_KEYS.refreshToken);
+      let accessToken = obtenerDeStorage(STORAGE_KEYS.accessToken);
+      let refreshToken = obtenerDeStorage(STORAGE_KEYS.refreshToken);
       const usuarioStr = obtenerDeStorage(STORAGE_KEYS.usuario);
 
       // Si no hay tokens, no hay sesión
@@ -747,8 +753,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      // ✅ VERIFICAR SI LOS TOKENS ESTÁN EXPIRADOS
-      if (esTokenExpirado(accessToken) || esTokenExpirado(refreshToken)) {
+      // ✅ SOLO el refresh token (7 días) decide si la sesión sigue viva.
+      // El access token expira cada 15 min por diseño: pasa en CUALQUIER
+      // recarga de la app que ocurra 15+ min después del último login/refresh,
+      // que es lo normal navegando. Antes esto se revisaba con un OR y mataba
+      // la sesión aunque el refresh token siguiera vigente por días — el usuario
+      // veía la sesión "vencida por inactividad" sin haber estado inactivo.
+      if (esTokenExpirado(refreshToken)) {
+        await notificar.sesionExpirada();
         limpiarStorageAuth();
         // Marcar como logout reciente → RutaPrivada NO guarda la ruta actual
         // como pendiente, al re-loguear siempre irá a /inicio
@@ -761,6 +773,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           usuario: null
         });
         return;
+      }
+
+      // Si solo el access token expiró (caso normal), renovarlo aquí antes de
+      // seguir hidratando. Usa axios "crudo" (no la instancia `api`) para no
+      // disparar sus interceptores mientras la app todavía está hidratando.
+      if (esTokenExpirado(accessToken)) {
+        try {
+          const respuestaRefresh = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          if (respuestaRefresh.data?.success && respuestaRefresh.data?.data) {
+            accessToken = respuestaRefresh.data.data.accessToken;
+            refreshToken = respuestaRefresh.data.data.refreshToken;
+            guardarEnStorage(STORAGE_KEYS.accessToken, accessToken!);
+            guardarEnStorage(STORAGE_KEYS.refreshToken, refreshToken!);
+          } else {
+            throw new Error('Respuesta de refresh inválida');
+          }
+        } catch {
+          // El refresh token resultó inválido de verdad (revocado, sesión
+          // cerrada desde otro dispositivo, etc.) → ahora sí cerrar sesión.
+          await notificar.sesionExpirada();
+          limpiarStorageAuth();
+          sessionStorage.setItem('ay_logout_reciente', 'true');
+          set({
+            cargando: false,
+            hidratado: true,
+            accessToken: null,
+            refreshToken: null,
+            usuario: null
+          });
+          return;
+        }
       }
 
       // Paso 2: Cargar usuario de localStorage temporalmente
