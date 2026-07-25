@@ -1031,12 +1031,12 @@ export default function PaginaPuntos() {
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-2"
+          className="flex items-center justify-between px-4 py-2 lg:h-[40px] 2xl:h-auto"
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
         >
           <div className="flex items-center gap-2.5">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+              className="w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
             >
               {tipoRecompensaFiltro === 'compras_frecuentes'
@@ -1182,7 +1182,7 @@ export default function PaginaPuntos() {
               </div>
             );
           })() : (
-            <div className="grid grid-cols-3 2xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 2xl:grid-cols-4 gap-3">
               {[...recompensasFiltradas].sort((a, b) => b.canjesRealizados - a.canjesRealizados).map((r) => (
                   <CardRecompensa
                     key={r.id}
@@ -1403,13 +1403,13 @@ export default function PaginaPuntos() {
         {/* Contenido desktop: Puntos */}
         <div className={`hidden ${tabDesktop === 'puntos' ? 'lg:block' : ''} ${!esGerente ? 'mt-4 lg:mt-14 2xl:mt-14' : ''}`}>
           {/* Fila superior: 3 cards de config + Niveles */}
-          <div className="grid grid-cols-3 gap-3 2xl:gap-4 mb-3 2xl:mb-4">
+          <div className="grid grid-cols-3 lg:grid-cols-[1.7fr_1fr_1fr] 2xl:grid-cols-3 gap-3 2xl:gap-4 mb-3 2xl:mb-4">
             {/* Card: Puntos por Compra */}
             <div className="bg-white rounded-xl border-2 border-slate-300"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px] lg:h-[40px] 2xl:h-auto"
                 style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                <div className="w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
                   <Settings className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
                 </div>
@@ -1458,9 +1458,9 @@ export default function PaginaPuntos() {
             {/* Card: Expiración de Puntos */}
             <div className="bg-white rounded-xl border-2 border-slate-300"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px] lg:h-[40px] 2xl:h-auto"
                 style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                <div className="w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
                   <Clock className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
                 </div>
@@ -1495,9 +1495,9 @@ export default function PaginaPuntos() {
             {/* Card: Expiración de Vouchers */}
             <div className="bg-white rounded-xl border-2 border-slate-300"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px]"
+              <div className="px-4 py-2 flex items-center gap-2.5 rounded-t-[10px] lg:h-[40px] 2xl:h-auto"
                 style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                <div className="w-9 h-9 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
                   <Ticket className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
                 </div>

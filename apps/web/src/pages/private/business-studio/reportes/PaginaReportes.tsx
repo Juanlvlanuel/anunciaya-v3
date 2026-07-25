@@ -166,7 +166,7 @@ export default function PaginaReportes() {
         </div>
 
         {/* ── Row 3: Filtro universal de fechas ─────────────────────────── */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 p-3 lg:p-2 2xl:p-3 shadow-md" data-testid="reportes-filtros">
+        <div className="bg-white rounded-xl border-2 border-slate-300 p-3 lg:p-2 2xl:p-3 shadow-md" data-testid="reportes-filtros">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
             <div className="flex flex-col lg:flex-row lg:items-center gap-2">
               {/* Fechas personalizadas con DatePicker */}

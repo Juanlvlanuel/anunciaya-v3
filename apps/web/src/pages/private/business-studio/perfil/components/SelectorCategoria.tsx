@@ -112,7 +112,7 @@ export default function SelectorCategoria({
         <div className="absolute z-30 mt-1.5 w-full bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden">
 
           {/* Lista de Categorías */}
-          <div className="max-h-[400px] lg:max-h-80 2xl:max-h-[400px] overflow-y-auto py-1">
+          <div className="max-h-[400px] lg:max-h-[280px] 2xl:max-h-[400px] overflow-y-auto py-1">
             {categorias.map((categoria) => {
               const esSeleccionada = categoria.id === categoriaSeleccionada;
 

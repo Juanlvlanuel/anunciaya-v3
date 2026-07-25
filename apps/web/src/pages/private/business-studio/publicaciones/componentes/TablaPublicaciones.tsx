@@ -50,28 +50,28 @@ export function TablaPublicaciones({
         >
             {/* Header con gradient BS (TC-9) */}
             <div
-                className="grid items-center gap-x-4 px-4 lg:px-3 2xl:px-5 py-2 h-12"
+                className="grid items-center gap-x-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12"
                 style={{
                     gridTemplateColumns: COLUMNAS,
                     background: 'linear-gradient(135deg, #1e293b, #334155)',
                 }}
             >
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider">
                     Publicación
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">
                     Vistas
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">
                     Comentarios
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">
                     Estado
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">
                     Publicada
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-right">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-right">
                     Acciones
                 </span>
             </div>

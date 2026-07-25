@@ -292,9 +292,9 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                 alturaMaxima="xl"
                 colorHandle={gradiente.handle}
                 headerOscuro
-                className="max-w-xs lg:max-w-2xl 2xl:max-w-3xl"
+                className="max-w-xs! lg:max-w-3xl! 2xl:max-w-3xl!"
             >
-                <div className={`flex flex-col ${esExclusiva ? 'h-[90vh] lg:h-[68vh] 2xl:h-[65vh]' : 'max-h-[90vh] lg:max-h-[75vh] 2xl:max-h-[75vh]'}`}>
+                <div className={`flex flex-col ${esExclusiva ? 'h-[90vh] lg:h-[78vh] 2xl:h-[59vh]' : 'max-h-[90vh] lg:max-h-[78vh] 2xl:max-h-[59h]'}`}>
 
                     {/* ── Header ── */}
                     <div
@@ -316,6 +316,29 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                     {esExclusiva ? 'Cupón privado' : 'Oferta pública'}
                                 </span>
                             </div>
+
+                            {/* Tabs — solo laptop, discretas en la misma línea del título (en móvil/PC van en la barra blanca de abajo) */}
+                            {esExclusiva && (
+                                <div className="hidden lg:flex items-center gap-1 shrink-0" data-testid="tabs-oferta-header">
+                                    {tabs.map(tab => {
+                                        const Icono = tab.icono;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                type="button"
+                                                data-testid={`tab-header-${tab.id}`}
+                                                onClick={() => setTabActivo(tab.id)}
+                                                className={`h-8 w-24 flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                                                    tabActivo === tab.id ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white/90 hover:bg-white/10'
+                                                }`}
+                                            >
+                                                <Icono className="w-4 h-4" />
+                                                {tab.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             {/* Acciones header */}
                             <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
@@ -350,7 +373,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                                 onClick={() => { if (oferta) { onDuplicar?.(oferta); } }}
                                                 className="p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer bg-black/15 hover:bg-black/25 transition-colors"
                                             >
-                                                <Copy className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                                                <Copy className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5 text-white" />
                                             </button>
                                         </Tooltip>
                                     </div>
@@ -361,7 +384,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                             disabled={guardando}
                                             className={`p-2 lg:p-1.5 2xl:p-2 rounded-xl cursor-pointer disabled:opacity-50 ${formulario.activo ? 'bg-white/20 hover:bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
                                         >
-                                            {formulario.activo ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" /> : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/60" />}
+                                            {formulario.activo ? <Eye className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5 text-white" /> : <EyeOff className="w-5 h-5 lg:w-5 lg:h-5 2xl:w-5 2xl:h-5 text-white/60" />}
                                         </button>
                                     </Tooltip>
                                 )}
@@ -369,9 +392,9 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                         </div>
                     </div>
 
-                    {/* ── Tabs bar (solo exclusiva) ── */}
+                    {/* ── Tabs bar (solo exclusiva; solo móvil — en laptop y PC vive en el header) ── */}
                     {esExclusiva && (
-                        <div className="shrink-0 px-4 lg:px-3 2xl:px-4 py-2 lg:py-2 2xl:py-2 bg-white border-b border-slate-300">
+                        <div className="block lg:hidden shrink-0 px-4 py-2 bg-white border-b border-slate-300">
                             <div className="bg-slate-200 rounded-xl border-2 border-slate-300 p-0.5 flex" data-testid="tabs-oferta">
                                 {tabs.map(tab => {
                                     const Icono = tab.icono;

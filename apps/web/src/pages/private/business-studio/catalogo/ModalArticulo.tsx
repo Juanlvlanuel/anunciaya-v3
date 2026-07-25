@@ -419,7 +419,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
             <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row lg:h-full">
 
               {/* ── Columna Izquierda ── */}
-              <div className="lg:w-2/5 px-3 pt-3 pb-1 lg:p-2 2xl:p-5 lg:border-r-2 border-slate-300 bg-slate-50 flex flex-col gap-3 lg:gap-2.5 2xl:gap-4">
+              <div className="lg:w-2/5 px-3 pt-3 pb-1 lg:p-4 2xl:p-5 lg:border-r-2 border-slate-300 bg-slate-50 flex flex-col gap-3 lg:gap-2.5 2xl:gap-4">
 
                 {/* === MÓVIL: fila imagen pequeña + Categoría/Precio === */}
                 <div className="flex gap-2.5 lg:hidden">
@@ -762,7 +762,7 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
               </div>
 
               {/* ── Columna Derecha: Nombre + Descripción + Precio desde + Botones ── */}
-              <div className="lg:w-3/5 px-3 pt-0 pb-3 lg:px-2 lg:pt-1 lg:pb-2 2xl:px-5 2xl:pt-2 2xl:pb-5 flex flex-col gap-2 lg:gap-1.5 2xl:gap-3">
+              <div className="lg:w-3/5 px-3 pt-0 pb-3 lg:px-4 lg:pt-2 lg:pb-3 2xl:px-5 2xl:pt-2 2xl:pb-5 flex flex-col gap-2 lg:gap-1.5 2xl:gap-3">
 
                 {/* Íconos Eye + Star (solo PC) */}
                 <div className="hidden lg:flex items-center justify-around py-1.5 2xl:py-2 border-b border-slate-200 mb-0.5">

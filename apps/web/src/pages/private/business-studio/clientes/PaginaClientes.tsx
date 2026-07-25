@@ -635,7 +635,7 @@ export default function PaginaClientes() {
         {/* FILTROS: Nivel (chips) + Búsqueda                                 */}
         {/* ================================================================= */}
 
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
+        <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
             {/* Chips de nivel */}
             {nivelesActivos && (
@@ -715,7 +715,7 @@ export default function PaginaClientes() {
 
         {/* Contador de resultados */}
         <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
-          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+          <span className="hidden 2xl:block text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
             {nivelFiltro || busqueda
               ? `${clientesOrdenados.length} de ${kpis?.totalClientes ?? '—'} clientes`
               : `${clientesOrdenados.length} clientes`
@@ -734,15 +734,15 @@ export default function PaginaClientes() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_120px_140px_200px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_120px_140px_200px] gap-x-0 lg:gap-x-8 2xl:gap-x-10 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
               {nivelesActivos && <span className="flex justify-center">Nivel</span>}
-              <span className="flex justify-end">
+              <span className="flex justify-center">
                 <HeaderOrdenable etiqueta="PUNTOS" columna="puntos" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
-              <span className="flex justify-end">
+              <span className="flex justify-center">
                 <HeaderOrdenable etiqueta="VISITAS" columna="visitas" ordenActual={orden} onOrdenar={alternarOrden} />
               </span>
               <span className="flex justify-end">
@@ -762,7 +762,7 @@ export default function PaginaClientes() {
                     <button
                       key={c.id}
                       onClick={() => handleVerDetalle(c.id)}
-                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-0 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
+                      className={`grid grid-cols-[1fr_100px_100px_100px_120px] 2xl:grid-cols-[1fr_120px_106px_125px_230px] gap-x-0 lg:gap-x-8 2xl:gap-x-10 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer w-full text-left ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'
                         }`}
                     >
                       {/* Cliente */}
@@ -800,14 +800,14 @@ export default function PaginaClientes() {
                       )}
 
                       {/* Puntos */}
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-center">
                         <span className="font-bold text-amber-600 2xl:text-[15px]">
                           {c.puntosDisponibles.toLocaleString()}
                         </span>
                       </div>
 
                       {/* Visitas */}
-                      <div className="flex items-center justify-end text-slate-600 font-bold 2xl:text-[15px]">
+                      <div className="flex items-center justify-center text-slate-600 font-bold 2xl:text-[15px]">
                         {c.totalVisitas}
                       </div>
 

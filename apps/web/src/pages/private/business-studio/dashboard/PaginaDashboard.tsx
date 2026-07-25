@@ -535,7 +535,7 @@ export default function PaginaDashboard() {
                 <button
                   onClick={handleRefresh}
                   disabled={refrescando}
-                  className="p-2 2xl:p-2.5 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-indigo-100 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
+                  className="lg:w-10 lg:h-10 lg:p-0 2xl:w-11 2xl:h-11 2xl:p-0 flex items-center justify-center p-2 rounded-lg 2xl:rounded-xl bg-white border-2 border-slate-300 text-slate-600 hover:bg-indigo-100 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 2xl:w-5 2xl:h-5 ${refrescando ? 'animate-spin' : ''}`} />
                 </button>

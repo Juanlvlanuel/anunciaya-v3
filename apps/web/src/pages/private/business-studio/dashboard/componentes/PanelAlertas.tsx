@@ -128,10 +128,10 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
 	const noLeidas = alertas?.noLeidas ?? 0;
 
 	return (
-		<div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 lg:h-54 2xl:h-66 flex flex-col shadow-md overflow-hidden">
+		<div className="bg-white rounded-xl border-2 border-slate-300 lg:h-54 2xl:h-66 flex flex-col shadow-md overflow-hidden">
 			{/* Header — gradiente oscuro */}
 			<div
-				className="flex items-center justify-between px-3 lg:px-3 2xl:px-4 py-2 shrink-0"
+				className="flex items-center justify-between px-3 lg:px-3 2xl:px-4 py-2 shrink-0 lg:h-[40px] 2xl:h-auto"
 				style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 			>
 				<div className="flex items-center gap-2">

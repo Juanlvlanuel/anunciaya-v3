@@ -204,7 +204,7 @@ export default function PaginaPublicaciones() {
                     ═══════════════════════════════════════════════════════════ */}
                 {!sinPublicaciones && (
                     <div
-                        className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
+                        className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
                         data-testid="filtros-publicaciones"
                     >
                         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">

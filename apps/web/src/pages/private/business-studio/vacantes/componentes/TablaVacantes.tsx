@@ -12,6 +12,7 @@
 
 import { Briefcase, Eye, Pencil, PauseCircle, PlayCircle, Trash2, MapPin } from 'lucide-react';
 import Tooltip from '../../../../../components/ui/Tooltip';
+import { useBreakpoint } from '../../../../../hooks/useBreakpoint';
 import {
     diasRestantesVacante,
     estadoUiVacante,
@@ -36,6 +37,8 @@ interface TablaVacantesProps {
 }
 
 const COLUMNAS = '2.1fr 1.1fr 1fr 1.2fr 0.9fr 1fr 1fr 0.9fr';
+// Laptop: sin las columnas Tipo/Modalidad (2 slots menos que COLUMNAS).
+const COLUMNAS_LAPTOP = '2.1fr 1.2fr 0.9fr 1fr 1fr 0.9fr';
 
 export function TablaVacantes({
     vacantes,
@@ -45,6 +48,10 @@ export function TablaVacantes({
     onReactivar,
     onEliminar,
 }: TablaVacantesProps) {
+    // Laptop oculta Tipo/Modalidad (menos espacio horizontal); PC las conserva.
+    const { esDesktop } = useBreakpoint();
+    const columnas = esDesktop ? COLUMNAS : COLUMNAS_LAPTOP;
+
     if (vacantes.length === 0) {
         return (
             <div
@@ -64,34 +71,38 @@ export function TablaVacantes({
         >
             {/* Header con gradient BS (TC-9) */}
             <div
-                className="grid items-center gap-x-4 px-4 lg:px-3 2xl:px-5 py-2 h-12"
+                className="grid items-center gap-x-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12"
                 style={{
-                    gridTemplateColumns: COLUMNAS,
+                    gridTemplateColumns: columnas,
                     background: 'linear-gradient(135deg, #1e293b, #334155)',
                 }}
             >
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider ">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider ">
                     Vacante
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider ">
-                    Tipo
-                </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider mr-15">
-                    Modalidad
-                </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider ml-4">
+                {esDesktop && (
+                    <>
+                        <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider ">
+                            Tipo
+                        </span>
+                        <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider mr-15">
+                            Modalidad
+                        </span>
+                    </>
+                )}
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider ml-4">
                     Salario
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider ml-4">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider ml-4">
                     Chats
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider ml-1">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider ml-1">
                     Estado
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider ">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider ">
                     Vigencia
                 </span>
-                <span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-right">
+                <span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-right">
                     Acciones
                 </span>
             </div>
@@ -148,6 +159,9 @@ function FilaVacante({
     onReactivar,
     onEliminar,
 }: FilaVacanteProps) {
+    const { esDesktop } = useBreakpoint();
+    const columnas = esDesktop ? COLUMNAS : COLUMNAS_LAPTOP;
+
     const stopPropagation = (
         ev: React.MouseEvent<HTMLButtonElement>,
         handler: () => void,
@@ -164,7 +178,7 @@ function FilaVacante({
                 'border-b border-slate-300 lg:cursor-pointer hover:bg-slate-200 ' +
                 (indice % 2 === 0 ? 'bg-white' : 'bg-slate-100')
             }
-            style={{ gridTemplateColumns: COLUMNAS }}
+            style={{ gridTemplateColumns: columnas }}
             onClick={onVer}
             data-testid={`fila-vacante-${vacante.id}`}
         >
@@ -189,17 +203,21 @@ function FilaVacante({
                 </div>
             </div>
 
-            {/* Col 2 — Tipo */}
-            <div className="flex items-center justify-left mr-10">
-                {vacante.tipoEmpleo && (
-                    <PillTipoEmpleo tipoEmpleo={vacante.tipoEmpleo} />
-                )}
-            </div>
+            {esDesktop && (
+                <>
+                    {/* Col 2 — Tipo */}
+                    <div className="flex items-center justify-left mr-10">
+                        {vacante.tipoEmpleo && (
+                            <PillTipoEmpleo tipoEmpleo={vacante.tipoEmpleo} />
+                        )}
+                    </div>
 
-            {/* Col 3 — Modalidad */}
-            <div className="flex items-center justify-center mr-10">
-                <PillModalidad modalidad={vacante.modalidad} />
-            </div>
+                    {/* Col 3 — Modalidad */}
+                    <div className="flex items-center justify-center mr-10">
+                        <PillModalidad modalidad={vacante.modalidad} />
+                    </div>
+                </>
+            )}
 
             {/* Col 4 — Salario
                 Sprint 9.3: cuando el precio es 'a-convenir' lo mostramos

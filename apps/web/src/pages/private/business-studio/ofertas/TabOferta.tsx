@@ -85,7 +85,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
     const renderTitulo = (sufijo = '') => (
         <div>
-            <label htmlFor={`input-titulo-oferta${sufijo}`} className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+            <label htmlFor={`input-titulo-oferta${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                 Producto o servicio <span className="text-red-500">*</span>
             </label>
             <input
@@ -116,7 +116,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
         return (
             <div>
-                <span className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-2">{esCupon ? 'Tipo de cupón' : 'Tipo de promoción'} <span className="text-red-500">*</span></span>
+                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-2">{esCupon ? 'Tipo de cupón' : 'Tipo de promoción'} <span className="text-red-500">*</span></span>
                 <div className="grid grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2">
                     {tiposConfig.map(({ tipo, label, icono: Icono, activo, inactivo }) => (
                         <button
@@ -141,7 +141,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
     const renderValorCompraMinima = (sufijo = '') => (
         <div className="grid grid-cols-2 gap-2 lg:gap-1.5 2xl:gap-2 items-end">
             <div>
-                <label htmlFor={`input-valor-oferta${sufijo}`} className={`block text-sm lg:text-[11px] 2xl:text-sm font-bold mb-1.5 lg:mb-1 2xl:mb-2 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'}`}>
+                <label htmlFor={`input-valor-oferta${sufijo}`} className={`block text-sm lg:text-xs 2xl:text-sm font-bold mb-1.5 lg:mb-1 2xl:mb-2 ${mostrarValor ? 'text-slate-700' : 'text-slate-400'}`}>
                     {formulario.tipo === 'otro' ? 'Concepto' : 'Valor'} {mostrarValor && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
@@ -167,7 +167,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                 {errores.valor && mostrarValor && <p className="text-xs text-red-500 font-medium mt-1">{errores.valor}</p>}
             </div>
             <div>
-                <label htmlFor={`input-compra-minima${sufijo}`} className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+                <label htmlFor={`input-compra-minima${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                     Compra mín. <span className="text-slate-400 font-normal">(opc.)</span>
                 </label>
                 <div className="relative">
@@ -193,12 +193,12 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
     const renderFechas = (vertical = false) => (
         <div className={vertical ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2 2xl:gap-3'}>
             <div>
-                <span className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Inicio <span className="text-red-500">*</span></span>
+                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Inicio <span className="text-red-500">*</span></span>
                 <DatePicker value={formulario.fechaInicio} onChange={(fecha) => setFormulario(prev => ({ ...prev, fechaInicio: fecha }))} placeholder="Seleccionar" disabled={guardando} error={!!errores.fechaInicio} centradoEnMovil data-testid="input-fecha-inicio" />
                 {errores.fechaInicio && <p className="text-xs text-red-500 mt-0.5">{errores.fechaInicio}</p>}
             </div>
             <div>
-                <span className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Fin <span className="text-red-500">*</span></span>
+                <span className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 2xl:mb-2">Fin <span className="text-red-500">*</span></span>
                 <DatePicker value={formulario.fechaFin} onChange={(fecha) => setFormulario(prev => ({ ...prev, fechaFin: fecha }))} placeholder="DD/MM/YYYY" disabled={guardando} error={!!errores.fechaFin} centradoEnMovil data-testid="input-fecha-fin" />
                 {errores.fechaFin && <p className="text-xs text-red-500 mt-0.5">{errores.fechaFin}</p>}
             </div>
@@ -227,7 +227,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
 
     const renderDescripcion = (sufijo = '') => (
         <div className="flex-1 flex flex-col">
-            <label htmlFor={`textarea-descripcion-oferta${sufijo}`} className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
+            <label htmlFor={`textarea-descripcion-oferta${sufijo}`} className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-2">
                 {esCupon ? 'Condiciones' : 'Descripción'} <span className="text-slate-400 font-normal">(opcional)</span>
             </label>
             <textarea
@@ -285,14 +285,14 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
             {/* ── DESKTOP: 2 columnas — Izq (Tipo + Valor + Imagen) | Der (Producto + Vigencia + Condiciones + Botones) ── */}
             <div className="hidden lg:flex lg:flex-row lg:h-full">
                 {/* Columna Izquierda: Tipo + Valor + Imagen */}
-                <div className="lg:w-2/5 lg:p-3 2xl:p-4 lg:border-r-2 border-slate-300 bg-slate-50 flex flex-col gap-2.5 2xl:gap-3">
+                <div className="lg:w-2/5 lg:p-4 2xl:p-4 lg:border-r-2 border-slate-300 bg-slate-50 flex flex-col gap-2.5 2xl:gap-3">
                     {renderTipoOferta()}
                     {renderValorCompraMinima()}
                     {renderImagen()}
                 </div>
 
                 {/* Columna Derecha: Producto + Vigencia + Condiciones + Botones */}
-                <div className="lg:w-3/5 lg:p-3 2xl:p-4 flex flex-col gap-2.5 2xl:gap-3">
+                <div className="lg:w-3/5 lg:p-4 2xl:p-4 flex flex-col gap-2.5 2xl:gap-3">
                     {renderTitulo()}
                     {renderFechas()}
                     {renderDescripcion()}

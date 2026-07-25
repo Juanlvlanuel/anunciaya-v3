@@ -75,7 +75,7 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
       {/* Fila 1: Ofertas + Cupones + Recompensas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-2 2xl:gap-3">
         {/* Funnel Ofertas públicas — clickeable */}
-        <button type="button" onClick={() => setModalTipo('ofertas')} className="text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-ofertas">
+        <button type="button" onClick={() => setModalTipo('ofertas')} className="text-left bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-ofertas">
           <PanelTitulo icono={Megaphone} titulo="Ofertas (públicas)" />
           <TablaHeader columnas={['Métrica', 'Cantidad']} />
           {[
@@ -93,7 +93,7 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
         </button>
 
         {/* Funnel Cupones — clickeable + con Revocados */}
-        <button type="button" onClick={() => setModalTipo('cupones')} className="text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-cupones">
+        <button type="button" onClick={() => setModalTipo('cupones')} className="text-left bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-cupones">
           <PanelTitulo icono={Tag} titulo="Cupones (privados)" />
           <TablaHeader columnas={['Estado', 'Cantidad']} />
           {[
@@ -111,7 +111,7 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
         </button>
 
         {/* Funnel Recompensas — clickeable */}
-        <button type="button" onClick={() => setModalTipo('recompensas')} className="text-left bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-recompensas">
+        <button type="button" onClick={() => setModalTipo('recompensas')} className="text-left bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden hover:border-slate-400 lg:cursor-pointer transition flex flex-col justify-start" data-testid="reporte-funnel-recompensas">
           <PanelTitulo icono={Gift} titulo="Recompensas" />
           <TablaHeader columnas={['Estado', 'Cantidad']} />
           {[
@@ -166,7 +166,7 @@ function CardMejorPromocion({ promo, titulo, iconoPlaceholder: IconoPlaceholder,
   };
 
   return (
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid={testId}>
+    <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid={testId}>
       <PanelTitulo icono={Award} titulo={titulo} />
       <div className="p-3 lg:p-2.5 2xl:p-3">
         {promo ? (

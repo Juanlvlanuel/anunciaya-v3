@@ -467,7 +467,7 @@ export default function PaginaVacantes() {
                 {borrador && (
                     <div
                         data-testid="banner-borrador-vacante"
-                        className="mt-5 lg:mt-7 2xl:mt-14 rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-amber-300 bg-linear-to-r from-amber-50 to-orange-50 shadow-md p-3 lg:p-3.5 2xl:p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4"
+                        className="mt-5 lg:mt-7 2xl:mt-14 rounded-xl border-2 border-amber-300 bg-linear-to-r from-amber-50 to-orange-50 shadow-md p-3 lg:p-3.5 2xl:p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4"
                     >
                         <div className="flex items-start gap-3 min-w-0">
                             <div
@@ -521,7 +521,7 @@ export default function PaginaVacantes() {
                     ═══════════════════════════════════════════════════════════ */}
                 {!sinVacantes && (
                     <div
-                        className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
+                        className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
                         data-testid="filtros-vacantes"
                     >
                         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">

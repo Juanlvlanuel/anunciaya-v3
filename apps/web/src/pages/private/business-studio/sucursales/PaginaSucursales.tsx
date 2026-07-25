@@ -370,7 +370,7 @@ export default function PaginaSucursales() {
 			    FILTROS
 			    ══════════════════════════════════════════════════════════════ */}
 			<div
-				className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
+				className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
 				data-testid="filtros-sucursales"
 			>
 				<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
@@ -504,14 +504,14 @@ export default function PaginaSucursales() {
 						>
 							{/* Header */}
 							<div
-								className="grid grid-cols-[2fr_1fr_1.2fr_80px_100px] 2xl:grid-cols-[2fr_1fr_1.2fr_100px_120px] px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center"
+								className="grid grid-cols-[2fr_1fr_1.2fr_80px_100px] 2xl:grid-cols-[2fr_1fr_1.2fr_100px_120px] gap-x-0 lg:gap-x-8 2xl:gap-x-10 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center"
 								style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 							>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider">Ubicación</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Ciudad</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Gerente</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Estado</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Acciones</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider">Ubicación</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider">Ciudad</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider">Gerente</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider">Estado</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">Acciones</span>
 							</div>
 
 							{/* Body */}
@@ -637,7 +637,7 @@ function FilaSucursalDesktop({ sucursal, onClick, onEditar, onToggleActiva, onEl
 }) {
 	return (
 		<div
-			className={`grid grid-cols-[2fr_1fr_1.2fr_80px_100px] 2xl:grid-cols-[2fr_1fr_1.2fr_100px_120px] px-4 lg:px-3 2xl:px-5 py-3 items-center cursor-pointer bg-white hover:bg-slate-50 transition-colors ${!sucursal.activa ? 'opacity-60' : ''}`}
+			className={`grid grid-cols-[2fr_1fr_1.2fr_80px_100px] 2xl:grid-cols-[2fr_1fr_1.2fr_100px_120px] gap-x-0 lg:gap-x-8 2xl:gap-x-10 px-4 lg:px-3 2xl:px-5 py-3 items-center cursor-pointer bg-white hover:bg-slate-50 transition-colors ${!sucursal.activa ? 'opacity-60' : ''}`}
 			onClick={onClick}
 			data-testid={`fila-sucursal-${sucursal.id}`}
 		>
@@ -657,7 +657,7 @@ function FilaSucursalDesktop({ sucursal, onClick, onEditar, onToggleActiva, onEl
 				)}
 				<div className="min-w-0">
 					<div className="flex items-center gap-1.5">
-						<p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-900 truncate">
+						<p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-900 truncate">
 							{sucursal.esPrincipal ? 'Matriz' : sucursal.nombre}
 						</p>
 						{sucursal.esPrincipal && (
@@ -665,7 +665,7 @@ function FilaSucursalDesktop({ sucursal, onClick, onEditar, onToggleActiva, onEl
 						)}
 					</div>
 					{sucursal.telefono && (
-						<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 truncate">
+						<p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600 truncate">
 							{sucursal.telefono}
 						</p>
 					)}
@@ -673,23 +673,23 @@ function FilaSucursalDesktop({ sucursal, onClick, onEditar, onToggleActiva, onEl
 			</div>
 
 			{/* Ciudad */}
-			<p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 text-center truncate">{sucursal.ciudad}</p>
+			<p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600 truncate">{sucursal.ciudad}</p>
 
 			{/* Gerente */}
-			<div className="text-center">
+			<div>
 				{sucursal.gerente ? (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold bg-indigo-100 text-indigo-700">
+					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-xs 2xl:text-sm font-bold bg-indigo-100 text-indigo-700">
 						<User className="w-3 h-3" />
 						{sucursal.gerente.nombre}
 					</span>
 				) : (
-					<span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">Sin gerente</span>
+					<span className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">Sin gerente</span>
 				)}
 			</div>
 
 			{/* Estado */}
-			<div className="text-center">
-				<span className={`inline-flex items-center px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold ${
+			<div>
+				<span className={`inline-flex items-center px-2 py-0.5 rounded-full text-sm lg:text-xs 2xl:text-sm font-bold ${
 					sucursal.activa ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
 				}`}>
 					{sucursal.activa ? 'Activa' : 'Inactiva'}

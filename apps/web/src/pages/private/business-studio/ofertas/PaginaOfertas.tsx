@@ -1123,7 +1123,7 @@ export function PaginaOfertas() {
                 {/* FILTROS: Estado + Búsqueda + Nueva                                */}
                 {/* ================================================================= */}
 
-                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
+                <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
                         {/* Filtros */}
                         <div className="flex items-center gap-2 lg:contents">
@@ -1285,7 +1285,7 @@ export function PaginaOfertas() {
 
                 {/* Contador de resultados */}
                 <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+                    <span className="hidden 2xl:block text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                         {hayFiltrosActivos
                             ? `${ofertasOrdenadas.length} de ${estadisticas.total} ${textoTipoFiltro}${textoEstadoFiltro ? ` ${textoEstadoFiltro}` : ''}`
                             : `${ofertasOrdenadas.length} ${textoTipoFiltro}`
@@ -1313,13 +1313,13 @@ export function PaginaOfertas() {
                         {/* Header dark */}
                         <div
                             className={`grid ${esCupones
-                                ? 'grid-cols-[minmax(0,1fr)_110px_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
-                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_135px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_155px]'
-                            } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider`}
+                                ? 'grid-cols-[minmax(0,1fr)_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
+                                : 'grid-cols-[minmax(0,1fr)_80px_70px_70px_70px_95px_135px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_155px]'
+                            } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider`}
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
                             <span>{esCupones ? 'Cupón' : 'Oferta'}</span>
-                            <span className="flex justify-center pr-5">Tipo</span>
+                            <span className="hidden 2xl:flex justify-center pr-5">Tipo</span>
                             <span className="flex justify-center pr-5">Estado</span>
                             {!esCupones && (
                                 <>
@@ -1376,8 +1376,8 @@ export function PaginaOfertas() {
                                             key={oferta.id}
                                             onClick={() => handleEditar(oferta)}
                                             className={`grid ${esCupones
-                                                ? 'grid-cols-[minmax(0,1fr)_110px_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
-                                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_135px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_155px]'
+                                                ? 'grid-cols-[minmax(0,1fr)_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
+                                                : 'grid-cols-[minmax(0,1fr)_80px_70px_70px_70px_95px_135px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_155px]'
                                             } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
                                         >
                                             {/* Oferta: Imagen + Título + Valor */}
@@ -1400,8 +1400,8 @@ export function PaginaOfertas() {
                                                 </div>
                                             </div>
 
-                                            {/* Tipo */}
-                                            <div className="flex items-center justify-center">
+                                            {/* Tipo (oculto en laptop, visible en PC) */}
+                                            <div className="hidden 2xl:flex items-center justify-center">
                                                 <span className={`inline-flex items-center gap-1 px-2 2xl:px-2.5 py-0.5 2xl:py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold whitespace-nowrap ${coloresTipo}`}>
                                                     <IconoTipo className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                                                     {formatearValor(oferta.tipo, oferta.valor)}
@@ -1445,7 +1445,7 @@ export function PaginaOfertas() {
 
                                             {/* Fechas */}
                                             <div className="flex items-center justify-center text-slate-600 font-medium">
-                                                <span className="text-sm lg:text-[11px] 2xl:text-sm">
+                                                <span className="text-sm lg:text-xs 2xl:text-sm font-medium">
                                                     {formatearFecha(oferta.fechaInicio)} - {formatearFecha(oferta.fechaFin)}
                                                 </span>
                                             </div>

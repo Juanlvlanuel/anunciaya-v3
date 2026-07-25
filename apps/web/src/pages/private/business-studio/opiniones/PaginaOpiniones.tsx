@@ -228,6 +228,14 @@ export function PaginaOpiniones() {
     const [resenaActivaId, setResenaActivaId] = useState<string | null>(null);
     const [textoResponderInline, setTextoResponderInline] = useState('');
     const [modoEdicionInline, setModoEdicionInline] = useState(false);
+    const textareaRespuestaInlineRef = useRef<HTMLTextAreaElement | null>(null);
+
+    // Al entrar en modo edición (botón "Editar respuesta"), el textarea puede
+    // quedar debajo del scroll visible del panel si hay mucho contenido arriba.
+    useEffect(() => {
+        if (!modoEdicionInline) return;
+        textareaRespuestaInlineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [modoEdicionInline]);
 
     // Abrir reseña desde URL (notificaciones)
     useEffect(() => {
@@ -513,8 +521,169 @@ export function PaginaOpiniones() {
                 {/* CARD FILTROS (separado)                                        */}
                 {/* ============================================================= */}
 
-                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14 overflow-visible flex flex-col gap-2 2xl:gap-3">
+                <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14 overflow-visible flex flex-col gap-2 2xl:gap-3">
+                    {/* ═══ LAPTOP: todo en 1 sola línea (buscador + estrellas +
+                        Todas/Pendientes) — PC y móvil conservan el layout
+                        original de 2 filas abajo. ═══ */}
+                    <div className="hidden lg:flex 2xl:hidden items-center gap-1.5">
+                        <Input
+                            id="input-busqueda-resenas-laptop"
+                            name="input-busqueda-resenas-laptop"
+                            icono={<Search className="w-4 h-4 text-slate-600" />}
+                            placeholder="Buscar..."
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                            className="flex-1 min-w-0 h-10 rounded-lg! text-sm"
+                            elementoDerecha={busqueda ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setBusqueda('')}
+                                    className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            ) : undefined}
+                        />
+
+                        {/* Segmented control de estrellas */}
+                        <div className="flex items-center gap-0.5 bg-slate-200 rounded-lg p-1 shrink-0 h-10">
+                            {[5, 4, 3, 2, 1].map((estrellas) => {
+                                const activo = filtroEstrellas === estrellas;
+                                return (
+                                    <button
+                                        key={estrellas}
+                                        onClick={() => toggleFiltroEstrellas(estrellas)}
+                                        className={`px-1.5 h-full font-bold rounded-md flex items-center gap-0.5 cursor-pointer transition-all text-xs ${
+                                            activo ? 'text-white shadow-sm' : 'text-slate-700 hover:bg-white/60'
+                                        }`}
+                                        style={activo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                                        data-testid={`filtro-estrellas-laptop-${estrellas}`}
+                                    >
+                                        {estrellas} <Star className="w-2.5 h-2.5 fill-current" strokeWidth={0} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {filtroEstrellas !== null && (
+                            <button
+                                onClick={() => toggleFiltroEstrellas(filtroEstrellas)}
+                                className="shrink-0 w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 hover:text-slate-900 flex items-center justify-center cursor-pointer transition-colors"
+                                aria-label="Limpiar filtro de estrellas"
+                            >
+                                <X className="w-4 h-4" strokeWidth={2.5} />
+                            </button>
+                        )}
+
+                        {/* Todas + Pendientes */}
+                        <button
+                            onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
+                            className={`shrink-0 inline-flex items-center gap-1 px-2.5 h-10 rounded-lg text-xs font-semibold border-2 cursor-pointer whitespace-nowrap ${
+                                filtroEstado === 'todas' && filtroEstrellas === null
+                                    ? 'text-white border-slate-700 shadow-sm'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                            }`}
+                            style={filtroEstado === 'todas' && filtroEstrellas === null ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                        >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            Todas {kpis ? `(${kpis.total})` : ''}
+                        </button>
+                        <button
+                            onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
+                            className={`shrink-0 inline-flex items-center gap-1 px-2.5 h-10 rounded-lg text-xs font-semibold border-2 cursor-pointer whitespace-nowrap ${
+                                filtroEstado === 'pendientes'
+                                    ? 'text-white border-slate-700 shadow-sm'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                            }`}
+                            style={filtroEstado === 'pendientes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                        >
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Pendientes {kpis ? `(${kpis.pendientes})` : ''}
+                        </button>
+                    </div>
+
+                    {/* ═══ PC: todo en 1 sola línea, igual que laptop pero a
+                        escala PC (tamaños del layout original de 2xl). ═══ */}
+                    <div className="hidden 2xl:flex items-center gap-2">
+                        <Input
+                            id="input-busqueda-resenas-pc"
+                            name="input-busqueda-resenas-pc"
+                            icono={<Search className="w-4 h-4 text-slate-600" />}
+                            placeholder="Buscar por nombre o texto..."
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                            className="flex-1 min-w-0 h-11 rounded-lg! text-base"
+                            elementoDerecha={busqueda ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setBusqueda('')}
+                                    className="p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
+                                >
+                                    <X className="w-[18px] h-[18px]" />
+                                </button>
+                            ) : undefined}
+                        />
+
+                        {/* Segmented control de estrellas */}
+                        <div className="flex items-center gap-0.5 bg-slate-200 rounded-lg p-1 shrink-0 h-11">
+                            {[5, 4, 3, 2, 1].map((estrellas) => {
+                                const activo = filtroEstrellas === estrellas;
+                                return (
+                                    <button
+                                        key={estrellas}
+                                        onClick={() => toggleFiltroEstrellas(estrellas)}
+                                        className={`px-2.5 h-full font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-all text-base ${
+                                            activo ? 'text-white shadow-sm' : 'text-slate-700 hover:bg-white/60'
+                                        }`}
+                                        style={activo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                                        data-testid={`filtro-estrellas-pc-${estrellas}`}
+                                    >
+                                        {estrellas} <Star className="w-3 h-3 fill-current" strokeWidth={0} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {filtroEstrellas !== null && (
+                            <button
+                                onClick={() => toggleFiltroEstrellas(filtroEstrellas)}
+                                className="shrink-0 w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 hover:text-slate-900 flex items-center justify-center cursor-pointer transition-colors"
+                                aria-label="Limpiar filtro de estrellas"
+                            >
+                                <X className="w-4 h-4" strokeWidth={2.5} />
+                            </button>
+                        )}
+
+                        {/* Todas + Pendientes */}
+                        <button
+                            onClick={() => { setFiltroEstado('todas'); setFiltroEstrellas(null); }}
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-4 h-11 rounded-lg text-base font-semibold border-2 cursor-pointer whitespace-nowrap ${
+                                filtroEstado === 'todas' && filtroEstrellas === null
+                                    ? 'text-white border-slate-700 shadow-sm'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                            }`}
+                            style={filtroEstado === 'todas' && filtroEstrellas === null ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                        >
+                            <MessageSquare className="w-4 h-4" />
+                            Todas {kpis ? `(${kpis.total})` : ''}
+                        </button>
+                        <button
+                            onClick={() => setFiltroEstado((prev) => prev === 'pendientes' ? 'todas' : 'pendientes')}
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-4 h-11 rounded-lg text-base font-semibold border-2 cursor-pointer whitespace-nowrap ${
+                                filtroEstado === 'pendientes'
+                                    ? 'text-white border-slate-700 shadow-sm'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                            }`}
+                            style={filtroEstado === 'pendientes' ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
+                        >
+                            <AlertCircle className="w-4 h-4" />
+                            Pendientes {kpis ? `(${kpis.pendientes})` : ''}
+                        </button>
+                    </div>
+
+                    {/* ═══ Móvil: layout original de 2 filas ═══ */}
                     {/* Búsqueda */}
+                    <div className="lg:hidden 2xl:hidden">
                     <Input
                         id="input-busqueda-resenas"
                         name="input-busqueda-resenas"
@@ -533,9 +702,10 @@ export function PaginaOpiniones() {
                             </button>
                         ) : undefined}
                     />
+                    </div>
 
                     {/* Chips: estrellas (izq) + Todas/Pendientes (der) */}
-                    <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
+                    <div className="flex items-center gap-2 lg:hidden 2xl:hidden">
                         {/* Segmented control de estrellas — izquierda */}
                         <div className="flex items-center gap-0.5 bg-slate-200 rounded-lg p-1 shrink-0 h-11 lg:h-10 2xl:h-11">
                             {[5, 4, 3, 2, 1].map((estrellas) => {
@@ -620,11 +790,11 @@ export function PaginaOpiniones() {
                 ) : (
                     <>
                     {/* Desktop: Split view — lista compacta izq + panel detalle der */}
-                    <div className="hidden lg:flex gap-3 2xl:gap-4 h-[46vh] 2xl:h-[56vh]">
+                    <div className="hidden lg:flex gap-3 2xl:gap-4 h-[54vh] 2xl:h-[56vh]">
                         {/* ─── Aside: lista compacta ─── */}
                         <aside className="w-[340px] 2xl:w-[400px] shrink-0 bg-white rounded-xl shadow-sm border-2 border-slate-300 overflow-hidden flex flex-col">
                             <div
-                                className="flex items-center px-4 py-2.5 border-b-2 border-slate-300 shrink-0 h-[60px]"
+                                className="flex items-center px-4 py-2.5 border-b-2 border-slate-300 shrink-0 lg:h-[44px] 2xl:h-[54px]"
                                 style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                             >
                                 <span className="text-base 2xl:text-lg font-bold text-white">
@@ -697,7 +867,7 @@ export function PaginaOpiniones() {
                                 <>
                                     {/* Header slate — avatar + nombre + badge + fecha + rating */}
                                     <div
-                                        className="flex items-center gap-3 px-4 py-2.5 shrink-0 border-b-2 border-slate-300 h-[60px]"
+                                        className="flex items-center gap-3 px-4 py-2.5 shrink-0 border-b-2 border-slate-300 lg:h-[44px] 2xl:h-[54px]"
                                         style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                                     >
                                         {resenaActiva.autor.avatarUrl ? (
@@ -820,6 +990,7 @@ export function PaginaOpiniones() {
                                                     </div>
                                                     <div className="relative">
                                                         <textarea
+                                                            ref={textareaRespuestaInlineRef}
                                                             id="respuesta-inline"
                                                             name="respuestaInline"
                                                             value={textoResponderInline}

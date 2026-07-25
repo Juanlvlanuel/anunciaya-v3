@@ -309,6 +309,8 @@ export function DatePicker({
                         zIndex: 9999,
                         ...(() => {
                             const isMobile = window.innerWidth < 1024;
+                            // Laptop (1024-1535) usa un tope un poco más chico que PC (>=1536).
+                            const isLaptop = window.innerWidth >= 1024 && window.innerWidth < 1536;
 
                             // Modo modal centrado en móvil
                             if (centradoEnMovil && isMobile) {
@@ -326,7 +328,9 @@ export function DatePicker({
                             // Dimensiones del calendario
                             // El calendario toma el ancho del input (acotado para que los días
                             // no queden ni apretados ni demasiado grandes).
-                            const anchoCalendario = Math.min(Math.max(rect.width, 264), isMobile ? 320 : 360);
+                            const topeAncho = isMobile ? 320 : isLaptop ? 260 : 360;
+                            const pisoAncho = isLaptop ? 240 : 264;
+                            const anchoCalendario = Math.min(Math.max(rect.width, pisoAncho), topeAncho);
                             const alturaEstimada = 280;
 
                             // Detectar espacio disponible en todas direcciones

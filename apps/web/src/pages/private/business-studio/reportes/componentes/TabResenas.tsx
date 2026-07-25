@@ -75,7 +75,7 @@ export function TabResenas({ fechaInicio, fechaFin, solo = 'body' }: TabResenasP
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-2 2xl:gap-3" data-testid="reporte-resenas">
         {/* Distribución de estrellas */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-distribucion-estrellas">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-distribucion-estrellas">
           <PanelTitulo icono={Star} titulo="Distribución de estrellas" />
           <TablaHeader columnas={['Rating', 'Cantidad', '%']} />
           <div className="divide-y-[1.5px] divide-slate-300">
@@ -101,7 +101,7 @@ export function TabResenas({ fechaInicio, fechaFin, solo = 'body' }: TabResenasP
         </div>
 
         {/* Tendencia de rating — siempre visible */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tendencia-rating">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tendencia-rating">
           <PanelTitulo icono={Star} titulo="Tendencia de rating" />
           <div className="grid gap-px bg-slate-200" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
             {['Semana', 'Promedio', 'Reseñas'].map((col) => (
@@ -126,7 +126,7 @@ export function TabResenas({ fechaInicio, fechaFin, solo = 'body' }: TabResenasP
         </div>
 
         {/* Respuestas por persona (dueño + empleados) — con avatares */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-respuestas-por-responder">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-respuestas-por-responder">
           <PanelTitulo icono={Users} titulo="Respuestas por persona" />
           {/* Header custom con las mismas columnas que las filas */}
           <div className="grid bg-slate-300 px-3" style={{ gridTemplateColumns: 'minmax(0, 1fr) 60px 60px' }}>

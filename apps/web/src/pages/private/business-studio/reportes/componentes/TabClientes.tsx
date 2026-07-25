@@ -115,8 +115,8 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-2 2xl:gap-3" data-testid="reporte-clientes">
         {/* Top 10 por gasto */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-top-gasto">
-          <PanelTitulo icono={Crown} titulo="Tus 10 mejores clientes (por dinero)" />
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-top-gasto">
+          <PanelTitulo icono={Crown} titulo="Tus 10 mejores clientes" />
           <TablaHeader columnas={['Cliente', 'Ha gastado']} />
           <div className="max-h-72 overflow-y-auto divide-y-[1.5px] divide-slate-300">
             {data.topPorGasto.length > 0 ? data.topPorGasto.map((c) => (
@@ -147,7 +147,7 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
         </div>
 
         {/* Top 10 por frecuencia */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-top-frecuencia">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-top-frecuencia">
           <PanelTitulo icono={Users} titulo="Tus 10 clientes más frecuentes" />
           <TablaHeader columnas={['Cliente', 'Veces que compró']} />
           <div className="max-h-72 overflow-y-auto divide-y-[1.5px] divide-slate-300">
@@ -179,7 +179,7 @@ export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabCliente
         </div>
 
         {/* Tendencia de adquisición */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tendencia-adquisicion">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tendencia-adquisicion">
           <PanelTitulo icono={TrendingUp} titulo="Clientes nuevos cada semana" />
           <TablaHeader columnas={['Semana', 'Clientes nuevos']} />
           <div className="max-h-72 overflow-y-auto divide-y-[1.5px] divide-slate-300">

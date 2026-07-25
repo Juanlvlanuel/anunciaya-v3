@@ -633,9 +633,9 @@ export default function TabImagenes({
         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
         {/* Header */}
-        <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
+        <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px] lg:h-[40px] 2xl:h-auto"
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-          <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+          <div className="w-7 h-7 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
             <Image className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
           </div>
           <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Imágenes Principales</span>
@@ -824,9 +824,9 @@ export default function TabImagenes({
         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
         {/* Header */}
-        <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px]"
+        <div className="px-3 lg:px-4 py-2 lg:py-2 flex items-center gap-2 lg:gap-2.5 rounded-t-[10px] lg:h-[40px] 2xl:h-auto"
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}>
-          <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+          <div className="w-7 h-7 lg:w-7 lg:h-7 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
             <Images className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
           </div>
           <span className="text-sm lg:text-sm 2xl:text-base font-bold text-white">Galería de Fotos</span>

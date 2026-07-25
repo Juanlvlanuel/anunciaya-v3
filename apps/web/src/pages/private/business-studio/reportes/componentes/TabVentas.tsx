@@ -95,8 +95,8 @@ export function TabVentas({ fechaInicio, fechaFin, solo = 'body' }: TabVentasPro
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-2 2xl:gap-3" data-testid="reporte-ventas">
         {/* 1. Ventas por día */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-dias">
-          <PanelTitulo icono={Calendar} titulo="Total vendido por día de la semana" />
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-dias">
+          <PanelTitulo icono={Calendar} titulo="Ventas por día" />
           <TablaHeader columnas={['Día', 'Ventas', 'Transacciones']} />
           <div className="max-h-72 overflow-y-auto">
             {data.ventasPorDia.length > 0 ? data.ventasPorDia.map((d, i) => (
@@ -112,7 +112,7 @@ export function TabVentas({ fechaInicio, fechaFin, solo = 'body' }: TabVentasPro
         </div>
 
         {/* 2. Métodos de pago */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-metodos">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-metodos">
           <PanelTitulo icono={Wallet} titulo="Métodos de pago" />
           <TablaHeader columnas={['Método', 'Monto', '%']} />
           <div className="max-h-72 overflow-y-auto">
@@ -132,7 +132,7 @@ export function TabVentas({ fechaInicio, fechaFin, solo = 'body' }: TabVentasPro
         </div>
 
         {/* 3. Horarios pico */}
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-horarios">
+        <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-horarios">
           <PanelTitulo icono={Clock} titulo="Horarios pico" />
           <TablaHeader columnas={['Hora', 'Ventas', 'Transacciones']} />
           <div className="max-h-72 overflow-y-auto">

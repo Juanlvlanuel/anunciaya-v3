@@ -133,11 +133,11 @@ export function KpiCard({ icono: Icono, label, valor, color, onClick, disabled, 
 export function PanelTitulo({ icono: Icono, titulo }: { icono: IconLike; titulo: string }) {
   return (
     <div
-      className="flex items-center gap-2.5 px-3 lg:px-4 2xl:px-4 py-2"
+      className="flex items-center gap-2.5 px-3 lg:px-4 2xl:px-4 py-2 lg:h-[40px] 2xl:h-auto"
       style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
     >
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 rounded-lg flex items-center justify-center shrink-0"
         style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
       >
         <Icono className="w-4 h-4 text-white" />

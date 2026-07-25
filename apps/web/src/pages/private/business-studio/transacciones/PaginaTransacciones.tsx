@@ -1328,7 +1328,7 @@ export default function PaginaTransacciones() {
         {/* FILTROS: Tabs Periodo + Búsqueda + Exportar CSV                   */}
         {/* ================================================================= */}
 
-        <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
+        <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
           {/* ============ FILTROS TAB VENTAS Y CUPONES ============ */}
           {(tabActivo === 'ventas' || tabActivo === 'cupones') && (
             <>
@@ -1367,8 +1367,8 @@ export default function PaginaTransacciones() {
                     )}
                   </div>
 
-                  {/* Chips estado — solo laptop, solo ventas */}
-                  {tabActivo === 'ventas' && <div className="hidden lg:flex shrink-0 items-center gap-1 2xl:gap-1.5">
+                  {/* Chips estado — reemplazados por el dropdown de abajo en PC (en laptop el buscador ocupa su lugar) */}
+                  {tabActivo === 'ventas' && <div className="hidden shrink-0 items-center gap-1 2xl:gap-1.5">
                     {[
                       { id: '', etiqueta: 'Todas' },
                       { id: 'confirmado', etiqueta: 'Válidas' },
@@ -1388,17 +1388,18 @@ export default function PaginaTransacciones() {
                     ))}
                   </div>}
 
-                  {/* Estado dropdown — oculto en móvil, visible en laptop via chips */}
-                  <div className="hidden shrink-0 relative" ref={estadoDropdownRef}>
+                  {/* Estado dropdown — solo PC (reemplaza las chips para caber en 1 sola fila) */}
+                  <div className="hidden 2xl:flex shrink-0 w-36 relative" ref={estadoDropdownRef}>
                     <button
                       onClick={() => setEstadoDropdownAbierto(!estadoDropdownAbierto)}
-                      className={`flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltro
+                      className={`w-full flex items-center gap-1.5 h-11 lg:h-10 2xl:h-11 pl-3 lg:pl-2.5 2xl:pl-3 pr-2.5 lg:pr-2 2xl:pr-2.5 rounded-lg border-2 text-base lg:text-sm 2xl:text-base font-semibold cursor-pointer ${estadoFiltro
                           ? 'bg-blue-100 border-blue-300 text-blue-700'
                           : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                         }`}
                     >
+                      <CheckCircle className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 shrink-0" />
                       <span className="truncate">{[{ id: '', etiqueta: 'Todas' }, { id: 'confirmado', etiqueta: 'Válidas' }, { id: 'cancelado', etiqueta: 'Revocadas' }].find(e => e.id === estadoFiltro)?.etiqueta ?? 'Todas'}</span>
-                      <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 transition-transform ${estadoDropdownAbierto ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0 ml-auto transition-transform ${estadoDropdownAbierto ? 'rotate-180' : ''}`} />
                     </button>
                     {estadoDropdownAbierto && (
                       <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
@@ -1485,6 +1486,27 @@ export default function PaginaTransacciones() {
                     </div>
                   )}
 
+                  {/* Buscador — laptop y PC, a la derecha de los filtros */}
+                  <div className="hidden lg:block flex-1 min-w-0 relative">
+                    <Input
+                      id="buscar-transaccion-laptop"
+                      name="buscarTransaccionLaptop"
+                      placeholder="Nombre o Celular..."
+                      value={textoBusqueda}
+                      onChange={(e) => handleBusqueda(e.target.value)}
+                      className="h-10 2xl:h-11 py-2! rounded-lg! text-sm pr-8"
+                      icono={<Search className="w-4 h-4 text-slate-600" />}
+                    />
+                    {textoBusqueda && (
+                      <button
+                        onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); setTextoBusqueda(''); setBusqueda(''); }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
+                      >
+                        <X className="w-[18px] h-[18px]" />
+                      </button>
+                    )}
+                  </div>
+
                   {/* Reporte: solo laptop */}
                   <div className="hidden lg:flex ml-auto shrink-0">
                     <Tooltip text="Descargar CSV con los filtros activos" position="bottom">
@@ -1500,8 +1522,8 @@ export default function PaginaTransacciones() {
                   </div>
                 </div>
 
-                {/* Fila 2: Búsqueda + Reporte (móvil) */}
-                <div className="flex items-center gap-2 w-full">
+                {/* Fila 2: Búsqueda + Reporte (solo móvil — en laptop y PC el buscador vive en la fila 1) */}
+                <div className="flex lg:hidden items-center gap-2 w-full">
                   <div className="flex-1 min-w-0 relative">
                     <Input
                       id="buscar-transaccion"
@@ -1571,8 +1593,8 @@ export default function PaginaTransacciones() {
                   )}
                 </div>
 
-                {/* Chips estado — solo laptop */}
-                <div className="hidden lg:flex shrink-0 items-center gap-1 2xl:gap-1.5">
+                {/* Chips estado — reemplazadas por el dropdown de abajo en PC */}
+                <div className="hidden shrink-0 items-center gap-1 2xl:gap-1.5">
                   {[
                     { id: '', etiqueta: 'Todos' },
                     { id: 'pendiente', etiqueta: 'Pendientes' },
@@ -1591,6 +1613,45 @@ export default function PaginaTransacciones() {
                       {e.etiqueta}
                     </button>
                   ))}
+                </div>
+
+                {/* Estado dropdown — solo PC (reemplaza las chips para caber en 1 sola fila) */}
+                <div className="hidden 2xl:flex shrink-0 w-36 relative" ref={estadoCanjesDropdownRef}>
+                  <button
+                    onClick={() => setEstadoCanjesDropdownAbierto(!estadoCanjesDropdownAbierto)}
+                    className={`w-full flex items-center gap-1.5 h-11 2xl:h-11 pl-3 2xl:pl-3 pr-2.5 2xl:pr-2.5 rounded-lg border-2 text-base 2xl:text-base font-semibold cursor-pointer ${estadoFiltroCanjes
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
+                      }`}
+                  >
+                    <CheckCircle className="w-4 h-4 2xl:w-4 2xl:h-4 shrink-0" />
+                    <span className="truncate">{[{ id: '', etiqueta: 'Todos' }, { id: 'pendiente', etiqueta: 'Pendientes' }, { id: 'usado', etiqueta: 'Usados' }, { id: 'expirado', etiqueta: 'Vencidos' }].find(e => e.id === estadoFiltroCanjes)?.etiqueta ?? 'Todos'}</span>
+                    <ChevronDown className={`w-5 h-5 2xl:w-5 2xl:h-5 shrink-0 ml-auto transition-transform ${estadoCanjesDropdownAbierto ? 'rotate-180' : ''}`} />
+                  </button>
+                  {estadoCanjesDropdownAbierto && (
+                    <div className="absolute top-full left-0 mt-1.5 w-36 bg-white rounded-xl border-2 border-slate-300 shadow-lg shadow-slate-200/50 z-50 py-1 overflow-hidden">
+                      {[
+                        { id: '', etiqueta: 'Todos' },
+                        { id: 'pendiente', etiqueta: 'Pendientes' },
+                        { id: 'usado', etiqueta: 'Usados' },
+                        { id: 'expirado', etiqueta: 'Vencidos' },
+                      ].map((e) => {
+                        const activo = estadoFiltroCanjes === e.id;
+                        return (
+                          <button
+                            key={e.id}
+                            onClick={() => { setEstadoFiltroCanjes(e.id); setEstadoCanjesDropdownAbierto(false); }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-base 2xl:text-base font-semibold text-left cursor-pointer ${activo ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-blue-50'}`}
+                          >
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${activo ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                              {activo && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span>{e.etiqueta}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Operador — solo PC, en fila 1 */}
@@ -1625,6 +1686,27 @@ export default function PaginaTransacciones() {
                   </div>
                 )}
 
+                {/* Buscador — solo laptop, a la derecha de los filtros */}
+                <div className="hidden lg:block flex-1 min-w-0 relative">
+                  <Input
+                    id="buscar-canje-laptop"
+                    name="buscarCanjeLaptop"
+                    placeholder="Nombre o Celular..."
+                    value={textoBusquedaCanjes}
+                    onChange={(e) => handleBusquedaCanjes(e.target.value)}
+                    className="h-10 2xl:h-11 py-2! rounded-lg! text-sm pr-8"
+                    icono={<Search className="w-4 h-4 text-slate-600" />}
+                  />
+                  {textoBusquedaCanjes && (
+                    <button
+                      onClick={() => { if (debounceCanjesRef.current) clearTimeout(debounceCanjesRef.current); setTextoBusquedaCanjes(''); setBusquedaCanjes(''); }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-red-600 hover:bg-red-100 cursor-pointer"
+                    >
+                      <X className="w-[18px] h-[18px]" />
+                    </button>
+                  )}
+                </div>
+
                 {/* Operador — solo móvil (reemplaza al estado) */}
                 {operadores.length > 0 && (
                   <div className="lg:hidden flex-1 min-w-0 relative" ref={dropdownOperadorCanjesMovilRef}>
@@ -1658,8 +1740,8 @@ export default function PaginaTransacciones() {
                 )}
               </div>
 
-              {/* Fila 2: Solo Búsqueda */}
-              <div className="flex items-center gap-1.5 lg:gap-2 2xl:gap-3">
+              {/* Fila 2: Solo Búsqueda (solo móvil — en laptop y PC el buscador vive en la fila 1) */}
+              <div className="flex lg:hidden items-center gap-1.5 lg:gap-2 2xl:gap-3">
                 {/* Búsqueda */}
                 <div className="relative flex-1 min-w-0">
                 <Input
@@ -1687,7 +1769,7 @@ export default function PaginaTransacciones() {
 
         {/* Contador de resultados */}
         <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
-          <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+          <span className="hidden 2xl:block text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
             {tabActivo === 'ventas' ? (
               historial.length < totalResultados
                 ? `${historial.length} de ${totalResultados} ventas`
@@ -1715,7 +1797,7 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_120px_150px] gap-0 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[1.6fr_1.6fr_0.7fr_0.6fr_0.6fr_0.8fr] 2xl:grid-cols-[1fr_280px_110px_120px_120px_150px] gap-0 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1850,7 +1932,7 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark */}
             <div
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_100px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_120px_120px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>
@@ -1965,7 +2047,7 @@ export default function PaginaTransacciones() {
           >
             {/* Header dark - Canjes (6 columnas) */}
             <div
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_85px_105px_100px_130px] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_100px_120px_115px_150px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider"
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <span>Cliente</span>

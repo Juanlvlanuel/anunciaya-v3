@@ -156,7 +156,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
   // ─── Solo Body (tabla de desempeño) ──────────────────────────────────
   return (
     <>
-    <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-empleados">
+    <div className="bg-white rounded-xl border-2 border-slate-300 shadow-md overflow-hidden" data-testid="reporte-tabla-empleados">
         <PanelTitulo icono={UserCog} titulo="Desempeño por operador" />
 
         {/* Desktop — tabla */}

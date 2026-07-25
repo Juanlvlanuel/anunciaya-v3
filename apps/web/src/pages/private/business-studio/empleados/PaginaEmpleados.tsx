@@ -234,7 +234,7 @@ export default function PaginaEmpleados() {
 			    FILTROS
 			    ══════════════════════════════════════════════════════════════ */}
 			<div
-				className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
+				className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14"
 				data-testid="filtros-empleados"
 			>
 				<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
@@ -375,13 +375,13 @@ export default function PaginaEmpleados() {
 						>
 							{/* Header */}
 							<div
-								className="grid grid-cols-[2fr_1fr_1fr_100px_50px] 2xl:grid-cols-[2fr_1fr_1fr_120px_60px] px-4 lg:px-3 2xl:px-5 py-2 h-12 items-center"
+								className="grid grid-cols-[2fr_1fr_1fr_100px_50px] 2xl:grid-cols-[2fr_1fr_1fr_120px_60px] px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center"
 								style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
 							>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider">Empleado</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Sucursal</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Permisos</span>
-								<span className="text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider text-center">Estado</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider">Empleado</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">Sucursal</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">Permisos</span>
+								<span className="text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider text-center">Estado</span>
 								<span></span>
 							</div>
 

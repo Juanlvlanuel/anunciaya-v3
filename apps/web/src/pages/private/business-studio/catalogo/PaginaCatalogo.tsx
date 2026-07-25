@@ -751,7 +751,7 @@ export function PaginaCatalogo() {
                 {/* FILTROS: Categoría + Búsqueda + Nuevo                             */}
                 {/* ================================================================= */}
 
-                <div className="bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
+                <div className="bg-white rounded-xl shadow-md border-2 border-slate-300 p-2.5 lg:p-3 2xl:p-4 lg:mt-7 2xl:mt-14">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3 2xl:gap-4">
                         {/* Móvil línea 1: Categoría + Nuevo | Desktop: Categoría inline */}
                         <div className="flex items-center gap-2 lg:contents">
@@ -850,7 +850,7 @@ export function PaginaCatalogo() {
 
                 {/* Contador de resultados */}
                 <div className="flex items-center justify-between px-1 mt-3 lg:mt-2 2xl:mt-3 mb-1">
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
+                    <span className="hidden 2xl:block text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
                         {hayFiltrosActivos
                             ? `${articulosOrdenados.length} de ${estadisticas.total} ${esServicios ? 'servicios' : 'productos'}`
                             : `${articulosOrdenados.length} ${esServicios ? 'servicios' : 'productos'}`
@@ -877,7 +877,7 @@ export function PaginaCatalogo() {
                     >
                         {/* Header dark */}
                         <div
-                            className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider"
+                            className="grid grid-cols-[minmax(0,1fr)_90px_100px_80px_100px_70px_100px] 2xl:grid-cols-[minmax(0,1fr)_110px_120px_95px_120px_85px_130px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider"
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
                             <span>{esServicios ? 'Servicio' : 'Producto'}</span>

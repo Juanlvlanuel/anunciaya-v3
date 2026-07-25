@@ -18,12 +18,12 @@ interface TabExclusivaProps {
 
 export function TabExclusiva({ formulario, setFormulario, guardando }: TabExclusivaProps) {
     return (
-        <div className="p-4 lg:p-2.5 2xl:p-4 space-y-3 lg:space-y-2 2xl:space-y-3">
+        <div className="p-4 lg:p-4 2xl:p-4 space-y-3 lg:space-y-2 2xl:space-y-3">
 
             {/* Motivo + Límite por persona */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 2xl:gap-3">
                 <div>
-                    <label htmlFor="input-motivo-exclusiva" className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Motivo de envío</label>
+                    <label htmlFor="input-motivo-exclusiva" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Motivo de envío</label>
                     <input
                         id="input-motivo-exclusiva"
                         name="motivoAsignacion"
@@ -39,7 +39,7 @@ export function TabExclusiva({ formulario, setFormulario, guardando }: TabExclus
                     />
                 </div>
                 <div>
-                    <label htmlFor="input-limite-por-usuario" className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Límite por persona</label>
+                    <label htmlFor="input-limite-por-usuario" className="block text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">Límite por persona</label>
                     <input
                         id="input-limite-por-usuario"
                         name="limiteUsosPorUsuario"
@@ -58,18 +58,18 @@ export function TabExclusiva({ formulario, setFormulario, guardando }: TabExclus
 
             {/* Preview notificación */}
             <div className="p-3 lg:p-2 2xl:p-3 bg-slate-100 rounded-lg border-2 border-slate-300">
-                <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-600 mb-2 lg:mb-1.5 2xl:mb-2">Preview notificación</p>
+                <p className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-600 mb-2 lg:mb-1.5 2xl:mb-2">Preview notificación</p>
                 <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3">
                     <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-xl bg-slate-200 flex items-center justify-center shrink-0">
                         <Ticket className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600" />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">¡Cupón exclusivo para ti!</p>
-                        <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">
+                        <p className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800">¡Cupón exclusivo para ti!</p>
+                        <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium truncate">
                             {formulario.titulo.trim() || 'Título del cupón...'}
                         </p>
                         {formulario.motivoAsignacion && (
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mt-0.5">{formulario.motivoAsignacion}</p>
+                            <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium mt-0.5">{formulario.motivoAsignacion}</p>
                         )}
                     </div>
                 </div>
@@ -77,8 +77,8 @@ export function TabExclusiva({ formulario, setFormulario, guardando }: TabExclus
 
             {/* Cómo funciona */}
             <div className="p-3 lg:p-2 2xl:p-3 bg-slate-100 rounded-lg border-2 border-slate-300">
-                <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">¿Cómo funciona?</p>
-                <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium space-y-1">
+                <p className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5 lg:mb-1 2xl:mb-1.5">¿Cómo funciona?</p>
+                <div className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium space-y-1">
                     {[
                         'Selecciona clientes en la pestaña "Enviar a"',
                         'Cada cliente recibe un código único en su notificación',

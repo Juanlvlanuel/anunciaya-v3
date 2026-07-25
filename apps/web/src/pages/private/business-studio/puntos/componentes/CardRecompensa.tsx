@@ -136,7 +136,7 @@ export default function CardRecompensa({
       >
         {/* Imagen con nombre overlay + acciones */}
         <div
-          className="w-full lg:h-32 2xl:h-36 relative overflow-hidden"
+          className="w-full lg:h-24 2xl:h-36 relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
         >
           {recompensa.imagenUrl ? (
