@@ -508,15 +508,14 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                 <>
                   <p className="text-[19px] lg:text-[19px] font-bold text-white lg:text-gray-800 leading-snug self-center">{contactoExistente.alias.trim()}</p>
                   {tipoVista === 'negocio' ? (
-                    <span className="flex items-center gap-2 text-[15px] font-bold text-blue-400 lg:text-gray-800">
-                      <Store className="w-4 h-4 shrink-0" />
+                    <span className="text-[15px] font-bold text-blue-400 lg:text-gray-800 self-center">
                       {nombre}
                     </span>
                   ) : (
                     <p className="text-[15px] text-white/60 lg:text-slate-600 font-medium self-center">{nombre}</p>
                   )}
                   {tipoVista === 'negocio' && otro?.sucursalNombre && (
-                    <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium leading-tight pl-6">
+                    <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium leading-tight self-center text-center">
                       {otro.sucursalNombre.includes(' - ')
                         ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
                         : otro.sucursalNombre}
@@ -527,15 +526,14 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                 <>
                   {/* SIN ALIAS: Nombre > Sucursal */}
                   {tipoVista === 'negocio' ? (
-                    <span className="flex items-center gap-2 text-[20px] font-bold text-blue-400 lg:text-gray-800 leading-snug">
-                      <Store className="w-5 h-5 shrink-0" />
+                    <span className="text-[20px] font-bold text-blue-400 lg:text-gray-800 leading-snug self-center">
                       {nombre}
                     </span>
                   ) : (
                     <p className="text-[20px] font-bold text-white lg:text-gray-800 leading-snug self-center">{nombre}</p>
                   )}
                   {tipoVista === 'negocio' && otro?.sucursalNombre && (
-                    <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium leading-tight pl-7">
+                    <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium leading-tight self-center text-center">
                       {otro.sucursalNombre.includes(' - ')
                         ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
                         : otro.sucursalNombre}
@@ -791,7 +789,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               onClick={() => setGaleriaAbierta(true)}
             >
               <FileText className="w-5 h-5 lg:w-4 lg:h-4 text-white/50 lg:text-slate-600 shrink-0" />
-              <span className="text-sm lg:text-sm font-semibold text-white/70 lg:text-slate-700 flex-1 text-left whitespace-nowrap">
+              <span className="text-sm lg:text-sm font-semibold text-white/70 lg:text-slate-700 flex-1 lg:min-w-0 text-left whitespace-nowrap lg:whitespace-normal lg:leading-tight 2xl:whitespace-nowrap 2xl:min-w-min">
                 Archivos, enlaces y documentos
               </span>
               <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-white/40 lg:text-slate-600">

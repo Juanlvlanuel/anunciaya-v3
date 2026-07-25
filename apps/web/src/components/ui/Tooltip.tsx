@@ -31,13 +31,17 @@ interface TooltipProps {
   className?: string;
   /** Activar con click/tap en lugar de hover */
   triggerOnClick?: boolean;
+  /** `'oscuro'` (default, fondo slate-900/texto blanco) o `'claro'` (fondo
+   *  blanco/texto negro) — para usar sobre fondos oscuros donde el tooltip
+   *  oscuro no contrasta. */
+  tono?: 'oscuro' | 'claro';
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
 
-export default function Tooltip({ children, text, position = 'bottom', autoHide, className = '', triggerOnClick = false }: TooltipProps) {
+export default function Tooltip({ children, text, position = 'bottom', autoHide, className = '', triggerOnClick = false, tono = 'oscuro' }: TooltipProps) {
   const { esMobile } = useBreakpoint();
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -111,6 +115,8 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
     right: 'translate(0, -50%)',
   };
 
+  const colorFlecha = tono === 'claro' ? '#ffffff' : '#0f172a';
+
   const arrowStyles: Record<string, React.CSSProperties> = {
     top: {
       left: '50%',
@@ -118,7 +124,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
       transform: 'translateX(-50%)',
       borderLeft: '5px solid transparent',
       borderRight: '5px solid transparent',
-      borderTop: '5px solid #0f172a',
+      borderTop: `5px solid ${colorFlecha}`,
     },
     bottom: {
       left: '50%',
@@ -126,7 +132,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
       transform: 'translateX(-50%)',
       borderLeft: '5px solid transparent',
       borderRight: '5px solid transparent',
-      borderBottom: '5px solid #0f172a',
+      borderBottom: `5px solid ${colorFlecha}`,
     },
     left: {
       top: '50%',
@@ -134,7 +140,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
       transform: 'translateY(-50%)',
       borderTop: '5px solid transparent',
       borderBottom: '5px solid transparent',
-      borderLeft: '5px solid #0f172a',
+      borderLeft: `5px solid ${colorFlecha}`,
     },
     right: {
       top: '50%',
@@ -142,7 +148,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
       transform: 'translateY(-50%)',
       borderTop: '5px solid transparent',
       borderBottom: '5px solid transparent',
-      borderRight: '5px solid #0f172a',
+      borderRight: `5px solid ${colorFlecha}`,
     },
   };
 
@@ -183,7 +189,9 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
           }}
         >
           <div
-            className="relative bg-slate-900 text-white text-sm font-medium px-3 py-1.5 rounded-lg whitespace-nowrap"
+            className={`relative text-sm font-medium px-3 py-1.5 rounded-lg whitespace-nowrap ${
+              tono === 'claro' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'
+            }`}
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
             {text}

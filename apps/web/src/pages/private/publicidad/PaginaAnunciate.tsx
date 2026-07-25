@@ -393,8 +393,35 @@ export default function PaginaAnunciate() {
                 </div>
               </div>
 
-              {/* ══ DESKTOP HEADER (>= lg) ══ */}
-              <div className="hidden lg:block">
+              {/* ══ LAPTOP HEADER (lg únicamente — PC conserva el diseño
+                  original abajo) — fila única compacta, mismo tamaño que
+                  las páginas de sección: back+logo+título a la izquierda,
+                  sello de confianza a la derecha. Sin subtítulo. ══ */}
+              <div className="hidden lg:flex 2xl:hidden items-center justify-between gap-4 px-4 py-2.5">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    data-testid="btn-volver-anunciate-laptop"
+                    onClick={volver}
+                    aria-label="Volver"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                  >
+                    <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
+                    <Megaphone className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+                  </div>
+                  <span className="ml-1.5 text-xl font-extrabold text-white tracking-tight">{tituloHeader}</span>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5">
+                  <ShieldCheck size={14} className="text-emerald-400" />
+                  <span className="flex items-center gap-1 text-xs font-semibold text-white/70">Pago seguro con <LogoStripe alto={13} color="#fff" /></span>
+                </div>
+              </div>
+
+              {/* ══ PC HEADER (>= 2xl) — layout original sin tocar ══ */}
+              <div className="hidden 2xl:block">
                 <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
                   {/* Izquierda: flecha + logo + título */}
                   <div className="flex items-center gap-3 shrink-0">

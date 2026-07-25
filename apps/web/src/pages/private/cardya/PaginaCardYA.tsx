@@ -826,14 +826,14 @@ export function PaginaCardYA() {
             {tabActiva === 'billeteras' && (
                 <BotonIrArriba
                     testId="cardya-billeteras-ir-arriba"
-                    right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                    right="right-4 lg:right-[240px] 2xl:right-[330px]"
                 />
             )}
 
             {tabActiva === 'recompensas' && (
                 <BotonIrArriba
                     testId="cardya-ir-arriba"
-                    right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                    right="right-4 lg:right-[240px] 2xl:right-[330px]"
                 />
             )}
 
@@ -853,7 +853,7 @@ export function PaginaCardYA() {
                         testId="cardya-vouchers-ir-arriba-pc"
                         soloEscritorio
                         scrollRef={voucherScrollRef}
-                        right="right-4 lg:right-[223px] 2xl:right-[330px]"
+                        right="right-4 lg:right-[240px] 2xl:right-[330px]"
                     />
                 </>
             )}
@@ -874,7 +874,7 @@ export function PaginaCardYA() {
                         testId="cardya-historial-ir-arriba-pc"
                         soloEscritorio
                         scrollRef={comprasScrollRef}
-                        right="right-4 lg:right-[223px] 2xl:right-[330px]"
+                        right="right-4 lg:right-[240px] 2xl:right-[330px]"
                     />
                 </>
             )}

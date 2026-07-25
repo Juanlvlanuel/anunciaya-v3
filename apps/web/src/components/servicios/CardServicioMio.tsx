@@ -47,10 +47,10 @@ import {
 import {
     formatearPrecioServicio,
     formatearPresupuesto,
-    formatearTiempoRelativo,
     obtenerFotoPortada,
     parsearFechaPostgres,
 } from '../../utils/servicios';
+import Tooltip from '../ui/Tooltip';
 import type { PublicacionServicio } from '../../types/servicios';
 
 // =============================================================================
@@ -213,24 +213,26 @@ export function CardServicioMio({
                     <MoreVertical className="h-5 w-5" strokeWidth={2.5} />
                 </button>
 
-                {/* Badge de expiración flotante — solo móvil (en desktop
+                {/* Badge de expiración flotante — móvil y laptop (en PC/2xl
                     vive en la fila de KPIs). Cambia a fondo amber cuando
                     es urgente (≤3 días). */}
-                <div
-                    data-testid={`badge-expira-servicio-${publicacion.id}`}
-                    className={`absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold shadow-md backdrop-blur lg:hidden ${
-                        diasUrgente
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-slate-900/70 text-white'
-                    }`}
-                    title={
-                        dias === 0
-                            ? 'Expira hoy'
-                            : `Expira en ${dias} días`
-                    }
-                >
-                    <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-                    <span>{dias === 0 ? 'Hoy' : `${dias}d`}</span>
+                <div className="absolute bottom-2 right-2 z-10 2xl:hidden">
+                    <Tooltip
+                        text={dias === 0 ? 'Expira hoy' : `Expira en ${dias} días`}
+                        position="top"
+                    >
+                        <div
+                            data-testid={`badge-expira-servicio-${publicacion.id}`}
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold shadow-md backdrop-blur ${
+                                diasUrgente
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-slate-900/70 text-white'
+                            }`}
+                        >
+                            <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            <span>{dias === 0 ? 'Hoy' : `${dias}d`}</span>
+                        </div>
+                    </Tooltip>
                 </div>
             </div>
 
@@ -241,10 +243,9 @@ export function CardServicioMio({
                     {publicacion.titulo}
                 </h3>
 
-                {/* Fila 2: precio destacado + modalidad.
-                    Color del precio según modo: sky para `ofrezco`, amber
-                    para `solicito` (mismo lenguaje que el composer + cards
-                    del feed de Servicios). */}
+                {/* Fila 2: precio destacado. Color según modo: sky para
+                    `ofrezco`, amber para `solicito` (mismo lenguaje que el
+                    composer + cards del feed de Servicios). */}
                 <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-base font-bold lg:text-lg">
                     <span
                         className={
@@ -253,21 +254,13 @@ export function CardServicioMio({
                     >
                         {precioMostrar}
                     </span>
-                    <span className="text-sm font-medium text-slate-600">
-                        {modalidadEtiqueta(publicacion.modalidad)}
-                    </span>
                 </p>
 
-                {/* Fila 3: solo tiempo publicado (estado vive en overlay). */}
-                <span className="truncate text-sm font-medium text-slate-600">
-                    Publicado {formatearTiempoRelativo(publicacion.createdAt)}
-                </span>
-
-                {/* Fila 4: KPIs como mini-chips estilo MP. En móvil son 2
-                    (vistas/mensajes) — el chip de expiración vive como
-                    badge flotante sobre la foto. En lg+ aparecen los 3.
-                    `flex-wrap` por seguridad cuando los valores crecen. */}
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* Fila 3: KPIs como mini-chips estilo MP. En móvil/laptop son
+                    2 (vistas/mensajes) — el chip de expiración vive como
+                    badge flotante sobre la foto. En PC (2xl) aparecen los 3,
+                    forzados a 1 sola línea (`lg:flex-nowrap`). */}
+                <div className="flex flex-wrap items-center gap-1.5 lg:flex-nowrap">
                     <KpiChip
                         icono={Eye}
                         valor={publicacion.totalVistas}
@@ -287,7 +280,7 @@ export function CardServicioMio({
                                 : `Expira en ${dias} días`
                         }
                         urgente={diasUrgente}
-                        className="!hidden lg:!inline-flex"
+                        className="!hidden 2xl:!inline-flex"
                     />
                 </div>
             </div>
@@ -300,7 +293,7 @@ export function CardServicioMio({
             {menuAbierto && (
                 <div
                     ref={menuRef}
-                    className="absolute right-2 top-12 z-20 w-44 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 lg:right-3 lg:top-14 lg:w-56"
+                    className="absolute right-2 top-12 z-20 w-44 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 lg:right-3 lg:top-14 lg:w-48 2xl:w-56"
                     onClick={(e) => e.stopPropagation()}
                     role="menu"
                 >
@@ -348,24 +341,6 @@ export function CardServicioMio({
 }
 
 // =============================================================================
-// HELPERS
-// =============================================================================
-
-/** Etiqueta corta de modalidad — coincide con el formato usado en el feed. */
-function modalidadEtiqueta(modalidad: PublicacionServicio['modalidad']): string {
-    switch (modalidad) {
-        case 'presencial':
-            return 'Presencial';
-        case 'remoto':
-            return 'Remoto';
-        case 'hibrido':
-            return 'Híbrido';
-        default:
-            return '';
-    }
-}
-
-// =============================================================================
 // SUBCOMPONENTE — KpiChip (copia del de CardArticuloMio)
 // =============================================================================
 
@@ -383,16 +358,17 @@ function KpiChip({ icono: IconoChip, valor, label, urgente, className }: KpiChip
     const textClasses = urgente ? 'text-amber-700' : 'text-slate-700';
     const iconClasses = urgente ? 'text-amber-600' : 'text-slate-600';
     return (
-        <span
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full ${bgClasses} px-2 py-1 text-sm font-semibold ${textClasses} lg:px-2.5 ${className ?? ''}`}
-            title={label}
-        >
-            <IconoChip
-                className={`h-3.5 w-3.5 ${iconClasses} lg:h-4 lg:w-4`}
-                strokeWidth={2.5}
-            />
-            {valor}
-        </span>
+        <Tooltip text={label} position="top">
+            <span
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full ${bgClasses} px-2 py-1 text-sm font-semibold ${textClasses} lg:px-2.5 ${className ?? ''}`}
+            >
+                <IconoChip
+                    className={`h-3.5 w-3.5 ${iconClasses} lg:h-4 lg:w-4`}
+                    strokeWidth={2.5}
+                />
+                {valor}
+            </span>
+        </Tooltip>
     );
 }
 
@@ -428,10 +404,10 @@ function BotonMenu({
             data-testid={testId}
             onClick={onClick}
             role="menuitem"
-            className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-sm font-semibold lg:gap-3 lg:px-3.5 lg:py-2.5 ${textColor} ${hoverClass}`}
+            className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-sm font-semibold lg:gap-2.5 lg:px-3 lg:py-1.5 2xl:gap-3 2xl:px-3.5 2xl:py-2.5 ${textColor} ${hoverClass}`}
         >
             <Icon
-                className={`h-4 w-4 shrink-0 lg:h-5 lg:w-5 ${iconColor}`}
+                className={`h-4 w-4 shrink-0 2xl:h-5 2xl:w-5 ${iconColor}`}
                 strokeWidth={2.5}
             />
             {children}

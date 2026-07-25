@@ -34,6 +34,7 @@ import {
 import { EmojiNoto } from './EmojiNoto';
 import type { Mensaje } from '../../types/chatya';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import Tooltip from '../ui/Tooltip';
 
 // =============================================================================
 // CONSTANTES
@@ -732,13 +733,15 @@ function BotonAccion({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      onClick={onClick}
-      title={titulo}
-      className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 cursor-pointer"
-    >
-      {children}
-    </button>
+    <Tooltip text={titulo} position="bottom" tono="claro">
+      <button
+        onClick={onClick}
+        aria-label={titulo}
+        className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 cursor-pointer"
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 

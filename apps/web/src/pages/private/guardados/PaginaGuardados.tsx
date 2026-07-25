@@ -852,7 +852,7 @@ export function PaginaGuardados() {
                 página, móvil + PC). Mismo eje que CardYA. */}
             <BotonIrArriba
                 testId="guardados-ir-arriba"
-                right="right-4 lg:right-[270px] 2xl:right-[330px]"
+                right="right-4 lg:right-[240px] 2xl:right-[330px]"
             />
         </div>
     );

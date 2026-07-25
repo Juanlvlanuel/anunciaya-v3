@@ -438,7 +438,7 @@ export default function PaginaMisCupones() {
                 (scroll de página, móvil + PC). Mismo eje que CardYA. */}
             <BotonIrArriba
                 testId="cupones-ir-arriba"
-                right="right-4 lg:right-[270px] 2xl:right-[330px]"
+                right="right-4 lg:right-[240px] 2xl:right-[330px]"
             />
         </>
     );

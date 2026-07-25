@@ -866,7 +866,7 @@ export function PaginaInicio() {
                 </div>
             </div>
 
-            <BotonIrArriba testId="home-ir-arriba" />
+            <BotonIrArriba testId="home-ir-arriba" right="right-4 lg:right-[240px] 2xl:right-[335px]" />
             <ModalOfertaCoyo />
         </div>
     );

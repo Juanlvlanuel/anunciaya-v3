@@ -510,13 +510,12 @@ export function PaginaMisPublicaciones() {
                                     <span className="ml-1.5 text-xl font-extrabold tracking-tight text-white">
                                         Mis <span className="text-cyan-400">Publicaciones</span>
                                     </span>
-                                </div>
 
-                                <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                                    {/* Toggle MP/Servicios — icon-only */}
+                                    {/* Toggle MP/Servicios — icon-only, fijo junto al
+                                        título (no scrollea con los tabs de estado). */}
                                     <div
                                         data-testid="selector-tipo-publicacion-laptop"
-                                        className="flex shrink-0 items-center gap-1.5"
+                                        className="ml-2 flex shrink-0 items-center gap-1.5"
                                     >
                                         {TIPOS.map((tipo) => {
                                             const Icono = tipo.Icono;
@@ -544,10 +543,9 @@ export function PaginaMisPublicaciones() {
                                             );
                                         })}
                                     </div>
+                                </div>
 
-                                    {/* Divider vertical sutil */}
-                                    <div className="h-7 w-px shrink-0 bg-white/20" />
-
+                                <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
                                     {/* Tabs de estado por tipo — scrollables si no caben */}
                                     <div
                                         data-testid="tabs-mis-publicaciones-laptop"
@@ -1154,7 +1152,7 @@ export function PaginaMisPublicaciones() {
                 vuelve al canal derecho (el Publicar vive en el header). */}
             <BotonIrArriba
                 testId="mis-publicaciones-ir-arriba"
-                right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]"
+                right="left-4 lg:left-auto lg:right-[240px] 2xl:right-[394px]"
             />
         </div>
     );

@@ -1835,14 +1835,14 @@ function VentanaChatInner() {
             iniciales,
           }}
           miId={miId}
-          mensajesFijadosIds={[]}
+          mensajesFijadosIds={mensajesFijadosIds}
           esMisNotas={esMisNotas}
-          onResponder={() => {}}
-          onReenviar={() => {}}
-          onFijar={() => {}}
-          onDesfijar={() => {}}
+          onResponder={handleResponderMensaje}
+          onReenviar={handleReenviarMensaje}
+          onFijar={handleFijarDesdeVisor}
+          onDesfijar={handleDesfijarDesdeVisor}
           onDescargar={handleDescargarImagen}
-          onReaccionar={async () => {}}
+          onReaccionar={handleReaccionar}
           onCerrar={() => { setVisorArchivos(null); setVisorAbierto(false); }}
         />
       )}
