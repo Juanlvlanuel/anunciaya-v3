@@ -32,7 +32,6 @@ import { negocioPublicaciones } from '../db/schemas/schema.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
-import { armarArbolComentarios, type ComentarioNodo } from './comentarios/arbol.js';
 import type {
     CrearPublicacionInput,
     ActualizarPublicacionInput,
@@ -58,15 +57,12 @@ export interface PublicacionFeedItem {
 }
 
 /**
- * Item del feed enriquecido con comentarios embebidos — mismo patrón que
- * `ArticuloFeedInfinitoRow.topComentarios` de MarketPlace: evita que cada
- * card del feed pida sus comentarios aparte (N+1). Árbol completo (raíces +
- * respuestas, sin LIMIT) — el cliente decide cuántos hilos muestra inline.
- * Solo lo devuelve el feed; el detalle (`PublicacionDetalle`) sigue pidiendo
- * comentarios por su cuenta (una sola publicación, no hay N+1 que evitar).
+ * Item del feed enriquecido con el conteo de comentarios (evita que cada card
+ * pida `totalComentarios` aparte). El detalle (`PublicacionDetalle`) y el
+ * modal de comentarios piden el árbol completo por su cuenta vía
+ * `negocioPublicaciones/comentarios.ts` → `listarComentarios`.
  */
 export interface PublicacionFeedItemConComentarios extends PublicacionFeedItem {
-    topComentarios: ComentarioNodo[];
     totalComentarios: number;
     /** Distancia del usuario a la sucursal en km. `null` si no hay GPS. */
     distanciaKm: number | null;
@@ -115,23 +111,8 @@ function mapearFilaFeed(row: RawPublicacionRow): PublicacionFeedItem {
     };
 }
 
-/** Fila plana de comentario tal como sale del json_agg (snake_case). */
-interface RawComentarioPlano {
-    id: string;
-    autor_id: string;
-    parent_id: string | null;
-    texto: string;
-    es_vendedor: boolean;
-    editado_at: string | null;
-    created_at: string;
-    autor_nombre: string;
-    autor_apellidos: string;
-    autor_avatar_url: string | null;
-}
-
 interface RawPublicacionFeedRow extends RawPublicacionRow {
     total_comentarios: number;
-    comentarios: RawComentarioPlano[] | null;
     distancia_km: number | null;
 }
 
@@ -140,20 +121,6 @@ function mapearFilaFeedConComentarios(row: RawPublicacionFeedRow): PublicacionFe
         ...mapearFilaFeed(row),
         totalComentarios: row.total_comentarios ?? 0,
         distanciaKm: row.distancia_km !== null && row.distancia_km !== undefined ? Number(row.distancia_km) : null,
-        topComentarios: armarArbolComentarios(
-            (row.comentarios ?? []).map((c) => ({
-                id: c.id,
-                autorId: c.autor_id,
-                autorNombre: c.autor_nombre,
-                autorApellidos: c.autor_apellidos,
-                autorAvatarUrl: c.autor_avatar_url,
-                parentId: c.parent_id,
-                texto: c.texto,
-                esVendedor: c.es_vendedor,
-                editadoAt: c.editado_at,
-                createdAt: c.created_at,
-            }))
-        ),
     };
 }
 
@@ -303,11 +270,6 @@ export async function obtenerFeedPublicacionesNegocio(opciones: OpcionesFeedPubl
             ? sql`AND (s.tiene_envio_domicilio = true OR s.tiene_servicio_domicilio = true)`
             : sql``;
 
-        // Comentarios embebidos (mismo patrón que `obtenerFeedInfinito` de
-        // MarketPlace) — evita que cada card del feed pida sus comentarios
-        // aparte (N+1). `es_vendedor` = el autor es dueño/gerente del NEGOCIO
-        // (no solo de esta publicación puntual), igual criterio que
-        // `services/negocioPublicaciones/comentarios.ts`.
         const resultado = await db.execute(sql`
             SELECT
                 p.id, p.negocio_id, p.sucursal_id, p.texto, p.precio, p.fotos,
@@ -315,30 +277,7 @@ export async function obtenerFeedPublicacionesNegocio(opciones: OpcionesFeedPubl
                 s.nombre AS sucursal_nombre, s.foto_perfil AS sucursal_avatar_url,
                 c.nombre AS ciudad_nombre,
                 ${distanciaKmSelect} AS distancia_km,
-                COALESCE(cq.total, 0) AS total_comentarios,
-                COALESCE(
-                    (
-                        SELECT json_agg(cc ORDER BY cc.created_at ASC)
-                        FROM (
-                            SELECT
-                                npc.id,
-                                npc.autor_id,
-                                npc.parent_id,
-                                npc.texto,
-                                (n.usuario_id = npc.autor_id OR uc.negocio_id = p.negocio_id) AS es_vendedor,
-                                npc.editado_at,
-                                npc.created_at,
-                                uc.nombre AS autor_nombre,
-                                uc.apellidos AS autor_apellidos,
-                                uc.avatar_url AS autor_avatar_url
-                            FROM negocio_publicaciones_comentarios npc
-                            INNER JOIN usuarios uc ON uc.id = npc.autor_id
-                            WHERE npc.publicacion_id = p.id
-                              AND npc.deleted_at IS NULL
-                        ) cc
-                    ),
-                    '[]'::json
-                ) AS comentarios
+                COALESCE(cq.total, 0) AS total_comentarios
             FROM negocio_publicaciones p
             INNER JOIN negocio_sucursales s ON s.id = p.sucursal_id
             INNER JOIN negocios n ON n.id = p.negocio_id

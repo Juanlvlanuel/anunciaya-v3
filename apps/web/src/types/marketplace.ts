@@ -218,11 +218,6 @@ export interface VendedorEnFeed {
 export interface ArticuloFeedInfinito extends ArticuloFeed {
     vendedor: VendedorEnFeed;
     /**
-     * Árbol de comentarios del artículo (raíces + respuestas, 1 nivel).
-     * Vacío si el artículo no tiene comentarios.
-     */
-    topComentarios: ComentarioMarketplace[];
-    /**
      * Si el usuario actual tiene este artículo en sus guardados. False si no
      * hay sesión. Permite que el corazón se vea relleno al cargar la página.
      */

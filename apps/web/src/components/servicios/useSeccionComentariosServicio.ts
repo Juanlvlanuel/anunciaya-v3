@@ -2,8 +2,9 @@
  * useSeccionComentariosServicio.ts
  * ===================================
  * Orquesta datos + mutaciones de comentarios de una publicación de
- * Servicios: lista, restricción de modo Comercial y handlers de
- * editar/eliminar/responder. NO incluye el estado local del input (texto,
+ * Servicios: lista y handlers de editar/eliminar/responder (sin
+ * restricción de modo — Servicios acepta comentarios en Personal y
+ * Comercial). NO incluye el estado local del input (texto,
  * error) — eso vive en `InputComentarioServicio.tsx`, que se puede
  * renderizar en un lugar distinto de la lista (ej. sticky al fondo de un
  * modal mientras la lista scrollea junto con el resto del cuerpo).
@@ -41,9 +42,10 @@ export function useSeccionComentariosServicio({
     duenoId,
 }: UseSeccionComentariosServicioParams) {
     const usuario = useAuthStore((s) => s.usuario);
-    const modoActivo = usuario?.modoActivo ?? 'personal';
-    const enModoComercial = modoActivo === 'comercial';
-    const puedeComentar = !!usuario && !enModoComercial;
+    // Cualquier usuario logueado puede comentar, en cualquier modo — Servicios
+    // acepta publicaciones de negocio (vacante-empresa), así que también
+    // acepta comentarios de negocio (mismo criterio que negocioPublicaciones).
+    const puedeComentar = !!usuario;
 
     const { data: comentarios = [], isLoading } = useComentariosServicio(publicacionId);
     const crearComentario = useCrearComentarioServicio();
@@ -103,7 +105,6 @@ export function useSeccionComentariosServicio({
 
     return {
         usuario,
-        enModoComercial,
         puedeComentar,
         comentarios,
         isLoading,

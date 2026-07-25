@@ -21,9 +21,10 @@ import type { PublicacionDetalle } from '../../types/servicios';
 
 interface SeccionComentariosServicioProps {
     publicacion: PublicacionDetalle;
+    comentarioDestacadoId?: string | null;
 }
 
-export function SeccionComentariosServicio({ publicacion }: SeccionComentariosServicioProps) {
+export function SeccionComentariosServicio({ publicacion, comentarioDestacadoId }: SeccionComentariosServicioProps) {
     const publicacionId = publicacion.id;
     const duenoId = publicacion.oferente.id;
 
@@ -48,7 +49,11 @@ export function SeccionComentariosServicio({ publicacion }: SeccionComentariosSe
                 )}
             </h2>
 
-            <ListaComentariosServicio publicacionId={publicacionId} duenoId={duenoId} />
+            <ListaComentariosServicio
+                publicacionId={publicacionId}
+                duenoId={duenoId}
+                comentarioDestacadoId={comentarioDestacadoId}
+            />
 
             <InputComentarioServicio publicacionId={publicacionId} className="pt-1" />
         </div>

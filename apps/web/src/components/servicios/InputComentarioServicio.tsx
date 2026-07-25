@@ -29,9 +29,10 @@ export function InputComentarioServicio({
     className = '',
 }: InputComentarioServicioProps) {
     const usuario = useAuthStore((s) => s.usuario);
-    const modoActivo = usuario?.modoActivo ?? 'personal';
-    const enModoComercial = modoActivo === 'comercial';
-    const puedeComentar = !!usuario && !enModoComercial;
+    // Cualquier usuario logueado puede comentar, en cualquier modo — Servicios
+    // acepta publicaciones de negocio (vacante-empresa), así que también
+    // acepta comentarios de negocio (mismo criterio que negocioPublicaciones).
+    const puedeComentar = !!usuario;
 
     const crearComentario = useCrearComentarioServicio();
     const [texto, setTexto] = useState('');
@@ -65,9 +66,7 @@ export function InputComentarioServicio({
     if (!puedeComentar) {
         return (
             <p className={`text-sm text-slate-600 text-center ${className}`}>
-                {enModoComercial
-                    ? 'Cambia a modo Personal para comentar en Servicios.'
-                    : 'Inicia sesión para comentar.'}
+                Inicia sesión para comentar.
             </p>
         );
     }

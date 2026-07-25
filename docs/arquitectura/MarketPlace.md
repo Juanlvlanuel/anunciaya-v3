@@ -1016,7 +1016,7 @@ Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con
 
 El sidebar de thumbnails laterales del feed real (cuando `tieneMultiples && !modoModal && !ocultarThumbnailsLaterales`) usa `absolute top-0 right-0 bottom-0 hidden w-24 flex-col gap-2 overflow-y-auto bg-slate-200 p-2 lg:flex` para tomar el alto exacto del wrapper relative (= alto de la galería principal). Si las miniaturas exceden ese alto, scrollean internamente con `overflow-y-auto`.
 
-**Comentarios inline en el feed:** `CardArticuloFeed.tsx` trae `topComentarios` (árbol de 1 nivel, antes `topPreguntas`) y `totalComentarios` (antes `totalPreguntasRespondidas`). Muestra los hilos inline con el mismo `ComentarioItem` que el detalle + un input de comentario (mínimo 2 caracteres).
+**Comentarios en el feed:** la card no muestra preview de comentarios inline — solo el ícono + `totalComentarios` (antes `totalPreguntasRespondidas`), embebido en la respuesta del feed para evitar un request aparte por card. Los comentarios completos viven en 2 lados: el modal (`ModalComentariosMarketplace.tsx`, abierto desde el ícono de la card) y la página de detalle del artículo — ambos usan el mismo `ComentarioItem` + input, y piden el árbol completo por su cuenta vía `marketplace/comentarios.ts` → `listarComentarios`.
 
 ### ChatYA
 

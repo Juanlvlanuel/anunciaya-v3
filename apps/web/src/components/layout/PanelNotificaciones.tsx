@@ -286,6 +286,16 @@ function obtenerRutaDestino(n: Notificacion): string | null {
     const comId = n.comentarioId ? `&comentarioId=${n.comentarioId}` : '';
     return `/negocios?publicacionId=${referenciaId}${comId}`;
   }
+  // Comentarios (Servicios): Servicios no tiene modal-sobre-feed como MP/
+  // Negocios — el detalle vive en su propia ruta (`PaginaServicio.tsx`), así
+  // que el deep-link apunta directo ahí con `?comentarioId=` para el
+  // scroll + highlight, en vez de interceptar el `case 'servicio':` genérico.
+  if (tipo === 'servicios_nuevo_comentario' || tipo === 'servicios_respuesta_comentario') {
+    if (!referenciaId) return null;
+    return n.comentarioId
+      ? `/servicios/${referenciaId}?comentarioId=${n.comentarioId}`
+      : `/servicios/${referenciaId}`;
+  }
   if (!referenciaTipo) return null;
 
   // ── Sprint 1.D — Notificaciones del Home / Coyo ────────────────────────
@@ -297,7 +307,10 @@ function obtenerRutaDestino(n: Notificacion): string | null {
   // limpia la URL, así el destacado es efímero). Ver Home_Coyo.md
   // §Pregunta destacada.
   if (referenciaTipo === 'pregunta_comunidad') {
-    const qs = referenciaId ? `?preguntaId=${referenciaId}` : '';
+    const params = new URLSearchParams();
+    if (referenciaId) params.set('preguntaId', referenciaId);
+    if (n.comentarioId) params.set('comentarioId', n.comentarioId);
+    const qs = params.toString() ? `?${params.toString()}` : '';
     return `/inicio${qs}`;
   }
 

@@ -2449,6 +2449,10 @@ export const serviciosComentarios = pgTable("servicios_comentarios", {
 	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
 	parentId: uuid("parent_id").references((): AnyPgColumn => serviciosComentarios.id, { onDelete: 'cascade' }),
 	texto: varchar({ length: 500 }).notNull(),
+	// Modo activo del autor AL MOMENTO de comentar ('personal' | 'comercial')
+	// — determina si se muestra la identidad del negocio (nombre + logo) en
+	// vez de la personal. Mismo patrón que negocio_publicaciones_comentarios.modo.
+	modo: varchar({ length: 15 }).default('personal').notNull(),
 	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
@@ -2603,6 +2607,11 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	// `null` = no resuelta. La pregunta sigue siendo `estado_pregunta='activa'` (puede recibir
 	// más respuestas), pero el frontend la trata distinto (ícono ✓, ordenada al final, etc.).
 	resueltaAt: timestamp("resuelta_at", { withTimezone: true, mode: 'string' }),
+	// Modo activo del autor AL MOMENTO de publicar la pregunta ('personal' |
+	// 'comercial') — determina si se muestra la identidad del negocio
+	// (nombre + logo) en vez de la personal. Mismo patrón que
+	// negocio_publicaciones_comentarios.modo / comunidad_comentarios.modo.
+	modo: varchar({ length: 15 }).default('personal').notNull(),
 }, (table) => [
 	index("idx_preguntas_comunidad_ciudad_id_fecha").using("btree", table.ciudadId.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`ciudad_id IS NOT NULL`),
 	index("idx_preguntas_comunidad_usuario").using("btree", table.usuarioId.asc().nullsLast()),
@@ -2628,6 +2637,11 @@ export const comunidadComentarios = pgTable("comunidad_comentarios", {
 	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
 	parentId: uuid("parent_id").references((): AnyPgColumn => comunidadComentarios.id, { onDelete: 'cascade' }),
 	texto: varchar({ length: 500 }).notNull(),
+	// Modo activo del autor AL MOMENTO de comentar ('personal' | 'comercial')
+	// — determina si se muestra la identidad del negocio (nombre + logo) en
+	// vez de la personal. Fijo desde la creación: editar el texto no cambia
+	// con qué identidad se comentó.
+	modo: varchar({ length: 15 }).default('personal').notNull(),
 	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),

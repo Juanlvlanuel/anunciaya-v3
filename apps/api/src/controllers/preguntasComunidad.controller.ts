@@ -30,6 +30,7 @@ import {
     quitarInteres,
 } from '../services/interesPreguntasComunidad.service.js';
 import { obtenerEstadoCoyo } from '../services/coyo/orquestador.js';
+import { obtenerModoActual } from '../middleware/validarModo.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -62,7 +63,7 @@ export async function crearPreguntaController(req: Request, res: Response) {
             });
         }
 
-        const resultado = await crearPregunta({ usuarioId, texto, ciudad, estado });
+        const resultado = await crearPregunta({ usuarioId, texto, ciudad, estado, modo: obtenerModoActual(req) });
 
         if (!resultado.success) {
             return res.status(resultado.code || 500).json({
@@ -318,7 +319,8 @@ export async function crearComentarioController(req: Request, res: Response) {
             preguntaId,
             usuarioId,
             texto.trim(),
-            (parentId as string | null | undefined) ?? null
+            (parentId as string | null | undefined) ?? null,
+            obtenerModoActual(req)
         );
         if (!resultado.success) {
             return res.status(resultado.code).json({ success: false, message: resultado.message });

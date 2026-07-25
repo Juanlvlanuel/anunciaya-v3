@@ -126,6 +126,15 @@ export async function listarComentarios(publicacionId: string): Promise<Comentar
             -- negocio dueño de la publicación (dueño o gerente/empleado) —
             -- ambas condiciones, no solo la estructural.
             (c.modo = 'comercial' AND (n.usuario_id = c.autor_id OR u.negocio_id = p.negocio_id)) AS es_vendedor,
+            -- Identidad de negocio del AUTOR (independiente de si es dueño de
+            -- ESTA publicación) — determina a dónde navega el click en el
+            -- nombre: perfil del negocio en vez del perfil personal.
+            (c.modo = 'comercial' AND neg_autor.id IS NOT NULL) AS es_negocio,
+            (
+                SELECT ns.id FROM negocio_sucursales ns
+                WHERE ns.negocio_id = neg_autor.id AND ns.es_principal = true
+                LIMIT 1
+            ) AS negocio_sucursal_id,
             c.editado_at  AS editado_at,
             c.created_at  AS created_at
         FROM negocio_publicaciones_comentarios c
@@ -154,6 +163,8 @@ export async function listarComentarios(publicacionId: string): Promise<Comentar
             parentId: r.parent_id as string | null,
             texto: r.texto as string,
             esVendedor: r.es_vendedor as boolean,
+            esNegocio: r.es_negocio as boolean,
+            negocioSucursalId: r.negocio_sucursal_id as string | null,
             editadoAt: r.editado_at as string | null,
             createdAt: r.created_at as string,
         };

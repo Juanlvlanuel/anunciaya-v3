@@ -27,6 +27,10 @@ export interface CrearPreguntaInput {
     texto: string;
     ciudad: string;
     estado: string;
+    /** Modo activo del autor al publicar ('personal' | 'comercial'), resuelto
+     *  server-side desde el JWT (`obtenerModoActual`) — el controller lo
+     *  agrega, el cliente no lo manda. Default 'personal'. */
+    modo?: 'personal' | 'comercial';
 }
 
 export interface ListarPreguntasPorCiudadInput {
@@ -64,6 +68,13 @@ export interface PreguntaComunidadResponse {
     autorNombre: string;
     autorApellidos: string;
     autorAvatarUrl: string | null;
+    /** true si `autorNombre/autorAvatarUrl` muestran la identidad del NEGOCIO
+     *  (publicó en Modo Comercial) en vez de la personal. Determina a dónde
+     *  navega el frontend al hacer click en el nombre: `/negocios/{autorSucursalId}`
+     *  en vez de `/marketplace/usuario/{autorId}`. */
+    autorEsNegocio: boolean;
+    /** Sucursal principal (Matriz) del negocio del autor — solo si `autorEsNegocio`. */
+    autorSucursalId: string | null;
 
     // Respuesta de Coyo (asíncrona; en la creación viene en 'pendiente')
     estadoCoyo: EstadoCoyo;

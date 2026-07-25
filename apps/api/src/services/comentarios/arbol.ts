@@ -22,6 +22,14 @@ export interface ComentarioNodo {
     texto: string;
     /** El autor es el dueño de la publicación (para la etiqueta de autor). */
     esVendedor: boolean;
+    /** true si autorNombre/autorAvatarUrl muestran la identidad del NEGOCIO
+     *  (comentó en Modo Comercial) en vez de la personal. Determina a dónde
+     *  navega el frontend al hacer click en el nombre: `/negocios/{negocioSucursalId}`
+     *  en vez de `/marketplace/usuario/{autorId}`. Siempre `false` en
+     *  MarketPlace (sección personal-only, sin identidad de negocio). */
+    esNegocio: boolean;
+    /** Sucursal principal (Matriz) del negocio del autor — solo si `esNegocio`. */
+    negocioSucursalId: string | null;
     editadoAt: string | null;
     createdAt: string;
     /** Respuestas (solo presente en comentarios raíz). */
@@ -38,6 +46,8 @@ export interface ComentarioPlano {
     parentId: string | null;
     texto: string;
     esVendedor: boolean;
+    esNegocio: boolean;
+    negocioSucursalId: string | null;
     editadoAt: string | null;
     createdAt: string;
 }
@@ -56,6 +66,8 @@ export function armarArbolComentarios(planos: ComentarioPlano[]): ComentarioNodo
         autorAvatarUrl: p.autorAvatarUrl,
         texto: p.texto,
         esVendedor: p.esVendedor,
+        esNegocio: p.esNegocio,
+        negocioSucursalId: p.negocioSucursalId,
         editadoAt: p.editadoAt,
         createdAt: p.createdAt,
         respuestas: [],

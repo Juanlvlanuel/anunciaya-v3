@@ -15,7 +15,7 @@
  * Ubicación: apps/web/src/components/home/RespuestasComunidad.tsx
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MessageSquare, Pointer, X, Send, Loader2, AlertCircle } from 'lucide-react';
 import {
     useComentariosComunidad,
@@ -42,6 +42,9 @@ interface RespuestasComunidadProps {
     esAutor: boolean;
     /** Acción opcional a la derecha del trigger (ej. botón "Yo también"). */
     accionDerecha?: React.ReactNode;
+    /** Deep-link desde notificación: id del comentario a destacar. Fuerza el
+     *  panel abierto de entrada y dispara el scroll+highlight en `PanelComentarios`. */
+    comentarioDestacadoId?: string | null;
 }
 
 export function RespuestasComunidad({
@@ -51,8 +54,11 @@ export function RespuestasComunidad({
     puedeResponder,
     esAutor,
     accionDerecha,
+    comentarioDestacadoId = null,
 }: RespuestasComunidadProps) {
-    const [abierto, setAbierto] = useState(false);
+    // Si llega un deep-link a un comentario puntual, el panel arranca abierto
+    // (normalmente colapsado) para que el scroll+highlight lo encuentre.
+    const [abierto, setAbierto] = useState(!!comentarioDestacadoId);
 
     // El autor de la pregunta lee pero no comenta.
     const puedeEscribir = puedeResponder && !esAutor;
@@ -107,6 +113,7 @@ export function RespuestasComunidad({
                         autorPreguntaId={autorPreguntaId}
                         puedeEscribir={puedeEscribir}
                         hayComentarios={totalRespuestas > 0}
+                        comentarioDestacadoId={comentarioDestacadoId}
                     />
                 </div>
             )}
@@ -123,11 +130,13 @@ function PanelComentarios({
     autorPreguntaId,
     puedeEscribir,
     hayComentarios,
+    comentarioDestacadoId = null,
 }: {
     preguntaId: string;
     autorPreguntaId: string;
     puedeEscribir: boolean;
     hayComentarios: boolean;
+    comentarioDestacadoId?: string | null;
 }) {
     const usuario = useAuthStore((s) => s.usuario);
     const { data: comentarios = [], isPending, isError, refetch } = useComentariosComunidad(
@@ -140,6 +149,30 @@ function PanelComentarios({
 
     const [texto, setTexto] = useState('');
     const [error, setError] = useState<string | null>(null);
+
+    // Deep-link desde notificación (`comentarioDestacadoId`): polling por
+    // `document.getElementById('comentario-<id>')` (carga async), scroll +
+    // anillo transitorio (~3s) — mismo patrón que `ListaComentariosMarketplace.tsx`.
+    const [comentarioResaltado, setComentarioResaltado] = useState<string | null>(null);
+    useEffect(() => {
+        if (!comentarioDestacadoId) return;
+        const buscandoId = `comentario-${comentarioDestacadoId}`;
+        let intentos = 0;
+        const maxIntentos = 20;
+        const intervalo = setInterval(() => {
+            intentos++;
+            const el = document.getElementById(buscandoId);
+            if (el) {
+                clearInterval(intervalo);
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setComentarioResaltado(comentarioDestacadoId);
+                setTimeout(() => setComentarioResaltado(null), 3000);
+            } else if (intentos >= maxIntentos) {
+                clearInterval(intervalo);
+            }
+        }, 100);
+        return () => clearInterval(intervalo);
+    }, [comentarioDestacadoId]);
 
     const usuarioActual: UsuarioComentario | null = usuario
         ? {
@@ -236,6 +269,8 @@ function PanelComentarios({
                             onEditar={handleEditar}
                             onEliminar={handleEliminar}
                             onResponder={handleResponder}
+                            comentarioDestacadoId={comentarioDestacadoId}
+                            comentarioResaltadoId={comentarioResaltado}
                         />
                     ))}
                 </div>

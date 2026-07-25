@@ -63,17 +63,20 @@ producto nuevo, evento).
   vendiendo/ofreciendo hoy?" inline en el feed).
 - Feed: `FeedPublicacionesNegocio.tsx` (scroll infinito, mismo patrón
   `IntersectionObserver` que `PaginaMarketplace.tsx`) + `CardPublicacionNegocioFeed.tsx`
-  — estilo Facebook: primeros 2 comentarios inline (`ComentarioItem`) + input
-  para comentar sin salir del feed. Los comentarios vienen **embebidos** en
-  la respuesta del feed (`topComentarios`/`totalComentarios` por
-  publicación, vía `json_agg` correlacionado en `obtenerFeedPublicacionesNegocio`)
-  — mismo patrón que `ArticuloFeedInfinitoRow.topComentarios` de MarketPlace,
-  evita que cada card dispare su propio request de comentarios (N+1). Crear/
-  editar/eliminar un comentario invalida el feed completo (prefix match) además
-  de la query de detalle, para que la card se refresque sola.
-- "Ver más" (cuando hay más de 2 hilos, o al tocar el texto/foto) navega
-  directo a la página de detalle — **sin modal intermedio**, a diferencia de
-  MarketPlace (que abre `ModalArticuloDetalle` antes de la página).
+  — la card NO muestra preview de comentarios inline, solo el ícono + contador
+  (`totalComentarios`, embebido en la respuesta del feed vía
+  `obtenerFeedPublicacionesNegocio` para evitar un request aparte por card).
+  Los comentarios completos viven en 2 lados: el modal
+  (`ModalComentariosPublicacionNegocio.tsx`, abierto desde el ícono de la
+  card) y la página de Detalle — ambos piden el árbol completo por su cuenta
+  vía `negocioPublicaciones/comentarios.ts` → `listarComentarios`. Crear/
+  editar/eliminar un comentario invalida el feed completo (prefix match)
+  además de la query de comentarios, para que el contador de la card se
+  refresque solo.
+- El ícono de comentarios de la card abre el modal directo — **sin pasar por
+  la página de Detalle**, a diferencia de MarketPlace (que abre
+  `ModalArticuloDetalle`, con la publicación completa + comentarios, antes de
+  la página).
 - Detalle: `DetallePublicacionNegocioContenido.tsx` es el cuerpo COMPARTIDO
   (texto completo, fotos, precio, "Ver perfil del negocio", comentarios
   completos — este sí los pide aparte, es una sola publicación, no hay N+1

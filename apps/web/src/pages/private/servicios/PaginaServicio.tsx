@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
     BadgeCheck,
@@ -83,10 +83,34 @@ const VISTA_REGISTRADA_STORAGE_PREFIX = 'aya:servicios:vista:';
 export function PaginaServicio() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const navegarASeccion = useNavegarASeccion();
     const handleVolver = useVolverAtras('/servicios');
     const cuerpoRef = useScrollAppShell();
     const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
+
+    // ─── Deep-link desde notificación de comentario (?comentarioId=) ──────
+    // Mismo patrón que `?comentarioId=` en PaginaMarketplace.tsx/PaginaNegocios.tsx:
+    // estado perezoso desde la URL al montar + efecto keyed en `location.search`
+    // (para que funcione también si ya estás en /servicios/:id y llega OTRA
+    // notificación), con limpieza de la URL vía history replace.
+    const [comentarioIdDestacado, setComentarioIdDestacado] = useState<string | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('comentarioId') || null;
+    });
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const nuevoComentarioId = params.get('comentarioId');
+        if (nuevoComentarioId) {
+            setComentarioIdDestacado(nuevoComentarioId);
+            params.delete('comentarioId');
+            const nuevaUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+            window.history.replaceState({}, '', nuevaUrl);
+        }
+    }, [location.search]);
     // Sincroniza la barra de contacto fija con el BottomNav — mismo
     // patrón que el detalle de MarketPlace.
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
@@ -405,7 +429,10 @@ export function PaginaServicio() {
 
     const cardPreguntas = (
         <SeccionCard>
-            <SeccionComentariosServicio publicacion={publicacion} />
+            <SeccionComentariosServicio
+                publicacion={publicacion}
+                comentarioDestacadoId={comentarioIdDestacado}
+            />
         </SeccionCard>
     );
 
@@ -1318,36 +1345,6 @@ function iniciasDeNombre(nombre: string): string {
     const a = partes[0]?.charAt(0).toUpperCase() ?? '';
     const b = partes[1]?.charAt(0).toUpperCase() ?? '';
     return `${a}${b}` || '··';
-}
-
-// =============================================================================
-// PILL contextual para el slotDerecho del ServiciosHeader (desktop)
-// =============================================================================
-// Variante "dark" del TipoChip: el header tiene fondo negro, así que el pill
-// usa colores translúcidos con ring sutil. Mantiene la misma semántica de
-// color que TipoChip (sky para servicio/vacante, amber para solicito).
-function PillTipoHeader({ tipo }: { tipo: PublicacionDetalle['tipo'] }) {
-    if (tipo === 'vacante-empresa') {
-        return (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1.5 text-[12px] font-bold text-sky-300 ring-1 ring-sky-400/30">
-                <Briefcase className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Vacante
-            </span>
-        );
-    }
-    if (tipo === 'solicito') {
-        return (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1.5 text-[12px] font-bold text-amber-300 ring-1 ring-amber-400/30">
-                Solicitud
-            </span>
-        );
-    }
-    return (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1.5 text-[12px] font-bold text-sky-300 ring-1 ring-sky-400/30">
-            <Wrench className="w-3.5 h-3.5" strokeWidth={2.5} />
-            Servicio personal
-        </span>
-    );
 }
 
 export default PaginaServicio;

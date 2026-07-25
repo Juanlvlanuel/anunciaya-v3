@@ -128,6 +128,10 @@ export async function listarComentarios(articuloId: string): Promise<ComentarioN
             parentId: r.parent_id as string | null,
             texto: r.texto as string,
             esVendedor: r.es_vendedor as boolean,
+            // MarketPlace es personal-only (bloqueado en Modo Comercial vía
+            // ModoPersonalEstrictoGuard) — nunca hay identidad de negocio.
+            esNegocio: false,
+            negocioSucursalId: null,
             editadoAt: r.editado_at as string | null,
             createdAt: r.created_at as string,
         };

@@ -28,6 +28,7 @@ import { Trash2, AlertCircle, Send, Loader2, CornerDownRight, Reply, Pencil, Mor
 import { BotonComentarista } from './BotonComentarista';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { formatearTiempoRelativo, obtenerNombreCorto } from '../../utils/marketplace';
 import type { Comentario } from '../../types/comentarios';
 
@@ -109,23 +110,35 @@ function AvatarComentario({
     apellidos,
     avatarUrl,
     tamano = 'md',
+    esNegocio = false,
+    sucursalId = null,
 }: {
     autorId: string;
     nombre: string;
     apellidos: string;
     avatarUrl: string | null;
     tamano?: 'sm' | 'md';
+    /** true si `nombre`/`avatarUrl` muestran la identidad del NEGOCIO. */
+    esNegocio?: boolean;
+    /** Sucursal principal del negocio — requerido cuando `esNegocio` es true. */
+    sucursalId?: string | null;
 }) {
     const navigate = useNavigate();
+    const navegarASeccion = useNavegarASeccion();
     const [modalAbierto, setModalAbierto] = useState(false);
     const dim = tamano === 'sm' ? 'h-9 w-9' : 'h-11 w-11';
     const inicial =
         ((nombre ?? '?').charAt(0) + (apellidos ?? '').charAt(0)).toUpperCase() || '?';
 
     const onClick = useCallback(() => {
-        if (avatarUrl) setModalAbierto(true);
-        else navigate(`/marketplace/usuario/${autorId}`);
-    }, [avatarUrl, navigate, autorId]);
+        if (avatarUrl) {
+            setModalAbierto(true);
+        } else if (esNegocio && sucursalId) {
+            navegarASeccion(`/negocios/${sucursalId}`);
+        } else {
+            navigate(`/marketplace/usuario/${autorId}`);
+        }
+    }, [avatarUrl, navigate, navegarASeccion, autorId, esNegocio, sucursalId]);
 
     return (
         <>
@@ -285,6 +298,8 @@ function ComentarioFila({
                 apellidos={comentario.autorApellidos}
                 avatarUrl={comentario.autorAvatarUrl}
                 tamano={tamanoAvatar}
+                esNegocio={comentario.esNegocio}
+                sucursalId={comentario.negocioSucursalId}
             />
 
             <div className="min-w-0 flex-1">
@@ -382,6 +397,8 @@ function ComentarioFila({
                                 comentario.autorApellidos
                             )}
                             editado={!!comentario.editadoAt && !editando}
+                            esNegocio={comentario.esNegocio}
+                            sucursalId={comentario.negocioSucursalId}
                         />
                         {comentario.esVendedor && (
                             <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${tema.badgeBg} ${tema.badgeTexto}`}>

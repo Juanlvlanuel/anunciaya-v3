@@ -11,9 +11,15 @@
  * (lista + input juntos) — úsalo salvo que necesites separar el layout
  * como hace `ModalComentariosServicio.tsx` en escritorio.
  *
+ * Deep-link desde notificación (`comentarioDestacadoId`): hace polling por
+ * `document.getElementById('comentario-<id>')` (el comentario puede tardar
+ * en llegar — carga async), hace scroll y prende un anillo transitorio
+ * (~3s) — mismo patrón que `ListaComentariosMarketplace.tsx`.
+ *
  * Ubicación: apps/web/src/components/servicios/ListaComentariosServicio.tsx
  */
 
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ComentarioItem } from '../marketplace/ComentarioItem';
 import { useSeccionComentariosServicio } from './useSeccionComentariosServicio';
@@ -22,12 +28,14 @@ interface ListaComentariosServicioProps {
     publicacionId: string;
     duenoId: string;
     className?: string;
+    comentarioDestacadoId?: string | null;
 }
 
 export function ListaComentariosServicio({
     publicacionId,
     duenoId,
     className = '',
+    comentarioDestacadoId = null,
 }: ListaComentariosServicioProps) {
     const {
         comentarios,
@@ -39,6 +47,28 @@ export function ListaComentariosServicio({
         handleEliminar,
         handleResponder,
     } = useSeccionComentariosServicio({ publicacionId, duenoId });
+
+    const [comentarioResaltado, setComentarioResaltado] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!comentarioDestacadoId) return;
+        const buscandoId = `comentario-${comentarioDestacadoId}`;
+        let intentos = 0;
+        const maxIntentos = 20;
+        const intervalo = setInterval(() => {
+            intentos++;
+            const el = document.getElementById(buscandoId);
+            if (el) {
+                clearInterval(intervalo);
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setComentarioResaltado(comentarioDestacadoId);
+                setTimeout(() => setComentarioResaltado(null), 3000);
+            } else if (intentos >= maxIntentos) {
+                clearInterval(intervalo);
+            }
+        }, 100);
+        return () => clearInterval(intervalo);
+    }, [comentarioDestacadoId]);
 
     return (
         <div className={`space-y-4 ${className}`} data-testid="lista-comentarios-servicio">
@@ -66,6 +96,8 @@ export function ListaComentariosServicio({
                     onResponder={handleResponder}
                     colorTema="sky"
                     estiloFacebook
+                    comentarioDestacadoId={comentarioDestacadoId}
+                    comentarioResaltadoId={comentarioResaltado}
                 />
             ))}
         </div>

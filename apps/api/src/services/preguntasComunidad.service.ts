@@ -16,8 +16,10 @@ import {
     comunidadComentarios,
     usuarios,
     ciudades,
+    negocios,
+    negocioSucursales,
 } from '../db/schemas/schema.js';
-import { eq, and, desc, sql, isNull } from 'drizzle-orm';
+import { eq, and, desc, sql, isNull, type SQLWrapper } from 'drizzle-orm';
 import { resolverCiudadId } from '../utils/ciudades.js';
 import type {
     CrearPreguntaInput,
@@ -120,6 +122,67 @@ async function cerrarPreguntasVencidasDeCiudad(ciudadId: string): Promise<void> 
 }
 
 // =============================================================================
+// IDENTIDAD DEL AUTOR (Personal / Comercial)
+// =============================================================================
+
+/**
+ * Resuelve qué identidad mostrar para el autor de una pregunta: la del
+ * NEGOCIO (nombre + logo) si publicó en Modo Comercial y tiene negocio propio
+ * (dueño) o pertenece a uno (gerente/empleado) — mismo criterio que
+ * `comentariosComunidad.service.ts` / `negocioPublicaciones/comentarios.ts`.
+ * Si no aplica, cae a la identidad personal (nombre + apellidos + avatar).
+ */
+function resolverIdentidadAutor(datos: {
+    modo: string | null;
+    nombre: string | null;
+    apellidos: string | null;
+    avatarUrl: string | null;
+    negocioNombre: string | null;
+    negocioLogoUrl: string | null;
+    negocioSucursalId: string | null;
+}): { nombre: string; apellidos: string; avatarUrl: string | null; esNegocio: boolean; sucursalId: string | null } {
+    const usaNegocio = datos.modo === 'comercial' && !!datos.negocioNombre;
+    if (usaNegocio) {
+        return {
+            nombre: datos.negocioNombre as string,
+            apellidos: '',
+            avatarUrl: datos.negocioLogoUrl ?? null,
+            esNegocio: true,
+            sucursalId: datos.negocioSucursalId ?? null,
+        };
+    }
+    return {
+        nombre: datos.nombre ?? '',
+        apellidos: datos.apellidos ?? '',
+        avatarUrl: datos.avatarUrl ?? null,
+        esNegocio: false,
+        sucursalId: null,
+    };
+}
+
+/** Condición de join reutilizable: el negocio que el AUTOR representa —
+ *  dueño de algún negocio primero, si no gerente/empleado (`usuarios.negocioId`).
+ *  `usuarioIdCol` acepta cualquier columna/expresión SQL con el id del autor
+ *  (varía según la query: `preguntasComunidad.usuarioId` o `usuarios.id`). */
+function joinNegocioAutor(usuarioIdCol: SQLWrapper) {
+    return sql`${negocios.id} = COALESCE(
+        (SELECT id FROM negocios WHERE usuario_id = ${usuarioIdCol} LIMIT 1),
+        ${usuarios.negocioId}
+    )`;
+}
+
+/** Sucursal principal (Matriz) de un negocio — para el link "Ver negocio"
+ *  (`/negocios/{sucursalId}`) cuando la identidad mostrada es un negocio. */
+function sqlSucursalPrincipalDe(negocioIdCol: SQLWrapper) {
+    return sql<string | null>`(
+        SELECT ${negocioSucursales.id} FROM ${negocioSucursales}
+        WHERE ${negocioSucursales.negocioId} = ${negocioIdCol}
+          AND ${negocioSucursales.esPrincipal} = true
+        LIMIT 1
+    )`;
+}
+
+// =============================================================================
 // CREAR PREGUNTA
 // =============================================================================
 
@@ -150,6 +213,8 @@ export async function crearPregunta(
         // hace una persona (sin sucursal), igual que C2C de MarketPlace/Servicios.
         const ciudadId = await resolverCiudadId(ciudad);
 
+        const modo = input.modo === 'comercial' ? 'comercial' : 'personal';
+
         // Insert — estado_pregunta queda en el default 'activa'
         const [nueva] = await db
             .insert(preguntasComunidad)
@@ -158,19 +223,26 @@ export async function crearPregunta(
                 texto,
                 ciudadId,
                 estado,
+                modo,
             })
             .returning();
 
         // Traer datos del autor para enriquecer el response (el frontend
-        // necesita poder pintar avatar/nombre sin un round-trip extra).
+        // necesita poder pintar avatar/nombre sin un round-trip extra). Si
+        // publicó en Modo Comercial y tiene negocio, se resuelve también su
+        // identidad de negocio para el swap de `resolverIdentidadAutor`.
         const [autor] = await db
             .select({
                 id: usuarios.id,
                 nombre: usuarios.nombre,
                 apellidos: usuarios.apellidos,
                 avatarUrl: usuarios.avatarUrl,
+                negocioNombre: negocios.nombre,
+                negocioLogoUrl: negocios.logoUrl,
+                negocioSucursalId: sqlSucursalPrincipalDe(negocios.id),
             })
             .from(usuarios)
+            .leftJoin(negocios, joinNegocioAutor(usuarios.id))
             .where(eq(usuarios.id, input.usuarioId))
             .limit(1);
 
@@ -186,6 +258,16 @@ export async function crearPregunta(
             };
         }
 
+        const identidad = resolverIdentidadAutor({
+            modo: nueva.modo,
+            nombre: autor.nombre,
+            apellidos: autor.apellidos,
+            avatarUrl: autor.avatarUrl,
+            negocioNombre: autor.negocioNombre,
+            negocioLogoUrl: autor.negocioLogoUrl,
+            negocioSucursalId: autor.negocioSucursalId,
+        });
+
         const preguntaFormateada: PreguntaComunidadResponse = {
             id: nueva.id,
             texto: nueva.texto,
@@ -195,9 +277,11 @@ export async function crearPregunta(
             createdAt: nueva.createdAt ?? new Date().toISOString(),
             updatedAt: nueva.updatedAt ?? new Date().toISOString(),
             autorId: autor.id,
-            autorNombre: autor.nombre,
-            autorApellidos: autor.apellidos,
-            autorAvatarUrl: autor.avatarUrl ?? null,
+            autorNombre: identidad.nombre,
+            autorApellidos: identidad.apellidos,
+            autorAvatarUrl: identidad.avatarUrl,
+            autorEsNegocio: identidad.esNegocio,
+            autorSucursalId: identidad.sucursalId,
             // Campos de Coyo en su estado inicial — el frontend sondeará
             // con GET /api/preguntas-comunidad/:id/coyo hasta que el
             // orquestador (disparado fire-and-forget abajo) los actualice.
@@ -299,6 +383,10 @@ export async function listarPreguntasPorCiudad(
                 autorNombre: usuarios.nombre,
                 autorApellidos: usuarios.apellidos,
                 autorAvatarUrl: usuarios.avatarUrl,
+                modo: preguntasComunidad.modo,
+                negocioNombre: negocios.nombre,
+                negocioLogoUrl: negocios.logoUrl,
+                negocioSucursalId: sqlSucursalPrincipalDe(negocios.id),
                 // Campos de Coyo — al recargar el feed, las preguntas viejas
                 // ya tienen su respuesta lista (no requiere sondear).
                 estadoCoyo: preguntasComunidad.estadoCoyo,
@@ -329,6 +417,7 @@ export async function listarPreguntasPorCiudad(
             .from(preguntasComunidad)
             .leftJoin(ciudades, eq(ciudades.id, preguntasComunidad.ciudadId))
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
+            .leftJoin(negocios, joinNegocioAutor(preguntasComunidad.usuarioId))
             .where(and(
                 eq(preguntasComunidad.ciudadId, ciudadId),
                 eq(preguntasComunidad.estadoPregunta, 'activa')
@@ -337,7 +426,17 @@ export async function listarPreguntasPorCiudad(
             .limit(limit)
             .offset(offset);
 
-        const preguntas: PreguntaComunidadResponse[] = filas.map((f) => ({
+        const preguntas: PreguntaComunidadResponse[] = filas.map((f) => {
+            const identidad = resolverIdentidadAutor({
+                modo: f.modo,
+                nombre: f.autorNombre,
+                apellidos: f.autorApellidos,
+                avatarUrl: f.autorAvatarUrl,
+                negocioNombre: f.negocioNombre,
+                negocioLogoUrl: f.negocioLogoUrl,
+                negocioSucursalId: f.negocioSucursalId,
+            });
+            return {
             id: f.id,
             texto: f.texto,
             ciudad: f.ciudad ?? '',
@@ -349,9 +448,11 @@ export async function listarPreguntasPorCiudad(
             // eliminada después de crear la pregunta (FK es ON DELETE CASCADE,
             // así que en la práctica no debería pasar — pero somos defensivos).
             autorId: f.autorId ?? '',
-            autorNombre: f.autorNombre ?? '',
-            autorApellidos: f.autorApellidos ?? '',
-            autorAvatarUrl: f.autorAvatarUrl ?? null,
+            autorNombre: identidad.nombre,
+            autorApellidos: identidad.apellidos,
+            autorAvatarUrl: identidad.avatarUrl,
+            autorEsNegocio: identidad.esNegocio,
+            autorSucursalId: identidad.sucursalId,
             estadoCoyo: f.estadoCoyo as EstadoCoyo,
             respuestaCoyo: f.respuestaCoyo,
             resultadosCoyo: f.resultadosCoyo,
@@ -360,7 +461,8 @@ export async function listarPreguntasPorCiudad(
             totalRespuestas: Number(f.totalRespuestas) || 0,
             totalInteresados: Number(f.totalInteresados) || 0,
             yoTambienInteresado: Boolean(f.yoTambienInteresado),
-        }));
+            };
+        });
 
         // Total de preguntas 'activa' de la ciudad — independiente de la
         // paginación. Lo consume el frontend para el scroll infinito
@@ -429,6 +531,10 @@ export async function obtenerPreguntaPorId(
                 autorNombre: usuarios.nombre,
                 autorApellidos: usuarios.apellidos,
                 autorAvatarUrl: usuarios.avatarUrl,
+                modo: preguntasComunidad.modo,
+                negocioNombre: negocios.nombre,
+                negocioLogoUrl: negocios.logoUrl,
+                negocioSucursalId: sqlSucursalPrincipalDe(negocios.id),
                 estadoCoyo: preguntasComunidad.estadoCoyo,
                 respuestaCoyo: preguntasComunidad.respuestaCoyo,
                 resultadosCoyo: preguntasComunidad.resultadosCoyo,
@@ -456,6 +562,7 @@ export async function obtenerPreguntaPorId(
             .from(preguntasComunidad)
             .leftJoin(ciudades, eq(ciudades.id, preguntasComunidad.ciudadId))
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
+            .leftJoin(negocios, joinNegocioAutor(preguntasComunidad.usuarioId))
             .where(and(
                 eq(preguntasComunidad.id, id),
                 eq(preguntasComunidad.estadoPregunta, 'activa'),
@@ -466,6 +573,16 @@ export async function obtenerPreguntaPorId(
             return { success: false, message: 'La pregunta no está disponible', code: 404 };
         }
 
+        const identidadDetalle = resolverIdentidadAutor({
+            modo: f.modo,
+            nombre: f.autorNombre,
+            apellidos: f.autorApellidos,
+            avatarUrl: f.autorAvatarUrl,
+            negocioNombre: f.negocioNombre,
+            negocioLogoUrl: f.negocioLogoUrl,
+            negocioSucursalId: f.negocioSucursalId,
+        });
+
         const pregunta: PreguntaComunidadResponse = {
             id: f.id,
             texto: f.texto,
@@ -475,9 +592,11 @@ export async function obtenerPreguntaPorId(
             createdAt: f.createdAt ?? new Date().toISOString(),
             updatedAt: f.updatedAt ?? new Date().toISOString(),
             autorId: f.autorId ?? '',
-            autorNombre: f.autorNombre ?? '',
-            autorApellidos: f.autorApellidos ?? '',
-            autorAvatarUrl: f.autorAvatarUrl ?? null,
+            autorNombre: identidadDetalle.nombre,
+            autorApellidos: identidadDetalle.apellidos,
+            autorAvatarUrl: identidadDetalle.avatarUrl,
+            autorEsNegocio: identidadDetalle.esNegocio,
+            autorSucursalId: identidadDetalle.sucursalId,
             estadoCoyo: f.estadoCoyo as EstadoCoyo,
             respuestaCoyo: f.respuestaCoyo,
             resultadosCoyo: f.resultadosCoyo,
@@ -540,6 +659,10 @@ export async function listarMisPreguntas(input: {
                 autorNombre: usuarios.nombre,
                 autorApellidos: usuarios.apellidos,
                 autorAvatarUrl: usuarios.avatarUrl,
+                modo: preguntasComunidad.modo,
+                negocioNombre: negocios.nombre,
+                negocioLogoUrl: negocios.logoUrl,
+                negocioSucursalId: sqlSucursalPrincipalDe(negocios.id),
                 estadoCoyo: preguntasComunidad.estadoCoyo,
                 respuestaCoyo: preguntasComunidad.respuestaCoyo,
                 resultadosCoyo: preguntasComunidad.resultadosCoyo,
@@ -559,12 +682,23 @@ export async function listarMisPreguntas(input: {
             .from(preguntasComunidad)
             .leftJoin(ciudades, eq(ciudades.id, preguntasComunidad.ciudadId))
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
+            .leftJoin(negocios, joinNegocioAutor(preguntasComunidad.usuarioId))
             .where(eq(preguntasComunidad.usuarioId, usuarioId))
             .orderBy(desc(preguntasComunidad.createdAt))
             .limit(limit)
             .offset(offset);
 
-        const preguntas: PreguntaComunidadResponse[] = filas.map((f) => ({
+        const preguntas: PreguntaComunidadResponse[] = filas.map((f) => {
+            const identidad = resolverIdentidadAutor({
+                modo: f.modo,
+                nombre: f.autorNombre,
+                apellidos: f.autorApellidos,
+                avatarUrl: f.autorAvatarUrl,
+                negocioNombre: f.negocioNombre,
+                negocioLogoUrl: f.negocioLogoUrl,
+                negocioSucursalId: f.negocioSucursalId,
+            });
+            return {
             id: f.id,
             texto: f.texto,
             ciudad: f.ciudad ?? '',
@@ -573,9 +707,11 @@ export async function listarMisPreguntas(input: {
             createdAt: f.createdAt ?? new Date().toISOString(),
             updatedAt: f.updatedAt ?? new Date().toISOString(),
             autorId: f.autorId ?? '',
-            autorNombre: f.autorNombre ?? '',
-            autorApellidos: f.autorApellidos ?? '',
-            autorAvatarUrl: f.autorAvatarUrl ?? null,
+            autorNombre: identidad.nombre,
+            autorApellidos: identidad.apellidos,
+            autorAvatarUrl: identidad.avatarUrl,
+            autorEsNegocio: identidad.esNegocio,
+            autorSucursalId: identidad.sucursalId,
             estadoCoyo: f.estadoCoyo as EstadoCoyo,
             respuestaCoyo: f.respuestaCoyo,
             resultadosCoyo: f.resultadosCoyo,
@@ -584,7 +720,8 @@ export async function listarMisPreguntas(input: {
             totalRespuestas: Number(f.totalRespuestas) || 0,
             totalInteresados: Number(f.totalInteresados) || 0,
             yoTambienInteresado: false,
-        }));
+            };
+        });
 
         const [conteo] = await db
             .select({ total: sql<number>`COUNT(*)::int` })

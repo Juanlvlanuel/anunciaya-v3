@@ -16,7 +16,7 @@
  * Ubicación: apps/web/src/pages/private/PaginaInicio.tsx
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Users, History, RefreshCcw, Inbox, Sparkles, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -260,11 +260,13 @@ function BloquePreguntaDestacada({
     error,
     pregunta,
     onCerrar,
+    comentarioDestacadoId,
 }: {
     cargando: boolean;
     error: boolean;
     pregunta: PreguntaComunidad | null;
     onCerrar: () => void;
+    comentarioDestacadoId?: string | null;
 }) {
     return (
         <section
@@ -307,7 +309,7 @@ function BloquePreguntaDestacada({
                 </div>
             ) : (
                 <ul>
-                    <CardPreguntaEditorial pregunta={pregunta} />
+                    <CardPreguntaEditorial pregunta={pregunta} comentarioDestacadoId={comentarioDestacadoId} />
                 </ul>
             )}
         </section>
@@ -369,6 +371,11 @@ export function PaginaInicio() {
     // capturar también una notificación nueva abierta sin salir del Home.
     const [searchParams, setSearchParams] = useSearchParams();
     const [preguntaIdDestacada, setPreguntaIdDestacada] = useState('');
+    // Deep-link a un COMENTARIO puntual dentro de la pregunta destacada (ej.
+    // "te respondieron" o "respondieron tu comentario") — se propaga hasta
+    // `RespuestasComunidad` para auto-abrir el panel y hacer scroll+highlight
+    // al comentario exacto, mismo patrón que MarketPlace/Servicios.
+    const [comentarioIdDestacado, setComentarioIdDestacado] = useState<string | null>(null);
     const preguntaDestacada = usePregunta(preguntaIdDestacada);
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
     // Refs para el auto-scroll móvil a la pregunta recién enviada.
@@ -377,7 +384,7 @@ export function PaginaInicio() {
     // Scrollea un elemento hasta JUSTO debajo de la barra sticky (mide su alto
     // real, así no lo tapa). Opera sobre el <main> scrolleable; cae a
     // scrollIntoView si no existe.
-    const scrollAVer = (el: HTMLElement, comportamiento: ScrollBehavior = 'smooth') => {
+    const scrollAVer = useCallback((el: HTMLElement, comportamiento: ScrollBehavior = 'smooth') => {
         const scroller = mainScrollRef?.current;
         const offsetBarra = (barraStickyRef.current?.offsetHeight ?? 0) + 8;
         if (!scroller) {
@@ -388,18 +395,23 @@ export function PaginaInicio() {
         const rectScroller = scroller.getBoundingClientRect();
         const top = scroller.scrollTop + (rectEl.top - rectScroller.top) - offsetBarra;
         scroller.scrollTo({ top: Math.max(0, top), behavior: comportamiento });
-    };
+    }, [mainScrollRef]);
 
     useEffect(() => {
         const id = searchParams.get('preguntaId');
         if (!id) return;
         setPreguntaIdDestacada(id);
+        setComentarioIdDestacado(searchParams.get('comentarioId'));
         const next = new URLSearchParams(searchParams);
         next.delete('preguntaId');
+        next.delete('comentarioId');
         setSearchParams(next, { replace: true });
     }, [searchParams, setSearchParams]);
 
-    const cerrarDestacada = () => setPreguntaIdDestacada('');
+    const cerrarDestacada = () => {
+        setPreguntaIdDestacada('');
+        setComentarioIdDestacado(null);
+    };
 
     // Al capturar un preguntaId (desde una notificación) sube el feed al tope
     // para que el bloque destacado quede a la vista.
@@ -552,6 +564,7 @@ export function PaginaInicio() {
             error={preguntaDestacada.isError}
             pregunta={preguntaDestacada.data ?? null}
             onCerrar={cerrarDestacada}
+            comentarioDestacadoId={comentarioIdDestacado}
         />
     ) : null;
 
@@ -672,7 +685,7 @@ export function PaginaInicio() {
             timers.forEach((t) => window.clearTimeout(t));
             ro?.disconnect();
         };
-    }, [esMovil, preguntaRecienId]);
+    }, [esMovil, preguntaRecienId, scrollAVer]);
 
     // ── Refresh tipo Facebook ────────────────────────────────────────────
     // Móvil: pull-to-refresh (gesto) → feed.refetch().

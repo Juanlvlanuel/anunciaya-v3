@@ -43,6 +43,7 @@ import {
     obtenerPublicacionesDelPrestador,
     obtenerResenasDelPrestador,
 } from '../services/servicios/perfilPrestador.js';
+import { obtenerModoActual } from '../middleware/validarModo.js';
 import {
     crearPublicacionSchema,
     actualizarPublicacionSchema,
@@ -521,7 +522,8 @@ export async function postCrearComentario(req: Request, res: Response) {
             id,
             usuarioId,
             validacion.data.texto,
-            validacion.data.parentId ?? null
+            validacion.data.parentId ?? null,
+            obtenerModoActual(req)
         );
         return res.status(resultado.code).json(resultado);
     } catch (error) {

@@ -34,6 +34,7 @@ import {
     MoreVertical,
 } from 'lucide-react';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
     useEstadoCoyo,
     useReintentarMiPregunta,
@@ -323,11 +324,27 @@ function EditorPregunta({
 
 interface CardPreguntaEditorialProps {
     pregunta: PreguntaComunidad;
+    /** Deep-link desde notificación de comentario — fuerza abrir el panel de
+     *  comentarios y hace scroll+highlight al comentario exacto. Solo lo pasa
+     *  `BloquePreguntaDestacada` (Home vía `?preguntaId=&comentarioId=`). */
+    comentarioDestacadoId?: string | null;
 }
 
-function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
+function CardPreguntaEditorialBase({ pregunta, comentarioDestacadoId = null }: CardPreguntaEditorialProps) {
     const usuarioId = useAuthStore((s) => s.usuario?.id);
     const navigate = useNavigate();
+    const navegarASeccion = useNavegarASeccion();
+    // Si el autor publicó en Modo Comercial (autorNombre/autorAvatarUrl muestran
+    // su negocio), el click va al perfil del NEGOCIO en Negocios en vez del
+    // perfil personal — mismo criterio que `BotonComentarista` debería seguir
+    // si la identidad mostrada es de negocio.
+    const irAPerfilAutor = () => {
+        if (pregunta.autorEsNegocio && pregunta.autorSucursalId) {
+            navegarASeccion(`/negocios/${pregunta.autorSucursalId}`);
+            return;
+        }
+        navigate(`/marketplace/usuario/${pregunta.autorId}`);
+    };
     const esAutor = !!usuarioId && usuarioId === pregunta.autorId;
     const preguntaActiva = pregunta.estadoPregunta === 'activa';
     const mostrarInteres = preguntaActiva && !esAutor;
@@ -362,7 +379,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                         <button
                             type="button"
                             data-testid={`pregunta-autor-${pregunta.id}`}
-                            onClick={() => navigate(`/marketplace/usuario/${pregunta.autorId}`)}
+                            onClick={irAPerfilAutor}
                             className="block max-w-full truncate text-left text-base font-bold text-slate-800 leading-tight lg:cursor-pointer lg:hover:underline"
                         >
                             {pregunta.autorNombre}
@@ -426,6 +443,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                 totalRespuestas={pregunta.totalRespuestas}
                 puedeResponder={preguntaActiva}
                 esAutor={esAutor}
+                comentarioDestacadoId={comentarioDestacadoId}
                 accionDerecha={
                     mostrarInteres ? (
                         <BotonInteresComunidad

@@ -321,10 +321,10 @@ export function useComentariosPublicacionNegocio(publicacionId: string | undefin
 
 // Las 3 mutaciones de abajo invalidan `comentarios(publicacionId)` (para la
 // página de detalle) Y `feed` en bloque (prefix match — cualquier filtro de
-// ciudad/sucursal), porque el feed trae `topComentarios` EMBEBIDOS (mismo
+// ciudad/sucursal), porque el feed trae `totalComentarios` EMBEBIDO (mismo
 // patrón que `useCrearComentario` de MarketPlace invalidando
-// `['marketplace', 'feed-infinito']`). Sin esto, comentar desde una card del
-// feed no se reflejaría ahí hasta el próximo staleTime.
+// `['marketplace', 'feed-infinito']`). Sin esto, el contador de comentarios
+// de la card no se reflejaría ahí hasta el próximo staleTime.
 function invalidarFeedYComentarios(queryClient: ReturnType<typeof useQueryClient>, publicacionId: string) {
     queryClient.invalidateQueries({
         queryKey: queryKeys.negocioPublicaciones.comentarios(publicacionId),

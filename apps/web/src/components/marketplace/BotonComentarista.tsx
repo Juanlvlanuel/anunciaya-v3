@@ -1,9 +1,18 @@
 /**
  * BotonComentarista.tsx
  * ======================
- * Nombre clickeable de quien comentó. Un clic navega al perfil del usuario
- * (`/marketplace/usuario/:id`). El perfil maneja el caso "0 artículos" con una
- * vista mínima, así que funciona aunque la persona no haya publicado nada.
+ * Nombre clickeable de quien comentó. Por default un clic navega al perfil
+ * del usuario (`/marketplace/usuario/:id`) — el perfil maneja el caso "0
+ * artículos" con una vista mínima, así que funciona aunque la persona no haya
+ * publicado nada.
+ *
+ * Identidad de negocio (`esNegocio`): si el comentario se hizo en Modo
+ * Comercial (Negocios, Servicios, Coyo — NO MarketPlace, que es personal-only
+ * y bloquea el modo comercial por completo), el nombre/avatar muestran el
+ * negocio en vez de la persona. El click debe ir al perfil del NEGOCIO
+ * (`/negocios/{sucursalId}`), no al perfil personal — esa ruta está detrás de
+ * `ModoPersonalEstrictoGuard` y redirige con un toast si el usuario actual
+ * está en Modo Comercial.
  *
  * Antes tenía un menú de clic derecho (Enviar mensaje / Ver perfil); se retiró
  * porque era redundante y poco descubrible: ahora "Contactar" (ChatYA) vive en
@@ -14,6 +23,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 
 interface BotonComentaristaProps {
     usuarioId: string;
@@ -28,6 +38,10 @@ interface BotonComentaristaProps {
     displayName?: string;
     /** Marca "(editada)" opcional al lado del nombre. */
     editado?: boolean;
+    /** true si `nombre`/`avatarUrl` muestran la identidad del NEGOCIO. */
+    esNegocio?: boolean;
+    /** Sucursal principal del negocio — requerido cuando `esNegocio` es true. */
+    sucursalId?: string | null;
 }
 
 export function BotonComentarista({
@@ -35,14 +49,25 @@ export function BotonComentarista({
     nombre,
     displayName,
     editado = false,
+    esNegocio = false,
+    sucursalId = null,
 }: BotonComentaristaProps) {
     const navigate = useNavigate();
+    const navegarASeccion = useNavegarASeccion();
+
+    const irAPerfil = () => {
+        if (esNegocio && sucursalId) {
+            navegarASeccion(`/negocios/${sucursalId}`);
+            return;
+        }
+        navigate(`/marketplace/usuario/${usuarioId}`);
+    };
 
     return (
         <button
             type="button"
             data-testid={`comentarista-${usuarioId}`}
-            onClick={() => navigate(`/marketplace/usuario/${usuarioId}`)}
+            onClick={irAPerfil}
             className="text-left lg:cursor-pointer lg:hover:underline"
         >
             {displayName ?? nombre}

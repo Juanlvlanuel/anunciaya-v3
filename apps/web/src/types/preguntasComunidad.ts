@@ -140,6 +140,13 @@ export interface PreguntaComunidad {
     autorNombre: string;
     autorApellidos: string;
     autorAvatarUrl: string | null;
+    /** true si `autorNombre/autorAvatarUrl` muestran la identidad del NEGOCIO
+     *  (publicó en Modo Comercial) en vez de la personal — el click en el
+     *  nombre navega a `/negocios/{autorSucursalId}` en vez de al perfil
+     *  personal (`/marketplace/usuario/{autorId}`). */
+    autorEsNegocio: boolean;
+    /** Sucursal principal (Matriz) del negocio del autor — solo si `autorEsNegocio`. */
+    autorSucursalId: string | null;
 
     // Respuesta de Coyo (asíncrona — sondeada por el cliente)
     estadoCoyo: EstadoCoyo;

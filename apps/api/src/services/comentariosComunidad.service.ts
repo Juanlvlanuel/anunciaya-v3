@@ -18,6 +18,14 @@
  *   - Respuesta en hilo → al autor del comentario respondido
  *     (`comunidad_respuesta_comentario`).
  *
+ * Identidad Personal/Comercial (columna `modo`, mismo patrón que
+ * `negocioPublicaciones/comentarios.ts`): si el autor comentó en Modo
+ * Comercial y tiene negocio propio (dueño) o pertenece a uno (gerente/
+ * empleado), se muestra el nombre/logo del NEGOCIO en vez de su identidad
+ * personal — tanto en `listarComentarios` como en el actor de la notificación.
+ * El modo se resuelve server-side desde el JWT (`obtenerModoActual`), el
+ * frontend no lo manda explícito.
+ *
  * Coyo (IA), "yo también", resuelta, expiración y deep-link viven en
  * `preguntasComunidad.service.ts` y NO se tocan aquí.
  *
@@ -53,17 +61,29 @@ export async function listarComentarios(
             SELECT
                 c.id,
                 c.autor_id    AS autor_id,
-                u.nombre      AS autor_nombre,
-                u.apellidos   AS autor_apellidos,
-                u.avatar_url  AS autor_avatar_url,
+                CASE WHEN c.modo = 'comercial' AND neg_autor.id IS NOT NULL THEN neg_autor.nombre ELSE u.nombre END AS autor_nombre,
+                CASE WHEN c.modo = 'comercial' AND neg_autor.id IS NOT NULL THEN '' ELSE u.apellidos END AS autor_apellidos,
+                CASE WHEN c.modo = 'comercial' AND neg_autor.id IS NOT NULL THEN neg_autor.logo_url ELSE u.avatar_url END AS autor_avatar_url,
                 c.parent_id   AS parent_id,
                 c.texto,
                 (c.autor_id = p.usuario_id) AS es_vendedor,
+                (c.modo = 'comercial' AND neg_autor.id IS NOT NULL) AS es_negocio,
+                (
+                    SELECT ns.id FROM negocio_sucursales ns
+                    WHERE ns.negocio_id = neg_autor.id AND ns.es_principal = true
+                    LIMIT 1
+                ) AS negocio_sucursal_id,
                 c.editado_at  AS editado_at,
                 c.created_at  AS created_at
             FROM comunidad_comentarios c
             INNER JOIN usuarios u ON u.id = c.autor_id
             INNER JOIN preguntas_comunidad p ON p.id = c.pregunta_id
+            -- Negocio que el AUTOR del comentario representa (dueño primero,
+            -- si no gerente/empleado) — igual criterio que negocioPublicaciones.
+            LEFT JOIN negocios neg_autor ON neg_autor.id = COALESCE(
+                (SELECT id FROM negocios WHERE usuario_id = c.autor_id LIMIT 1),
+                u.negocio_id
+            )
             WHERE c.pregunta_id = ${preguntaId}
               AND c.deleted_at IS NULL
             ORDER BY c.created_at ASC
@@ -80,6 +100,8 @@ export async function listarComentarios(
                 parentId: r.parent_id as string | null,
                 texto: r.texto as string,
                 esVendedor: r.es_vendedor as boolean,
+                esNegocio: r.es_negocio as boolean,
+                negocioSucursalId: r.negocio_sucursal_id as string | null,
                 editadoAt: r.editado_at as string | null,
                 createdAt: r.created_at as string,
             };
@@ -100,7 +122,8 @@ export async function crearComentario(
     preguntaId: string,
     autorId: string,
     texto: string,
-    parentId?: string | null
+    parentId?: string | null,
+    modo: 'personal' | 'comercial' = 'personal'
 ): Promise<Resultado<{ id: string }>> {
     try {
         // Verificar pregunta: existe, activa, y obtener su autor.
@@ -144,15 +167,28 @@ export async function crearComentario(
         }
 
         const insert = await db.execute<{ id: string }>(sql`
-            INSERT INTO comunidad_comentarios (pregunta_id, autor_id, parent_id, texto)
-            VALUES (${preguntaId}, ${autorId}, ${parentRealId}, ${texto})
+            INSERT INTO comunidad_comentarios (pregunta_id, autor_id, parent_id, texto, modo)
+            VALUES (${preguntaId}, ${autorId}, ${parentRealId}, ${texto}, ${modo})
             RETURNING id
         `);
         const id = (insert.rows[0] as { id: string }).id;
 
-        // Datos del autor (para actor de las notificaciones).
+        // Datos del autor (para actor de las notificaciones). Si comentó en
+        // Modo Comercial y tiene negocio propio (dueño) o pertenece a uno
+        // (gerente/empleado), usa el nombre/logo del NEGOCIO — mismo
+        // criterio que `listarComentarios` y que negocioPublicaciones.
         const autorRes = await db.execute(sql`
-            SELECT nombre, apellidos, avatar_url FROM usuarios WHERE id = ${autorId} LIMIT 1
+            SELECT
+                CASE WHEN ${modo} = 'comercial' AND neg_autor.id IS NOT NULL THEN neg_autor.nombre ELSE u.nombre END AS nombre,
+                CASE WHEN ${modo} = 'comercial' AND neg_autor.id IS NOT NULL THEN '' ELSE u.apellidos END AS apellidos,
+                CASE WHEN ${modo} = 'comercial' AND neg_autor.id IS NOT NULL THEN neg_autor.logo_url ELSE u.avatar_url END AS avatar_url
+            FROM usuarios u
+            LEFT JOIN negocios neg_autor ON neg_autor.id = COALESCE(
+                (SELECT id FROM negocios WHERE usuario_id = u.id LIMIT 1),
+                u.negocio_id
+            )
+            WHERE u.id = ${autorId}
+            LIMIT 1
         `);
         const autor = (autorRes.rows[0] ?? {}) as { nombre?: string; apellidos?: string; avatar_url?: string | null };
         const actorNombre = `${autor.nombre ?? ''} ${autor.apellidos ?? ''}`.trim() || undefined;
@@ -170,6 +206,7 @@ export async function crearComentario(
                 mensaje: preview,
                 referenciaTipo: 'pregunta_comunidad',
                 referenciaId: preguntaId,
+                comentarioId: id,
                 actorImagenUrl,
                 actorNombre,
             }).catch(() => { /* no crítica */ });
@@ -191,6 +228,7 @@ export async function crearComentario(
                         mensaje: preview,
                         referenciaTipo: 'pregunta_comunidad',
                         referenciaId: preguntaId,
+                        comentarioId: id,
                         actorImagenUrl,
                         actorNombre,
                     }).catch(() => { /* no crítica */ });
@@ -208,6 +246,7 @@ export async function crearComentario(
                 mensaje: preview,
                 referenciaTipo: 'pregunta_comunidad',
                 referenciaId: preguntaId,
+                comentarioId: id,
                 actorImagenUrl,
                 actorNombre,
             }).catch(() => { /* no crítica */ });

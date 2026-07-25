@@ -31,7 +31,6 @@ import { resolverCiudadId } from '../utils/ciudades.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import type { ResultadoValidacion } from './marketplace/filtros.js';
-import { armarArbolComentarios, type ComentarioNodo } from './marketplace/comentarios.js';
 import type {
     CrearArticuloInput,
     ActualizarArticuloInput,
@@ -750,11 +749,6 @@ export interface ArticuloFeedInfinitoRow extends ArticuloFeedRow {
         avatarUrl: string | null;
     };
     /**
-     * Árbol de comentarios del artículo (raíces + respuestas, 1 nivel).
-     * Sin LIMIT — el cliente decide cuántos hilos muestra inline.
-     */
-    topComentarios: ComentarioNodo[];
-    /**
      * Si el usuario actual (token opcional) tiene este artículo en sus
      * guardados. Siempre false cuando no hay sesión.
      */
@@ -864,29 +858,6 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 u.apellidos AS vendedor_apellidos,
                 u.avatar_url AS vendedor_avatar,
                 COALESCE(cq.total, 0) AS total_comentarios,
-                COALESCE(
-                    (
-                        SELECT json_agg(cc ORDER BY cc.created_at ASC)
-                        FROM (
-                            SELECT
-                                mc.id,
-                                mc.autor_id,
-                                mc.parent_id,
-                                mc.texto,
-                                (mc.autor_id = a.usuario_id) AS es_vendedor,
-                                mc.editado_at,
-                                mc.created_at,
-                                uc.nombre AS autor_nombre,
-                                uc.apellidos AS autor_apellidos,
-                                uc.avatar_url AS autor_avatar_url
-                            FROM marketplace_comentarios mc
-                            INNER JOIN usuarios uc ON uc.id = mc.autor_id
-                            WHERE mc.articulo_id = a.id
-                              AND mc.deleted_at IS NULL
-                        ) cc
-                    ),
-                    '[]'::json
-                ) AS comentarios,
                 ${opciones.usuarioId
                     ? sql`EXISTS (
                             SELECT 1 FROM guardados g
@@ -918,20 +889,6 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             OFFSET ${offset}
         `);
 
-        // Fila plana de comentario tal como sale del json_agg (snake_case).
-        type RawComentarioPlano = {
-            id: string;
-            autor_id: string;
-            parent_id: string | null;
-            texto: string;
-            es_vendedor: boolean;
-            editado_at: string | null;
-            created_at: string;
-            autor_nombre: string;
-            autor_apellidos: string;
-            autor_avatar_url: string | null;
-        };
-
         type RawFeedInfinitoRow = RawArticuloDb & {
             distancia_metros: number | null;
             vendedor_id: string;
@@ -939,7 +896,6 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             vendedor_apellidos: string;
             vendedor_avatar: string | null;
             total_comentarios: number;
-            comentarios: RawComentarioPlano[] | null;
             usuario_guardo: boolean;
         };
 
@@ -970,20 +926,6 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                         apellidos: row.vendedor_apellidos,
                         avatarUrl: row.vendedor_avatar,
                     },
-                    topComentarios: armarArbolComentarios(
-                        (row.comentarios ?? []).map((c) => ({
-                            id: c.id,
-                            autorId: c.autor_id,
-                            autorNombre: c.autor_nombre,
-                            autorApellidos: c.autor_apellidos,
-                            autorAvatarUrl: c.autor_avatar_url,
-                            parentId: c.parent_id,
-                            texto: c.texto,
-                            esVendedor: c.es_vendedor,
-                            editadoAt: c.editado_at,
-                            createdAt: c.created_at,
-                        }))
-                    ),
                     guardado: row.usuario_guardo === true,
                 };
             })

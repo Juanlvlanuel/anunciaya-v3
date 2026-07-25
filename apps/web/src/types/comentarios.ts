@@ -21,6 +21,13 @@ export interface Comentario {
     texto: string;
     /** El autor es el dueño de la publicación. */
     esVendedor: boolean;
+    /** true si autorNombre/autorAvatarUrl muestran la identidad del NEGOCIO
+     *  (comentó en Modo Comercial) en vez de la personal. Determina a dónde
+     *  navega el click en el nombre: `/negocios/{negocioSucursalId}` en vez
+     *  de `/marketplace/usuario/{autorId}`. Siempre `false` en MarketPlace. */
+    esNegocio: boolean;
+    /** Sucursal principal (Matriz) del negocio del autor — solo si `esNegocio`. */
+    negocioSucursalId: string | null;
     editadoAt: string | null;
     createdAt: string;
     /** Respuestas anidadas (solo en comentarios raíz). */

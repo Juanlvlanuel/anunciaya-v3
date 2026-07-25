@@ -3,13 +3,11 @@
  * ========================
  * Tipos del feed de publicaciones libres de negocio (Negocios). Contenido
  * "todo tipo, libre" — sin categoría estructurada, sin modo vendo/busco, sin
- * TTL. Reusa el tipo `Comentario` genérico de `types/comentarios.ts`.
+ * TTL.
  *
  * Doc maestro: docs/arquitectura/Negocios.md
  * Ubicación: apps/web/src/types/negocioPublicaciones.ts
  */
-
-import type { Comentario } from './comentarios';
 
 /** Item del feed — datos de la sucursal embebidos para evitar requests extra. */
 export interface PublicacionNegocioFeedItem {
@@ -28,13 +26,11 @@ export interface PublicacionNegocioFeedItem {
 }
 
 /**
- * Item del feed enriquecido con comentarios embebidos (mismo patrón que
- * `ArticuloFeedInfinito.topComentarios` de MarketPlace) — evita que cada
- * card del feed pida sus comentarios aparte (N+1). Solo lo devuelve el feed;
- * el detalle sigue pidiendo comentarios por su cuenta.
+ * Item del feed enriquecido con el conteo de comentarios (evita que cada card
+ * pida `totalComentarios` aparte). El detalle y el modal de comentarios piden
+ * el árbol completo por su cuenta.
  */
 export interface PublicacionNegocioFeedItemConComentarios extends PublicacionNegocioFeedItem {
-    topComentarios: Comentario[];
     totalComentarios: number;
     /** Distancia del usuario a la sucursal en km. `null` si no hay GPS. */
     distanciaKm: number | null;
