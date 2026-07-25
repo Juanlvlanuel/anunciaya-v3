@@ -33,8 +33,16 @@
 > la vigencia** del anuncio existente y permite ajustar imagen/ciudades/tamaños; cada renovación es una fila
 > de pago propia (folio + recibo) ligada por `renovacion_de`. Fix: `es_combo` se calculaba con `=== 3`
 > (combo viejo de 3); ahora `=== 2` en checkout y editar (el combo es de 2 tamaños).
+>
+> **Cambios 25-jul:** **"Cambiar imagen" self-service** (ver "Cambiar imagen (sin cobro)" abajo): el
+> anunciante puede reemplazar la creatividad de un anuncio **Activo** en cualquier momento, **sin pasar por
+> Renovar ni generar cobro**. Además, cada pieza gana un **encuadre configurable** (`publicidad_piezas.pos_x/y`,
+> igual patrón que `negocio_sucursales.portada_pos_x/y`): el anunciante arrastra la imagen dentro de un marco
+> con la proporción real del espacio para elegir qué parte se ve (componente `ModalAjustarAnuncio.tsx`, reusa
+> el hook `useArrastrePortada`), y la columna pública la pinta con `object-position`. Migración
+> `2026-07-25-publicidad-piezas-posicion.sql`.
 > **Sección del menú:** Crecimiento. **Plantilla de oro:** Negocios.
-> **Última actualización:** 29 Junio 2026.
+> **Última actualización:** 25 Julio 2026.
 >
 > Este documento es la **verdad** del módulo (qué es y cómo funciona). El checklist vivo de lo
 > que falta está en [`Publicidad_Pendientes.md`](Publicidad_Pendientes.md). El proceso de
@@ -222,6 +230,30 @@ imagen, ciudades, tamaños y meses, y al pagar **extiende la vigencia** en vez d
 - **Endpoints:** `GET /api/publicidad/mio/:compraId` (precarga del wizard) · `POST /api/publicidad/renovar/:compraId`
   (crea el pago + Stripe). Service: `publicidad-renovacion.service.ts`. El botón en `SeccionMiPublicidad`
   navega a `/anunciate` con `state.renovarId`.
+
+### Cambiar imagen (sin cobro) + encuadre configurable (25-jul)
+El anunciante puede cambiar la creatividad de un anuncio **Activo** desde **Mi Perfil → Pagos → "Tus
+anuncios"** (botón **"Cambiar imagen"**, junto a "Renovar", solo visible si el anuncio está Activo) en
+cualquier momento mientras siga vigente — **sin cobro, sin tocar vigencia/ciudades**, a diferencia de
+Renovar. Un combo (Grande + Chico) abre un único modal con las dos secciones apiladas.
+
+- **Encuadre:** cada pieza (`publicidad_piezas`) ganó `pos_x`/`pos_y` (smallint 0-100, default 50) — mismo
+  patrón que la portada de negocio (`negocio_sucursales.portada_pos_x/y`). El modal `ModalAjustarAnuncio.tsx`
+  reusa **tal cual** el hook `useArrastrePortada` (arrastre libre, sin zoom, expresado como % de
+  `object-position`) dentro de un marco con la proporción real del tamaño (Grande 4:5 · Chico 3:2). Reemplazar
+  el archivo dentro del modal reinicia el encuadre de esa sección a 50/50 (igual que al subir una portada
+  nueva). La columna pública (`ColumnaDerecha.tsx`) pinta `object-position: ${posX}% ${posY}%` en el `<img>`;
+  con el default 50/50, los anuncios existentes antes de la migración se ven exactamente igual que antes
+  (retrocompatible).
+- **Alcance:** solo permite cambiar imagen/encuadre de los tamaños que el anuncio **ya tiene comprados** — no
+  agrega ni quita tamaños (eso sigue siendo exclusivo de Renovar o de "Editar" en el Panel).
+- **Migración** `2026-07-25-publicidad-piezas-posicion.sql` — columnas `pos_x`/`pos_y` + CHECK 0-100. Corrida
+  en dev+prod.
+- **Endpoints:** `GET /api/publicidad/mio/:compraId` (mismo endpoint que precarga Renovar, extendido con
+  `posiciones`) · `PATCH /api/publicidad/mio/:compraId/imagen`. Service: `publicidad-imagen.service.ts`
+  (`cambiarImagenAnuncio`) — valida propiedad + estado `activa`, actualiza en transacción, limpia de R2 la
+  imagen reemplazada si queda huérfana (`eliminarImagenSiHuerfana`) y hace `notificarCambioPublicidad('editar')`
+  para refrescar la columna al instante (mismo socket que usan pausar/reactivar/editar/renovar).
 
 ### Resultado del pago + historial de recibos (29-jun)
 - **Modal de resultado de pago** (`apps/web/.../layout/ModalPagoPublicidad.tsx`, montado en `MainLayout`):

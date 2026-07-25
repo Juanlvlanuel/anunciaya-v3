@@ -16,6 +16,7 @@ import {
     checkoutPublicidadController,
     anuncioRenovableController,
     renovarPublicidadController,
+    cambiarImagenAnuncioController,
     clickPiezaController,
     descartarImagenesPublicidadController,
 } from '../controllers/publicidadPublica.controller.js';
@@ -46,5 +47,8 @@ router.post('/checkout', verificarToken, checkoutPublicidadController);
 // Va DESPUÉS de las rutas fijas (no choca con '/precio', '/opciones', etc.).
 router.get('/mio/:compraId', verificarToken, anuncioRenovableController);    // precarga del wizard
 router.post('/renovar/:compraId', verificarToken, renovarPublicidadController);
+
+// Cambiar imagen/encuadre de un anuncio propio ACTIVO, sin cobro (independiente de Renovar).
+router.patch('/mio/:compraId/imagen', verificarToken, cambiarImagenAnuncioController);
 
 export default router;

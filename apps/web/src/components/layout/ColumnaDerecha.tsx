@@ -214,7 +214,12 @@ function Crossfade({
             i === indice ? 'opacity-100' : 'pointer-events-none opacity-0'
           }`}
         >
-          <img src={it.imagenUrl} alt="Anuncio" className={`h-full w-full ${imgClass}`} />
+          <img
+            src={it.imagenUrl}
+            alt="Anuncio"
+            className={`h-full w-full ${imgClass}`}
+            style={{ objectPosition: `${it.posX}% ${it.posY}%` }}
+          />
         </button>
       ))}
     </div>

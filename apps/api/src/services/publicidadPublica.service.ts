@@ -19,6 +19,8 @@ import { eliminarArchivo } from './r2.service.js';
 export interface AnuncioPublico {
     piezaId: string;
     imagenUrl: string;
+    posX: number;
+    posY: number;
 }
 
 export interface PublicidadPublica {
@@ -43,6 +45,8 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
             piezaId: publicidadPiezas.id,
             carrusel: publicidadPiezas.carrusel,
             imagenUrl: publicidadPiezas.imagenUrl,
+            posX: publicidadPiezas.posX,
+            posY: publicidadPiezas.posY,
             expiraAt: publicidadCompras.expiraAt,
         })
         .from(publicidadPiezas)
@@ -61,7 +65,7 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
     const out: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores: [], proximaExpiracion: null };
     let proxima: string | null = null;
     for (const f of filas) {
-        const item: AnuncioPublico = { piezaId: f.piezaId, imagenUrl: f.imagenUrl };
+        const item: AnuncioPublico = { piezaId: f.piezaId, imagenUrl: f.imagenUrl, posX: f.posX, posY: f.posY };
         if (f.carrusel === 'anuncios') out.anuncios.push(item);
         else if (f.carrusel === 'patrocinadores') out.patrocinadores.push(item);
         // El más próximo a vencer entre lo mostrado → el cliente lo quita al instante al vencer.
@@ -77,7 +81,7 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
         WHERE n.es_fundador = true AND n.activo = true AND n.logo_url IS NOT NULL AND ns.ciudad_id = ${ciudadId}
         ORDER BY n.created_at ASC
     `)).rows as Array<{ pieza_id: string; imagen_url: string }>;
-    out.fundadores = fund.map((r) => ({ piezaId: r.pieza_id, imagenUrl: r.imagen_url }));
+    out.fundadores = fund.map((r) => ({ piezaId: r.pieza_id, imagenUrl: r.imagen_url, posX: 50, posY: 50 }));
 
     return out;
 }

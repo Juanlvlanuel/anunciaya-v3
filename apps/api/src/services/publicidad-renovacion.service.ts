@@ -81,6 +81,7 @@ export interface AnuncioRenovable {
     id: string;
     carruseles: CarruselPub[];
     imagenes: Record<string, string>;   // carrusel → imagen_url (R2) del anuncio actual
+    posiciones: Partial<Record<CarruselPub, { x: number; y: number }>>; // carrusel → encuadre actual (0-100)
     ciudadIds: string[];
     expiraAt: string | null;
     estado: string;
@@ -104,10 +105,14 @@ export async function obtenerAnuncioRenovable(
     if (orig.estado === 'cancelada') return { ok: false, status: 409, mensaje: 'El anuncio está cancelado.' };
     if (orig.estado === 'pendiente') return { ok: false, status: 409, mensaje: 'El anuncio aún no está activo.' };
 
-    const piezas = (await db.execute(sql`SELECT carrusel, imagen_url FROM publicidad_piezas WHERE compra_id = ${compraId}::uuid`)).rows as Array<{ carrusel: string; imagen_url: string }>;
+    const piezas = (await db.execute(sql`SELECT carrusel, imagen_url, pos_x, pos_y FROM publicidad_piezas WHERE compra_id = ${compraId}::uuid`)).rows as Array<{ carrusel: string; imagen_url: string; pos_x: number; pos_y: number }>;
     const ciudadFilas = (await db.execute(sql`SELECT ciudad_id::text AS ciudad_id FROM publicidad_compra_ciudades WHERE compra_id = ${compraId}::uuid`)).rows as Array<{ ciudad_id: string }>;
     const imagenes: Record<string, string> = {};
-    for (const p of piezas) imagenes[p.carrusel] = p.imagen_url;
+    const posiciones: Partial<Record<CarruselPub, { x: number; y: number }>> = {};
+    for (const p of piezas) {
+        imagenes[p.carrusel] = p.imagen_url;
+        posiciones[p.carrusel as CarruselPub] = { x: p.pos_x, y: p.pos_y };
+    }
 
     return {
         ok: true,
@@ -115,6 +120,7 @@ export async function obtenerAnuncioRenovable(
             id: orig.id,
             carruseles: piezas.map((p) => p.carrusel as CarruselPub),
             imagenes,
+            posiciones,
             ciudadIds: ciudadFilas.map((c) => c.ciudad_id),
             expiraAt: orig.expira_at,
             estado: orig.estado,

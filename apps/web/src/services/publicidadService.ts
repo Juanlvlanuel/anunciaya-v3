@@ -18,6 +18,8 @@ export type Carrusel = 'anuncios' | 'patrocinadores' | 'fundadores';
 export interface AnuncioPublico {
   piezaId: string;
   imagenUrl: string;
+  posX: number;
+  posY: number;
 }
 
 export interface PublicidadPublica {
@@ -160,6 +162,7 @@ export interface AnuncioRenovable {
   id: string;
   carruseles: Carrusel[];
   imagenes: Partial<Record<Carrusel, string>>;
+  posiciones: Partial<Record<Carrusel, { x: number; y: number }>>;
   ciudadIds: string[];
   expiraAt: string | null;
   estado: string;
@@ -176,6 +179,14 @@ export async function renovarPublicidad(compraId: string, input: CheckoutInput):
   const { data } = await api.post<{ success: boolean; message?: string; data?: { checkoutUrl: string } }>(`/publicidad/renovar/${encodeURIComponent(compraId)}`, input);
   if (!data.data?.checkoutUrl) throw new Error(data.message || 'No se pudo iniciar la renovación.');
   return data.data.checkoutUrl;
+}
+
+/** Cambio de imagen/encuadre de un anuncio propio ACTIVO, sin cobro (independiente de Renovar). */
+export interface CambioImagenPub { imagenUrl: string; posX: number; posY: number }
+
+export async function cambiarImagenAnuncio(compraId: string, cambios: Partial<Record<Carrusel, CambioImagenPub>>): Promise<void> {
+  const { data } = await api.patch<{ success: boolean; message?: string }>(`/publicidad/mio/${encodeURIComponent(compraId)}/imagen`, { cambios });
+  if (!data.success) throw new Error(data.message || 'No se pudo cambiar la imagen del anuncio.');
 }
 
 /** Cuenta el "ver grande" de una pieza (best-effort, sin auth). */

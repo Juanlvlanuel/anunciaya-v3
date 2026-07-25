@@ -1013,6 +1013,8 @@ export const publicidadPiezas = pgTable("publicidad_piezas", {
 	compraId: uuid("compra_id").notNull().references((): AnyPgColumn => publicidadCompras.id, { onDelete: 'cascade' }),
 	carrusel: varchar({ length: 20 }).notNull(),                   // anuncios | patrocinadores | fundadores
 	imagenUrl: text("imagen_url").notNull(),                       // creatividad subida por el anunciante (R2)
+	posX: smallint("pos_x").default(50).notNull(),                 // encuadre: % objectPosition X (0-100)
+	posY: smallint("pos_y").default(50).notNull(),                 // encuadre: % objectPosition Y (0-100)
 	clicks: integer().default(0).notNull(),                        // el "ver grande" (zoom) de la imagen
 	impresiones: integer().default(0).notNull(),
 	prioridad: integer().default(0).notNull(),                     // orden dentro del carrusel (futuro)

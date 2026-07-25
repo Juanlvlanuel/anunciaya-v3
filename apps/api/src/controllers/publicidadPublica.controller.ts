@@ -18,6 +18,7 @@ import {
 } from '../services/publicidad-precio.service.js';
 import { crearCheckoutPublicidad } from '../services/publicidad-checkout.service.js';
 import { crearCheckoutRenovacion, obtenerAnuncioRenovable } from '../services/publicidad-renovacion.service.js';
+import { cambiarImagenAnuncio } from '../services/publicidad-imagen.service.js';
 
 const TIPOS_IMG = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -189,5 +190,35 @@ export async function renovarPublicidadController(req: Request, res: Response): 
     } catch (error) {
         console.error('Error en renovarPublicidadController:', error);
         res.status(500).json({ success: false, message: 'Error al iniciar la renovación' });
+    }
+}
+
+/**
+ * PATCH /api/publicidad/mio/:compraId/imagen (requiere auth) — cambia la imagen y/o el encuadre de
+ * 1-2 piezas de un anuncio propio ACTIVO, sin cobro ni cambio de vigencia/ciudades.
+ */
+export async function cambiarImagenAnuncioController(req: Request, res: Response): Promise<void> {
+    try {
+        const usuarioId = (req.usuario as { usuarioId?: string } | undefined)?.usuarioId;
+        if (!usuarioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+        const compraId = req.params.compraId;
+        if (!compraId) {
+            res.status(400).json({ success: false, message: 'Falta el anuncio a editar.' });
+            return;
+        }
+        const body = (req.body ?? {}) as Record<string, unknown>;
+        const cambios = (typeof body.cambios === 'object' && body.cambios !== null ? body.cambios : {}) as Partial<Record<CarruselPub, { imagenUrl: string; posX: number; posY: number }>>;
+        const resultado = await cambiarImagenAnuncio(usuarioId, compraId, { cambios });
+        if (!resultado.ok) {
+            res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, data: { estado: resultado.estado } });
+    } catch (error) {
+        console.error('Error en cambiarImagenAnuncioController:', error);
+        res.status(500).json({ success: false, message: 'Error al cambiar la imagen del anuncio' });
     }
 }

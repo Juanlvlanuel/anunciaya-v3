@@ -15,8 +15,9 @@
  */
 
 import { useMemo, useState } from 'react';
-import { ChevronRight, ExternalLink, FileText, MapPin, Megaphone, Plus, RotateCw } from 'lucide-react';
+import { ChevronRight, ExternalLink, FileText, ImagePlus, MapPin, Megaphone, Plus, RotateCw } from 'lucide-react';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
+import ModalAjustarAnuncio from '@/components/publicidad/ModalAjustarAnuncio';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import type { PublicidadCompra, ReciboPublicidad } from '@/services/membresiaService';
 
@@ -97,6 +98,8 @@ export default function SeccionMiPublicidad({ publicidad }: { publicidad: Public
     const navegar = useNavegarASeccion();
     // Pago cuyo detalle se ve en modal (creatividad + datos + recibo).
     const [pagoDetalle, setPagoDetalle] = useState<PagoPub | null>(null);
+    // Anuncio activo cuya imagen/encuadre se está editando (sin cobro, independiente de Renovar).
+    const [compraImagen, setCompraImagen] = useState<string | null>(null);
 
     // Todos los pagos de todas las campañas, aplanados y ordenados por fecha desc.
     const pagos = useMemo<PagoPub[]>(() => {
@@ -142,16 +145,28 @@ export default function SeccionMiPublicidad({ publicidad }: { publicidad: Public
                                             <span className="truncate">{ciudadesTexto(p.ciudades)} · {vigenciaTexto(p)}</span>
                                         </p>
                                     </div>
-                                    {p.estado !== 'cancelada' && (
-                                        <button
-                                            onClick={() => navegar('/anunciate', { state: { renovarId: p.id } })}
-                                            data-testid={`pub-renovar-${p.id}`}
-                                            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-semibold text-slate-700 cursor-pointer lg:hover:bg-slate-200"
-                                        >
-                                            <RotateCw className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
-                                            Renovar
-                                        </button>
-                                    )}
+                                    <div className="shrink-0 flex items-center gap-2">
+                                        {est.texto === 'Activa' && (
+                                            <button
+                                                onClick={() => setCompraImagen(p.id)}
+                                                data-testid={`pub-cambiar-imagen-${p.id}`}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-semibold text-slate-700 cursor-pointer lg:hover:bg-slate-200"
+                                            >
+                                                <ImagePlus className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
+                                                Cambiar imagen
+                                            </button>
+                                        )}
+                                        {p.estado !== 'cancelada' && (
+                                            <button
+                                                onClick={() => navegar('/anunciate', { state: { renovarId: p.id } })}
+                                                data-testid={`pub-renovar-${p.id}`}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-semibold text-slate-700 cursor-pointer lg:hover:bg-slate-200"
+                                            >
+                                                <RotateCw className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
+                                                Renovar
+                                            </button>
+                                        )}
+                                    </div>
                                 </li>
                             );
                         })}
@@ -259,6 +274,13 @@ export default function SeccionMiPublicidad({ publicidad }: { publicidad: Public
                     </div>
                 )}
             </ModalAdaptativo>
+
+            {/* ── Modal: cambiar imagen/encuadre de un anuncio activo (sin cobro) ── */}
+            <ModalAjustarAnuncio
+                abierto={compraImagen !== null}
+                onCerrar={() => setCompraImagen(null)}
+                compraId={compraImagen}
+            />
         </div>
     );
 }
