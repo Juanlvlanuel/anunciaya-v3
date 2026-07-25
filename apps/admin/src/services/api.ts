@@ -124,6 +124,15 @@ api.interceptors.response.use(
     } catch (errorRefresh) {
       estaRefrescando = false;
       procesarCola(null, errorRefresh);
+
+      // Solo un 401 CONFIRMADO significa refresh token muerto de verdad. Cualquier otra
+      // falla (timeout, red, 500, pooler saturado) es transitoria: no cerrar sesión, solo
+      // falla esta petición puntual — el siguiente 401 real disparará otro intento.
+      const esInvalidoDeVerdad = errorRefresh instanceof AxiosError && errorRefresh.response?.status === 401;
+      if (!esInvalidoDeVerdad) {
+        return Promise.reject(error);
+      }
+
       cerrarSesionYSalir();
       return Promise.reject(error);
     }

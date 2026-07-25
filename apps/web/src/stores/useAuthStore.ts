@@ -789,20 +789,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           } else {
             throw new Error('Respuesta de refresh inválida');
           }
-        } catch {
-          // El refresh token resultó inválido de verdad (revocado, sesión
-          // cerrada desde otro dispositivo, etc.) → ahora sí cerrar sesión.
-          await notificar.sesionExpirada();
-          limpiarStorageAuth();
-          sessionStorage.setItem('ay_logout_reciente', 'true');
-          set({
-            cargando: false,
-            hidratado: true,
-            accessToken: null,
-            refreshToken: null,
-            usuario: null
-          });
-          return;
+        } catch (errorRefresh) {
+          // Solo un 401 CONFIRMADO significa refresh token muerto de verdad (revocado,
+          // sesión cerrada desde otro dispositivo). Cualquier otra falla (timeout, red,
+          // 500, pooler saturado) es transitoria: NO cerrar sesión, seguir hidratando
+          // con el access token vencido tal cual — la próxima petición real la maneja
+          // el interceptor de api.ts, que ya tiene su propio reintento.
+          const esInvalidoDeVerdad = axios.isAxiosError(errorRefresh) && errorRefresh.response?.status === 401;
+          if (esInvalidoDeVerdad) {
+            await notificar.sesionExpirada();
+            limpiarStorageAuth();
+            sessionStorage.setItem('ay_logout_reciente', 'true');
+            set({
+              cargando: false,
+              hidratado: true,
+              accessToken: null,
+              refreshToken: null,
+              usuario: null
+            });
+            return;
+          }
         }
       }
 

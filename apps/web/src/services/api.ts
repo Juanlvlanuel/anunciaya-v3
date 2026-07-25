@@ -469,11 +469,25 @@ api.interceptors.response.use(
 
         // Refresh falló: logout del store correcto
         procesarCola(null, refreshError as Error);
-        
+
+        // Solo un 401 CONFIRMADO del backend significa "el refresh token está muerto
+        // de verdad" (revocado, sesión cerrada en otro dispositivo, expiró). Cualquier
+        // otra falla (timeout, error de red, 500, 429, pooler de BD saturado bajo una
+        // ráfaga de peticiones — ej. scroll infinito) es un problema TRANSITORIO: el
+        // refresh token probablemente sigue vivo. Matar la sesión ahí expulsa al
+        // usuario de la nada por un hipo del backend, no porque su sesión haya vencido.
+        const esRefreshInvalidoDeVerdad =
+          refreshError instanceof AxiosError && refreshError.response?.status === 401;
+        if (!esRefreshInvalidoDeVerdad) {
+          // No cerrar sesión: solo falla esta petición puntual. La siguiente acción
+          // del usuario disparará un nuevo intento de refresh con el mismo token.
+          return Promise.reject(error);
+        }
+
         const esRutaScanYAErr = originalRequest.url?.includes('/scanya');
         const estaEnScanYAErr = typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya');
         const esScanYA = esRutaScanYAErr || estaEnScanYAErr;
-        
+
         if (esScanYA) {
           useScanYAStore.getState().logout('sesion_expirada');
           window.location.href = '/scanya/login';
