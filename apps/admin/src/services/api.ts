@@ -14,6 +14,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
 import { useFiltroRegion } from '../stores/useFiltroRegion';
+import { toast } from '../stores/useToastPanel';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const TIMEOUT = 10000;
@@ -66,6 +67,9 @@ function procesarCola(token: string | null, error: unknown): void {
 const RUTAS_SIN_REFRESH = ['/auth/login', '/auth/refresh'];
 
 function cerrarSesionYSalir(): void {
+  // Aviso NO bloqueante (toast): la sesión murió de verdad (refresh token revocado/vencido).
+  // El toast se monta con la sesión ya cerrada, así que sigue visible durante la redirección.
+  toast.advertencia('Tu sesión expiró. Inicia sesión de nuevo.', 'Sesión cerrada');
   useAuthPanelStore.getState().cerrarSesion();
   if (typeof window !== 'undefined') window.location.href = '/';
 }
