@@ -6,7 +6,6 @@ import dotenv from 'dotenv';
 
 // Cargar variables de entorno
 dotenv.config();
-// prueba auto-deploy Render
 
 // App y conexiones
 import app from './app';
