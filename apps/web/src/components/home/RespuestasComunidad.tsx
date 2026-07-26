@@ -6,8 +6,11 @@
  * el mismo de MarketPlace y Servicios.
  *
  * Reglas propias de Coyo (preservadas):
- *   - El AUTOR de la pregunta NO comenta en su hilo (no se le muestra input;
- *     el backend además devuelve 403).
+ *   - El AUTOR de la pregunta NO abre comentarios RAÍZ nuevos en su propio
+ *     hilo (no se le muestra el input de abajo; el backend además devuelve
+ *     403 si lo intenta) — evita que "rebote"/sature su propia pregunta.
+ *     SÍ puede responder (reply) a los comentarios que le dejaron — es la
+ *     conversación natural de "gracias, ¿me explicas más?", no auto-bombeo.
  *   - Solo el AUTOR de un comentario puede borrarlo → `ComentarioItem` recibe
  *     `permiteEliminarDueno={false}` (el autor de la pregunta no modera).
  *   - Etiqueta de autor: "Autor".
@@ -60,7 +63,9 @@ export function RespuestasComunidad({
     // (normalmente colapsado) para que el scroll+highlight lo encuentre.
     const [abierto, setAbierto] = useState(!!comentarioDestacadoId);
 
-    // El autor de la pregunta lee pero no comenta.
+    // El autor de la pregunta no abre comentarios raíz nuevos (input de abajo
+    // oculto), pero SÍ puede responder a los comentarios que le dejaron —
+    // ver `puedeResponderComentarios` más abajo.
     const puedeEscribir = puedeResponder && !esAutor;
 
     const hayTrigger = totalRespuestas > 0 || puedeEscribir;
@@ -112,6 +117,7 @@ export function RespuestasComunidad({
                         preguntaId={preguntaId}
                         autorPreguntaId={autorPreguntaId}
                         puedeEscribir={puedeEscribir}
+                        puedeResponderComentarios={puedeResponder}
                         hayComentarios={totalRespuestas > 0}
                         comentarioDestacadoId={comentarioDestacadoId}
                     />
@@ -129,16 +135,27 @@ function PanelComentarios({
     preguntaId,
     autorPreguntaId,
     puedeEscribir,
+    puedeResponderComentarios,
     hayComentarios,
     comentarioDestacadoId = null,
 }: {
     preguntaId: string;
     autorPreguntaId: string;
+    /** Gate del input RAÍZ (abajo del todo) — false para el autor de la pregunta. */
     puedeEscribir: boolean;
+    /** Gate del botón "Responder" en cada comentario — true también para el
+     *  autor de la pregunta (puede responder aunque no abra hilos nuevos). */
+    puedeResponderComentarios: boolean;
     hayComentarios: boolean;
     comentarioDestacadoId?: string | null;
 }) {
     const usuario = useAuthStore((s) => s.usuario);
+    // Identidad con la que se va a publicar — respeta el modo activo. Si
+    // está en Comercial, muestra nombre/logo del NEGOCIO (mismo dato que
+    // usará el backend para el swap de identidad), no su avatar personal.
+    const enComercial = usuario?.modoActivo === 'comercial';
+    const nombreIdentidad = enComercial ? (usuario?.nombreNegocio ?? usuario?.nombre) : usuario?.nombre;
+    const avatarIdentidad = enComercial ? (usuario?.logoNegocio ?? usuario?.avatarUrl ?? null) : (usuario?.avatarUrl ?? null);
     const { data: comentarios = [], isPending, isError, refetch } = useComentariosComunidad(
         preguntaId,
         { enabled: hayComentarios },
@@ -174,12 +191,14 @@ function PanelComentarios({
         return () => clearInterval(intervalo);
     }, [comentarioDestacadoId]);
 
+    // Mismo criterio de identidad que el input raíz (arriba): el avatar del
+    // input de "Responder" dentro de un hilo también respeta el modo activo.
     const usuarioActual: UsuarioComentario | null = usuario
         ? {
               id: usuario.id,
-              nombre: usuario.nombre ?? '',
-              apellidos: usuario.apellidos ?? '',
-              avatarUrl: usuario.avatarUrl ?? null,
+              nombre: nombreIdentidad ?? '',
+              apellidos: enComercial ? '' : (usuario.apellidos ?? ''),
+              avatarUrl: avatarIdentidad,
           }
         : null;
 
@@ -264,7 +283,7 @@ function PanelComentarios({
                             etiquetaAutor="Autor"
                             permiteEliminarDueno={false}
                             usuarioActual={usuarioActual}
-                            puedeComentar={puedeEscribir}
+                            puedeComentar={puedeResponderComentarios}
                             enviandoRespuesta={crear.isPending}
                             onEditar={handleEditar}
                             onEliminar={handleEliminar}
@@ -280,9 +299,9 @@ function PanelComentarios({
             {puedeEscribir && (
                 <form onSubmit={handleCrearRaiz}>
                     <div className="flex items-center gap-2.5">
-                        {usuario?.avatarUrl ? (
+                        {avatarIdentidad ? (
                             <img
-                                src={usuario.avatarUrl}
+                                src={avatarIdentidad}
                                 alt=""
                                 aria-hidden="true"
                                 className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
@@ -293,8 +312,10 @@ function PanelComentarios({
                                 style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
                                 aria-hidden="true"
                             >
-                                {((usuario?.nombre ?? '?').charAt(0) +
-                                    (usuario?.apellidos ?? '').charAt(0)).toUpperCase()}
+                                {enComercial
+                                    ? (nombreIdentidad ?? '?').charAt(0).toUpperCase()
+                                    : ((usuario?.nombre ?? '?').charAt(0) +
+                                        (usuario?.apellidos ?? '').charAt(0)).toUpperCase()}
                             </div>
                         )}
 

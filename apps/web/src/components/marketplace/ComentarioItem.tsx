@@ -28,6 +28,7 @@ import { Trash2, AlertCircle, Send, Loader2, CornerDownRight, Reply, Pencil, Mor
 import { BotonComentarista } from './BotonComentarista';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { formatearTiempoRelativo, obtenerNombreCorto } from '../../utils/marketplace';
 import type { Comentario } from '../../types/comentarios';
@@ -218,7 +219,8 @@ function ComentarioFila({
     const [posMenu, setPosMenu] = useState<{ top: number; left: number } | null>(null);
     const btnMenuRef = useRef<HTMLButtonElement>(null);
     const panelMenuRef = useRef<HTMLDivElement>(null);
-    const iniciarChat = useIniciarChatDirectoPersona();
+    const iniciarChatPersona = useIniciarChatDirectoPersona();
+    const iniciarChatNegocio = useIniciarChatNegocio();
 
     const esAutor = !!usuarioActual && usuarioActual.id === comentario.autorId;
     const puedeEliminar =
@@ -228,13 +230,25 @@ function ComentarioFila({
     // Acciones que en móvil se agrupan en el menú ⋮ (Responder queda fuera).
     const tieneAccionesMenu = puedeContactar || esAutor || puedeEliminar;
 
+    // Si el comentario se hizo con identidad de negocio, "Contactar" debe
+    // abrir el chat COMERCIAL con ese negocio (mismo hilo que vería
+    // cualquier cliente contactándolo), no forzar un chat personal con
+    // el dueño — antes ignoraba `esNegocio` y siempre abría/creaba un
+    // chat personal, aunque ya existiera un chat comercial con ese negocio.
     const contactar = () =>
-        void iniciarChat({
-            usuarioId: comentario.autorId,
-            nombre: comentario.autorNombre,
-            apellidos: comentario.autorApellidos,
-            avatarUrl: comentario.autorAvatarUrl,
-        });
+        void (comentario.esNegocio
+            ? iniciarChatNegocio({
+                  usuarioId: comentario.autorId,
+                  sucursalId: comentario.negocioSucursalId,
+                  negocioNombre: comentario.autorNombre,
+                  avatarUrl: comentario.autorAvatarUrl,
+              })
+            : iniciarChatPersona({
+                  usuarioId: comentario.autorId,
+                  nombre: comentario.autorNombre,
+                  apellidos: comentario.autorApellidos,
+                  avatarUrl: comentario.autorAvatarUrl,
+              }));
 
     // Cerrar el menú ⋮ al hacer click fuera (botón o panel — el panel vive
     // en un PORTAL a document.body, ya no es descendiente del botón).

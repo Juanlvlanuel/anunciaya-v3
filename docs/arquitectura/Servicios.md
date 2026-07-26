@@ -195,7 +195,7 @@ Aplica en `OferenteCard`, `SidebarSobreNegocio` y `CardServicio`. Mismo patrón 
 
 ### 3.4 Comentarios en el detalle (SeccionComentariosServicio)
 
-`SeccionComentariosServicio.tsx` (reemplaza a `SeccionPreguntasServicio.tsx`, eliminado) se monta en `PaginaServicio.tsx` (detalle). Reusa el componente genérico `ComentarioItem` de MarketPlace con `etiquetaAutor="Autor"`. Renderiza cada hilo con avatar clickeable (abre la foto con `ModalImagenes`), nombre clickeable → perfil (vía `BotonComentarista`), etiqueta de autor cuando el comentarista es el dueño de la publicación, un menú kebab (⋮) dentro de la burbuja con Contactar/Editar/Eliminar (según permiso) y "Responder" visible. El botón "Contactar" abre ChatYA directo con el autor.
+`SeccionComentariosServicio.tsx` (reemplaza a `SeccionPreguntasServicio.tsx`, eliminado) se monta en `PaginaServicio.tsx` (detalle) y en `ModalComentariosServicio.tsx`. Reusa el componente genérico `ComentarioItem` de MarketPlace con `etiquetaAutor="Autor"`. Renderiza cada hilo con avatar clickeable (abre la foto con `ModalImagenes`), nombre clickeable → perfil (vía `BotonComentarista`), etiqueta de autor cuando el comentarista es el dueño de la publicación, un menú kebab (⋮) dentro de la burbuja con Contactar/Editar/Eliminar (según permiso) y "Responder" visible. Si el comentario tiene identidad de NEGOCIO (`esNegocio`, ver §4.7), el nombre/avatar navegan a `/negocios/{negocioSucursalId}` en vez del perfil personal, y "Contactar" abre el chat COMERCIAL con ese negocio (`useIniciarChatNegocio`) en vez de forzar un chat personal.
 
 > El **feed** (`CardServicio.tsx`) **NO** muestra comentarios inline — la sección de comentarios solo vive en el detalle (a diferencia de MarketPlace, donde el feed sí los muestra).
 
@@ -217,8 +217,8 @@ Aplica en `OferenteCard`, `SidebarSobreNegocio` y `CardServicio`. Mismo patrón 
 
 | Método | Ruta | Uso |
 |---|---|---|
-| GET | `/servicios/publicaciones/:id/comentarios` | Público. Devuelve el árbol de 1 nivel `{ success, data: ComentarioNodo[] }` (cada nodo: `id, autorId, autorNombre, autorApellidos, autorAvatarUrl, texto, esVendedor` (autor == dueño de la publicación), `editadoAt, createdAt, respuestas[]`). Lo ve cualquiera (sin estado "pendiente"). |
-| POST | `/servicios/publicaciones/:id/comentarios` | Crear comentario o respuesta. Body `{ texto, parentId? }` (texto 2-500 chars). `parentId` ausente = raíz; con valor = respuesta (el backend sube el `parentId` al raíz → hilos de 1 nivel). El dueño de la publicación también puede comentar/responder. |
+| GET | `/servicios/publicaciones/:id/comentarios` | Público. Devuelve el árbol de 1 nivel `{ success, data: ComentarioNodo[] }` (cada nodo: `id, autorId, autorNombre, autorApellidos, autorAvatarUrl, texto, esVendedor` (autor == dueño de la publicación), **`esNegocio, negocioSucursalId`** (identidad de negocio, ver §4.7), `editadoAt, createdAt, respuestas[]`). Lo ve cualquiera (sin estado "pendiente"). |
+| POST | `/servicios/publicaciones/:id/comentarios` | Crear comentario o respuesta. Body `{ texto, parentId? }` (texto 2-500 chars). `parentId` ausente = raíz; con valor = respuesta (el backend sube el `parentId` al raíz → hilos de 1 nivel). El dueño de la publicación también puede comentar/responder. **Cualquier modo** (Personal o Comercial, ver §4.7) — Servicios acepta publicaciones de negocio (`vacante-empresa`), así que también acepta comentarios de negocio; antes el frontend bloqueaba comentar en Modo Comercial (corregido). |
 | PUT | `/servicios/comentarios/:id` | Editar comentario. Body `{ texto }`. Solo el autor, **sin límite de tiempo**. |
 | DELETE | `/servicios/comentarios/:id` | Eliminar (soft delete). Autor del comentario **o** dueño de la publicación; borrar un raíz hace soft-delete en cascada de sus respuestas. |
 
@@ -250,7 +250,18 @@ Los comentarios y respuestas detonan notificaciones. Ver `docs/arquitectura/Noti
 | Usuario comenta (raíz) | `servicios_nuevo_comentario` | Dueño publicación | `Tienes un nuevo comentario` / `Comentaron sobre "{titulo}"` |
 | Alguien responde un comentario | `servicios_respuesta_comentario` | Autor del comentario respondido | `Respondieron tu comentario` / `Hay una respuesta sobre "{titulo}"` |
 
-Ambas usan `modo: 'personal'` (llegan al perfil personal del receptor sin importar contexto BS), `referenciaTipo: 'servicio'`, `referenciaId: publicacionId`. Click → `/servicios/{publicacionId}`. La llamada a `crearNotificacion` está envuelta en `.catch()` silencioso — la notificación no es crítica al flujo de comentarios.
+**Modo dinámico** (corregido — antes ambas usaban `modo: 'personal'` fijo):
+la notificación al dueño usa `modoDueno` (`'comercial'` si la publicación
+tiene `sucursal_id` — o sea `tipo='vacante-empresa'` — si no `'personal'`);
+la de respuesta usa `modoComentarioTocado` (el modo con el que el autor
+respondido escribió SU comentario, leído de `servicios_comentarios.modo`).
+`referenciaTipo: 'servicio'`, `referenciaId: publicacionId`,
+**`comentarioId`** = id del comentario/respuesta creada. Click navega a
+`/servicios/{publicacionId}?comentarioId={id}` y hace scroll + resalta
+(anillo ~3s) el comentario exacto — antes solo abría el detalle sin
+resaltar nada (corregido, mismo patrón que MP/Negocios). La llamada a
+`crearNotificacion` está envuelta en `.catch()` silencioso — la
+notificación no es crítica al flujo de comentarios.
 
 El check constraint de la BD (`notificaciones_tipo_check`) incluye `servicios_nuevo_comentario` y `servicios_respuesta_comentario`. Los tipos viejos `servicios_nueva_pregunta` y `servicios_pregunta_respondida` se **conservan en el CHECK** por compatibilidad histórica, aunque ya no se emiten (ver `apps/api/src/db/schemas/schema.ts`).
 
@@ -267,6 +278,7 @@ CREATE TABLE servicios_comentarios (
   autor_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   parent_id UUID REFERENCES servicios_comentarios(id) ON DELETE CASCADE,  -- NULL = raíz; con valor = respuesta
   texto VARCHAR(500) NOT NULL,
+  modo VARCHAR(15) NOT NULL DEFAULT 'personal',  -- 'personal' | 'comercial' — ver §4.7 Identidad Personal/Comercial
   editado_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ
@@ -281,9 +293,45 @@ CREATE INDEX idx_servicios_comentarios_parent
   WHERE deleted_at IS NULL;
 ```
 
-**Migraciones:** `docs/migraciones/2026-06-30-servicios-comentarios.sql` (creación + migración de datos) y `docs/migraciones/2026-06-30-drop-servicios-preguntas.sql` (fase *contract*).
+**Migraciones:** `docs/migraciones/2026-06-30-servicios-comentarios.sql` (creación + migración de datos), `docs/migraciones/2026-06-30-drop-servicios-preguntas.sql` (fase *contract*) y `docs/migraciones/2026-07-25-servicios-comentarios-modo.sql` (columna `modo`, idempotente, sin backfill — aplicada en DEV y PROD).
 
 **Modelo (común con MarketPlace):** comentarios **públicos al instante** (sin "pendiente" ni visibilidad restringida); **hilos de 1 nivel** (el backend sube el `parentId` al raíz); texto 2-500 chars; **editar** solo el autor sin límite de tiempo; **eliminar** el autor o el dueño de la publicación (soft-delete en cascada de las respuestas al borrar un raíz); el dueño también puede comentar/responder (etiqueta de autor "Autor").
+
+### 4.7 Identidad Personal/Comercial
+
+Servicios acepta publicaciones de negocio (`tipo='vacante-empresa'`, con
+`sucursal_id`), a diferencia de MarketPlace que es personal-only. Por eso
+también acepta **comentarios de negocio**: si el autor comenta/responde en
+Modo Comercial y tiene negocio propio (dueño) o pertenece a uno (gerente/
+empleado), se muestra el nombre + logo del NEGOCIO en vez de su identidad
+personal — mismo patrón que `negocioPublicaciones/comentarios.ts` (Negocios)
+y `comentariosComunidad.service.ts` (Coyo).
+
+- **Antes bloqueado:** el frontend (`useSeccionComentariosServicio.ts`,
+  `InputComentarioServicio.tsx`) impedía comentar en Modo Comercial (mismo
+  candado que MarketPlace, copiado por error). Se quitó — Servicios sí
+  debe aceptarlo, dado que sus propias publicaciones pueden ser de negocio.
+- **Resolución de identidad:** `neg_autor.id = COALESCE((SELECT id FROM
+  negocios WHERE usuario_id = autor_id LIMIT 1), usuarios.negocio_id)` —
+  dueño de algún negocio primero, si no gerente/empleado. Si `modo =
+  'comercial'` y se resolvió un negocio: `autorNombre = negocios.nombre`,
+  `autorAvatarUrl = negocios.logo_url`. Mismo criterio en `listarComentarios`
+  y en el actor de la notificación.
+- **Campos expuestos:** `esNegocio: boolean`, `negocioSucursalId: string |
+  null` (sucursal principal/Matriz del negocio, subquery a
+  `negocio_sucursales WHERE es_principal = true`) — determinan si el click
+  en el nombre/avatar navega a `/negocios/{negocioSucursalId}` o al perfil
+  personal, y si "Contactar" abre `useIniciarChatNegocio` (chat comercial)
+  o `useIniciarChatDirectoPersona` (chat personal).
+- **Avatar/placeholder del input respeta el modo activo:** el input de
+  comentar (`InputComentarioServicio.tsx`, placeholder "Comentar como
+  {nombre}") y el input de "Responder" dentro de un hilo (objeto
+  `usuarioActual` en `useSeccionComentariosServicio.ts`) muestran
+  `usuario.nombreNegocio`/`usuario.logoNegocio` en Modo Comercial —
+  antes mostraban siempre la identidad personal sin importar el modo.
+- **Notificación del dueño respeta su propio modo:** ver §4.5 —
+  `modoDueno` se calcula de si la publicación tiene `sucursal_id`
+  (negocio) o no (personal), no del modo de quien comenta.
 
 ---
 

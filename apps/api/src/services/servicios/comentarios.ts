@@ -57,6 +57,10 @@ async function obtenerComentarioConDueno(comentarioId: string): Promise<{
     parentId: string | null;
     duenoPublicacionId: string;
     publicacionTitulo: string;
+    /** Modo con el que se escribió ESTE comentario — para que la notificación
+     *  de respuesta le llegue a su autor en el mismo contexto (Personal o
+     *  Comercial) en el que comentó. */
+    modo: 'personal' | 'comercial';
 } | null> {
     const resultado = await db.execute(sql`
         SELECT
@@ -64,6 +68,7 @@ async function obtenerComentarioConDueno(comentarioId: string): Promise<{
             c.autor_id        AS autor_id,
             c.publicacion_id  AS publicacion_id,
             c.parent_id       AS parent_id,
+            c.modo,
             s.usuario_id      AS dueno_publicacion_id,
             s.titulo          AS publicacion_titulo
         FROM servicios_comentarios c
@@ -82,6 +87,7 @@ async function obtenerComentarioConDueno(comentarioId: string): Promise<{
         parentId: row.parent_id as string | null,
         duenoPublicacionId: row.dueno_publicacion_id as string,
         publicacionTitulo: row.publicacion_titulo as string,
+        modo: row.modo as 'personal' | 'comercial',
     };
 }
 
@@ -162,8 +168,11 @@ export async function crearComentario(
 ): Promise<{ success: boolean; code: number; message?: string; data?: { id: string } }> {
     try {
         // Verificar publicación (no eliminada) + dueño + título para la notif.
-        const pubRes = await db.execute<{ usuario_id: string; titulo: string }>(sql`
-            SELECT usuario_id, titulo
+        // `sucursal_id` solo va poblado en publicaciones de negocio
+        // (vacante-empresa) — determina si el aviso al dueño llega a su
+        // bandeja Comercial o Personal.
+        const pubRes = await db.execute<{ usuario_id: string; titulo: string; sucursal_id: string | null }>(sql`
+            SELECT usuario_id, titulo, sucursal_id
             FROM servicios_publicaciones
             WHERE id = ${publicacionId}
               AND estado != 'eliminada'
@@ -173,14 +182,18 @@ export async function crearComentario(
         if (pubRes.rows.length === 0) {
             return { success: false, code: 404, message: 'Publicación no encontrada.' };
         }
-        const pub = pubRes.rows[0] as { usuario_id: string; titulo: string };
+        const pub = pubRes.rows[0] as { usuario_id: string; titulo: string; sucursal_id: string | null };
         const duenoId = pub.usuario_id;
+        const modoDueno: 'personal' | 'comercial' = pub.sucursal_id ? 'comercial' : 'personal';
 
         // El dueño SÍ puede comentar/responder en su publicación (etiqueta de autor).
 
         // Si es respuesta: validar el padre y resolver el raíz real (1 nivel).
         let parentRealId: string | null = null;
         let autorComentarioTocado: string | null = null;
+        // Modo con el que el autor tocado escribió SU comentario — la
+        // notificación de "te respondieron" le llega en ese mismo contexto.
+        let modoComentarioTocado: 'personal' | 'comercial' = 'personal';
         if (parentId) {
             const padre = await obtenerComentarioConDueno(parentId);
             if (!padre || padre.publicacionId !== publicacionId) {
@@ -188,6 +201,7 @@ export async function crearComentario(
             }
             parentRealId = padre.parentId ?? padre.id;
             autorComentarioTocado = padre.autorId;
+            modoComentarioTocado = padre.modo;
         }
 
         const insert = await db.execute<{ id: string }>(sql`
@@ -221,7 +235,7 @@ export async function crearComentario(
             if (duenoId !== autorId) {
                 await crearNotificacion({
                     usuarioId: duenoId,
-                    modo: 'personal',
+                    modo: modoDueno,
                     tipo: 'servicios_nuevo_comentario',
                     titulo: 'Nuevo comentario',
                     mensaje: `Comentaron en "${pub.titulo}"`,
@@ -236,7 +250,7 @@ export async function crearComentario(
             if (autorComentarioTocado && autorComentarioTocado !== autorId) {
                 await crearNotificacion({
                     usuarioId: autorComentarioTocado,
-                    modo: 'personal',
+                    modo: modoComentarioTocado,
                     tipo: 'servicios_respuesta_comentario',
                     titulo: 'Te respondieron',
                     mensaje: `Respondieron tu comentario en "${pub.titulo}"`,
@@ -250,7 +264,7 @@ export async function crearComentario(
             if (duenoId !== autorId && duenoId !== autorComentarioTocado) {
                 await crearNotificacion({
                     usuarioId: duenoId,
-                    modo: 'personal',
+                    modo: modoDueno,
                     tipo: 'servicios_nuevo_comentario',
                     titulo: 'Nuevo comentario',
                     mensaje: `Comentaron en "${pub.titulo}"`,

@@ -34,6 +34,7 @@ import {
     MoreVertical,
 } from 'lucide-react';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
     useEstadoCoyo,
@@ -467,7 +468,8 @@ function CardPreguntaEditorialBase({ pregunta, comentarioDestacadoId = null }: C
 function MenuContactarAutor({ pregunta }: { pregunta: PreguntaComunidad }) {
     const [abierto, setAbierto] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
-    const iniciarChat = useIniciarChatDirectoPersona();
+    const iniciarChatPersona = useIniciarChatDirectoPersona();
+    const iniciarChatNegocio = useIniciarChatNegocio();
 
     useEffect(() => {
         if (!abierto) return;
@@ -496,12 +498,24 @@ function MenuContactarAutor({ pregunta }: { pregunta: PreguntaComunidad }) {
                         data-testid={`pregunta-contactar-${pregunta.id}`}
                         onClick={() => {
                             setAbierto(false);
-                            void iniciarChat({
-                                usuarioId: pregunta.autorId,
-                                nombre: pregunta.autorNombre,
-                                apellidos: pregunta.autorApellidos,
-                                avatarUrl: pregunta.autorAvatarUrl,
-                            });
+                            // Si la pregunta se publicó con identidad de negocio,
+                            // el chat debe ser el hilo COMERCIAL con ese negocio,
+                            // no forzar uno personal con el dueño.
+                            if (pregunta.autorEsNegocio) {
+                                void iniciarChatNegocio({
+                                    usuarioId: pregunta.autorId,
+                                    sucursalId: pregunta.autorSucursalId,
+                                    negocioNombre: pregunta.autorNombre,
+                                    avatarUrl: pregunta.autorAvatarUrl,
+                                });
+                            } else {
+                                void iniciarChatPersona({
+                                    usuarioId: pregunta.autorId,
+                                    nombre: pregunta.autorNombre,
+                                    apellidos: pregunta.autorApellidos,
+                                    avatarUrl: pregunta.autorAvatarUrl,
+                                });
+                            }
                         }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
                     >

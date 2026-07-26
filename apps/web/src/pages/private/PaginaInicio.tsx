@@ -337,7 +337,13 @@ const HUELLA_COYO = (
 
 export function PaginaInicio() {
     const usuarioId = useAuthStore((s) => s.usuario?.id);
-    const nombreUsuario = useAuthStore((s) => s.usuario?.nombre) ?? 'vecino';
+    // Saludo del hero — respeta el modo activo. En Comercial saluda con el
+    // nombre del NEGOCIO (mismo dato que usará el backend para el swap de
+    // identidad si publica una pregunta/comentario), no el personal.
+    const enModoComercialHero = useAuthStore((s) => s.usuario?.modoActivo === 'comercial');
+    const nombrePersonal = useAuthStore((s) => s.usuario?.nombre);
+    const nombreNegocioHero = useAuthStore((s) => s.usuario?.nombreNegocio);
+    const nombreUsuario = (enModoComercialHero ? nombreNegocioHero ?? nombrePersonal : nombrePersonal) ?? 'vecino';
     const ciudad = useGpsStore((s) => s.ciudad);
     const nombreCiudad = ciudad?.nombre ?? '';
     const estadoCiudad = ciudad?.estado ?? '';

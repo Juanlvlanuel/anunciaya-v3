@@ -48,13 +48,24 @@ export function useSeccionComentariosPublicacionNegocio({
     const editarComentario = useEditarComentarioNegocio();
     const eliminarComentario = useEliminarComentarioNegocio();
 
+    // Identidad con la que se va a publicar — respeta el modo activo. En
+    // Comercial muestra nombre/logo del NEGOCIO (usado por el avatar del
+    // input de "Responder" dentro de un hilo), no la personal.
+    const enComercial = usuario?.modoActivo === 'comercial';
     const usuarioActual: UsuarioComentario | null = usuario
-        ? {
-              id: usuario.id,
-              nombre: usuario.nombre ?? '',
-              apellidos: usuario.apellidos ?? '',
-              avatarUrl: usuario.avatarUrl ?? null,
-          }
+        ? enComercial
+            ? {
+                  id: usuario.id,
+                  nombre: usuario.nombreNegocio ?? usuario.nombre ?? '',
+                  apellidos: '',
+                  avatarUrl: usuario.logoNegocio ?? usuario.avatarUrl ?? null,
+              }
+            : {
+                  id: usuario.id,
+                  nombre: usuario.nombre ?? '',
+                  apellidos: usuario.apellidos ?? '',
+                  avatarUrl: usuario.avatarUrl ?? null,
+              }
         : null;
 
     // Cualquier usuario logueado puede comentar/moderar (sin restricción de

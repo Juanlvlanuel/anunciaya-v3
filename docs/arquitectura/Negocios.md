@@ -49,8 +49,16 @@ producto nuevo, evento).
   del negocio dueño de la publicación (no solo del post puntual).
 - Moderación de texto reusa `validarTextoPublicacion` de
   `services/marketplace/filtros.ts` (import cruzado, función pura).
-- Sin notificaciones push en v1 (agregar un tipo nuevo a `TipoNotificacion`
-  implica también tocar su CHECK constraint en BD — quedó fuera de alcance).
+- **Notificaciones** (agregadas después del lanzamiento v3.3 — ya NO está
+  "fuera de alcance"): `negocio_publicacion_nuevo_comentario` al autor de la
+  publicación (**siempre modo `'comercial'`** — la publicación es actividad
+  de su negocio, sin importar en qué modo esté el destinatario ahora mismo)
+  y `negocio_publicacion_respuesta_comentario` al autor del comentario
+  respondido (**modo dinámico** — el mismo con el que ESE comentario se
+  escribió, `modoComentarioTocado`, leído de `negocio_publicaciones_comentarios.modo`).
+  Ambas llevan `comentarioId` para scroll+highlight (ver §Identidad
+  Personal/Comercial abajo). Detalle completo en
+  `docs/arquitectura/Notificaciones.md`.
 
 ### Frontend
 
@@ -86,6 +94,58 @@ producto nuevo, evento).
 - `sucursalId` para publicar **no se pasa manual** — lo inyecta el
   interceptor Axios en modo comercial (`usuario.sucursalActiva ||
   usuario.sucursalAsignada`), mismo patrón que `ofertasService.crearOferta`.
+
+> ⚠️ **Bug corregido — el feed público se filtraba solo a la sucursal propia
+> del que mira.** El mismo interceptor Axios que inyecta `sucursalId`
+> automáticamente en Modo Comercial se lo agregaba TAMBIÉN a
+> `GET /negocio-publicaciones/feed` (una ruta pública, no privada de BS), y
+> `obtenerFeedPublicacionesNegocio` sí usa `sucursalId` como filtro real
+> (`AND p.sucursal_id = sucursalId`). Resultado: un dueño de negocio en Modo
+> Comercial, al entrar al feed de Negocios, solo veía SUS PROPIAS
+> publicaciones (o el feed vacío si nunca publicó) — nunca las de otros
+> negocios de la ciudad. Fix: se agregó `/negocio-publicaciones/feed` a
+> `RUTAS_SIN_SUCURSAL` en `apps/web/src/services/api.ts`. Se auditó el resto
+> de endpoints públicos/cross-negocio de la app (Negocios, Servicios,
+> Ofertas, Coyo) y ninguno más tenía este patrón — MarketPlace no aplica
+> (bloqueado en Modo Comercial).
+
+### Identidad Personal/Comercial (comentarios de `negocio_publicaciones_comentarios`)
+
+Cuando alguien comenta/responde una publicación de Negocios en Modo
+Comercial y tiene negocio propio (dueño) o pertenece a uno (gerente/
+empleado), se muestra el nombre + logo del NEGOCIO en vez de su identidad
+personal — columna `modo` en `negocio_publicaciones_comentarios` (ya
+existía desde el lanzamiento de comentarios; es el patrón de referencia que
+se replicó después en Coyo y Servicios).
+
+- **Campos expuestos:** `esNegocio: boolean`, `negocioSucursalId: string |
+  null` (sucursal principal/Matriz del negocio) en `ComentarioNodo` — antes
+  solo existía `esVendedor` (que solo es `true` cuando comentas AL DUEÑO de
+  ESTA publicación específica, un caso más angosto). `esNegocio` es `true`
+  para CUALQUIER comentario con identidad de negocio, sea o no el dueño de
+  esta publicación puntual.
+- **Corregido esta sesión — navegación del nombre/avatar y "Contactar":**
+  antes el click en el nombre de un comentario con identidad de negocio
+  navegaba a `/marketplace/usuario/{id}` (perfil personal, bloqueado en Modo
+  Comercial por `ModoPersonalEstrictoGuard` — mostraba un banner de error) y
+  "Contactar" forzaba un chat personal con `useIniciarChatDirectoPersona`
+  (que además ignora a propósito un chat comercial existente). Ahora, si
+  `esNegocio`: el click navega a `/negocios/{negocioSucursalId}` y
+  "Contactar" usa `useIniciarChatNegocio` (chat comercial real).
+- **Corregido esta sesión — avatar/placeholder del input:** el input de
+  comentar (`InputComentarioPublicacionNegocio.tsx`, placeholder "Comentar
+  como {nombre}") y el input de "Responder" dentro de un hilo (objeto
+  `usuarioActual` en `useSeccionComentariosPublicacionNegocio.ts`) ahora
+  muestran `usuario.nombreNegocio`/`usuario.logoNegocio` en Modo Comercial
+  — antes mostraban siempre la identidad personal sin importar el modo.
+- **Preview embebido del feed corregido:** el `json_agg` de
+  `obtenerFeedPublicacionesNegocio` (topComentarios embebidos en cada card)
+  no usaba `modo` en absoluto — siempre mostraba identidad personal en el
+  preview del feed, aunque el modal/detalle sí mostrara el negocio
+  correctamente. Ahora ambas vistas son consistentes (mismo criterio SQL).
+  Nota: ese `topComentarios` embebido se **eliminó como código muerto**
+  poco después — el frontend actual nunca lo renderizó (solo usa el
+  contador `totalComentarios`); ver commit de limpieza.
 
 ### Archivos tocados (resumen)
 

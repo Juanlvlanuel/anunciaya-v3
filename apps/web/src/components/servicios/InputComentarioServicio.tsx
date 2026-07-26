@@ -33,6 +33,12 @@ export function InputComentarioServicio({
     // acepta publicaciones de negocio (vacante-empresa), así que también
     // acepta comentarios de negocio (mismo criterio que negocioPublicaciones).
     const puedeComentar = !!usuario;
+    // Nombre con el que se va a publicar — respeta el modo activo. En
+    // Comercial muestra el nombre del NEGOCIO (mismo dato que usará el
+    // backend para el swap de identidad), no el personal.
+    const nombreIdentidad = usuario?.modoActivo === 'comercial'
+        ? (usuario?.nombreNegocio ?? usuario?.nombre ?? 'tú')
+        : (usuario?.nombre ?? 'tú');
 
     const crearComentario = useCrearComentarioServicio();
     const [texto, setTexto] = useState('');
@@ -83,7 +89,7 @@ export function InputComentarioServicio({
                             setTexto(e.target.value);
                             if (error) setError(null);
                         }}
-                        placeholder={`Comentar como ${usuario?.nombre ?? 'tú'}…`}
+                        placeholder={`Comentar como ${nombreIdentidad}…`}
                         maxLength={TEXTO_MAX}
                         disabled={crearComentario.isPending}
                         className="flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"

@@ -61,6 +61,9 @@ const RUTAS_SIN_SUCURSAL = [
   '/ofertas/destacada-del-dia', // Hero de ofertas — contenido editorial global
   '/ofertas/detalle/',       // Detalle público de una oferta
   '/preguntas-comunidad',    // Feed del Home "Pregúntale a [ciudad]" — filtra por ciudad, NO por sucursal
+  '/negocio-publicaciones/feed', // Feed público de publicaciones de Negocios — filtra por ciudad, NO por
+                                  // la sucursal del comerciante que mira (si no, un negocio en modo
+                                  // comercial solo veía SUS PROPIAS publicaciones, nunca las de otros)
   '/publicidad',             // Carruseles de la columna derecha — filtran por ciudad, NO por sucursal
   '/ayuda',                  // Centro de Ayuda — contenido por app/audiencia, NO por sucursal
 ];

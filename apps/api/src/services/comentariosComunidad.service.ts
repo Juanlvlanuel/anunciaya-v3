@@ -126,9 +126,12 @@ export async function crearComentario(
     modo: 'personal' | 'comercial' = 'personal'
 ): Promise<Resultado<{ id: string }>> {
     try {
-        // Verificar pregunta: existe, activa, y obtener su autor.
-        const pregRes = await db.execute<{ usuario_id: string; estado_pregunta: string }>(sql`
-            SELECT usuario_id, estado_pregunta
+        // Verificar pregunta: existe, activa, y obtener su autor. `modo` es el
+        // modo con el que se PUBLICÓ la pregunta — la notificación al autor
+        // debe llegarle en ese mismo modo (si la publicó como su negocio, el
+        // aviso de "te comentaron" va a su bandeja Comercial, no Personal).
+        const pregRes = await db.execute<{ usuario_id: string; estado_pregunta: string; modo: 'personal' | 'comercial' }>(sql`
+            SELECT usuario_id, estado_pregunta, modo
             FROM preguntas_comunidad
             WHERE id = ${preguntaId}
             LIMIT 1
@@ -136,21 +139,28 @@ export async function crearComentario(
         if (pregRes.rows.length === 0) {
             return { success: false, code: 404, message: 'La pregunta no existe' };
         }
-        const pregunta = pregRes.rows[0] as { usuario_id: string; estado_pregunta: string };
+        const pregunta = pregRes.rows[0] as { usuario_id: string; estado_pregunta: string; modo: 'personal' | 'comercial' };
         if (pregunta.estado_pregunta !== 'activa') {
             return { success: false, code: 409, message: 'Esta pregunta ya no acepta comentarios' };
         }
-        // Regla de Coyo: el autor de la pregunta NO comenta en su propio hilo.
-        if (pregunta.usuario_id === autorId) {
+        // Regla de Coyo: el autor de la pregunta no abre comentarios RAÍZ
+        // nuevos en su propio hilo (evita que "rebote"/sature su propia
+        // pregunta) — pero SÍ puede responder (reply) a los comentarios que
+        // le dejaron, es la conversación natural de agradecer/pedir detalles.
+        if (!parentId && pregunta.usuario_id === autorId) {
             return { success: false, code: 403, message: 'No puedes comentar en tu propia pregunta' };
         }
 
         // Si es respuesta: validar el padre y resolver el raíz (1 nivel).
         let parentRealId: string | null = null;
         let autorComentarioTocado: string | null = null;
+        // Modo con el que el autor tocado escribió SU comentario — la
+        // notificación de "te respondieron" le llega en ese mismo contexto
+        // (Personal o Comercial), no en el modo de quien responde ahora.
+        let modoComentarioTocado: 'personal' | 'comercial' = 'personal';
         if (parentId) {
             const padreRes = await db.execute(sql`
-                SELECT id, parent_id, autor_id, pregunta_id
+                SELECT id, parent_id, autor_id, pregunta_id, modo
                 FROM comunidad_comentarios
                 WHERE id = ${parentId} AND deleted_at IS NULL
                 LIMIT 1
@@ -158,12 +168,13 @@ export async function crearComentario(
             if (padreRes.rows.length === 0) {
                 return { success: false, code: 404, message: 'El comentario al que respondes no existe' };
             }
-            const padre = padreRes.rows[0] as { id: string; parent_id: string | null; autor_id: string; pregunta_id: string };
+            const padre = padreRes.rows[0] as { id: string; parent_id: string | null; autor_id: string; pregunta_id: string; modo: 'personal' | 'comercial' };
             if (padre.pregunta_id !== preguntaId) {
                 return { success: false, code: 404, message: 'El comentario al que respondes no existe' };
             }
             parentRealId = padre.parent_id ?? padre.id;
             autorComentarioTocado = padre.autor_id;
+            modoComentarioTocado = padre.modo;
         }
 
         const insert = await db.execute<{ id: string }>(sql`
@@ -198,9 +209,10 @@ export async function crearComentario(
         // ── Notificaciones (fire-and-forget) ─────────────────────────────────
         if (!parentId) {
             // Comentario raíz → autor de la pregunta + interesados ("yo también").
+            // Al autor le llega en el modo con el que PUBLICÓ la pregunta.
             crearNotificacion({
                 usuarioId: pregunta.usuario_id,
-                modo: 'personal',
+                modo: pregunta.modo,
                 tipo: 'pregunta_comunidad_respondida',
                 titulo: 'Respondió tu pregunta',
                 mensaje: preview,
@@ -237,10 +249,11 @@ export async function crearComentario(
                 console.warn('No se pudo notificar a interesados (comunidad):', err);
             }
         } else if (autorComentarioTocado && autorComentarioTocado !== autorId) {
-            // Respuesta en hilo → al autor del comentario respondido.
+            // Respuesta en hilo → al autor del comentario respondido, en el
+            // mismo modo con el que ESE comentario se escribió.
             crearNotificacion({
                 usuarioId: autorComentarioTocado,
-                modo: 'personal',
+                modo: modoComentarioTocado,
                 tipo: 'comunidad_respuesta_comentario',
                 titulo: 'Respondió tu comentario',
                 mensaje: preview,

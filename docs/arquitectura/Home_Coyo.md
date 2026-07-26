@@ -71,6 +71,7 @@ final.
 | **`resultados_coyo`** | jsonb | `NULL` | `{ negocios, ofertas, marketplace, servicios }` (shape del buscador unificado) |
 | **`estado_coyo`** | varchar(20) NOT NULL | `'pendiente'` | 5 valores (ver abajo) |
 | **`coyo_procesado_at`** | timestamptz | `NULL` | Cuándo terminó el orquestador |
+| **`modo`** | varchar(15) NOT NULL | `'personal'` | `'personal' \| 'comercial'` — modo activo del autor AL MOMENTO de publicar. Si es `'comercial'` y el autor tiene negocio propio (dueño) o pertenece a uno (gerente/empleado), la pregunta se muestra con la identidad del NEGOCIO (nombre + logo) en vez de la personal. Ver §Identidad Personal/Comercial |
 
 ### `comunidad_comentarios`
 
@@ -87,6 +88,7 @@ genérico** de comentarios de MarketPlace y Servicios. Reemplazó a la tabla
 | `autor_id` | uuid NOT NULL | — | FK a `usuarios(id)` ON DELETE CASCADE (autor del comentario) |
 | `parent_id` | uuid | `NULL` | Self-FK a `comunidad_comentarios(id)` ON DELETE CASCADE. `NULL` = comentario **raíz**; con valor = respuesta que cuelga del raíz (1 solo nivel) |
 | `texto` | varchar(500) NOT NULL | — | **mín 2 / máx 500** caracteres |
+| **`modo`** | varchar(15) NOT NULL | `'personal'` | `'personal' \| 'comercial'` — modo activo del autor AL MOMENTO de comentar. Mismo criterio que `preguntas_comunidad.modo`: en Comercial con negocio propio/asignado, muestra identidad del NEGOCIO. Ver §Identidad Personal/Comercial |
 | `editado_at` | timestamptz | `NULL` | Se sella cuando el autor edita el comentario |
 | `created_at` | timestamptz | `now()` | — |
 | `deleted_at` | timestamptz | `NULL` | Soft-delete (el autor del comentario lo borra) |
@@ -187,7 +189,7 @@ Orden de declaración importante en `routes.ts`: las rutas estáticas
 
 | Endpoint | Reglas |
 |---|---|
-| `crearComentario` | Texto **2–500 chars**. Body `{ texto, parentId? }`: sin `parentId` es un comentario **raíz**; con `parentId` es una **respuesta** que cuelga del raíz (1 nivel — responder a una respuesta sigue colgando del mismo raíz). La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **El autor de la pregunta NO puede comentar en su propio hilo** — backend devuelve 403. Notificaciones fire-and-forget: un **comentario raíz** dispara (1) `pregunta_comunidad_respondida` al autor de la pregunta y (2) `pregunta_comunidad_seguida_respondida` a TODOS los interesados ("Yo también quiero saber") excepto el comentarista y el autor; una **respuesta dentro de un hilo** dispara `comunidad_respuesta_comentario` al autor del comentario respondido. |
+| `crearComentario` | Texto **2–500 chars**. Body `{ texto, parentId? }`: sin `parentId` es un comentario **raíz**; con `parentId` es una **respuesta** que cuelga del raíz (1 nivel — responder a una respuesta sigue colgando del mismo raíz). La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **El autor de la pregunta NO puede abrir comentarios RAÍZ nuevos en su propio hilo** — backend devuelve 403 solo cuando `!parentId` (evita que "rebote"/sature su propia pregunta). **SÍ puede responder (reply)** a los comentarios que le dejaron — es la conversación natural de agradecer/pedir detalles, no auto-bombeo (corregido — antes el 403 bloqueaba también las respuestas, sin querer). El `modo` (Personal/Comercial) del autor al comentar se resuelve server-side desde el JWT (`obtenerModoActual`) y se guarda en `comunidad_comentarios.modo` — ver §Identidad Personal/Comercial. Notificaciones fire-and-forget: un **comentario raíz** dispara (1) `pregunta_comunidad_respondida` al autor de la pregunta, en el **mismo modo con el que publicó la pregunta** (`pregunta.modo`), y (2) `pregunta_comunidad_seguida_respondida` a TODOS los interesados ("Yo también quiero saber") excepto el comentarista y el autor, siempre en modo personal; una **respuesta dentro de un hilo** dispara `comunidad_respuesta_comentario` al autor del comentario respondido, en el **modo con el que ESE comentario se escribió** (no el modo de quien responde ahora). Ambas notificaciones llevan `comentarioId` para que el frontend pueda hacer scroll+highlight al comentario exacto — ver §Notificaciones del Home. |
 | `listarComentarios` | **Público** (no requiere token). Devuelve el **árbol de 1 nivel** (raíces con sus respuestas anidadas), armado con el helper compartido `comentarios/arbol.ts`. Solo vivos (`deleted_at IS NULL`), orden cronológico ascendente. |
 | `editarComentario` | `{ texto }` (2–500 chars). **Solo el autor del comentario**, sin límite de tiempo. Sella `editado_at`. (Capacidad NUEVA respecto al modelo viejo de respuestas planas.) |
 | `borrarComentario` | Soft-delete (`deleted_at=NOW()`). **Solo el autor del comentario** puede borrarlo — el autor de la PREGUNTA NO modera comentarios ajenos (decisión de producto: confiar en la comunidad). Borrar un comentario raíz **cascadea** a sus respuestas. Idempotente. |
@@ -736,15 +738,24 @@ El Home dispara **cuatro** tipos de notificaciones al sistema central
 Cuando un vecino crea un **comentario raíz** en una pregunta, **fire-and-forget**:
 
 - Destinatario: el `usuarioId` del autor de la pregunta.
-- Modo: `'personal'`.
+- Modo: **`pregunta.modo`** (dinámico) — el modo con el que el autor PUBLICÓ
+  la pregunta, leído de `preguntas_comunidad.modo`. Si publicó en Comercial,
+  el aviso "te comentaron" llega a su bandeja Comercial, no Personal
+  (corregido — antes estaba fijo en `'personal'` sin importar el modo real).
 - Título: **"Respondió tu pregunta"** (singular, casa con el nombre del
   actor mostrado arriba).
-- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
+- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`,
+  `comentarioId` = id del comentario creado — el frontend lo usa para
+  scroll+highlight al comentario exacto (ver §Pregunta destacada).
 - Mensaje: primeros 100 caracteres del comentario + `…`.
-- `actorNombre` + `actorImagenUrl`: datos del vecino que comentó.
+- `actorNombre` + `actorImagenUrl`: datos del vecino que comentó — si
+  comentó en Modo Comercial y tiene negocio propio/asignado, es el
+  nombre/logo del NEGOCIO (ver §Identidad Personal/Comercial).
 - Auto-notificación bloqueada: si el comentarista es el propio autor de la
-  pregunta, NO se envía nada (además el backend devuelve 403 en ese
-  caso — defensa en profundidad).
+  pregunta, NO se envía nada. Ya no aplica el 403 defensivo aquí porque el
+  autor solo puede llegar a este bloque respondiendo dentro de un hilo
+  (bloque 4) — abrir un comentario raíz como autor sigue bloqueado en el
+  backend.
 
 Si el `crearNotificacion` falla (red, BD), solo se loguea — no rompe la
 creación del comentario.
@@ -805,12 +816,21 @@ Cuando un vecino crea una **respuesta dentro de un hilo** (un comentario con
 
 - Destinatario: el `autorId` del comentario **respondido** (el dueño del
   comentario raíz, no el autor de la pregunta).
-- Modo: `'personal'`.
-- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
+- Modo: **el modo con el que ESE comentario se escribió** (dinámico, leído
+  de `comunidad_comentarios.modo` del comentario padre) — no el modo de
+  quien responde ahora (corregido — antes estaba fijo en `'personal'`).
+- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`,
+  `comentarioId` = id de la respuesta creada — scroll+highlight al
+  responder (ver §Pregunta destacada).
 - Mensaje: primeros 100 caracteres de la respuesta + `…`.
-- `actorNombre` + `actorImagenUrl`: datos del vecino que respondió.
+- `actorNombre` + `actorImagenUrl`: datos del vecino que respondió — si
+  respondió en Modo Comercial, nombre/logo del NEGOCIO.
 - Auto-notificación bloqueada: si quien responde es el propio dueño del
   comentario respondido, NO se envía nada.
+- **El AUTOR de la pregunta SÍ puede disparar esta notificación** — puede
+  responder (reply) a los comentarios que le dejaron aunque no pueda abrir
+  comentarios raíz nuevos en su propio hilo (ver tabla de reglas arriba,
+  `crearComentario`).
 
 (Tipo NUEVO respecto al modelo viejo de respuestas planas, que no tenía
 hilos.)
@@ -845,6 +865,84 @@ título visible (queda en `aria-label`). Click en cualquiera navega a
 (ver §Pregunta destacada). El `preguntaId` se consume una sola vez: el Home lo
 captura y limpia la URL, así el destacado es efímero (no reaparece al volver al
 Home, navegar con "atrás" ni recargar).
+
+---
+
+## Identidad Personal/Comercial (Coyo reconoce el modo activo)
+
+Un usuario puede publicar una pregunta o comentar/responder en Coyo estando
+en **Modo Personal** o **Modo Comercial** (toggle global de la cuenta,
+`usuario.modoActivo`). Si lo hace en Comercial y tiene negocio propio (dueño)
+o pertenece a uno (gerente/empleado), Coyo muestra su identidad de **NEGOCIO**
+(nombre + logo) en vez de la personal — mismo patrón ya usado en
+`negocioPublicaciones/comentarios.ts` (Negocios), replicado aquí y en
+Servicios.
+
+### Columnas `modo` y resolución de identidad
+
+- `preguntas_comunidad.modo` y `comunidad_comentarios.modo`: `varchar(15)`,
+  `'personal' | 'comercial'`, default `'personal'`. Se resuelven
+  **server-side desde el JWT** (`obtenerModoActual(req)` en
+  `middleware/validarModo.ts`) al crear — el frontend nunca lo manda
+  explícito.
+- Resolución del negocio del autor (helper `resolverIdentidadAutor` en
+  `preguntasComunidad.service.ts`, y el mismo criterio inline por SQL en
+  `comentariosComunidad.service.ts`): `neg_autor.id = COALESCE((SELECT id
+  FROM negocios WHERE usuario_id = autor_id LIMIT 1), usuarios.negocio_id)`
+  — dueño de algún negocio primero, si no gerente/empleado vía
+  `usuarios.negocio_id`.
+- Si `modo = 'comercial'` Y se resolvió un negocio: `autorNombre` =
+  `negocios.nombre`, `autorAvatarUrl` = `negocios.logo_url`,
+  `autorApellidos` = `''`. Si no, cae a la identidad personal
+  (`usuarios.nombre/apellidos/avatar_url`).
+
+### Campos expuestos al frontend
+
+| Entidad | Campos | Uso |
+|---|---|---|
+| `ComentarioNodo` (comentarios, tipo compartido `comentarios/arbol.ts`) | `esNegocio: boolean`, `negocioSucursalId: string \| null` | Determina si el click en el nombre/avatar navega a `/negocios/{negocioSucursalId}` (negocio) o `/marketplace/usuario/{autorId}` (personal) |
+| `PreguntaComunidadResponse` (la pregunta) | `autorEsNegocio: boolean`, `autorSucursalId: string \| null` | Mismo criterio, a nivel de la pregunta — `negocioSucursalId`/`autorSucursalId` es la **sucursal principal (Matriz)** del negocio, resuelta con un subquery a `negocio_sucursales WHERE es_principal = true` |
+
+`crearPregunta`, `listarPreguntasPorCiudad`, `obtenerPreguntaPorId` y
+`listarMisPreguntas` (las 4 funciones de `preguntasComunidad.service.ts` que
+arman `PreguntaComunidadResponse`) resuelven esta identidad de forma
+consistente — publicar en Comercial se ve igual en el feed, en "Mis
+preguntas", en el detalle destacado y justo al publicar.
+
+### Frontend: dónde se respeta el modo activo
+
+Encontrado y corregido en 4 puntos que originalmente ignoraban `modoActivo`
+y siempre mostraban la identidad personal:
+
+1. **Avatar del input raíz** (`RespuestasComunidad.tsx`, `PanelComentarios`) —
+   antes `usuario.avatarUrl` fijo; ahora usa `usuario.logoNegocio` en
+   Comercial.
+2. **Avatar del input de "Responder"** dentro de un hilo (mismo archivo,
+   objeto `usuarioActual` pasado a `ComentarioItem`) — mismo criterio.
+3. **Saludo del hero** ("¡Hola, {nombre}!", `PaginaInicio.tsx` →
+   `EscenaCoyo`/`SaludoTecleado`) — antes `usuario.nombre` fijo; ahora usa
+   `usuario.nombreNegocio` en Comercial.
+4. **Click en el nombre del autor** (`CardPreguntaEditorial.tsx`) y **botón
+   "Contactar"** (`MenuContactarAutor` en el mismo archivo, y
+   `ComentarioFila` en `ComentarioItem.tsx` para comentarios) — antes
+   navegaban siempre a `/marketplace/usuario/:id` y abrían chat con
+   `useIniciarChatDirectoPersona` (fuerza modo personal, incluso ignora un
+   chat comercial existente). Ahora, si `esNegocio`/`autorEsNegocio`: el
+   click navega a `/negocios/{sucursalId}` y "Contactar" usa
+   `useIniciarChatNegocio` (chat comercial real con esa sucursal).
+
+MarketPlace queda **exento** de todo esto — es personal-only (bloqueado en
+Modo Comercial por `ModoPersonalEstrictoGuard`), así que `esNegocio` siempre
+es `false` ahí por diseño.
+
+### Migraciones
+
+`docs/migraciones/2026-07-25-comunidad-comentarios-modo.sql` (columna `modo`
+en `comunidad_comentarios`) y
+`docs/migraciones/2026-07-25-preguntas-comunidad-modo.sql` (columna `modo`
+en `preguntas_comunidad`). Ambas idempotentes, sin backfill (el historial
+previo a esta feature queda `'personal'`, comportamiento idéntico al de
+antes). Aplicadas en DEV y PROD.
 
 ---
 
@@ -1122,10 +1220,14 @@ Cada pregunta del feed es un `<li>` (estilo "Editorial") con:
 - **Header del autor:** `Avatar` (foto con lightbox `ModalImagenes`, o
   fallback con gradiente azul de marca + iniciales) + **nombre clickeable
   → perfil del autor** + tiempo relativo + chip "Resuelta" (si `resueltaAt`).
-  El **kebab del header** es contextual: el AUTOR de la pregunta ve su
-  `MenuAutorPregunta` (Editar/Resolver/Cerrar/Eliminar); quien NO es el
-  autor ve `MenuContactarAutor` — un kebab con **"Contactar"** que abre
-  ChatYA con el autor.
+  Si `pregunta.autorEsNegocio`, el nombre/avatar YA muestran la identidad del
+  negocio (ver §Identidad Personal/Comercial) y el click navega a
+  `/negocios/{autorSucursalId}` en vez del perfil personal. El **kebab del
+  header** es contextual: el AUTOR de la pregunta ve su `MenuAutorPregunta`
+  (Editar/Resolver/Cerrar/Eliminar); quien NO es el autor ve
+  `MenuContactarAutor` — un kebab con **"Contactar"** que abre ChatYA con el
+  autor: chat comercial (`useIniciarChatNegocio`) si `autorEsNegocio`, chat
+  personal (`useIniciarChatDirectoPersona`) si no.
 - **Pregunta** grande. Si el autor activa "Editar", el texto se reemplaza
   por el **editor inline** (`EditorPregunta`, un `<textarea>`) — sin modal.
 - **Respuesta de Coyo** (`RespuestaCoyo`): monta `useEstadoCoyo` para
@@ -1224,17 +1326,19 @@ El filtro "Mis preguntas" tiene su propio vacío (`MisPreguntasVacio`, en
 
 ### Pregunta destacada (deep-link de notificaciones)
 
-Las tres notificaciones del Home (`coyo_recomendacion`,
-`pregunta_comunidad_respondida`, `pregunta_comunidad_seguida_respondida`)
-navegan a `/inicio?preguntaId=<id>`. Al abrir el Home con ese parámetro,
+Las cuatro notificaciones del Home (`coyo_recomendacion`,
+`pregunta_comunidad_respondida`, `pregunta_comunidad_seguida_respondida`,
+`comunidad_respuesta_comentario`) navegan a `/inicio?preguntaId=<id>` —
+las dos de comentarios además agregan `&comentarioId=<id>` (ver
+§Notificaciones del Home). Al abrir el Home con esos parámetros,
 `PaginaInicio`:
 
-1. **Captura** el `preguntaId` en estado local y **limpia la URL** de
-   inmediato (`setSearchParams(..., { replace: true })`). El destacado es
-   **efímero**: vive solo en esa visita. Si sales a otra sección y regresas
-   (logo o "atrás"), o recargas, ya no aparece — la URL quedó en `/inicio` sin
-   query. Un effect que observa `searchParams` capta también una notificación
-   nueva abierta sin salir del Home.
+1. **Captura** `preguntaId` y `comentarioId` en estado local y **limpia la
+   URL** de inmediato (`setSearchParams(..., { replace: true })`). El
+   destacado es **efímero**: vive solo en esa visita. Si sales a otra sección
+   y regresas (logo o "atrás"), o recargas, ya no aparece — la URL quedó en
+   `/inicio` sin query. Un effect que observa `searchParams` capta también una
+   notificación nueva abierta sin salir del Home.
 2. Pide la pregunta con **`usePregunta(preguntaId)`** →
    `GET /api/preguntas-comunidad/:id`. Es **independiente del feed**: funciona
    aunque la pregunta esté fuera de las 20 que carga el feed o sea de otra
@@ -1244,11 +1348,18 @@ navegan a `/inicio?preguntaId=<id>`. Al abrir el Home con ese parámetro,
    desktop y móvil) reusando `CardPreguntaEditorial` — la card real, con su
    Coyo, respuestas e interés. Encabezado *"✨ Apareciste en esta pregunta"*
    (acento índigo, familia visual de Coyo) + botón X que la cierra (`onCerrar`
-   → limpia el estado local). Al capturar el id, sube el `<main>` al tope para
-   que el bloque quede a la vista.
+   → limpia el estado local, incluido `comentarioId`). Al capturar el id, sube
+   el `<main>` al tope para que el bloque quede a la vista.
 4. **Evita duplicado:** mientras está destacada, la pregunta se **filtra del
    feed** (`preguntasMostradas`); al cerrarla reaparece en su lugar
    cronológico.
+5. **Si viene `comentarioId`** (deep-link de comentario/respuesta), se pasa
+   como `comentarioDestacadoId` hasta `CardPreguntaEditorial` →
+   `RespuestasComunidad`. El panel de comentarios (normalmente colapsado)
+   **arranca abierto automáticamente**, y `ListaComentariosServicio`-style
+   polling (`document.getElementById('comentario-<id>')`, reintenta hasta 20
+   veces cada 100ms) hace scroll + prende un anillo transitorio (~3s) sobre
+   el comentario exacto — mismo patrón que MarketPlace/Negocios/Servicios.
 
 > Por qué un bloque destacado y no un scroll-to-pregunta: el scroll solo podría
 > "subir" lo que ya estaba en el feed (primeras 20, misma ciudad). El bloque,
@@ -1499,6 +1610,18 @@ de regresión apuntando específicamente a ese caso.
     dispara esa combinación; el bug solo aparece jugando manualmente con
     los inputs en el editor de Rive.
 
+15. **El autor de la pregunta no abre hilos nuevos, pero sí responde.**
+    La regla original bloqueaba TODO comentario del autor en su propio
+    hilo (raíz y respuesta por igual), pensada para evitar que "rebotara"/
+    saturara su propia pregunta. Pero eso también le impedía la
+    conversación natural de agradecer o pedir detalles a quien le
+    respondió — no es lo mismo abrir un comentario nuevo como si fueras
+    otro vecino más, que responder a alguien que ya te comentó. Se separó
+    en dos: el backend solo devuelve 403 cuando `!parentId` (raíz); el
+    frontend distingue `puedeEscribir` (gate del input raíz, sigue en
+    `false` para el autor) de `puedeResponderComentarios` (gate del botón
+    "Responder" en cada comentario, `true` también para el autor).
+
 ---
 
 ## Limitaciones y pendientes conocidos
@@ -1560,6 +1683,8 @@ Todas en `docs/migraciones/`:
 | `2026-06-30-comunidad-comentarios.sql` | Crea `comunidad_comentarios` (+ índices `idx_comunidad_comentarios_pregunta` / `_parent`) y **migra los datos** de `respuestas_preguntas_comunidad` (expand) | ⏳ | ⏳ |
 | `2026-06-30-notificaciones-tipo-comunidad-comentario.sql` | Extiende `notificaciones_tipo_check` con `comunidad_respuesta_comentario` | ⏳ | ⏳ |
 | `2026-06-30-drop-respuestas-preguntas-comunidad.sql` | **DROP** de `respuestas_preguntas_comunidad` (contract) tras migrar los datos | ⏳ | ⏳ |
+| `2026-07-25-comunidad-comentarios-modo.sql` | Columna `modo` en `comunidad_comentarios` (Identidad Personal/Comercial) | ✅ | ✅ |
+| `2026-07-25-preguntas-comunidad-modo.sql` | Columna `modo` en `preguntas_comunidad` (Identidad Personal/Comercial) | ✅ | ✅ |
 
 Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 `DROP CONSTRAINT IF EXISTS`) y compatibles con la receta del wrapper
