@@ -1,7 +1,7 @@
 # Despliegue a Producción — AnunciaYA
 
 > Checklist vivo del paso a producción (go-live). Beta: Puerto Peñasco.
-> Última actualización: **8 jul 2026**.
+> Última actualización: **26 jul 2026**.
 >
 > **Método clave:** verificar el estado real con las credenciales del `.env` (BD, SES, Stripe se pueden sondear en solo lectura) en vez de asumir. Los logs del backend en prod (Panel → Mantenimiento → Logs, o Render → Logs) son el mejor detector de bugs latentes.
 >
@@ -102,6 +102,22 @@ En **DEV no se pone ninguna** → Sentry inerte. Sin `SENTRY_AUTH_TOKEN`+`SENTRY
 **Privacidad:** `sendDefaultPii: false` + `beforeSend` que redacta headers/campos sensibles (JWT, contraseñas, `authorization`, cookies, datos de tarjeta). Los source maps se suben a Sentry y se **borran del output** tras subirlos (no se sirven públicamente).
 
 **Código:** `apps/api/src/sentry.ts` (init + error handler Express), `apps/web/src/config/sentry.ts` (web + ScanYA, tag `superficie`), `apps/admin/src/config/sentry.ts`. El plugin `@sentry/vite-plugin` en los `vite.config.ts` sube los source maps.
+
+---
+
+## 🎬 Entorno Demo/Staging (ventas) — 26 jul 2026
+
+Tercer entorno (frontend + backend) que corre con los recursos de **Dev**, para que Juan muestre la app a negocios prospecto en persona desde cualquier laptop/celular con solo el navegador — sin instalar nada localmente ni arriesgar prod.
+
+- **Frontend:** proyecto Vercel `anunciaya-v3-demo` (Root Directory `apps/web`, Build Command `pnpm build`), dominio propio **`demo.anunciaya.mx`** (CNAME en Namecheap → `*.vercel-dns-*.com`).
+- **Backend:** servicio Render `anunciaya-demo` (plan **Free**, Root Directory vacío, Build `pnpm install --frozen-lockfile && pnpm --filter api build`, Start `pnpm --filter api start`), URL `anunciaya-demo.onrender.com`.
+- **Env vars del backend:** copia de las de Dev, con `NODE_ENV=production` (para que `getDatabaseUrl()` use `DATABASE_URL` de forma inequívoca) y **sin** `DATABASE_URL_PRODUCTION` — blindaje para que este servicio no pueda tocar la BD de prod ni por error. `FRONTEND_URL=https://demo.anunciaya.mx` (CORS).
+- **R2:** el bucket de Dev (`anunciaya-tickets`) tiene `https://demo.anunciaya.mx` agregado a `AllowedOrigins`.
+- **Google OAuth:** `https://demo.anunciaya.mx` agregado a "Authorized JavaScript origins" del mismo Client ID de Dev.
+- **SEO:** `apps/web/vercel.json` tiene una regla de `headers` condicionada por host (`^demo\.anunciaya\.mx$`) que agrega `X-Robots-Tag: noindex, nofollow` — el mismo archivo lo comparten los 3 proyectos Vercel, pero la condición de host hace que solo aplique a la demo.
+- **Mantenimiento:** los 3 proyectos Vercel (`app`, `admin`, `demo`) y los 2 servicios Render (`anunciaya-api`, `anunciaya-demo`) escuchan el mismo repo y la misma rama `main` — un solo `git push` redeploya los 5 automático. La única diferencia entre prod y demo son las env vars, no el código. Si se agrega una env var nueva al backend, replicarla también en `anunciaya-demo` con el valor de Dev.
+
+**Hallazgo colateral — Render auto-deploy llevaba tiempo roto:** al crear `anunciaya-demo`, Render mostró "No repositories found" (la GitHub App no tenía conexión activa con la cuenta). Eso explicaba por qué `anunciaya-api` (prod) **nunca auto-deployaba** pese a tener `Auto-Deploy: On Commit` — el webhook simplemente no llegaba; el "Manual Deploy" seguía funcionando porque usa otro mecanismo. Fix: reinstalar la GitHub App de Render + reconectar el "Source" (Settings → Source → Edit → Update Source → reseleccionar mismo repo/branch → Deploy) en **cada servicio ya existente**, no solo en el nuevo — el modal no muestra cambios visibles pero re-vincula el servicio a la instalación fresca. Verificado con un commit de prueba en `apps/api`: apareció "Auto-Deploy" como trigger sin intervención manual. Detalle completo en memoria `reference_render_autodeploy_github_app`.
 
 ---
 
