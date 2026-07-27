@@ -88,17 +88,20 @@ export const OFFSET_PIN: maplibregl.Offset = {
     left: [14, -21], right: [-14, -21], center: [0, -21],
 };
 
-/** HTML del popup de hover de una marca: estado como TÍTULO + nota + fecha. */
+/** HTML del popup de hover de una marca: nombre del negocio (o estado si no tiene) como TÍTULO +
+ *  estado (si hay nombre) + nota + fecha. */
 function contenidoPopup(m: MarcaTerritorio): string {
+    const nombre = m.nombre?.trim();
     const nota = m.nota?.trim();
     const cuerpo = nota
         ? `<div style="font-size:14px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
         : `<div style="font-size:13.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
+    const filaEstado = nombre ? badgeHtml(ETIQUETA_TIPO[m.tipo], COLOR_TIPO[m.tipo], `${COLOR_TIPO[m.tipo]}1f`) : '';
     const fecha = fechaCorta(m.createdAt);
     const filaFecha = fecha ? `<div style="font-size:13px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
     return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
-        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true, true)
-        + cuerpo + filaFecha + `</div>`;
+        + tituloPopup(COLOR_TIPO[m.tipo], nombre || ETIQUETA_TIPO[m.tipo], true, true)
+        + filaEstado + cuerpo + filaFecha + `</div>`;
 }
 
 /** Color del pin de negocio según atribución (compartido con el mapa admin). */

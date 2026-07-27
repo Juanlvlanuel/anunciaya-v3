@@ -20,8 +20,8 @@ import { createPortal } from 'react-dom';
 import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
-import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, NegocioMapa } from '../../services/territoriosService';
-import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, ESTADO_BADGE, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
+import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, MarcaTerritorio, NegocioMapa, TipoMarca } from '../../services/territoriosService';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
 import { Tooltip } from '../ui/Tooltip';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 
@@ -48,7 +48,7 @@ type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
 
 /** Datos del pin abierto en la tarjeta de detalle (solo lectura). */
 type DetallePin =
-    | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nota: string | null; vendedor: string | null; fecha: string | null }
+    | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nombre: string | null; nota: string | null; vendedor: string | null; fecha: string | null }
     | { tipo: 'negocio'; id: string; nombre: string; estado: string; asignado: boolean; vendedor: string | null; nota: string | null; esMio: boolean };
 
 interface MapaTerritoriosProps {
@@ -69,6 +69,43 @@ interface MapaTerritoriosProps {
      *  solo lectura aunque este prop esté presente (p. ej. el super, que nunca tiene negocios "esMio"). */
     onGuardarNotaNegocio?: (id: string, nota: string | null) => void;
     guardandoNotaNegocio?: boolean;
+    /** "Mis puntos" del GERENTE (propios, editables — sin necesidad de tener una zona/territorio
+     *  propio). Se pintan como Markers arrastrables, distintos de `marcas` (equipo, solo lectura). */
+    misMarcas?: MarcaTerritorio[];
+    modoAgregarMarca?: boolean;
+    onAgregarMarca?: (lat: number, lng: number) => void;
+    onClicMiMarca?: (id: string) => void;
+    onMoverMiMarca?: (id: string, lat: number, lng: number) => void;
+    miMarcaSeleccionadaId?: string | null;
+}
+
+// "Mis puntos" (gerente) van SIEMPRE en verde (--panel-ok), sin importar su estado — así se
+// distinguen a simple vista de las marcas del equipo (por estado) y de los negocios (violeta/teal).
+const COLOR_MI_PUNTO = '#0e8a52';
+
+/** SVG de un pin (gota) del color dado — copia de `svgPin` de MapaMarcas.tsx (no exportada). */
+function svgPinFijo(color: string): string {
+    return `<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 2px rgba(15,23,42,0.32));">`
+        + `<path d="M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>`
+        + `<circle cx="13" cy="13" r="4.5" fill="#ffffff"/></svg>`;
+}
+
+/** Elemento HTML del pin de "mi punto": mismo perfil que `elementoPin`, siempre verde. */
+function elementoMiPunto(tipo: TipoMarca): HTMLDivElement {
+    const el = document.createElement('div');
+    el.dataset.tipo = tipo;
+    el.style.cursor = 'pointer';
+    const inner = document.createElement('div');
+    inner.style.transformOrigin = 'bottom center';
+    inner.style.transition = 'transform 0.15s ease';
+    inner.innerHTML = svgPinFijo(COLOR_MI_PUNTO);
+    el.appendChild(inner);
+    return el;
+}
+
+/** Solo actualiza el estado guardado del pin (el color es fijo, no depende del tipo). */
+function actualizarColorMiMarca(el: HTMLElement, tipo: TipoMarca): void {
+    el.dataset.tipo = tipo;
 }
 
 /** Bounding box de un solo polígono (reusa calcularBounds). */
@@ -94,21 +131,23 @@ function escaparHtml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** HTML del popup de hover de una marca del vendedor: estado + nota + quién la puso. */
+/** HTML del popup de hover de una marca del vendedor: nombre (o estado) + estado + nota + quién la puso. */
 function contenidoPopupEq(m: MarcaEquipo): string {
+    const nombre = m.nombre?.trim();
     const nota = m.nota?.trim();
     const vendedor = m.vendedorNombre?.trim();
     const filaNota = nota
         ? `<div style="font-size:14px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
         : `<div style="font-size:13.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
+    const filaEstado = nombre ? badgeHtml(ETIQUETA_TIPO[m.tipo], COLOR_TIPO[m.tipo], `${COLOR_TIPO[m.tipo]}1f`) : '';
     const filaVend = vendedor
         ? `<div style="font-size:13px;color:#64748b;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(vendedor)}</span></div>`
         : '';
     const fecha = fechaCorta(m.createdAt);
     const filaFecha = fecha ? `<div style="font-size:13px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
     return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
-        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true, true)
-        + filaNota + filaVend + filaFecha + `</div>`;
+        + tituloPopup(COLOR_TIPO[m.tipo], nombre || ETIQUETA_TIPO[m.tipo], true, true)
+        + filaEstado + filaNota + filaVend + filaFecha + `</div>`;
 }
 
 function construirGeoJSON(zonas: ZonaTerritorio[]) {
@@ -142,12 +181,19 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false, misMarcas = [], modoAgregarMarca = false, onAgregarMarca, onClicMiMarca, onMoverMiMarca, miMarcaSeleccionadaId = null }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
     const marcasRef = useRef<MarcaEquipo[]>(marcas);
     const negociosRef = useRef<NegocioMapa[]>(negocios);
+    const misMarcasRef = useRef<MarcaTerritorio[]>(misMarcas);
+    const misMarcadoresRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+    const modoAgregarMarcaRef = useRef(modoAgregarMarca);
+    const onAgregarMarcaRef = useRef(onAgregarMarca);
+    const onClicMiMarcaRef = useRef(onClicMiMarca);
+    const onMoverMiMarcaRef = useRef(onMoverMiMarca);
+    const miMarcaSeleccionadaRef = useRef<string | null>(miMarcaSeleccionadaId);
     const verticesRef = useRef<[number, number][]>([]);
     const modoDibujoRef = useRef(modoDibujo);
     const herramientaRef = useRef<Herramienta>('crear');
@@ -180,6 +226,15 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
     useEffect(() => { negociosRef.current = negocios; }, [negocios]);
+    useEffect(() => { misMarcasRef.current = misMarcas; }, [misMarcas]);
+    useEffect(() => { onAgregarMarcaRef.current = onAgregarMarca; }, [onAgregarMarca]);
+    useEffect(() => { onClicMiMarcaRef.current = onClicMiMarca; }, [onClicMiMarca]);
+    useEffect(() => { onMoverMiMarcaRef.current = onMoverMiMarca; }, [onMoverMiMarca]);
+    // Resalta el pin de "mi marca" con el editor abierto (y quita el resalte de los demás).
+    useEffect(() => {
+        miMarcaSeleccionadaRef.current = miMarcaSeleccionadaId;
+        for (const [id, mk] of misMarcadoresRef.current) aplicarResalte(mk.getElement(), id === miMarcaSeleccionadaId);
+    }, [miMarcaSeleccionadaId]);
     useEffect(() => { introAnimadoRef.current = introAnimado; }, [introAnimado]);
     useEffect(() => { poligonoEditandoRef.current = poligonoEditando; }, [poligonoEditando]);
     useEffect(() => { enfocarPoligonoRef.current = enfocarPoligono; }, [enfocarPoligono]);
@@ -307,6 +362,46 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         if (mapa) pintarDibujo(mapa);
     }
 
+    /** Crea/actualiza/elimina los pines de "mis puntos" (Markers arrastrables del gerente/vendedor
+     *  dueño). Sin restricción de zona: el gerente puede moverlos a cualquier parte. */
+    function sincronizarMisMarcas() {
+        const mapa = mapaRef.current;
+        if (!mapa) return;
+        const markers = misMarcadoresRef.current;
+        const ids = new Set(misMarcasRef.current.map((m) => m.id));
+        for (const [id, mk] of markers) {
+            if (!ids.has(id)) { mk.remove(); markers.delete(id); }
+        }
+        for (const m of misMarcasRef.current) {
+            const tipo = m.tipo as TipoMarca;
+            const existente = markers.get(m.id);
+            if (existente) {
+                existente.setLngLat([m.lng, m.lat]);
+                actualizarColorMiMarca(existente.getElement(), tipo);
+                aplicarResalte(existente.getElement(), m.id === miMarcaSeleccionadaRef.current);
+                continue;
+            }
+            const el = elementoMiPunto(tipo);
+            const marker = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable: true });
+            marker.setLngLat([m.lng, m.lat]).addTo(mapa);
+            const idMarca = m.id;
+            let recienArrastrado = false;
+            marker.on('dragend', () => {
+                const ll = marker.getLngLat();
+                recienArrastrado = true;
+                window.setTimeout(() => { recienArrastrado = false; }, 250);
+                onMoverMiMarcaRef.current?.(idMarca, ll.lat, ll.lng);
+            });
+            el.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                if (recienArrastrado || modoAgregarMarcaRef.current) return;
+                onClicMiMarcaRef.current?.(idMarca);
+            });
+            markers.set(idMarca, marker);
+            aplicarResalte(el, idMarca === miMarcaSeleccionadaRef.current);
+        }
+    }
+
     // ── Crear el mapa una sola vez ───────────────────────────────────────────────
     useEffect(() => {
         const contenedor = contenedorRef.current;
@@ -419,6 +514,9 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             mapa.addSource(ID_DIBUJO_PTS, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             mapa.addLayer({ id: ID_DIBUJO_PTS_C, type: 'circle', source: ID_DIBUJO_PTS, paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': COLOR_DIBUJO, 'circle-stroke-width': 2.5 } });
 
+            // "Mis puntos" (gerente/vendedor dueño): Markers HTML arrastrables, encima de todo lo demás.
+            sincronizarMisMarcas();
+
             setListo(true);
             setCargando(false);
             // El encuadre inicial lo hace el effect de zonas (pendienteEncuadrar arranca en true).
@@ -427,13 +525,19 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         // Clic según la herramienta activa.
         mapa.on('click', (e) => {
             if (!modoDibujoRef.current) {
+                // Modo "Agregar punto" (gerente, sin zona propia): el clic pone un punto ahí mismo,
+                // sin abrir el detalle de lectura ni el hit-test de marcas/negocios.
+                if (modoAgregarMarcaRef.current) {
+                    onAgregarMarcaRef.current?.(e.lngLat.lat, e.lngLat.lng);
+                    return;
+                }
                 // Modo VER: clic sobre un pin abre el detalle SOLO LECTURA (tarjeta sobre el mapa). Cierra
                 // cualquier popup de hover (PC). Clic en vacío cierra el detalle.
                 const idMarca = marcaEnEq(mapa, e.point);
                 if (idMarca) {
                     const m = marcasRef.current.find((x) => x.id === idMarca);
                     if (m) {
-                        setDetalle({ tipo: 'marca', estado: m.tipo, nota: m.nota ?? null, vendedor: m.vendedorNombre ?? null, fecha: m.createdAt });
+                        setDetalle({ tipo: 'marca', estado: m.tipo, nombre: m.nombre ?? null, nota: m.nota ?? null, vendedor: m.vendedorNombre ?? null, fecha: m.createdAt });
                         // Pin HTML resaltado (crece + glow) ENCIMA del symbol pin, igual que el vendedor.
                         // pointer-events none → no bloquea el clic al mapa (el symbol pin sigue debajo).
                         const elPin = elementoPin(m.tipo);
@@ -590,7 +694,11 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         });
         ro.observe(contenedor);
 
-        return () => { window.clearTimeout(tResize); ro.disconnect(); popupEqRef.current?.remove(); popupNegRef.current?.remove(); marcadorResalteRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
+        return () => {
+            window.clearTimeout(tResize); ro.disconnect(); popupEqRef.current?.remove(); popupNegRef.current?.remove(); marcadorResalteRef.current?.remove();
+            misMarcadoresRef.current.forEach((mk) => mk.remove()); misMarcadoresRef.current.clear();
+            mapa.remove(); mapaRef.current = null;
+        };
     }, []);
 
     // ── Re-pintar zonas cuando cambian (encuadra SOLO al cargar / cambiar de ciudad) ─────────────
@@ -627,6 +735,20 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         (mapa.getSource(ID_MARCAS_EQ) as GeoJSONSource | undefined)?.setData(marcasEqGeoJSON(marcas));
         (mapa.getSource(ID_NEGOCIOS) as GeoJSONSource | undefined)?.setData(negociosGeoJSON(negocios));
     }, [marcas, negocios, listo]);
+
+    // ── Re-sincronizar "mis puntos" (gerente) cuando cambian ─────────────────────
+    useEffect(() => {
+        if (!listo) return;
+        sincronizarMisMarcas();
+    }, [misMarcas, listo]);
+
+    // ── Cursor del modo "Agregar punto" ───────────────────────────────────────────
+    useEffect(() => {
+        modoAgregarMarcaRef.current = modoAgregarMarca;
+        const mapa = mapaRef.current;
+        if (!mapa || !listo) return;
+        mapa.getCanvas().style.cursor = modoAgregarMarca ? 'crosshair' : '';
+    }, [modoAgregarMarca, listo]);
 
     // ── Entrar/salir del modo dibujo ─────────────────────────────────────────────
     useEffect(() => {
@@ -748,6 +870,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             </button>
             {detalle.tipo === 'marca' ? (
                 <>
+                    {detalle.nombre && <h3 className="mb-1.5 truncate pr-7 text-[15px] font-semibold text-texto">{detalle.nombre}</h3>}
                     <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold" style={{ backgroundColor: `${COLOR_TIPO[detalle.estado]}1f`, color: COLOR_TIPO[detalle.estado] }}>
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLOR_TIPO[detalle.estado] }} />
                         {ETIQUETA_TIPO[detalle.estado]}

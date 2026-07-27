@@ -3,7 +3,13 @@
  * ===================================
  * Marcas (pines) PERSONALES del vendedor sobre su pedazo del mapa (Territorios · G.2).
  * El vendedor las gestiona (CRUD); cada marca tiene un estado (tipo) y una nota. Son suyas
- * (ligadas a su `embajador_id`). Super/gerente solo las verán a futuro (no aquí).
+ * (ligadas a su `embajador_id`).
+ *
+ * El GERENTE también entra (desde 27 jul): tiene su propio `embajador_id` (ver memoria
+ * reference_gerente_tambien_vendedor) y puede querer prospectar sin tener un territorio (zona)
+ * propio — a diferencia del vendedor (que SIEMPRE nace con una zona asignada, así que jamás choca
+ * con esto), el gerente elige la CIUDAD en vez de depender de una zona: `crearMarca` exige
+ * `ciudadId` y valida que caiga en su región (`ciudadEnAlcance`). El super sigue sin poner marcas.
  *
  * También vive aquí `actualizarNotaNegocio`: la nota libre del vendedor sobre un NEGOCIO real
  * (no una marca) que tiene asignado — mismo dueño (el vendedor), mismo alcance de escritura.
@@ -16,6 +22,7 @@ import { db } from '../../db/index.js';
 import { territorioMarcas, embajadores, negocios } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { CrearMarcaInput, EditarMarcaInput } from '../../validations/admin/territorios.schema.js';
+import { ciudadEnAlcance } from './territorios-acciones.service.js';
 
 export type ResultadoAccion<T = unknown> =
     | { ok: true; data: T }
@@ -26,6 +33,7 @@ export interface MarcaTerritorio {
     lat: number;
     lng: number;
     tipo: string;
+    nombre: string | null;
     nota: string | null;
     createdAt: string | null;
 }
@@ -36,9 +44,10 @@ async function embajadorDelUsuario(usuarioId: string): Promise<string | null> {
     return e?.id ?? null;
 }
 
-/** Las marcas del vendedor (su capa personal). Solo el vendedor; otros roles → []. */
+/** Las marcas del usuario (su capa personal). Vendedor o gerente (ambos tienen embajador propio);
+ *  el super no pone marcas → []. */
 export async function listarMisMarcas(panel: UsuarioPanel): Promise<MarcaTerritorio[]> {
-    if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return [];
+    if ((panel.rolEquipo !== 'vendedor' && panel.rolEquipo !== 'gerente') || !panel.usuarioId) return [];
     const embId = await embajadorDelUsuario(panel.usuarioId);
     if (!embId) return [];
     return db
@@ -47,6 +56,7 @@ export async function listarMisMarcas(panel: UsuarioPanel): Promise<MarcaTerrito
             lat: territorioMarcas.lat,
             lng: territorioMarcas.lng,
             tipo: territorioMarcas.tipo,
+            nombre: territorioMarcas.nombre,
             nota: territorioMarcas.nota,
             createdAt: territorioMarcas.createdAt,
         })
@@ -55,30 +65,40 @@ export async function listarMisMarcas(panel: UsuarioPanel): Promise<MarcaTerrito
         .orderBy(desc(territorioMarcas.createdAt));
 }
 
-/** Crear una marca del vendedor. */
+/** Crear una marca. El gerente (sin zona propia) debe indicar la ciudad; se valida su alcance. */
 export async function crearMarca(panel: UsuarioPanel, datos: CrearMarcaInput): Promise<ResultadoAccion<{ id: string }>> {
-    if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return { ok: false, status: 403, mensaje: 'Solo el vendedor pone marcas.' };
+    if ((panel.rolEquipo !== 'vendedor' && panel.rolEquipo !== 'gerente') || !panel.usuarioId) {
+        return { ok: false, status: 403, mensaje: 'Solo el vendedor o el gerente ponen marcas.' };
+    }
     const embId = await embajadorDelUsuario(panel.usuarioId);
-    if (!embId) return { ok: false, status: 403, mensaje: 'No eres un vendedor.' };
+    if (!embId) return { ok: false, status: 403, mensaje: 'No tienes una cuenta de vendedor asociada.' };
+
+    // El vendedor SIEMPRE tiene una zona propia (nace con una asignada) — su marca ya vive dentro de
+    // ella, sin necesidad de ciudad. El gerente no: exige elegir ciudad (misma UX que "Nueva zona")
+    // y valida que caiga en su región — el backend es la autoridad, no solo el selector del front.
+    if (panel.rolEquipo === 'gerente') {
+        if (!datos.ciudadId) return { ok: false, status: 400, mensaje: 'Elige una ciudad para poner el punto.' };
+        if (!(await ciudadEnAlcance(panel, datos.ciudadId))) return { ok: false, status: 403, mensaje: 'Esa ciudad no está en tu alcance.' };
+    }
 
     const [m] = await db
         .insert(territorioMarcas)
-        .values({ embajadorId: embId, lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nota: datos.nota?.trim() || null, ciudadId: datos.ciudadId ?? null })
+        .values({ embajadorId: embId, lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nombre: datos.nombre?.trim() || null, nota: datos.nota?.trim() || null, ciudadId: datos.ciudadId ?? null })
         .returning({ id: territorioMarcas.id });
     return { ok: true, data: { id: m.id } };
 }
 
-/** Verifica que la marca exista y sea del vendedor (fuera de alcance → 404). */
+/** Verifica que la marca exista y sea propia (vendedor o gerente; fuera de alcance → 404). */
 async function cargarMarcaPropia(panel: UsuarioPanel, id: string): Promise<ResultadoAccion<{ id: string }>> {
-    if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return { ok: false, status: 403, mensaje: 'No autorizado.' };
+    if ((panel.rolEquipo !== 'vendedor' && panel.rolEquipo !== 'gerente') || !panel.usuarioId) return { ok: false, status: 403, mensaje: 'No autorizado.' };
     const embId = await embajadorDelUsuario(panel.usuarioId);
-    if (!embId) return { ok: false, status: 403, mensaje: 'No eres un vendedor.' };
+    if (!embId) return { ok: false, status: 403, mensaje: 'No tienes una cuenta de vendedor asociada.' };
     const [m] = await db.select({ embajadorId: territorioMarcas.embajadorId }).from(territorioMarcas).where(eq(territorioMarcas.id, id)).limit(1);
     if (!m || m.embajadorId !== embId) return { ok: false, status: 404, mensaje: 'Marca no encontrada.' };
     return { ok: true, data: { id } };
 }
 
-/** Editar el estado y/o la nota de una marca. */
+/** Editar el estado, nombre y/o la nota de una marca. */
 export async function editarMarca(panel: UsuarioPanel, id: string, datos: EditarMarcaInput): Promise<ResultadoAccion<{ id: string }>> {
     const propia = await cargarMarcaPropia(panel, id);
     if (!propia.ok) return propia;
@@ -86,6 +106,7 @@ export async function editarMarca(panel: UsuarioPanel, id: string, datos: Editar
     if (datos.lat !== undefined) cambios.lat = datos.lat;
     if (datos.lng !== undefined) cambios.lng = datos.lng;
     if (datos.tipo !== undefined) cambios.tipo = datos.tipo;
+    if (datos.nombre !== undefined) cambios.nombre = datos.nombre?.trim() || null;
     if (datos.nota !== undefined) cambios.nota = datos.nota?.trim() || null;
     await db.update(territorioMarcas).set(cambios).where(eq(territorioMarcas.id, id));
     return { ok: true, data: { id } };

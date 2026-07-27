@@ -75,6 +75,7 @@ export interface MarcaEquipo {
   lat: number;
   lng: number;
   tipo: TipoMarca;
+  nombre: string | null;
   nota: string | null;
   vendedorNombre: string | null;
   createdAt: string | null;
@@ -163,6 +164,7 @@ export interface MarcaTerritorio {
   lat: number;
   lng: number;
   tipo: TipoMarca;
+  nombre: string | null;
   nota: string | null;
   createdAt: string | null;
 }
@@ -173,15 +175,15 @@ export async function listarMisMarcas(): Promise<MarcaTerritorio[]> {
   return data.data ?? [];
 }
 
-/** Crear una marca (pin del vendedor). */
-export async function crearMarca(datos: { lat: number; lng: number; tipo: TipoMarca; nota?: string }): Promise<{ id: string }> {
+/** Crear una marca (pin del vendedor, o del gerente — este último debe indicar `ciudadId`). */
+export async function crearMarca(datos: { lat: number; lng: number; tipo: TipoMarca; nombre?: string; nota?: string; ciudadId?: string | null }): Promise<{ id: string }> {
   const { data } = await api.post<RespuestaAPI<{ id: string }>>('/admin/territorios/marcas', datos);
   if (!data.data) throw new Error(data.message || 'Respuesta inválida del servidor');
   return data.data;
 }
 
-/** Editar el estado, la nota y/o la posición (lat/lng) de una marca. */
-export async function editarMarca(id: string, datos: { lat?: number; lng?: number; tipo?: TipoMarca; nota?: string | null }): Promise<{ id: string }> {
+/** Editar el estado, nombre, la nota y/o la posición (lat/lng) de una marca. */
+export async function editarMarca(id: string, datos: { lat?: number; lng?: number; tipo?: TipoMarca; nombre?: string | null; nota?: string | null }): Promise<{ id: string }> {
   const { data } = await api.patch<RespuestaAPI<{ id: string }>>(`/admin/territorios/marcas/${id}`, datos);
   return data.data ?? { id };
 }

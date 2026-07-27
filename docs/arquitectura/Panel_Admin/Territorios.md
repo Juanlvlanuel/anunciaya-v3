@@ -10,7 +10,8 @@
 > inline, tarjeta de detalle). `tsc` de `apps/api` y `apps/admin` en verde. Backlog (no bloqueante): cobertura
 > multi-región (Pieza F) y curvas en el dibujo.
 > **Última actualización:** 27 Julio 2026 (permiso de edición del super ampliado a cualquier zona + nota
-> del vendedor sobre sus negocios asignados, con paridad para el gerente-vendedor).
+> del vendedor sobre sus negocios asignados, con paridad para el gerente-vendedor + el gerente puede poner
+> "sus puntos" sin necesitar una zona propia, eligiendo ciudad en su lugar).
 
 ---
 
@@ -27,7 +28,9 @@ Organizar **en el mapa** a la red de ventas de una ciudad. Resuelve dos cosas:
 ### Quién lo usa
 Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorios"** para gerente/super y
 **"Mi territorio"** para el vendedor):
-- **SuperAdmin / Gerente** → dibujan/asignan zonas y **ven** las marcas de sus vendedores (lectura).
+- **SuperAdmin / Gerente** → dibujan/asignan zonas y **ven** las marcas de sus vendedores (lectura). El
+  **gerente además** tiene su propia figura de vendedor (embajador propio, ver §"Mis puntos" más abajo) y
+  puede prospectar por su cuenta **sin tener una zona propia**.
 - **Vendedor** → ve **solo su zona asignada** y gestiona **sus** marcas.
 
 ### Qué ve y hace
@@ -53,6 +56,19 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   captado** (teal). Al hacer clic se abre una **tarjeta de detalle** (solo lectura: nombre, estado de
   membresía, asignación, vendedor y **nota del vendedor** si tiene); en PC también hay popup al pasar el
   cursor. Los **auto-registrados sin vendedor solo los ve el gerente/super** (al vendedor no).
+- **"Mis puntos" (solo gerente):** un gerente también es vendedor (embajador propio) y puede querer
+  prospectar sin dibujar/auto-asignarse una zona antes. FAB **"Agregar punto"** (ícono de pin, estilo
+  contorno para distinguirlo de "Nueva zona") — exige **elegir una ciudad** del selector primero (misma UX
+  que "Nueva zona"; el punto queda atribuido a esa ciudad), luego un toque en el mapa pone el punto y abre
+  su editor al instante (estado + nota), igual que el editor del vendedor. Los pines de "mis puntos" son
+  **arrastrables** (sin restricción de zona: se pueden mover a cualquier parte) y aparecen en una lista
+  aparte ("Mis puntos") debajo de la lista de zonas, con botón editar. No compiten con "Marcas del equipo":
+  esas son de los vendedores reales; las del propio gerente quedan excluidas de ahí para no verse dos veces.
+- **Cuando un negocio de una marca manual ya se registró en la app:** su pin real (negocio) va a aparecer
+  junto al pin manual (marca) del mismo lugar — **no hay borrado ni ocultado automático** (decisión de
+  Juan, 27 jul): no hay forma confiable de saber que son "el mismo lugar" sin coordenadas idénticas (la liga
+  marca↔negocio se descartó antes, ver Capa 2). El vendedor/gerente borra la marca manual a mano cuando ve
+  que ya quedó duplicada.
 
 **Vista del Vendedor** ("Mi territorio"):
 - Su zona queda **resaltada** y el resto del mapa se **oscurece** (overlay), pero **puede alejar y moverse
@@ -89,6 +105,7 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 | Crear / editar / mover / borrar **sus** marcas | — | — | ✅ |
 | Escribir la **nota** de un negocio asignado a **su propio `embajador_id`** | — | ✅ (si tiene negocios propios) | ✅ |
 | Ver la nota de un negocio (lectura) | ✅ | ✅ (su región) | ✅ (los suyos) |
+| Crear / editar / mover / borrar **sus propios puntos**, **sin zona propia** (solo exige ciudad) | — | ✅ | — (ya nace con zona) |
 
 > Alcance calcado de Vendedores/Negocios: el gerente opera sobre las ciudades de **su región** y sus
 > vendedores; el super sin límite (respeta su lente de región si la activa).
@@ -132,22 +149,22 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 |---|---|
 | `services/admin/territorios.service.ts` | Lecturas con alcance por rol: `listarZonas` · `listarCiudadesDelAlcance` · `listarVendedoresAsignables` · **`listarMarcasEquipo`** (marcas de los vendedores; liga marca→vendedor→zona→ciudad) · **`listarNegociosMapa`** (negocios reales; ubicación de la sucursal principal `negocio_sucursales.ubicacion` —geography— vía `ST_Y/ST_X`) |
 | `services/admin/territorios-acciones.service.ts` | Acciones de zona: `crearZona`/`editarZona`/`asignarZona`/`borrarZona` con alcance + **no-traslape** (`seSolapaConOtraZona`, turf; rechaza 409 si la intersección supera el 1% de la zona más chica) + auditoría |
-| `services/admin/territorios-marcas.service.ts` | CRUD de las marcas del **vendedor**: `listarMisMarcas`/`crearMarca`/`editarMarca` (admite `lat/lng` para reubicar)/`borrarMarca`, acotado a su `embajador_id`. También `actualizarNotaNegocio` (nota del vendedor sobre uno de SUS negocios asignados — verifica `negocios.embajador_id` contra su propio embajador antes de escribir) |
+| `services/admin/territorios-marcas.service.ts` | CRUD de las marcas del **vendedor o gerente** (ambos tienen `embajador_id` propio): `listarMisMarcas`/`crearMarca`/`editarMarca` (admite `lat/lng` para reubicar)/`borrarMarca`, acotado a su embajador. El **gerente** (sin zona propia) debe indicar `ciudadId` al crear — se valida con `ciudadEnAlcance` (exportada de `territorios-acciones.service.ts`) que caiga en su región; el vendedor no lo necesita (ya vive dentro de su zona). También `actualizarNotaNegocio` (nota del vendedor/gerente sobre uno de SUS negocios asignados — verifica `negocios.embajador_id` contra su propio embajador antes de escribir) |
 | `controllers/admin/territorios.controller.ts` · `routes/admin/territorios.routes.ts` | Controllers + rutas (montadas **antes** del gate global de superadmin, porque entran los 3 roles) |
 | `validations/admin/territorios.schema.ts` | Zod: `crearZonaSchema`/`editarZonaSchema`/`asignarZonaSchema` · `crearMarcaSchema`/`editarMarcaSchema` · `notaNegocioSchema` |
 
 **Endpoints** (prefijo `/api/admin/territorios`):
 - `GET /zonas` (3 roles · `?ciudadId`) · `GET /ciudades` · `GET /vendedores` · `GET /marcas-equipo` (super+gerente) · `GET /negocios` (3 roles, alcance en el service · `?ciudadId`)
 - `POST /zonas` · `PATCH /zonas/:id` · `PATCH /zonas/:id/vendedor` · `DELETE /zonas/:id` (super+gerente; el super sobre **cualquier** zona)
-- `GET /marcas` · `POST /marcas` · `PATCH /marcas/:id` · `DELETE /marcas/:id` (solo vendedor)
+- `GET /marcas` · `POST /marcas` · `PATCH /marcas/:id` · `DELETE /marcas/:id` (vendedor **o gerente**; el gerente exige `ciudadId` al crear)
 - `PATCH /negocios/:id/nota` (vendedor **o gerente**, solo sobre uno de **sus** negocios asignados — verificado por `embajador_id`, no por rol)
 
 ### Frontend del Panel (`apps/admin`)
 | Archivo | Rol |
 |---|---|
-| `services/territoriosService.ts` · `config/queryKeys.ts` · `hooks/queries/useTerritoriosAdmin.ts` | React Query: zonas/ciudades/vendedores/marcas-equipo (lectura) + mutaciones de zona + marcas del vendedor (`useMisMarcas`/`useCrearMarca`/`useEditarMarca`/`useMoverMarca`/`useBorrarMarca`) + `useActualizarNotaNegocio` (nota de un negocio asignado) |
-| `components/territorios/SeccionTerritorios.tsx` | **Bifurca por rol**: vendedor → `VistaVendedorTerritorio`; super/gerente → `VistaAdminTerritorio` (selector de ciudad · "Nueva zona" · lista de zonas con reasignar/borrar · filtro de "Marcas del equipo") |
-| `components/territorios/MapaTerritorios.tsx` | Mapa admin (MapLibre + OpenFreeMap): pinta zonas + **editor de 4 herramientas** con snapping a calles (arrastre de vértices por mouse **y touch**) + **marcas de vendedores** y **negocios** como **pines** (capa `symbol`) + **tarjeta de detalle** al clic (marca siempre solo-lectura; negocio solo-lectura salvo que `esMio` → editor de nota inline), vía **portal** cuando el mapa es fijo. Recibe `mapaFijo` · `onGuardarNotaNegocio` · `guardandoNotaNegocio` |
+| `services/territoriosService.ts` · `config/queryKeys.ts` · `hooks/queries/useTerritoriosAdmin.ts` | React Query: zonas/ciudades/vendedores/marcas-equipo (lectura) + mutaciones de zona + marcas del vendedor/gerente (`useMisMarcas`/`useCrearMarca` —admite `ciudadId`—/`useEditarMarca`/`useMoverMarca`/`useBorrarMarca`) + `useActualizarNotaNegocio` (nota de un negocio asignado) |
+| `components/territorios/SeccionTerritorios.tsx` | **Bifurca por rol**: vendedor → `VistaVendedorTerritorio`; super/gerente → `VistaAdminTerritorio` (selector de ciudad · "Nueva zona" · lista de zonas con reasignar/borrar · filtro de "Marcas del equipo" · **si es gerente**: FAB "Agregar punto" + mini-editor + lista "Mis puntos", mutuamente excluyente con el dibujo de zonas) |
+| `components/territorios/MapaTerritorios.tsx` | Mapa admin (MapLibre + OpenFreeMap): pinta zonas + **editor de 4 herramientas** con snapping a calles (arrastre de vértices por mouse **y touch**) + **marcas de vendedores** y **negocios** como **pines** (capa `symbol`) + **tarjeta de detalle** al clic (marca siempre solo-lectura; negocio solo-lectura salvo que `esMio` → editor de nota inline) + **"mis puntos"** del gerente como `maplibregl.Marker` arrastrables (props `misMarcas`/`modoAgregarMarca`/`onAgregarMarca`/`onClicMiMarca`/`onMoverMiMarca`/`miMarcaSeleccionadaId`, mismo patrón que `MapaMarcas.tsx` pero sin restricción de zona), vía **portal** cuando el mapa es fijo. Recibe `mapaFijo` · `onGuardarNotaNegocio` · `guardandoNotaNegocio` |
 | `components/territorios/VistaVendedorTerritorio.tsx` | Vista "Mi territorio": shell responsive (vertical con hoja peek · horizontal con panel deslizable · escritorio con sidebar), FABs sobre el mapa, editor de marca, editor de **nota de negocio** (mini-form análogo, sin selector de estado ni borrar), lista (cards inline con ver/editar) |
 | `components/territorios/HojaMovil.tsx` | Bottom-sheet con "peek" reutilizado por ambas vistas (gerente y vendedor): resumen siempre asomado + FABs anclados que suben/bajan con la hoja |
 | `components/territorios/MapaMarcas.tsx` | Mapa del vendedor: zona enmascarada (capa "mundo con huecos", **sin `maxBounds`** — paneo libre) + intro animado + marcas como **`maplibregl.Marker`** HTML (arrastrables, con resalte al seleccionar) + negocios pin-tienda + popup (con nota si tiene) + bloqueo dentro/fuera de zona. Prop `onClicNegocio` (clic en un negocio propio abre el editor de nota en vez del popup). **Exporta** utilidades reusadas por el mapa admin (`COLOR_TIPO`/`ETIQUETA_TIPO`/`OFFSET_PIN`/`iconoNegocio`/`iconoPinMarca`/`elementoPin`/`aplicarResalte`/`centrarPinBajoEditor`/`ESTADO_BADGE`/`contenidoPopupNegocio`) |
@@ -164,6 +181,8 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 | Edición de zonas (super) | **27 jul 2026:** se quitó la restricción "el super solo edita las zonas que él creó" — ahora el super edita/borra/reasigna **cualquier** zona (propia o de un gerente). El gerente sigue acotado a su región. |
 | Nota de negocio | **27 jul 2026:** nota libre **única** (se sobrescribe, sin historial) que el vendedor escribe sobre uno de **sus** negocios asignados (columna `negocios.nota_territorio`). Solo el dueño de la asignación escribe; gerente/super y el propio vendedor la ven de lectura en popup/tarjeta. Se descartó ligarla a `territorio_marcas` (esa tabla es de prospección propia del vendedor, no de negocios reales — ver decisión "liga marca↔negocio DESCARTADA"). |
 | Nota de negocio · gerente-vendedor | **27 jul 2026 (ajuste):** el permiso de escritura NO se decide por `rol_equipo` sino por dueño real (`negocios.embajador_id === mi embajador_id`) — un **gerente** también tiene `embajador_id` propio (memoria `reference_gerente_tambien_vendedor`) y puede tener negocios en su cartera. `listarNegociosMapa` agrega el flag `esMio`; en la vista de gestión (`MapaTerritorios`), la tarjeta de detalle de un negocio **"esMio"** muestra el editor (antes solo existía en "Mi territorio", inalcanzable para un gerente). |
+| Marcas del gerente sin zona | **27 jul 2026:** el vendedor SIEMPRE nace con una zona asignada, así que nunca choca con "necesito zona para marcar" — pero un gerente que arranca a vender sí, y Juan no quiere obligarlo a dibujar/auto-asignarse una zona solo para poner un punto. Se relajó `crearMarca`/`listarMisMarcas`/`editarMarca`/`borrarMarca` a `(vendedor\|gerente)`; el gerente, en vez de zona, elige **ciudad** (validada contra su región) — mismo patrón que "Nueva zona". `listarMarcasEquipo` excluye el `embajador_id` del propio gerente para que no se vea a sí mismo dos veces (una vez en "Mis puntos", otra en "Marcas del equipo"). |
+| Marca-negocio duplicado sin resolver | **27 jul 2026 (decidido, sin construir):** cuando el negocio de una marca manual se registra en la app, su pin real aparece SOLO junto a la marca vieja — sin dedup automático (Juan: "nada automático"). No hay forma confiable de saber que son el mismo lugar sin coordenadas idénticas, y la liga marca↔negocio ya se descartó antes (`negocio_id` inerte). El vendedor/gerente borra la marca a mano. |
 | UX vendedor | Zona enmascarada (no recorte por `clip-path` — salió invertido en el navegador; se usa capa GeoJSON "mundo con huecos") + intro animado. El **`maxBounds`** (paneo acotado) se **quitó** a pedido: el vendedor puede moverse libre; el overlay basta para resaltar su zona. |
 | Auditoría | Crear/editar/asignar/borrar zona → `registrarAuditoria` → `admin_auditoria`. |
 

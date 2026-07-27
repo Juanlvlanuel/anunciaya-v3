@@ -29,8 +29,10 @@ export type ResultadoAccion<T = unknown> =
 // HELPERS DE ALCANCE
 // =============================================================================
 
-/** ¿La ciudad cae en el alcance del rol? (super = cualquiera · gerente = su región). */
-async function ciudadEnAlcance(panel: UsuarioPanel, ciudadId: string): Promise<boolean> {
+/** ¿La ciudad cae en el alcance del rol? (super = cualquiera · gerente = su región).
+ *  Exportada: también la usa `territorios-marcas.service.ts` para validar la ciudad de una marca
+ *  del GERENTE (que no necesita zona propia, ver `crearMarca`). */
+export async function ciudadEnAlcance(panel: UsuarioPanel, ciudadId: string): Promise<boolean> {
     if (panel.rolEquipo === 'superadmin') return true;
     if (panel.rolEquipo === 'gerente') {
         if (!panel.regionId) return false;

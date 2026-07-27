@@ -55,11 +55,12 @@ router.patch('/zonas/:id', requierePanel(['superadmin', 'gerente']), editarZonaC
 router.patch('/zonas/:id/vendedor', requierePanel(['superadmin', 'gerente']), asignarZonaController);
 router.delete('/zonas/:id', requierePanel(['superadmin', 'gerente']), borrarZonaController);
 
-// ─── MARCAS del vendedor (G.2) — solo el vendedor gestiona las suyas ─────────────
-router.get('/marcas', requierePanel(['vendedor']), listarMarcasController);
-router.post('/marcas', requierePanel(['vendedor']), crearMarcaController);
-router.patch('/marcas/:id', requierePanel(['vendedor']), editarMarcaController);
-router.delete('/marcas/:id', requierePanel(['vendedor']), borrarMarcaController);
+// ─── MARCAS (G.2) — el vendedor y el gerente gestionan las suyas (el gerente también tiene
+// embajador propio y puede prospectar sin zona asignada; ver territorios-marcas.service.ts) ─────
+router.get('/marcas', requierePanel(['vendedor', 'gerente']), listarMarcasController);
+router.post('/marcas', requierePanel(['vendedor', 'gerente']), crearMarcaController);
+router.patch('/marcas/:id', requierePanel(['vendedor', 'gerente']), editarMarcaController);
+router.delete('/marcas/:id', requierePanel(['vendedor', 'gerente']), borrarMarcaController);
 
 // ─── Nota del vendedor sobre uno de SUS negocios asignados (pin del mapa). El gerente entra
 // también: tiene su propio embajador_id y puede tener negocios asignados como vendedor.

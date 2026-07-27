@@ -93,6 +93,9 @@ export const territorioMarcas = pgTable("territorio_marcas", {
 	lat: numeric({ precision: 9, scale: 6, mode: 'number' }).notNull(),
 	lng: numeric({ precision: 9, scale: 6, mode: 'number' }).notNull(),
 	tipo: varchar({ length: 20 }).default('visitado').notNull(),
+	// Nombre libre del negocio que representa el punto (no liga a un `negocios.id` real — la liga
+	// marca↔negocio se descartó antes). Opcional: puede ser solo una nota sin nombre.
+	nombre: varchar({ length: 120 }),
 	nota: text(),
 	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),

@@ -134,6 +134,7 @@ export interface MarcaEquipo {
     lat: number;
     lng: number;
     tipo: string;
+    nombre: string | null;
     nota: string | null;
     vendedorNombre: string | null;
     createdAt: string | null;
@@ -144,10 +145,19 @@ export interface MarcaEquipo {
  * guarda ciudad de forma fiable, se liga al vendedor por su ZONA: "marcas de la ciudad X" = marcas
  * de los vendedores con zona asignada en X. Alcance: super = todas (o de la ciudad) · gerente = las
  * de vendedores con zona en su región (o en la ciudad indicada, que ya es de su región).
+ *
+ * Excluye SIEMPRE las marcas del propio gerente logueado (su embajador_id): esas son "sus" marcas
+ * personales (`listarMisMarcas`), no las "del equipo" — evita que se vea a sí mismo dos veces.
  */
 export async function listarMarcasEquipo(panel: UsuarioPanel, ciudadId?: string): Promise<MarcaEquipo[]> {
     if (panel.rolEquipo === 'vendedor') return [];
     if (panel.rolEquipo === 'gerente' && !panel.regionId) return [];
+
+    let miEmbajadorId: string | null = null;
+    if (panel.rolEquipo === 'gerente' && panel.usuarioId) {
+        const [e] = await db.select({ id: embajadores.id }).from(embajadores).where(eq(embajadores.usuarioId, panel.usuarioId)).limit(1);
+        miEmbajadorId = e?.id ?? null;
+    }
 
     // Sub-filtro: embajadores con zona en el alcance (ciudad y/o región).
     const condZona: SQL[] = [sql`tz.embajador_id IS NOT NULL`];
@@ -155,30 +165,33 @@ export async function listarMarcasEquipo(panel: UsuarioPanel, ciudadId?: string)
     if (panel.rolEquipo === 'gerente') condZona.push(sql`c.region_id = ${panel.regionId}`);
 
     // Super + "todas las ciudades" → todas las marcas; en otro caso, acota por los embajadores en alcance.
-    const filtroEmbajador =
-        panel.rolEquipo === 'superadmin' && !ciudadId
-            ? sql``
-            : sql`WHERE m.embajador_id IN (
+    const condiciones: SQL[] = [];
+    if (!(panel.rolEquipo === 'superadmin' && !ciudadId)) {
+        condiciones.push(sql`m.embajador_id IN (
                 SELECT DISTINCT tz.embajador_id FROM territorio_zonas tz
                 JOIN ciudades c ON c.id = tz.ciudad_id
                 WHERE ${sql.join(condZona, sql` AND `)}
-            )`;
+            )`);
+    }
+    if (miEmbajadorId) condiciones.push(sql`m.embajador_id != ${miEmbajadorId}`);
+    const filtroEmbajador = condiciones.length ? sql`WHERE ${sql.join(condiciones, sql` AND `)}` : sql``;
 
     const filas = (await db.execute(sql`
-        SELECT m.id::text AS id, m.lat AS lat, m.lng AS lng, m.tipo AS tipo, m.nota AS nota,
+        SELECT m.id::text AS id, m.lat AS lat, m.lng AS lng, m.tipo AS tipo, m.nombre AS marca_nombre, m.nota AS nota,
                m.created_at AS created_at, u.nombre AS vendedor_nombre
         FROM territorio_marcas m
         JOIN embajadores e ON e.id = m.embajador_id
         LEFT JOIN usuarios u ON u.id = e.usuario_id
         ${filtroEmbajador}
         ORDER BY m.created_at DESC
-    `)).rows as Array<{ id: string; lat: string | number; lng: string | number; tipo: string; nota: string | null; created_at: string | null; vendedor_nombre: string | null }>;
+    `)).rows as Array<{ id: string; lat: string | number; lng: string | number; tipo: string; marca_nombre: string | null; nota: string | null; created_at: string | null; vendedor_nombre: string | null }>;
 
     return filas.map((f) => ({
         id: f.id,
         lat: Number(f.lat),
         lng: Number(f.lng),
         tipo: f.tipo,
+        nombre: f.marca_nombre,
         nota: f.nota,
         vendedorNombre: f.vendedor_nombre,
         createdAt: f.created_at,

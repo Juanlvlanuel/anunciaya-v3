@@ -32,6 +32,7 @@ const TIPOS: TipoMarca[] = ['visitado', 'interesado', 'cerrado', 'sin_interes'];
 interface MarcaEnEdicion {
     id: string | null; // null = recién creada, esperando el id real del servidor (editor ya abierto)
     tipo: TipoMarca;
+    nombre: string;
     nota: string;
 }
 
@@ -136,7 +137,7 @@ export function VistaVendedorTerritorio() {
         setModoAgregar(false);
         setEditandoNegocio(null);
         setFoco(null); // el resalte pasa a ser el de la marca en edición
-        setEditando({ id: m.id, tipo: m.tipo, nota: m.nota ?? '' });
+        setEditando({ id: m.id, tipo: m.tipo, nombre: m.nombre ?? '', nota: m.nota ?? '' });
     };
 
     // Abre el editor de la nota de uno de los negocios asignados (clic en su pin en el mapa).
@@ -173,7 +174,7 @@ export function VistaVendedorTerritorio() {
         // Ignora el click-fuera del propio gesto que crea (si no, cerraría el editor recién abierto).
         ignorarCierreRef.current = true;
         window.setTimeout(() => { ignorarCierreRef.current = false; }, 400);
-        setEditando({ id: null, tipo: 'visitado', nota: '' }); // abre el editor AL INSTANTE (sin esperar al servidor)
+        setEditando({ id: null, tipo: 'visitado', nombre: '', nota: '' }); // abre el editor AL INSTANTE (sin esperar al servidor)
         crear.mutate(
             { lat, lng, tipo: 'visitado' },
             {
@@ -187,7 +188,7 @@ export function VistaVendedorTerritorio() {
     const guardarMarca = () => {
         if (!editando?.id) return; // aún sin id real (servidor respondiendo): el botón está deshabilitado
         editar.mutate(
-            { id: editando.id, datos: { tipo: editando.tipo, nota: editando.nota.trim() || null } },
+            { id: editando.id, datos: { tipo: editando.tipo, nombre: editando.nombre.trim() || null, nota: editando.nota.trim() || null } },
             { onSuccess: () => setEditando(null) },
         );
     };
@@ -311,6 +312,13 @@ export function VistaVendedorTerritorio() {
                     </button>
                 ))}
             </div>
+            <input
+                data-testid="marca-nombre"
+                value={editando.nombre}
+                onChange={(e) => setEditando((p) => (p ? { ...p, nombre: e.target.value } : p))}
+                placeholder="Nombre del negocio (opcional)"
+                className="mt-2 w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[15px] text-texto outline-none focus:border-marca"
+            />
             <textarea
                 data-testid="marca-nota"
                 value={editando.nota}
@@ -397,10 +405,10 @@ export function VistaVendedorTerritorio() {
                     <div key={m.id} data-testid={`marca-item-${m.id}`} className="flex flex-col gap-1.5 border-b border-borde py-2.5 last:border-b-0">
                         <div className="flex items-center gap-2">
                             <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: COLOR_TIPO[m.tipo] }} />
-                            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-texto">{ETIQUETA_TIPO[m.tipo]}</span>
+                            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-texto">{m.nombre || ETIQUETA_TIPO[m.tipo]}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate text-[12.5px] text-texto-3">{m.nota || 'Sin nota'}</span>
+                            <span className="min-w-0 flex-1 truncate text-[12.5px] text-texto-3">{m.nombre ? `${ETIQUETA_TIPO[m.tipo]} · ${m.nota || 'Sin nota'}` : (m.nota || 'Sin nota')}</span>
                             <div className="flex shrink-0 items-center gap-1.5">
                                 <Tooltip text="Ver en el mapa">
                                     <button

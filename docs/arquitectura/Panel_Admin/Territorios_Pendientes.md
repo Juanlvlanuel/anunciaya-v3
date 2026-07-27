@@ -221,6 +221,21 @@ donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** ma
 > `MapaTerritorios.tsx` (la vista de gestión, la única que ve un gerente) muestra el editor de nota cuando
 > `esMio` es verdadero, en vez de forzar al gerente a no tener dónde escribirla (antes el editor solo vivía en
 > "Mi territorio", inalcanzable para su rol).
+>
+> **Marcas del gerente SIN zona propia HECHO ✅ (27 jul, mismo día):** el vendedor siempre nace con una zona
+> asignada; un gerente que empieza a vender, no — y Juan no quería obligarlo a dibujar/auto-asignarse una
+> zona solo para poner un punto de prospección. `crearMarca`/`listarMisMarcas`/`editarMarca`/`borrarMarca`
+> se relajaron de "solo vendedor" a `(vendedor|gerente)`; el gerente, en vez de zona, **elige ciudad** del
+> selector (misma UX que "Nueva zona") — `crearMarca` la exige y valida con `ciudadEnAlcance` (ahora
+> exportada de `territorios-acciones.service.ts`) que caiga en su región. `listarMarcasEquipo` excluye el
+> `embajador_id` del propio gerente (si no, se vería a sí mismo dos veces: en "Mis puntos" y en "Marcas del
+> equipo"). Frontend: `MapaTerritorios.tsx` gana un tercer modo de clic ("Agregar punto", prioridad sobre
+> hit-test de marcas/negocios) + Markers arrastrables para "mis puntos" (mismo patrón que `MapaMarcas.tsx`
+> pero SIN restricción de zona) + `SeccionTerritorios.tsx` gana FAB "Agregar punto" (estilo contorno, para
+> distinguirlo de "Nueva zona"; exige ciudad elegida, mutuamente excluyente con el dibujo de zonas), mini-form
+> (estado + nota) y lista "Mis puntos" bajo la lista de zonas. Sobre el segundo tema planteado por Juan el
+> mismo día (marca manual "duplicada" cuando su negocio ya se registró) — **decisión: nada automático**, sin
+> construir (ver tabla de decisiones de `Territorios.md`).
 
 **Modelo de datos (tabla nueva, se crea al construir G.2):** `territorio_marcas`: `id` · `embajador_id` →
 `embajadores(id)` · `lat` · `lng` · `tipo` (enum de los 4) · `nota` (text) · `negocio_id` (FK suave, opcional) ·

@@ -28,6 +28,11 @@ import {
     useAsignarZona,
     useBorrarZona,
     useActualizarNotaNegocio,
+    useMisMarcas,
+    useCrearMarca,
+    useEditarMarca,
+    useMoverMarca,
+    useBorrarMarca,
 } from '../../hooks/queries/useTerritoriosAdmin';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -43,6 +48,9 @@ import type { PoligonoGeoJSON, TipoMarca, ZonaTerritorio } from '../../services/
 
 const COLORES = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
 const TIPOS_MARCA: TipoMarca[] = ['visitado', 'interesado', 'cerrado', 'sin_interes'];
+// "Mis puntos" del gerente van siempre en verde en el mapa (ver MapaTerritorios.tsx) — mismo color
+// aquí, en el punto de la lista, para que se reconozcan como el mismo elemento.
+const COLOR_MI_PUNTO = '#0e8a52';
 
 interface SeccionTerritoriosProps {
     rol: RolPanel;
@@ -57,6 +65,10 @@ export function SeccionTerritorios({ rol }: SeccionTerritoriosProps) {
 /** Vista de gestión (super/gerente): dibujar zonas, asignarlas y borrarlas. */
 function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const puedeEditar = rol === 'superadmin' || rol === 'gerente';
+    // El gerente TAMBIÉN tiene figura de vendedor (embajador propio, ver reference_gerente_tambien_vendedor)
+    // y puede querer prospectar sin tener una zona propia — a diferencia del vendedor (siempre nace con
+    // una), aquí elige la CIUDAD en vez de depender de un territorio. El super nunca pone puntos.
+    const esGerente = rol === 'gerente';
     const esEscritorio = useEsEscritorio();
 
     const [ciudadId, setCiudadId] = useState('');
@@ -65,11 +77,16 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const { data: zonas = [], isLoading, isError } = useZonas(ciudadId ? { ciudadId } : {});
     const { data: marcas = [] } = useMarcasEquipo(ciudadId || undefined, puedeEditar);
     const { data: negocios = [] } = useNegociosMapa(ciudadId || undefined, puedeEditar);
+    const { data: misMarcas = [] } = useMisMarcas(esGerente);
     const crear = useCrearZona();
     const editar = useEditarZona();
     const asignar = useAsignarZona();
     const borrar = useBorrarZona();
     const actualizarNotaNegocio = useActualizarNotaNegocio();
+    const crearMiMarca = useCrearMarca();
+    const editarMiMarca = useEditarMarca();
+    const moverMiMarca = useMoverMarca();
+    const borrarMiMarca = useBorrarMarca();
 
     const [dibujando, setDibujando] = useState(false);
     const [zonaEditando, setZonaEditando] = useState<ZonaTerritorio | null>(null);
@@ -86,11 +103,21 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     // Panel derecho en móvil horizontal: visible u oculto (deslizado a la derecha).
     const [panelAbierto, setPanelAbierto] = useState(true);
 
+    // "Mis puntos" (gerente, G.2 sin zona propia): igual patrón que el editor de marca del vendedor.
+    const [modoAgregarMarca, setModoAgregarMarca] = useState(false);
+    const [marcaEditando, setMarcaEditando] = useState<{ id: string | null; tipo: TipoMarca; nombre: string; nota: string } | null>(null);
+    const [confirmarBorrarMarca, setConfirmarBorrarMarca] = useState(false);
+    // Menú del FAB "+" único (gerente: elige entre "Dibujar zona" y "Agregar punto"; el super, al no
+    // tener la 2ª opción, entra directo a dibujar sin menú).
+    const [menuAgregarAbierto, setMenuAgregarAbierto] = useState(false);
+
     // Al terminar de dibujar (aparece el formulario) la hoja se expande para verlo;
     // al empezar a dibujar se colapsa a peek para no tapar el mapa.
     // Al dibujar/nombrar (modo dibujo o mini-form abierto) la hoja se colapsa a peek para no tapar
     // el mapa ni el mini-form. (El mini-form vive sobre el mapa, ya no en la hoja.)
-    useEffect(() => { if (dibujando || poligonoNuevo) setHojaExpandida(false); }, [dibujando, poligonoNuevo]);
+    useEffect(() => {
+        if (dibujando || poligonoNuevo || modoAgregarMarca || marcaEditando) setHojaExpandida(false);
+    }, [dibujando, poligonoNuevo, modoAgregarMarca, marcaEditando]);
 
     // Orientación del teléfono: en HORIZONTAL (girado) ocultamos header + nav SIEMPRE (mapa total),
     // solo en este módulo. En vertical, las barras siguen a la hoja.
@@ -155,6 +182,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         setEmbajadorId(z.embajadorId ?? '');
         setPoligonoNuevo(null);
         setDibujando(true);
+        setMenuAgregarAbierto(false);
         enfocarZona(z);
     };
 
@@ -162,6 +190,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         setPoligonoNuevo(null);
         setZonaEditando(null);
         setDibujando(false);
+        setMenuAgregarAbierto(false);
     };
 
     const alPoligonoCompleto = (poly: PoligonoGeoJSON) => {
@@ -191,6 +220,44 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         }
     };
 
+    // ── "Mis puntos" del gerente (sin zona propia — la ciudad elegida hace ese papel) ────────────
+
+    /** Toca el mapa en modo "Agregar punto": crea el punto EN LA CIUDAD elegida y abre su editor al
+     *  instante (optimista), igual que el flujo del vendedor. */
+    const alAgregarMarca = (lat: number, lng: number) => {
+        if (!ciudadId) return;
+        setModoAgregarMarca(false);
+        setMarcaEditando({ id: null, tipo: 'visitado', nombre: '', nota: '' });
+        crearMiMarca.mutate(
+            { lat, lng, tipo: 'visitado', ciudadId },
+            { onSuccess: (data) => setMarcaEditando((p) => (p && p.id === null ? { ...p, id: data.id } : p)) },
+        );
+    };
+
+    /** Abre el editor de uno de mis puntos existentes (clic en el pin o "editar" desde la lista). */
+    const abrirMarca = (id: string) => {
+        const m = misMarcas.find((x) => x.id === id);
+        if (!m) return;
+        setModoAgregarMarca(false);
+        setMenuAgregarAbierto(false);
+        setMarcaEditando({ id: m.id, tipo: m.tipo as TipoMarca, nombre: m.nombre ?? '', nota: m.nota ?? '' });
+    };
+
+    const guardarMarca = () => {
+        if (!marcaEditando?.id) return;
+        editarMiMarca.mutate(
+            { id: marcaEditando.id, datos: { tipo: marcaEditando.tipo, nombre: marcaEditando.nombre.trim() || null, nota: marcaEditando.nota.trim() || null } },
+            { onSuccess: () => setMarcaEditando(null) },
+        );
+    };
+
+    const borrarMarcaConfirmada = () => {
+        if (!marcaEditando?.id) return;
+        borrarMiMarca.mutate(marcaEditando.id); // optimista: el pin se va al instante (revierte si falla)
+        setConfirmarBorrarMarca(false);
+        setMarcaEditando(null);
+    };
+
     // ── Piezas de UI compartidas entre escritorio y móvil ──────────────────────
 
     const elMapa = isError ? (
@@ -213,6 +280,12 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             mapaFijo={!esEscritorio && !esHorizontal}
             onGuardarNotaNegocio={(id, nota) => actualizarNotaNegocio.mutate({ id, nota })}
             guardandoNotaNegocio={actualizarNotaNegocio.isPending}
+            misMarcas={esGerente ? misMarcas : []}
+            modoAgregarMarca={modoAgregarMarca}
+            onAgregarMarca={alAgregarMarca}
+            onClicMiMarca={abrirMarca}
+            onMoverMiMarca={(id, lat, lng) => moverMiMarca.mutate({ id, lat, lng })}
+            miMarcaSeleccionadaId={marcaEditando?.id ?? null}
         />
     );
 
@@ -276,24 +349,75 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             </div>
         ) : null;
 
-    // FAB sobre el mapa (abajo a la derecha), con tooltip. Alterna "+" (iniciar dibujo) ↔ "X" (cancelar
-    // el dibujo en curso): así el Cancelar vive en el FAB y no en la barra de herramientas. Se oculta al
-    // nombrar la zona (el mini-form tiene su propio Cancelar).
-    const fabZona = (posicion: string) => {
-        if (poligonoNuevo) return null;
-        const cancelar = dibujando;
+    // FAB único "+" sobre el mapa. El super (sin la opción de puntos) entra DIRECTO a dibujar una zona,
+    // igual que antes. El gerente abre un menú de 2 opciones ("Dibujar zona" / "Agregar punto") porque
+    // ahora tiene ambas acciones. Mientras cualquiera de las dos esté en curso, el mismo botón se
+    // convierte en "Cancelar" (◯→✕) para esa acción — el Cancelar vive en el FAB, no en cada mini-form.
+    const fabAgregar = (posicion: string) => {
+        if (poligonoNuevo || marcaEditando) return null; // esos mini-form ya tienen su propio Cancelar
+        const enModo = dibujando || modoAgregarMarca;
+        if (enModo) {
+            return (
+                <div className={`absolute z-10 ${posicion}`}>
+                    <Tooltip text="Cancelar" position="left">
+                        <button
+                            type="button"
+                            data-testid="territorios-cancelar-agregar"
+                            onClick={() => { if (dibujando) cancelarForm(); if (modoAgregarMarca) setModoAgregarMarca(false); }}
+                            aria-label="Cancelar"
+                            className="grid h-[52px] w-[52px] place-items-center rounded-full bg-marca text-white shadow-tarjeta-panel transition hover:opacity-90"
+                        >
+                            <X size={26} />
+                        </button>
+                    </Tooltip>
+                </div>
+            );
+        }
+        const deshabilitado = !ciudadId;
+        const alClicPrincipal = () => {
+            if (deshabilitado) return;
+            if (!esGerente) { setDibujando(true); return; } // super: sin menú, una sola opción
+            setMenuAgregarAbierto((v) => !v);
+        };
         return (
-            <div className={`absolute z-10 ${posicion}`}>
-                <Tooltip text={cancelar ? 'Cancelar' : (!ciudadId ? 'Elige una ciudad primero' : 'Dibujar una zona')} position="left">
+            <div className={`absolute z-10 flex flex-col items-end gap-2 ${posicion}`}>
+                {esGerente && menuAgregarAbierto && (
+                    <>
+                        <Tooltip text="Agregar punto" position="left">
+                            <button
+                                type="button"
+                                data-testid="territorios-opcion-punto"
+                                onClick={() => { setMenuAgregarAbierto(false); setModoAgregarMarca(true); }}
+                                aria-label="Agregar punto"
+                                className="grid h-[46px] w-[46px] place-items-center rounded-full border border-borde bg-superficie text-marca shadow-tarjeta-panel transition hover:bg-marca-suave"
+                            >
+                                <MapPin size={20} />
+                            </button>
+                        </Tooltip>
+                        <Tooltip text="Dibujar zona" position="left">
+                            <button
+                                type="button"
+                                data-testid="territorios-opcion-zona"
+                                onClick={() => { setMenuAgregarAbierto(false); setDibujando(true); }}
+                                aria-label="Dibujar zona"
+                                className="grid h-[46px] w-[46px] place-items-center rounded-full border border-borde bg-superficie text-marca shadow-tarjeta-panel transition hover:bg-marca-suave"
+                            >
+                                <Pencil size={18} />
+                            </button>
+                        </Tooltip>
+                    </>
+                )}
+                <Tooltip text={deshabilitado ? 'Elige una ciudad primero' : (esGerente ? 'Agregar' : 'Nueva zona')} position="left">
                     <button
                         type="button"
-                        data-testid="territorios-nueva-zona"
-                        onClick={() => (cancelar ? cancelarForm() : setDibujando(true))}
-                        disabled={!cancelar && !ciudadId}
-                        aria-label={cancelar ? 'Cancelar dibujo' : 'Nueva zona'}
-                        className="grid h-[52px] w-[52px] place-items-center rounded-full bg-marca text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:bg-marca-suave disabled:text-marca"
+                        data-testid="territorios-agregar"
+                        onClick={alClicPrincipal}
+                        disabled={deshabilitado}
+                        aria-label="Agregar"
+                        aria-expanded={esGerente ? menuAgregarAbierto : undefined}
+                        className={`grid h-[52px] w-[52px] place-items-center rounded-full bg-marca text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:bg-marca-suave disabled:text-marca ${menuAgregarAbierto ? 'rotate-45' : ''}`}
                     >
-                        {cancelar ? <X size={26} /> : <Plus size={26} />}
+                        <Plus size={26} />
                     </button>
                 </Tooltip>
             </div>
@@ -344,6 +468,71 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                         Guardar
                     </button>
                 </div>
+            </div>
+        </div>
+    ) : null;
+
+    // Mini-form de "mi punto" (nuevo o en edición): mismo patrón que el editor de marca del vendedor
+    // (estado + nota + borrar/guardar), sin selector de zona porque el punto no depende de una.
+    const miniFormMarca = marcaEditando ? (
+        <div className="absolute left-3 top-3 z-30 w-[min(420px,calc(100%-1.5rem))] rounded-[14px] border border-borde bg-superficie p-3 shadow-tarjeta-panel" data-testid="form-marca-gerente">
+            <div className="mb-1 flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-texto">{marcaEditando.id ? 'Editar punto' : 'Nuevo punto'}</span>
+                <button type="button" onClick={() => setMarcaEditando(null)} aria-label="Cerrar" className="grid h-9 w-9 place-items-center rounded-full text-texto-3 transition hover:bg-superficie-2">
+                    <X size={20} />
+                </button>
+            </div>
+            <div className="flex flex-wrap gap-1">
+                {TIPOS_MARCA.map((t) => (
+                    <button
+                        key={t}
+                        type="button"
+                        data-testid={`marca-gerente-tipo-${t}`}
+                        onClick={() => setMarcaEditando((p) => (p ? { ...p, tipo: t } : p))}
+                        className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-1.5 text-[13px] transition ${
+                            marcaEditando.tipo === t ? 'border-marca bg-marca-suave font-medium text-texto' : 'border-borde text-texto-2 hover:bg-superficie-2'
+                        }`}
+                    >
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
+                        {ETIQUETA_TIPO[t]}
+                    </button>
+                ))}
+            </div>
+            <input
+                data-testid="marca-gerente-nombre"
+                value={marcaEditando.nombre}
+                onChange={(e) => setMarcaEditando((p) => (p ? { ...p, nombre: e.target.value } : p))}
+                placeholder="Nombre del negocio (opcional)"
+                className="mt-2 w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[14px] text-texto outline-none focus:border-marca"
+            />
+            <textarea
+                data-testid="marca-gerente-nota"
+                value={marcaEditando.nota}
+                onChange={(e) => setMarcaEditando((p) => (p ? { ...p, nota: e.target.value } : p))}
+                placeholder="Nota (ej. contactar la próxima semana…)"
+                rows={3}
+                className="mt-2 w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[14px] text-texto outline-none focus:border-marca"
+            />
+            <div className="mt-2 flex gap-2">
+                <button
+                    type="button"
+                    data-testid="marca-gerente-borrar"
+                    onClick={() => setConfirmarBorrarMarca(true)}
+                    disabled={!marcaEditando.id}
+                    aria-label="Borrar punto"
+                    className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-borde px-3 py-2 text-[13px] text-texto-3 transition hover:bg-peligro-suave hover:text-peligro disabled:opacity-40"
+                >
+                    <Trash2 size={16} /> Borrar
+                </button>
+                <button
+                    type="button"
+                    data-testid="marca-gerente-guardar"
+                    onClick={guardarMarca}
+                    disabled={editarMiMarca.isPending || !marcaEditando.id}
+                    className="flex-1 rounded-[10px] bg-marca px-3 py-2 text-[13px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+                >
+                    Guardar
+                </button>
             </div>
         </div>
     ) : null;
@@ -445,6 +634,50 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         />
     ) : null;
 
+    const dialogoBorrarMarca = confirmarBorrarMarca ? (
+        <DialogoConfirmar
+            abierto
+            variante="danger"
+            titulo="Borrar punto"
+            mensaje="Se eliminará este punto y su nota. Esta acción no se puede deshacer."
+            textoConfirmar="Borrar"
+            cargando={borrarMiMarca.isPending}
+            onCerrar={() => setConfirmarBorrarMarca(false)}
+            onConfirmar={borrarMarcaConfirmada}
+        />
+    ) : null;
+
+    // "Mis puntos" (gerente): lista compacta debajo de las zonas, con editar por fila. Sin filtros
+    // (volumen bajo esperado — es una capa secundaria del gerente, no su vista principal).
+    const piezaMisPuntos = esGerente ? (
+        <div className="mt-3 shrink-0 border-t border-borde pt-3">
+            <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-wide text-texto-3">Mis puntos</h3>
+            {misMarcas.length === 0 ? (
+                <div className="rounded-[10px] border border-dashed border-borde px-3 py-4 text-center text-[12.5px] text-texto-3">
+                    Aún no tienes puntos. Elige una ciudad y usa "Agregar punto".
+                </div>
+            ) : (
+                misMarcas.map((m) => (
+                    <div key={m.id} data-testid={`marca-gerente-item-${m.id}`} className="flex items-center gap-2 border-b border-borde py-2 last:border-b-0">
+                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: COLOR_MI_PUNTO }} />
+                        <span className="min-w-0 flex-1 truncate text-[12.5px] text-texto-2">{m.nombre || m.nota || ETIQUETA_TIPO[m.tipo as TipoMarca]}</span>
+                        <Tooltip text="Editar punto">
+                            <button
+                                type="button"
+                                data-testid={`marca-gerente-editar-${m.id}`}
+                                onClick={() => abrirMarca(m.id)}
+                                aria-label="Editar punto"
+                                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
+                            >
+                                <Pencil size={16} />
+                            </button>
+                        </Tooltip>
+                    </div>
+                ))
+            )}
+        </div>
+    ) : null;
+
     // Contenido del panel de gestión (ciudad + filtros + lista/form). El "Nueva zona" ya NO vive aquí:
     // es un FAB sobre el mapa en todos los layouts. `filtrosCarrusel`: en HORIZONTAL (panel angosto) los
     // 4 filtros van en 1 fila deslizable; en ESCRITORIO se acomodan con flex-wrap.
@@ -452,7 +685,10 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         <>
             <div className="shrink-0">{piezaCiudad}</div>
             {hayFiltros && <div className="shrink-0">{piezaFiltros(filtrosCarrusel)}</div>}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{piezaLista}</div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                {piezaLista}
+                {piezaMisPuntos}
+            </div>
         </>
     );
 
@@ -463,9 +699,10 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 <div className="absolute inset-0">
                     {elMapa}
                     {botonNegocios('bottom-3 left-3')}
-                    {/* FAB de Zona: sigue al panel — a su izquierda cuando está abierto, a la esquina cuando se cierra. */}
-                    {fabZona(`bottom-3 transition-[right] duration-300 ${panelAbierto ? 'right-[calc(45%+0.75rem)]' : 'right-3'}`)}
+                    {/* FAB "+": sigue al panel — a su izquierda cuando está abierto, a la esquina cuando se cierra. */}
+                    {fabAgregar(`bottom-3 transition-[right] duration-300 ${panelAbierto ? 'right-[calc(45%+0.75rem)]' : 'right-3'}`)}
                     {miniFormZona}
+                    {miniFormMarca}
                 </div>
                 <aside
                     className={`absolute inset-y-0 right-0 z-20 flex w-[45%] flex-col gap-2 border-l border-borde bg-superficie p-2.5 shadow-tarjeta-panel transition-transform duration-300 ${panelAbierto ? 'translate-x-0' : 'translate-x-full'}`}
@@ -484,6 +721,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     {contenidoPanel(true)}
                 </aside>
                 {dialogoBorrar}
+                {dialogoBorrarMarca}
             </div>
         );
     }
@@ -498,11 +736,16 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 <div className="fixed inset-0 z-0">{elMapa}</div>
                 {/* Overlay sin captura de eventos (pointer-events-none) para que los clics en zonas
                     vacías lleguen al mapa/controles de zoom (z-0); los hijos sí los reciben. */}
-                <div className="pointer-events-none absolute inset-0 z-10 [&>*]:pointer-events-auto">{botonNegocios('bottom-[64px] left-3')}{fabZona('bottom-[64px] right-3')}{miniFormZona}</div>
+                <div className="pointer-events-none absolute inset-0 z-10 [&>*]:pointer-events-auto">
+                    {botonNegocios('bottom-[64px] left-3')}
+                    {fabAgregar('bottom-[64px] right-3')}
+                    {miniFormZona}
+                    {miniFormMarca}
+                </div>
 
                 {/* Barra flotante: solo la ciudad (el "Nueva zona" pasó a ser un FAB abajo a la derecha).
                     Se oculta mientras se DIBUJA o se nombra la zona; reaparece al cancelar o terminar. */}
-                {!dibujando && !poligonoNuevo && (
+                {!dibujando && !poligonoNuevo && !modoAgregarMarca && !marcaEditando && (
                     <div className="absolute left-2 right-14 top-2 z-10">
                         <div className="rounded-[10px] shadow-tarjeta-panel">{piezaCiudad}</div>
                     </div>
@@ -516,9 +759,11 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     altura="68%"
                 >
                     {piezaLista}
+                    {piezaMisPuntos}
                 </HojaMovil>
 
                 {dialogoBorrar}
+                {dialogoBorrarMarca}
             </div>
         );
     }
@@ -526,7 +771,13 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     // ── Escritorio: mapa a la izquierda + columna derecha de gestión ───────────
     return (
         <div className="flex h-full flex-col gap-3 lg:flex-row" data-testid="seccion-territorios">
-            <div className="relative min-h-[320px] min-w-0 flex-1">{elMapa}{botonNegocios('bottom-3 left-3')}{puedeEditar && fabZona('bottom-3 right-3')}{miniFormZona}</div>
+            <div className="relative min-h-[320px] min-w-0 flex-1">
+                {elMapa}
+                {botonNegocios('bottom-3 left-3')}
+                {puedeEditar && fabAgregar('bottom-3 right-3')}
+                {miniFormZona}
+                {miniFormMarca}
+            </div>
 
             {puedeEditar && (
                 <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-[420px] lg:pr-3 lg:pt-3">
@@ -535,6 +786,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             )}
 
             {dialogoBorrar}
+            {dialogoBorrarMarca}
         </div>
     );
 }

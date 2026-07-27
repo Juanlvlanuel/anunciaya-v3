@@ -52,20 +52,22 @@ export type EditarZonaInput = z.infer<typeof editarZonaSchema>;
 // ── Marcas del vendedor (G.2) ────────────────────────────────────────────────
 const TIPOS_MARCA = ['visitado', 'interesado', 'cerrado', 'sin_interes'] as const;
 
-/** Crear una marca: ubicación + estado (+ nota y ciudad opcionales). */
+/** Crear una marca: ubicación + estado (+ nombre, nota y ciudad opcionales). */
 export const crearMarcaSchema = z.object({
     lat: z.coerce.number().min(-90).max(90),
     lng: z.coerce.number().min(-180).max(180),
     tipo: z.enum(TIPOS_MARCA).default('visitado'),
+    nombre: z.string().trim().max(120, 'El nombre es muy largo.').optional(),
     nota: z.string().trim().max(500, 'La nota es muy larga.').optional(),
     ciudadId: z.string().uuid().nullable().optional(),
 });
 
-/** Editar una marca (estado, nota y/o reubicación). */
+/** Editar una marca (estado, nombre, nota y/o reubicación). */
 export const editarMarcaSchema = z.object({
     lat: z.coerce.number().min(-90).max(90).optional(),
     lng: z.coerce.number().min(-180).max(180).optional(),
     tipo: z.enum(TIPOS_MARCA).optional(),
+    nombre: z.string().trim().max(120).nullable().optional(),
     nota: z.string().trim().max(500).nullable().optional(),
 });
 
