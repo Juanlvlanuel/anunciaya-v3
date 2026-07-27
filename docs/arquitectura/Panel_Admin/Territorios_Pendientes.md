@@ -210,8 +210,17 @@ donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** ma
 > mini-editor). Columna `negocios.nota_territorio` (migración
 > `docs/migraciones/2026-07-27-negocios-nota-territorio.sql`) + `actualizarNotaNegocio` en
 > `territorios-marcas.service.ts` (verifica que el negocio sea del embajador del vendedor) +
-> `PATCH /territorios/negocios/:id/nota` (solo vendedor) + hook `useActualizarNotaNegocio`. Gerente/super la
+> `PATCH /territorios/negocios/:id/nota` + hook `useActualizarNotaNegocio`. Gerente/super la
 > ven de lectura en la tarjeta de detalle y el popup (`contenidoPopupNegocio`).
+>
+> **Paridad gerente-vendedor HECHO ✅ (27 jul, mismo día):** un gerente también tiene `embajador_id` propio
+> (memoria `reference_gerente_tambien_vendedor`) y puede tener negocios en su cartera — el permiso de
+> `actualizarNotaNegocio` se relajó de "solo rol vendedor" a **"dueño real del negocio"**
+> (`negocios.embajador_id === mi embajador_id`, sin importar `rol_equipo`) + ruta abierta también a
+> `['vendedor','gerente']`. En el front, `listarNegociosMapa` agrega el flag `esMio`; la tarjeta de detalle de
+> `MapaTerritorios.tsx` (la vista de gestión, la única que ve un gerente) muestra el editor de nota cuando
+> `esMio` es verdadero, en vez de forzar al gerente a no tener dónde escribirla (antes el editor solo vivía en
+> "Mi territorio", inalcanzable para su rol).
 
 **Modelo de datos (tabla nueva, se crea al construir G.2):** `territorio_marcas`: `id` · `embajador_id` →
 `embajadores(id)` · `lat` · `lng` · `tipo` (enum de los 4) · `nota` (text) · `negocio_id` (FK suave, opcional) ·

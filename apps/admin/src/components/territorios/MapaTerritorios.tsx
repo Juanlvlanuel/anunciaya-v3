@@ -49,7 +49,7 @@ type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
 /** Datos del pin abierto en la tarjeta de detalle (solo lectura). */
 type DetallePin =
     | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nota: string | null; vendedor: string | null; fecha: string | null }
-    | { tipo: 'negocio'; nombre: string; estado: string; asignado: boolean; vendedor: string | null; nota: string | null };
+    | { tipo: 'negocio'; id: string; nombre: string; estado: string; asignado: boolean; vendedor: string | null; nota: string | null; esMio: boolean };
 
 interface MapaTerritoriosProps {
     zonas: ZonaTerritorio[];
@@ -64,6 +64,11 @@ interface MapaTerritoriosProps {
     introAnimado?: boolean; // intro de cine (México → vuelo a sus zonas), p.ej. para el gerente
     onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
     mapaFijo?: boolean; // el mapa va `fixed` al viewport (móvil vertical) → la tarjeta de detalle se porta a body
+    /** Guarda la nota de un negocio "esMio" (el usuario logueado es el vendedor/gerente dueño de la
+     *  asignación — flag `esMio` del negocio, no el rol). Si el negocio no es suyo la tarjeta queda en
+     *  solo lectura aunque este prop esté presente (p. ej. el super, que nunca tiene negocios "esMio"). */
+    onGuardarNotaNegocio?: (id: string, nota: string | null) => void;
+    guardandoNotaNegocio?: boolean;
 }
 
 /** Bounding box de un solo polígono (reusa calcularBounds). */
@@ -137,7 +142,7 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, mapaFijo = false }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
@@ -168,6 +173,8 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     // Detalle de una marca/negocio en SOLO LECTURA (tarjeta sobre el mapa, al hacer clic en un pin).
     // El gerente solo VE, no edita. null = cerrado.
     const [detalle, setDetalle] = useState<DetallePin | null>(null);
+    // Borrador de la nota mientras se edita un negocio "esMio" (se resetea al abrir cada tarjeta).
+    const [notaBorrador, setNotaBorrador] = useState('');
     const cerrarDetalle = () => { setDetalle(null); marcadorResalteRef.current?.remove(); marcadorResalteRef.current = null; };
 
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
@@ -444,7 +451,9 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                     const p = neg.properties as Record<string, string>;
                     const coords = (neg.geometry as { coordinates: [number, number] }).coordinates;
                     const asignado = !!p.embajadorId;
-                    setDetalle({ tipo: 'negocio', nombre: p.nombre || 'Negocio', estado: p.estado || '', asignado, vendedor: p.vendedorNombre || null, nota: asignado ? (p.nota || null) : null });
+                    const esMio = p.esMio === '1';
+                    setDetalle({ tipo: 'negocio', id: p.id, nombre: p.nombre || 'Negocio', estado: p.estado || '', asignado, vendedor: p.vendedorNombre || null, nota: asignado ? (p.nota || null) : null, esMio });
+                    if (esMio) setNotaBorrador(p.nota || '');
                     // Pin de negocio resaltado (crece + glow) ENCIMA del symbol pin, igual que las marcas.
                     const elPin = elementoPinNegocio(asignado ? COLOR_NEGOCIO.conVendedor : COLOR_NEGOCIO.sinVendedor);
                     elPin.style.pointerEvents = 'none';
@@ -779,11 +788,33 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                         <span className="truncate font-medium text-texto">{detalle.vendedor ?? '—'}</span>
                     </div>
                     {detalle.asignado && (
-                        <div className="mt-2.5 rounded-[10px] bg-superficie-2 px-3 py-2.5">
-                            {detalle.nota
-                                ? <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-texto-2">{detalle.nota}</p>
-                                : <p className="text-[13px] italic text-texto-3">Sin nota</p>}
-                        </div>
+                        detalle.esMio ? (
+                            <div className="mt-2.5">
+                                <textarea
+                                    data-testid="negocio-nota-editar"
+                                    value={notaBorrador}
+                                    onChange={(e) => setNotaBorrador(e.target.value)}
+                                    placeholder="Nota sobre este negocio (ej. pidió que le llamen la próxima semana…)"
+                                    rows={3}
+                                    className="w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[14px] text-texto outline-none focus:border-marca"
+                                />
+                                <button
+                                    type="button"
+                                    data-testid="negocio-guardar-nota"
+                                    onClick={() => onGuardarNotaNegocio?.(detalle.id, notaBorrador.trim() || null)}
+                                    disabled={guardandoNotaNegocio}
+                                    className="mt-2 w-full rounded-[10px] bg-marca px-3 py-2 text-[13px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+                                >
+                                    Guardar nota
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="mt-2.5 rounded-[10px] bg-superficie-2 px-3 py-2.5">
+                                {detalle.nota
+                                    ? <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-texto-2">{detalle.nota}</p>
+                                    : <p className="text-[13px] italic text-texto-3">Sin nota</p>}
+                            </div>
+                        )
                     )}
                 </>
             )}

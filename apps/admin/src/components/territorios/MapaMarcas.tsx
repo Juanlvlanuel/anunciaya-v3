@@ -117,7 +117,7 @@ export function negociosGeoJSON(negocios: NegocioMapa[]) {
             .map((n) => ({
                 type: 'Feature' as const,
                 geometry: { type: 'Point' as const, coordinates: [n.lng, n.lat] },
-                properties: { id: n.id, nombre: n.nombre, estado: n.estado, embajadorId: n.embajadorId ?? '', vendedorNombre: n.vendedorNombre ?? '', nota: n.nota ?? '' },
+                properties: { id: n.id, nombre: n.nombre, estado: n.estado, embajadorId: n.embajadorId ?? '', vendedorNombre: n.vendedorNombre ?? '', nota: n.nota ?? '', esMio: n.esMio ? '1' : '' },
             })),
     };
 }

@@ -27,6 +27,7 @@ import {
     useEditarZona,
     useAsignarZona,
     useBorrarZona,
+    useActualizarNotaNegocio,
 } from '../../hooks/queries/useTerritoriosAdmin';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -68,6 +69,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const editar = useEditarZona();
     const asignar = useAsignarZona();
     const borrar = useBorrarZona();
+    const actualizarNotaNegocio = useActualizarNotaNegocio();
 
     const [dibujando, setDibujando] = useState(false);
     const [zonaEditando, setZonaEditando] = useState<ZonaTerritorio | null>(null);
@@ -209,6 +211,8 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             introAnimado={rol === 'gerente'}
             onPoligonoCompleto={alPoligonoCompleto}
             mapaFijo={!esEscritorio && !esHorizontal}
+            onGuardarNotaNegocio={(id, nota) => actualizarNotaNegocio.mutate({ id, nota })}
+            guardandoNotaNegocio={actualizarNotaNegocio.isPending}
         />
     );
 

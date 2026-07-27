@@ -105,9 +105,14 @@ export async function borrarMarca(panel: UsuarioPanel, id: string): Promise<Resu
  * la ven de solo lectura en la tarjeta de detalle. Nota única por negocio (se sobrescribe).
  */
 export async function actualizarNotaNegocio(panel: UsuarioPanel, negocioId: string, nota: string | null): Promise<ResultadoAccion<{ id: string }>> {
-    if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return { ok: false, status: 403, mensaje: 'Solo el vendedor puede anotar sus negocios.' };
+    // Un gerente también tiene figura de vendedor (embajador propio, desde 12-jul): si el negocio es
+    // suyo, puede anotarlo igual que un vendedor — NO se distingue por rol, sino por el embajador_id
+    // real del negocio (ver memoria reference_gerente_tambien_vendedor).
+    if ((panel.rolEquipo !== 'vendedor' && panel.rolEquipo !== 'gerente') || !panel.usuarioId) {
+        return { ok: false, status: 403, mensaje: 'Solo el vendedor asignado puede anotar este negocio.' };
+    }
     const embId = await embajadorDelUsuario(panel.usuarioId);
-    if (!embId) return { ok: false, status: 403, mensaje: 'No eres un vendedor.' };
+    if (!embId) return { ok: false, status: 403, mensaje: 'No tienes una cuenta de vendedor asociada.' };
 
     const [n] = await db.select({ embajadorId: negocios.embajadorId }).from(negocios).where(eq(negocios.id, negocioId)).limit(1);
     if (!n || n.embajadorId !== embId) return { ok: false, status: 404, mensaje: 'Negocio no encontrado.' };

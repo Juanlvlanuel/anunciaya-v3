@@ -61,7 +61,8 @@ router.post('/marcas', requierePanel(['vendedor']), crearMarcaController);
 router.patch('/marcas/:id', requierePanel(['vendedor']), editarMarcaController);
 router.delete('/marcas/:id', requierePanel(['vendedor']), borrarMarcaController);
 
-// ─── Nota del vendedor sobre uno de SUS negocios asignados (pin del mapa) ────────
-router.patch('/negocios/:id/nota', requierePanel(['vendedor']), actualizarNotaNegocioController);
+// ─── Nota del vendedor sobre uno de SUS negocios asignados (pin del mapa). El gerente entra
+// también: tiene su propio embajador_id y puede tener negocios asignados como vendedor.
+router.patch('/negocios/:id/nota', requierePanel(['vendedor', 'gerente']), actualizarNotaNegocioController);
 
 export default router;

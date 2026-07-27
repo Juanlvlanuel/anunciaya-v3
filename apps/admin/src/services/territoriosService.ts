@@ -98,6 +98,7 @@ export interface NegocioMapa {
   embajadorId: string | null; // null = sin vendedor (auto-registrado)
   vendedorNombre: string | null;
   nota: string | null;        // nota del vendedor asignado (solo si hay embajadorId)
+  esMio: boolean;             // asignado al embajador del usuario logueado (gerente o vendedor)
 }
 
 /** Negocios reales para el mapa (alcance por rol en el backend). ?ciudadId opcional. */

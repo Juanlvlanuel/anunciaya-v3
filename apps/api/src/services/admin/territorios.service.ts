@@ -195,6 +195,7 @@ export interface NegocioMapa {
     embajadorId: string | null; // null = sin vendedor (auto-registrado)
     vendedorNombre: string | null;
     nota: string | null;        // nota del vendedor asignado (solo si hay embajadorId)
+    esMio: boolean;             // el negocio está asignado al EMBAJADOR del usuario logueado (gerente o vendedor)
 }
 
 /**
@@ -208,6 +209,15 @@ export interface NegocioMapa {
 export async function listarNegociosMapa(panel: UsuarioPanel, ciudadId?: string): Promise<NegocioMapa[]> {
     if (panel.rolEquipo === 'gerente' && !panel.regionId) return [];
     if (panel.rolEquipo === 'vendedor' && !panel.usuarioId) return [];
+
+    // El embajador del propio usuario (gerente o vendedor): un gerente TAMBIÉN tiene embajador_id
+    // propio (desde 12-jul) y puede traer negocios en su cartera — se marcan "esMio" para que su
+    // mapa (aunque ve TODA su región) sepa en cuáles puede escribir la nota de seguimiento.
+    let miEmbajadorId: string | null = null;
+    if ((panel.rolEquipo === 'gerente' || panel.rolEquipo === 'vendedor') && panel.usuarioId) {
+        const [e] = await db.select({ id: embajadores.id }).from(embajadores).where(eq(embajadores.usuarioId, panel.usuarioId)).limit(1);
+        miEmbajadorId = e?.id ?? null;
+    }
 
     const cond: SQL[] = [sql`s.ubicacion IS NOT NULL`];
     if (ciudadId) cond.push(sql`s.ciudad_id = ${ciudadId}`);
@@ -243,6 +253,7 @@ export async function listarNegociosMapa(panel: UsuarioPanel, ciudadId?: string)
         embajadorId: f.embajador_id,
         vendedorNombre: f.vendedor_nombre,
         nota: f.embajador_id ? f.nota : null,
+        esMio: !!miEmbajadorId && f.embajador_id === miEmbajadorId,
     }));
 }
 
