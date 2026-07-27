@@ -42,7 +42,7 @@ async function ciudadEnAlcance(panel: UsuarioPanel, ciudadId: string): Promise<b
 
 /**
  * Carga una zona y verifica que el rol pueda gestionarla (fuera → 404/403):
- *   - super   → SOLO las zonas que él mismo creó (no toca las de los gerentes).
+ *   - super   → cualquier zona, sin importar quién la creó (gerente o super).
  *   - gerente → cualquier zona de su región.
  */
 async function cargarZonaConAlcance(
@@ -55,10 +55,7 @@ async function cargarZonaConAlcance(
         .where(eq(territorioZonas.id, id))
         .limit(1);
     if (!z) return { ok: false, status: 404, mensaje: 'Zona no encontrada.' };
-    if (panel.rolEquipo === 'superadmin') {
-        if (z.creadaPor !== panel.usuarioId) return { ok: false, status: 403, mensaje: 'Solo puedes editar las zonas que tú creaste.' };
-        return { ok: true, data: z };
-    }
+    if (panel.rolEquipo === 'superadmin') return { ok: true, data: z };
     if (!(await ciudadEnAlcance(panel, z.ciudadId))) return { ok: false, status: 404, mensaje: 'Zona no encontrada.' };
     return { ok: true, data: z };
 }

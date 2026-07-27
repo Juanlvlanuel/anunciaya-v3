@@ -97,6 +97,7 @@ export interface NegocioMapa {
   estado: string;             // al_corriente / en_gracia / suspendido / cancelado
   embajadorId: string | null; // null = sin vendedor (auto-registrado)
   vendedorNombre: string | null;
+  nota: string | null;        // nota del vendedor asignado (solo si hay embajadorId)
 }
 
 /** Negocios reales para el mapa (alcance por rol en el backend). ?ciudadId opcional. */
@@ -187,5 +188,15 @@ export async function editarMarca(id: string, datos: { lat?: number; lng?: numbe
 /** Borrar una marca. */
 export async function borrarMarca(id: string): Promise<{ id: string }> {
   const { data } = await api.delete<RespuestaAPI<{ id: string }>>(`/admin/territorios/marcas/${id}`);
+  return data.data ?? { id };
+}
+
+// =============================================================================
+// NOTA DE NEGOCIO (vendedor, solo sobre sus negocios asignados)
+// =============================================================================
+
+/** Guarda (o borra, con null) la nota del vendedor sobre uno de sus negocios asignados. */
+export async function actualizarNotaNegocio(id: string, nota: string | null): Promise<{ id: string }> {
+  const { data } = await api.patch<RespuestaAPI<{ id: string }>>(`/admin/territorios/negocios/${id}/nota`, { nota });
   return data.data ?? { id };
 }

@@ -49,7 +49,7 @@ type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
 /** Datos del pin abierto en la tarjeta de detalle (solo lectura). */
 type DetallePin =
     | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nota: string | null; vendedor: string | null; fecha: string | null }
-    | { tipo: 'negocio'; nombre: string; estado: string; asignado: boolean; vendedor: string | null };
+    | { tipo: 'negocio'; nombre: string; estado: string; asignado: boolean; vendedor: string | null; nota: string | null };
 
 interface MapaTerritoriosProps {
     zonas: ZonaTerritorio[];
@@ -444,7 +444,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                     const p = neg.properties as Record<string, string>;
                     const coords = (neg.geometry as { coordinates: [number, number] }).coordinates;
                     const asignado = !!p.embajadorId;
-                    setDetalle({ tipo: 'negocio', nombre: p.nombre || 'Negocio', estado: p.estado || '', asignado, vendedor: p.vendedorNombre || null });
+                    setDetalle({ tipo: 'negocio', nombre: p.nombre || 'Negocio', estado: p.estado || '', asignado, vendedor: p.vendedorNombre || null, nota: asignado ? (p.nota || null) : null });
                     // Pin de negocio resaltado (crece + glow) ENCIMA del symbol pin, igual que las marcas.
                     const elPin = elementoPinNegocio(asignado ? COLOR_NEGOCIO.conVendedor : COLOR_NEGOCIO.sinVendedor);
                     elPin.style.pointerEvents = 'none';
@@ -778,6 +778,13 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                         <span className="text-texto-3">Vendedor</span>
                         <span className="truncate font-medium text-texto">{detalle.vendedor ?? '—'}</span>
                     </div>
+                    {detalle.asignado && (
+                        <div className="mt-2.5 rounded-[10px] bg-superficie-2 px-3 py-2.5">
+                            {detalle.nota
+                                ? <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-texto-2">{detalle.nota}</p>
+                                : <p className="text-[13px] italic text-texto-3">Sin nota</p>}
+                        </div>
+                    )}
                 </>
             )}
         </div>

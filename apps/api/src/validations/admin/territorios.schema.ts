@@ -71,3 +71,10 @@ export const editarMarcaSchema = z.object({
 
 export type CrearMarcaInput = z.infer<typeof crearMarcaSchema>;
 export type EditarMarcaInput = z.infer<typeof editarMarcaSchema>;
+
+/** Nota del vendedor sobre uno de sus negocios asignados (null/"" = quitar la nota). */
+export const notaNegocioSchema = z.object({
+    nota: z.string().trim().max(500, 'La nota es muy larga.').nullable().optional(),
+});
+
+export type NotaNegocioInput = z.infer<typeof notaNegocioSchema>;

@@ -10,8 +10,8 @@
 import type { Request, Response } from 'express';
 import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance, listarMarcasEquipo, listarNegociosMapa } from '../../services/admin/territorios.service.js';
 import { crearZona, editarZona, asignarZona, borrarZona } from '../../services/admin/territorios-acciones.service.js';
-import { listarMisMarcas, crearMarca, editarMarca, borrarMarca } from '../../services/admin/territorios-marcas.service.js';
-import { crearZonaSchema, editarZonaSchema, asignarZonaSchema, crearMarcaSchema, editarMarcaSchema } from '../../validations/admin/territorios.schema.js';
+import { listarMisMarcas, crearMarca, editarMarca, borrarMarca, actualizarNotaNegocio } from '../../services/admin/territorios-marcas.service.js';
+import { crearZonaSchema, editarZonaSchema, asignarZonaSchema, crearMarcaSchema, editarMarcaSchema, notaNegocioSchema } from '../../validations/admin/territorios.schema.js';
 
 /** Primer mensaje de error de un parse fallido de Zod. */
 function primerError(issues: { message: string }[]): string {
@@ -192,5 +192,23 @@ export async function borrarMarcaController(req: Request, res: Response): Promis
     } catch (error) {
         console.error('Error en borrarMarcaController:', error);
         res.status(500).json({ success: false, message: 'Error al eliminar la marca' });
+    }
+}
+
+// =============================================================================
+// NOTA DE NEGOCIO (vendedor) — solo sobre sus negocios asignados
+// =============================================================================
+
+/** PATCH /api/admin/territorios/negocios/:id/nota — nota del vendedor sobre un negocio suyo. */
+export async function actualizarNotaNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const parsed = notaNegocioSchema.safeParse(req.body);
+        if (!parsed.success) { res.status(400).json({ success: false, message: primerError(parsed.error.issues) }); return; }
+        const r = await actualizarNotaNegocio(req.usuarioPanel!, req.params.id, parsed.data.nota ?? null);
+        if (!r.ok) { res.status(r.status).json({ success: false, message: r.mensaje }); return; }
+        res.status(200).json({ success: true, message: 'Nota guardada', data: r.data });
+    } catch (error) {
+        console.error('Error en actualizarNotaNegocioController:', error);
+        res.status(500).json({ success: false, message: 'Error al guardar la nota' });
     }
 }

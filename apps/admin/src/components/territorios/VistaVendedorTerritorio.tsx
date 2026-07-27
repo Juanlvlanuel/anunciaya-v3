@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapPin, Plus, Trash2, X, Store, ChevronRight, ChevronLeft, Pencil } from 'lucide-react';
-import { useZonas, useMisMarcas, useNegociosMapa, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca } from '../../hooks/queries/useTerritoriosAdmin';
+import { useZonas, useMisMarcas, useNegociosMapa, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca, useActualizarNotaNegocio } from '../../hooks/queries/useTerritoriosAdmin';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { MapaMarcas, COLOR_TIPO, ETIQUETA_TIPO, fechaCorta } from './MapaMarcas';
@@ -35,6 +35,13 @@ interface MarcaEnEdicion {
     nota: string;
 }
 
+/** Estado del editor de la nota de uno de los negocios asignados del vendedor. */
+interface NegocioEnEdicion {
+    id: string;
+    nombre: string;
+    nota: string;
+}
+
 export function VistaVendedorTerritorio() {
     const { data: zonas = [], isLoading: cargandoZonas } = useZonas({});
     const { data: marcas = [] } = useMisMarcas();
@@ -43,10 +50,12 @@ export function VistaVendedorTerritorio() {
     const editar = useEditarMarca();
     const mover = useMoverMarca();
     const borrar = useBorrarMarca();
+    const actualizarNota = useActualizarNotaNegocio();
 
     const esEscritorio = useEsEscritorio();
     const [modoAgregar, setModoAgregar] = useState(false);
     const [editando, setEditando] = useState<MarcaEnEdicion | null>(null);
+    const [editandoNegocio, setEditandoNegocio] = useState<NegocioEnEdicion | null>(null);
     const [confirmarBorrar, setConfirmarBorrar] = useState(false);
     const [filtro, setFiltro] = useState<TipoMarca | null>(null);
     const [mostrarNegocios, setMostrarNegocios] = useState(true);
@@ -67,7 +76,7 @@ export function VistaVendedorTerritorio() {
     }, []);
 
     // Al agregar (tocando el mapa) o editar (mini-form abierto) la hoja se colapsa a peek para no tapar.
-    useEffect(() => { if (modoAgregar || editando) setHojaExpandida(false); }, [modoAgregar, editando]);
+    useEffect(() => { if (modoAgregar || editando || editandoNegocio) setHojaExpandida(false); }, [modoAgregar, editando, editandoNegocio]);
 
     // Cerrar el editor de la marca al hacer click/tap FUERA de él. Usamos 'click' (no 'pointerdown')
     // a propósito: arrastrar el mapa (pan) no dispara click, así que panear no cierra el editor; solo
@@ -87,6 +96,19 @@ export function VistaVendedorTerritorio() {
         document.addEventListener('click', alClickFuera);
         return () => document.removeEventListener('click', alClickFuera);
     }, [hayEditor, confirmarBorrar]);
+
+    // Igual que el editor de marca, pero para el mini-form de la nota de un negocio asignado.
+    const formNegocioRef = useRef<HTMLDivElement>(null);
+    const ignorarCierreNegocioRef = useRef(false);
+    useEffect(() => {
+        if (!editandoNegocio) return;
+        const alClickFuera = (e: MouseEvent) => {
+            if (ignorarCierreNegocioRef.current) return;
+            if (formNegocioRef.current && !formNegocioRef.current.contains(e.target as Node)) setEditandoNegocio(null);
+        };
+        document.addEventListener('click', alClickFuera);
+        return () => document.removeEventListener('click', alClickFuera);
+    }, [editandoNegocio]);
 
     // "Modo mapa" (móvil): en vertical header/nav siguen a la hoja; en horizontal se ocultan siempre.
     const setNavVisible = useScrollPanel((s) => s.setNavVisible);
@@ -112,8 +134,29 @@ export function VistaVendedorTerritorio() {
         ignorarCierreRef.current = true;
         window.setTimeout(() => { ignorarCierreRef.current = false; }, 400);
         setModoAgregar(false);
+        setEditandoNegocio(null);
         setFoco(null); // el resalte pasa a ser el de la marca en edición
         setEditando({ id: m.id, tipo: m.tipo, nota: m.nota ?? '' });
+    };
+
+    // Abre el editor de la nota de uno de los negocios asignados (clic en su pin en el mapa).
+    const abrirNegocio = (id: string) => {
+        const n = negocios.find((x) => x.id === id);
+        if (!n) return;
+        ignorarCierreNegocioRef.current = true;
+        window.setTimeout(() => { ignorarCierreNegocioRef.current = false; }, 400);
+        setModoAgregar(false);
+        setEditando(null);
+        setFoco(null);
+        setEditandoNegocio({ id: n.id, nombre: n.nombre, nota: n.nota ?? '' });
+    };
+
+    const guardarNotaNegocio = () => {
+        if (!editandoNegocio) return;
+        actualizarNota.mutate(
+            { id: editandoNegocio.id, nota: editandoNegocio.nota.trim() || null },
+            { onSuccess: () => setEditandoNegocio(null) },
+        );
     };
 
     // "Ver en el mapa": centra + acerca + RESALTA la marca SIN abrir el editor. Colapsa la hoja.
@@ -175,6 +218,7 @@ export function VistaVendedorTerritorio() {
             modoAgregar={modoAgregar}
             onAgregarMarca={alAgregarMarca}
             onClicMarca={abrirMarca}
+            onClicNegocio={abrirNegocio}
             onMoverMarca={(id, lat, lng) => mover.mutate({ id, lat, lng })}
             marcaSeleccionadaId={editando?.id ?? foco?.id ?? null}
             mapaFijo={!esEscritorio && !esHorizontal}
@@ -225,7 +269,7 @@ export function VistaVendedorTerritorio() {
             </button>
         </Tooltip>
     );
-    const botonNegocios = (posicion: string) => (!editando ? <div className={`absolute z-10 ${posicion}`}>{fabNegocios}</div> : null);
+    const botonNegocios = (posicion: string) => (!editando && !editandoNegocio ? <div className={`absolute z-10 ${posicion}`}>{fabNegocios}</div> : null);
 
     // FAB "Agregar marca" (+, o X para cancelar): para la hoja vertical, abajo a la derecha.
     const fabAgregar = (
@@ -290,6 +334,41 @@ export function VistaVendedorTerritorio() {
                     data-testid="marca-guardar"
                     onClick={guardarMarca}
                     disabled={editar.isPending || !editando.id}
+                    className="flex-1 rounded-[10px] bg-marca px-3 py-2 text-[15px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+                >
+                    Guardar
+                </button>
+            </div>
+        </div>
+    ) : null;
+
+    // Editor de la nota de un negocio asignado: mini-tarjeta SOBRE el mapa (nombre + nota + acciones).
+    // Sin selector de estado ni "Borrar": es una nota libre sobre un negocio real, no una marca propia.
+    const miniFormNegocio = editandoNegocio ? (
+        <div ref={formNegocioRef} className="absolute left-1/2 top-3 z-30 w-[min(420px,calc(100%-1.5rem))] -translate-x-1/2 rounded-[14px] border border-borde bg-superficie p-3 shadow-tarjeta-panel" data-testid="form-negocio-nota">
+            <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-texto">{editandoNegocio.nombre}</span>
+                <button type="button" onClick={() => setEditandoNegocio(null)} aria-label="Cerrar" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-texto-3 transition hover:bg-superficie-2">
+                    <X size={20} />
+                </button>
+            </div>
+            <textarea
+                data-testid="negocio-nota"
+                value={editandoNegocio.nota}
+                onChange={(e) => setEditandoNegocio((p) => (p ? { ...p, nota: e.target.value } : p))}
+                placeholder="Nota sobre este negocio (ej. pidió que le llamen la próxima semana…)"
+                rows={4}
+                className="mt-2 w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[15px] text-texto outline-none focus:border-marca"
+            />
+            <div className="mt-2 flex gap-2">
+                <button type="button" onClick={() => setEditandoNegocio(null)} className="flex-1 rounded-[10px] border border-borde px-3 py-2 text-[15px] text-texto-2 transition hover:bg-superficie-2">
+                    Cancelar
+                </button>
+                <button
+                    type="button"
+                    data-testid="negocio-guardar-nota"
+                    onClick={guardarNotaNegocio}
+                    disabled={actualizarNota.isPending}
                     className="flex-1 rounded-[10px] bg-marca px-3 py-2 text-[15px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
                 >
                     Guardar
@@ -369,7 +448,7 @@ export function VistaVendedorTerritorio() {
 
     // FAB "Agregar marca" sobre el mapa, con tooltip (escritorio). Tooltip a la izquierda porque va
     // pegado a la derecha. Se oculta con el editor abierto, igual que el FAB de negocios.
-    const botonAgregarMapa = (posicion: string) => (!editando ? (
+    const botonAgregarMapa = (posicion: string) => (!editando && !editandoNegocio ? (
         <div className={`absolute z-10 ${posicion}`}>
             <Tooltip text={modoAgregar ? 'Cancelar' : 'Agregar marca'} position="left">{fabAgregar}</Tooltip>
         </div>
@@ -398,6 +477,7 @@ export function VistaVendedorTerritorio() {
                     {/* FAB de Agregar marca: sigue al panel — a su izquierda cuando está abierto, a la esquina al cerrarse. */}
                     {botonAgregarMapa(`bottom-3 transition-[right] duration-300 ${panelAbierto ? 'right-[calc(45%+0.75rem)]' : 'right-3'}`)}
                     {miniFormMarca}
+                    {miniFormNegocio}
                 </div>
                 <aside
                     className={`absolute inset-y-0 right-0 z-20 flex w-[45%] flex-col gap-2 border-l border-borde bg-superficie p-2.5 shadow-tarjeta-panel transition-transform duration-300 ${panelAbierto ? 'translate-x-0' : 'translate-x-full'}`}
@@ -426,7 +506,7 @@ export function VistaVendedorTerritorio() {
                     subir/bajar la hoja → la transición no provoca flash/estiramiento del canvas. El overlay
                     no captura eventos (pointer-events-none) para que los clics lleguen al mapa/controles. */}
                 <div className="fixed inset-0 z-0">{elMapa}</div>
-                <div className="pointer-events-none absolute inset-0 z-10 [&>*]:pointer-events-auto">{miniFormMarca}</div>
+                <div className="pointer-events-none absolute inset-0 z-10 [&>*]:pointer-events-auto">{miniFormMarca}{miniFormNegocio}</div>
 
                 {/* Instrucción al agregar (el FAB de Agregar/Cancelar vive en la hoja, abajo a la derecha).
                     No llega hasta la derecha (right-14) para no chocar con el zoom (top-right). */}
@@ -442,8 +522,8 @@ export function VistaVendedorTerritorio() {
                     onExpandidaChange={setHojaExpandida}
                     resumen={piezaFiltros(true)}
                     altura="54%"
-                    fabIzquierda={!editando ? fabNegocios : undefined}
-                    fabDerecha={!editando ? fabAgregar : undefined}
+                    fabIzquierda={!editando && !editandoNegocio ? fabNegocios : undefined}
+                    fabDerecha={!editando && !editandoNegocio ? fabAgregar : undefined}
                 >
                     {piezaLista}
                 </HojaMovil>
@@ -467,6 +547,7 @@ export function VistaVendedorTerritorio() {
                     </div>
                 )}
                 {miniFormMarca}
+                {miniFormNegocio}
             </div>
             <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-[420px] lg:pr-3 lg:pt-3">
                 {contenidoPanel(false)}

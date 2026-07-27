@@ -255,6 +255,10 @@ export const negocios = pgTable("negocios", {
 	promoMesesOtorgados: integer("promo_meses_otorgados"),
 	promoMesesCobrados: integer("promo_meses_cobrados"),
 	contraprestacion: varchar({ length: 500 }),
+	// Nota libre del VENDEDOR asignado sobre este negocio (Territorios): seguimiento de campo
+	// ("pidió llamar la próxima semana"). Solo la escribe el vendedor dueño de la asignación
+	// (`embajador_id`); gerente/super la ven en la tarjeta de detalle del mapa.
+	notaTerritorio: text("nota_territorio"),
 }, (table) => [
 	index("idx_negocios_activo").using("btree", table.activo.asc().nullsLast()),
 	index("idx_negocios_embajador").using("btree", table.embajadorId.asc().nullsLast()).where(sql`(embajador_id IS NOT NULL)`),

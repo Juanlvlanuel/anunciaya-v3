@@ -117,13 +117,13 @@ export function negociosGeoJSON(negocios: NegocioMapa[]) {
             .map((n) => ({
                 type: 'Feature' as const,
                 geometry: { type: 'Point' as const, coordinates: [n.lng, n.lat] },
-                properties: { id: n.id, nombre: n.nombre, estado: n.estado, embajadorId: n.embajadorId ?? '', vendedorNombre: n.vendedorNombre ?? '' },
+                properties: { id: n.id, nombre: n.nombre, estado: n.estado, embajadorId: n.embajadorId ?? '', vendedorNombre: n.vendedorNombre ?? '', nota: n.nota ?? '' },
             })),
     };
 }
 
-/** HTML del popup de hover de un negocio: nombre + píldoras (estado + atribución) + vendedor. */
-export function contenidoPopupNegocio(props: { nombre?: string; estado?: string; embajadorId?: string; vendedorNombre?: string }): string {
+/** HTML del popup de hover de un negocio: nombre + píldoras (estado + atribución) + vendedor + nota. */
+export function contenidoPopupNegocio(props: { nombre?: string; estado?: string; embajadorId?: string; vendedorNombre?: string; nota?: string }): string {
     const conVendedor = !!props.embajadorId;
     const punto = conVendedor ? COLOR_NEGOCIO.conVendedor : COLOR_NEGOCIO.sinVendedor;
     const est = ESTADO_BADGE[props.estado ?? ''] ?? { fg: '#475569', bg: '#e2e8f0', label: props.estado || '—' };
@@ -131,10 +131,16 @@ export function contenidoPopupNegocio(props: { nombre?: string; estado?: string;
     const vendedorLinea = conVendedor
         ? `<div style="font-size:13px;color:#64748b;line-height:1.3;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(props.vendedorNombre || '—')}</span></div>`
         : '';
+    const nota = props.nota?.trim();
+    const filaNota = conVendedor
+        ? (nota
+            ? `<div style="font-size:14px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
+            : `<div style="font-size:13.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`)
+        : '';
     return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
         + tituloPopup(punto, props.nombre || 'Negocio', false, true)
         + `<div style="display:flex;flex-wrap:wrap;gap:6px;">${badgeHtml(est.label, est.fg, est.bg, true)}${atrib}</div>`
-        + vendedorLinea
+        + vendedorLinea + filaNota
         + `</div>`;
 }
 
@@ -243,6 +249,7 @@ interface MapaMarcasProps {
     modoAgregar?: boolean;
     onAgregarMarca?: (lat: number, lng: number) => void;
     onClicMarca?: (id: string) => void;
+    onClicNegocio?: (id: string) => void;
     onMoverMarca?: (id: string, lat: number, lng: number) => void;
     /** Id de la marca con el editor abierto: se resalta (agranda). */
     marcaSeleccionadaId?: string | null;
@@ -330,7 +337,7 @@ export function centrarPinBajoEditor(mapa: MapaLibre, coords: [number, number], 
     mapa.easeTo({ center: coords, offset: [0, offsetY], duration: 700, easing: EASING_CINE, essential: true });
 }
 
-export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, onAgregarMarca, onClicMarca, onMoverMarca, marcaSeleccionadaId = null, mapaFijo = false, enfocarMarca = null, enfocarNonce = 0 }: MapaMarcasProps) {
+export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, onAgregarMarca, onClicMarca, onClicNegocio, onMoverMarca, marcaSeleccionadaId = null, mapaFijo = false, enfocarMarca = null, enfocarNonce = 0 }: MapaMarcasProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const marcasRef = useRef<MarcaTerritorio[]>(marcas);
@@ -339,6 +346,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
     const modoAgregarRef = useRef(modoAgregar);
     const onAgregarRef = useRef(onAgregarMarca);
     const onClicRef = useRef(onClicMarca);
+    const onClicNegocioRef = useRef(onClicNegocio);
     const onMoverRef = useRef(onMoverMarca);
     const ajustadoRef = useRef(false);
     const popupNegRef = useRef<maplibregl.Popup | null>(null);
@@ -361,6 +369,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
     useEffect(() => { negociosRef.current = negocios; }, [negocios]);
     useEffect(() => { onAgregarRef.current = onAgregarMarca; }, [onAgregarMarca]);
     useEffect(() => { onClicRef.current = onClicMarca; }, [onClicMarca]);
+    useEffect(() => { onClicNegocioRef.current = onClicNegocio; }, [onClicNegocio]);
     useEffect(() => { onMoverRef.current = onMoverMarca; }, [onMoverMarca]);
 
     /** Crea/actualiza/elimina los pines (maplibregl.Marker) según las marcas actuales. */
@@ -517,14 +526,22 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
                 popupNeg.setLngLat(coords).setHTML(contenidoPopupNegocio(f.properties as Record<string, string>)).addTo(mapa);
             });
             mapa.on('mouseleave', ID_NEGOCIOS_C, () => { mapa.getCanvas().style.cursor = ''; popupNeg.remove(); });
-            // CLICK/TAP en un negocio: muestra su popup (en táctil no hay hover). Si ya había uno abierto,
-            // popupNeg es una instancia única → se MUEVE al nuevo negocio, cerrando el anterior.
+            // CLICK/TAP en un negocio: si el padre pasó `onClicNegocio` (vendedor: abrir su nota), lo
+            // dispara y no muestra el popup; si no, muestra el popup (en táctil no hay hover). Si ya había
+            // uno abierto, popupNeg es una instancia única → se MUEVE al nuevo negocio, cerrando el anterior.
             mapa.on('click', ID_NEGOCIOS_C, (e) => {
                 if (modoAgregarRef.current) return; // en modo agregar el clic crea una marca
                 const f = e.features?.[0];
                 if (!f) return;
+                const props = f.properties as Record<string, string>;
                 const coords = (f.geometry as { coordinates: [number, number] }).coordinates;
-                popupNeg.setLngLat(coords).setHTML(contenidoPopupNegocio(f.properties as Record<string, string>)).addTo(mapa);
+                if (onClicNegocioRef.current) {
+                    onClicNegocioRef.current(props.id);
+                    popupNeg.remove();
+                    centrarPinBajoEditor(mapa, coords, 260);
+                    return;
+                }
+                popupNeg.setLngLat(coords).setHTML(contenidoPopupNegocio(props)).addTo(mapa);
             });
 
             // Marcas del vendedor: PINES (Markers HTML arrastrables).

@@ -214,6 +214,16 @@ export function useMoverMarca() {
   });
 }
 
+/** Guardar la nota del vendedor sobre uno de sus negocios asignados. Invalida los negocios del mapa. */
+export function useActualizarNotaNegocio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, nota }: { id: string; nota: string | null }) => territoriosService.actualizarNotaNegocio(id, nota),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['territorios', 'negocios'] }); toast.exito('Nota guardada'); },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar la nota')),
+  });
+}
+
 /** Borrar una marca. Optimista: quita el pin de la caché al instante (sin esperar al servidor);
  *  revierte si falla. */
 export function useBorrarMarca() {

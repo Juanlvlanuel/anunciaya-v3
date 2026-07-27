@@ -10,7 +10,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta
 >
-> **Última actualización:** 27 Junio 2026 · **Fase actual:** módulo **CERRADO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, lectura de marcas + negocios para gerente/super) — doc canónico `Territorios.md` escrito + **ronda de pulido UX móvil (26 jun)** aplicada a ambas vistas (ver `Territorios.md` §"Patrones de UI móvil") + **GATE 2 visual validado por Juan (27 jun)**. **Backlog (no bloqueante):** Pieza F (multi-región), curvas en el dibujo.
+> **Última actualización:** 27 Julio 2026 · **Fase actual:** módulo **CERRADO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, lectura de marcas + negocios para gerente/super) — doc canónico `Territorios.md` escrito + **ronda de pulido UX móvil (26 jun)** aplicada a ambas vistas (ver `Territorios.md` §"Patrones de UI móvil") + **GATE 2 visual validado por Juan (27 jun)** + **permiso de edición del super ampliado a cualquier zona y nota del vendedor sobre negocios asignados (27 jul)**. **Backlog (no bloqueante):** Pieza F (multi-región), curvas en el dibujo.
 
 ---
 
@@ -159,8 +159,10 @@ Fase 2 — ACTUAR (en curso · sub-paso 2a)
 - [x] **Editar zona desde el front ✅ (25 jun):** botón ✏️ por zona → reabre el editor con el contorno precargado
       (nombre/color editables + re-dibujar vértices), guarda con `editarZona`. El polígono terminado se ve como **preview**
       mientras el form está abierto; el mapa **NO reencuadra** al guardar (solo al cargar/cambiar de ciudad); **clic en el
-      nombre vuela** (zoom cine) a la zona. **Permiso:** super solo edita/borra las que él creó (`creada_por`), gerente toda
-      su región — flag `puedoEditar` por zona en `listarZonas` + guard en `cargarZonaConAlcance` (backend autoridad).
+      nombre vuela** (zoom cine) a la zona. **Permiso (actualizado 27 jul):** super edita/borra **cualquier** zona (propia
+      o de un gerente), gerente toda su región — flag `puedoEditar` por zona en `listarZonas` + guard en
+      `cargarZonaConAlcance` (backend autoridad). *(Antes del 27 jul el super solo editaba las que él mismo creó,
+      `creada_por`; se quitó esa restricción a pedido de Juan.)*
 
 Fase 3 — Cerrar ✅
 - [x] Doc canónico Territorios.md (commit fef6da1) + tablero (módulo 13) + memoria + commits.
@@ -202,6 +204,14 @@ donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** ma
 > **Vista del gerente/super (lectura) HECHO ✅ (commit ddbb953, 23 jun):** ven los **pines de sus vendedores** en
 > el mapa admin con popup **estado/nota/vendedor** + filtro por estado ("Marcas del equipo"). Endpoint
 > `GET /territorios/marcas-equipo` (alcance por rol; liga marca→vendedor→zona→ciudad). Validado visual con Juan.
+>
+> **Nota sobre NEGOCIOS asignados HECHO ✅ (27 jul):** además de las marcas (prospección libre), el vendedor
+> puede escribir una **nota única** sobre uno de sus **negocios reales** ya asignados (clic en el pin →
+> mini-editor). Columna `negocios.nota_territorio` (migración
+> `docs/migraciones/2026-07-27-negocios-nota-territorio.sql`) + `actualizarNotaNegocio` en
+> `territorios-marcas.service.ts` (verifica que el negocio sea del embajador del vendedor) +
+> `PATCH /territorios/negocios/:id/nota` (solo vendedor) + hook `useActualizarNotaNegocio`. Gerente/super la
+> ven de lectura en la tarjeta de detalle y el popup (`contenidoPopupNegocio`).
 
 **Modelo de datos (tabla nueva, se crea al construir G.2):** `territorio_marcas`: `id` · `embajador_id` →
 `embajadores(id)` · `lat` · `lng` · `tipo` (enum de los 4) · `nota` (text) · `negocio_id` (FK suave, opcional) ·

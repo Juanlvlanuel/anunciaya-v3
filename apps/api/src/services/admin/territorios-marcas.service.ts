@@ -5,12 +5,15 @@
  * El vendedor las gestiona (CRUD); cada marca tiene un estado (tipo) y una nota. Son suyas
  * (ligadas a su `embajador_id`). Super/gerente solo las verán a futuro (no aquí).
  *
+ * También vive aquí `actualizarNotaNegocio`: la nota libre del vendedor sobre un NEGOCIO real
+ * (no una marca) que tiene asignado — mismo dueño (el vendedor), mismo alcance de escritura.
+ *
  * Ubicación: apps/api/src/services/admin/territorios-marcas.service.ts
  */
 
 import { desc, eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { territorioMarcas, embajadores } from '../../db/schemas/schema.js';
+import { territorioMarcas, embajadores, negocios } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { CrearMarcaInput, EditarMarcaInput } from '../../validations/admin/territorios.schema.js';
 
@@ -94,4 +97,21 @@ export async function borrarMarca(panel: UsuarioPanel, id: string): Promise<Resu
     if (!propia.ok) return propia;
     await db.delete(territorioMarcas).where(eq(territorioMarcas.id, id));
     return { ok: true, data: { id } };
+}
+
+/**
+ * Nota libre del vendedor sobre uno de SUS negocios asignados (pin del mapa de Territorios).
+ * Solo el vendedor dueño de la asignación (`negocios.embajador_id`) puede escribirla; gerente/super
+ * la ven de solo lectura en la tarjeta de detalle. Nota única por negocio (se sobrescribe).
+ */
+export async function actualizarNotaNegocio(panel: UsuarioPanel, negocioId: string, nota: string | null): Promise<ResultadoAccion<{ id: string }>> {
+    if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return { ok: false, status: 403, mensaje: 'Solo el vendedor puede anotar sus negocios.' };
+    const embId = await embajadorDelUsuario(panel.usuarioId);
+    if (!embId) return { ok: false, status: 403, mensaje: 'No eres un vendedor.' };
+
+    const [n] = await db.select({ embajadorId: negocios.embajadorId }).from(negocios).where(eq(negocios.id, negocioId)).limit(1);
+    if (!n || n.embajadorId !== embId) return { ok: false, status: 404, mensaje: 'Negocio no encontrado.' };
+
+    await db.update(negocios).set({ notaTerritorio: nota?.trim() || null, updatedAt: new Date().toISOString() }).where(eq(negocios.id, negocioId));
+    return { ok: true, data: { id: negocioId } };
 }

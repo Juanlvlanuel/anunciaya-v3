@@ -92,7 +92,6 @@ export async function listarZonas(panel: UsuarioPanel, filtros: FiltrosZonas = {
             nombre: territorioZonas.nombre,
             poligono: territorioZonas.poligono,
             color: territorioZonas.color,
-            creadaPor: territorioZonas.creadaPor,
             createdAt: territorioZonas.createdAt,
         })
         .from(territorioZonas)
@@ -102,10 +101,10 @@ export async function listarZonas(panel: UsuarioPanel, filtros: FiltrosZonas = {
         .where(cond.length ? and(...cond) : undefined)
         .orderBy(asc(territorioZonas.nombre));
 
-    // puedoEditar: gerente = toda su región (ya viene acotada) · super = solo las que él creó.
-    return filas.map(({ creadaPor, ...z }) => ({
+    // puedoEditar: gerente = toda su región (ya viene acotada) · super = cualquier zona, sin importar quién la creó.
+    return filas.map((z) => ({
         ...z,
-        puedoEditar: panel.rolEquipo === 'gerente' ? true : (panel.rolEquipo === 'superadmin' && creadaPor === panel.usuarioId),
+        puedoEditar: panel.rolEquipo === 'gerente' || panel.rolEquipo === 'superadmin',
     })) as ZonaTerritorio[];
 }
 
@@ -195,6 +194,7 @@ export interface NegocioMapa {
     estado: string;             // efectivo: al_corriente / en_gracia / suspendido / cancelado
     embajadorId: string | null; // null = sin vendedor (auto-registrado)
     vendedorNombre: string | null;
+    nota: string | null;        // nota del vendedor asignado (solo si hay embajadorId)
 }
 
 /**
@@ -224,14 +224,15 @@ export async function listarNegociosMapa(panel: UsuarioPanel, ciudadId?: string)
                     WHEN n.estado_admin = 'suspendido' THEN 'suspendido'
                     ELSE n.estado_membresia END AS estado,
                n.embajador_id::text AS embajador_id,
-               u.nombre AS vendedor_nombre
+               u.nombre AS vendedor_nombre,
+               n.nota_territorio AS nota
         FROM negocios n
         JOIN negocio_sucursales s ON s.negocio_id = n.id AND s.es_principal = true
         LEFT JOIN embajadores e ON e.id = n.embajador_id
         LEFT JOIN usuarios u ON u.id = e.usuario_id
         WHERE ${sql.join(cond, sql` AND `)}
         ORDER BY n.nombre
-    `)).rows as Array<{ id: string; nombre: string; lat: string | number; lng: string | number; estado: string; embajador_id: string | null; vendedor_nombre: string | null }>;
+    `)).rows as Array<{ id: string; nombre: string; lat: string | number; lng: string | number; estado: string; embajador_id: string | null; vendedor_nombre: string | null; nota: string | null }>;
 
     return filas.map((f) => ({
         id: f.id,
@@ -241,6 +242,7 @@ export async function listarNegociosMapa(panel: UsuarioPanel, ciudadId?: string)
         estado: f.estado,
         embajadorId: f.embajador_id,
         vendedorNombre: f.vendedor_nombre,
+        nota: f.embajador_id ? f.nota : null,
     }));
 }
 

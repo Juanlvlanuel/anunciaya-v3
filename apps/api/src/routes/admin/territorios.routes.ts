@@ -29,6 +29,7 @@ import {
     crearMarcaController,
     editarMarcaController,
     borrarMarcaController,
+    actualizarNotaNegocioController,
 } from '../../controllers/admin/territorios.controller.js';
 
 const router: Router = Router();
@@ -59,5 +60,8 @@ router.get('/marcas', requierePanel(['vendedor']), listarMarcasController);
 router.post('/marcas', requierePanel(['vendedor']), crearMarcaController);
 router.patch('/marcas/:id', requierePanel(['vendedor']), editarMarcaController);
 router.delete('/marcas/:id', requierePanel(['vendedor']), borrarMarcaController);
+
+// ─── Nota del vendedor sobre uno de SUS negocios asignados (pin del mapa) ────────
+router.patch('/negocios/:id/nota', requierePanel(['vendedor']), actualizarNotaNegocioController);
 
 export default router;
