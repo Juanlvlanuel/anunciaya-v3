@@ -232,18 +232,25 @@ export async function crearComentario(
                 `);
                 for (const row of interesados.rows) {
                     const interesadoId = (row as { usuario_id: string }).usuario_id;
-                    crearNotificacion({
-                        usuarioId: interesadoId,
-                        modo: 'personal',
-                        tipo: 'pregunta_comunidad_seguida_respondida',
-                        titulo: 'Respondieron una pregunta que sigues',
-                        mensaje: preview,
-                        referenciaTipo: 'pregunta_comunidad',
-                        referenciaId: preguntaId,
-                        comentarioId: id,
-                        actorImagenUrl,
-                        actorNombre,
-                    }).catch(() => { /* no crítica */ });
+                    // "Yo también quiero saber" no distingue modo (el botón se
+                    // ve activo igual en Personal y Comercial) — la notificación
+                    // llega a AMBAS bandejas, sin importar el modo activo del
+                    // interesado. Dos notificaciones separadas (una por modo),
+                    // no una condicional.
+                    for (const modoNotif of ['personal', 'comercial'] as const) {
+                        crearNotificacion({
+                            usuarioId: interesadoId,
+                            modo: modoNotif,
+                            tipo: 'pregunta_comunidad_seguida_respondida',
+                            titulo: 'Respondieron una pregunta que sigues',
+                            mensaje: preview,
+                            referenciaTipo: 'pregunta_comunidad',
+                            referenciaId: preguntaId,
+                            comentarioId: id,
+                            actorImagenUrl,
+                            actorNombre,
+                        }).catch(() => { /* no crítica */ });
+                    }
                 }
             } catch (err) {
                 console.warn('No se pudo notificar a interesados (comunidad):', err);

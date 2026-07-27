@@ -2669,6 +2669,10 @@ export const preguntasInteresados = pgTable("preguntas_interesados", {
 	preguntaId: uuid("pregunta_id").notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// Modo activo AL MOMENTO de marcar interés — determina el modo de la
+	// notificación "respondieron una pregunta que sigues" (dinámico, no
+	// cambia el toggle "activo", que sigue siendo por usuario sin importar modo).
+	modo: varchar({ length: 15 }).default('personal').notNull(),
 }, (table) => [
 	// Para "qué preguntas me interesan" desde el perfil del usuario.
 	index("idx_interesados_usuario").using("btree", table.usuarioId.asc().nullsLast()),

@@ -114,8 +114,9 @@ export function SeccionComentarios({ articuloId, vendedor }: SeccionComentariosP
         }
     };
 
-    const handleEliminar = (id: string) => {
-        if (!confirm('¿Eliminar este comentario?')) return;
+    const handleEliminar = async (id: string) => {
+        const confirmado = await notificar.confirmar('¿Eliminar este comentario?', 'Esta acción no se puede deshacer.');
+        if (!confirmado) return;
         eliminarMutation.mutate(
             { comentarioId: id, articuloId },
             {

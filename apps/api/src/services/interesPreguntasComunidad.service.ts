@@ -14,6 +14,15 @@
  *     dos veces a la misma pregunta. INSERT ... ON CONFLICT DO NOTHING.
  *   - Ambas operaciones son idempotentes — el frontend puede llamarlas
  *     sin verificar primero si el usuario ya está sumado.
+ *   - No distingue Personal/Comercial: el botón se ve activo igual en
+ *     ambos modos (no expone identidad pública como un comentario, así que
+ *     no tiene sentido duplicarlo por modo) y la notificación
+ *     `pregunta_comunidad_seguida_respondida` le llega al interesado en
+ *     AMBAS bandejas sin importar su modo activo (ver
+ *     `comentariosComunidad.service.ts`). La tabla tiene una columna `modo`
+ *     (migración `2026-07-26-preguntas-interesados-modo.sql`) que quedó
+ *     sin usar — se intentó resolver la notificación de forma dinámica por
+ *     modo y se revirtió por decisión de producto.
  *
  * UBICACIÓN: apps/api/src/services/interesPreguntasComunidad.service.ts
  */

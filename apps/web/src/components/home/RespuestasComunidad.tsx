@@ -241,8 +241,9 @@ function PanelComentarios({
         }
     };
 
-    const handleEliminar = (id: string) => {
-        if (!confirm('¿Eliminar este comentario?')) return;
+    const handleEliminar = async (id: string) => {
+        const confirmado = await notificar.confirmar('¿Eliminar este comentario?', 'Esta acción no se puede deshacer.');
+        if (!confirmado) return;
         eliminar.mutate(
             { comentarioId: id, preguntaId },
             {

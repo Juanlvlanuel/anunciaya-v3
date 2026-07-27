@@ -771,7 +771,16 @@ también" en esa pregunta).
   pregunta_id = X AND usuario_id != responder AND usuario_id != autor`.
   Las exclusiones evitan auto-notif al responder + duplicación al autor
   (él ya recibe la del bloque 1 con título distinto).
-- Modo: `'personal'`.
+- Modo: **AMBOS** — se disparan 2 notificaciones por interesado (una
+  `modo: 'personal'` y otra `modo: 'comercial'`), sin importar en qué modo
+  esté ese interesado ahora ni en qué modo haya marcado "yo también quiero
+  saber". Decisión de producto: el botón se ve activo igual en Personal y
+  Comercial (no expone identidad pública como un comentario, así que no
+  tiene sentido duplicar el TOGGLE por modo), y por consistencia el aviso
+  tampoco depende de un modo "invisible" que el usuario no puede ver desde
+  el botón — se probó hacerlo dinámico (leyendo un modo grabado al marcar)
+  y se revirtió porque generaba un estado oculto sin ninguna pista en la
+  UI de en qué bandeja llegaría el aviso.
 - Título: **"Respondieron una pregunta que sigues"**.
 - Mismo mensaje, `actorNombre`, `actorImagenUrl`, `referenciaTipo` y
   `referenciaId` que el bloque 1.
@@ -930,18 +939,35 @@ y siempre mostraban la identidad personal:
    chat comercial existente). Ahora, si `esNegocio`/`autorEsNegocio`: el
    click navega a `/negocios/{sucursalId}` y "Contactar" usa
    `useIniciarChatNegocio` (chat comercial real con esa sucursal).
-
 MarketPlace queda **exento** de todo esto — es personal-only (bloqueado en
 Modo Comercial por `ModoPersonalEstrictoGuard`), así que `esNegocio` siempre
 es `false` ahí por diseño.
 
+**Excepción deliberada — "Yo también quiero saber" NO respeta el modo.**
+A diferencia de todo lo anterior, el botón de interés y su notificación
+(`pregunta_comunidad_seguida_respondida`) están **fuera** de este patrón a
+propósito: el botón se ve activo igual en Personal y Comercial (toggle
+único por usuario, sin duplicarlo por modo — "yo también quiero saber" no
+expone ninguna identidad pública, nadie ve quién se apuntó) y la
+notificación se dispara **2 veces por interesado** (`modo: 'personal'` y
+`modo: 'comercial'`), sin importar en qué modo esté ahora ni en qué modo
+haya marcado el interés. Se intentó hacer el destino dinámico (grabar el
+modo al marcar y usarlo en la notificación) y se revirtió: como el botón no
+distingue modo, la notificación tampoco debía depender de un modo
+"invisible" que el usuario no puede ver desde la UI. La tabla
+`preguntas_interesados` tiene una columna `modo` (migración de abajo) que
+quedó **sin usar** tras la reversión.
+
 ### Migraciones
 
 `docs/migraciones/2026-07-25-comunidad-comentarios-modo.sql` (columna `modo`
-en `comunidad_comentarios`) y
+en `comunidad_comentarios`),
 `docs/migraciones/2026-07-25-preguntas-comunidad-modo.sql` (columna `modo`
-en `preguntas_comunidad`). Ambas idempotentes, sin backfill (el historial
-previo a esta feature queda `'personal'`, comportamiento idéntico al de
+en `preguntas_comunidad`) y
+`docs/migraciones/2026-07-26-preguntas-interesados-modo.sql` (columna `modo`
+en `preguntas_interesados` — **aplicada pero sin uso**, ver excepción
+arriba). Todas idempotentes, sin backfill (el historial previo a esta
+feature queda `'personal'`, comportamiento idéntico al de
 antes). Aplicadas en DEV y PROD.
 
 ---
@@ -1685,6 +1711,7 @@ Todas en `docs/migraciones/`:
 | `2026-06-30-drop-respuestas-preguntas-comunidad.sql` | **DROP** de `respuestas_preguntas_comunidad` (contract) tras migrar los datos | ⏳ | ⏳ |
 | `2026-07-25-comunidad-comentarios-modo.sql` | Columna `modo` en `comunidad_comentarios` (Identidad Personal/Comercial) | ✅ | ✅ |
 | `2026-07-25-preguntas-comunidad-modo.sql` | Columna `modo` en `preguntas_comunidad` (Identidad Personal/Comercial) | ✅ | ✅ |
+| `2026-07-26-preguntas-interesados-modo.sql` | Columna `modo` en `preguntas_interesados` (modo dinámico en la notificación a interesados) | ✅ | ✅ |
 
 Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 `DROP CONSTRAINT IF EXISTS`) y compatibles con la receta del wrapper
