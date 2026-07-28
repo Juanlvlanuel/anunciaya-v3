@@ -149,6 +149,25 @@ export default function PaginaPerfilPersonal() {
     const [confirmarTarjeta, setConfirmarTarjeta] = useState(false);
     const [procesandoCobro, setProcesandoCobro] = useState(false);
 
+    // `activarTarjeta`/`abrirPortal` redirigen con `window.location.href` a Stripe y
+    // dejan `procesandoCobro`/`abriendoPortal` en `true` a propósito (asumen que la
+    // página se descarga). En desktop, "regresar" recarga la página y reinicia el
+    // estado — pero en móvil (back nativo o flecha del navegador de Stripe) el
+    // navegador suele restaurar la página desde bfcache CON el JS intacto, así que
+    // esas banderas quedan pegadas en `true` para siempre: el modal ya no se puede
+    // cerrar ni cancelar (botones deshabilitados, X bloqueada). El evento `pageshow`
+    // con `persisted: true` es la señal estándar de "esta página volvió del bfcache"
+    // — al detectarlo, se resetean para que el modal vuelva a ser interactivo.
+    useEffect(() => {
+        const alMostrarPagina = (e: PageTransitionEvent) => {
+            if (!e.persisted) return;
+            setProcesandoCobro(false);
+            setAbriendoPortal(false);
+        };
+        window.addEventListener('pageshow', alMostrarPagina);
+        return () => window.removeEventListener('pageshow', alMostrarPagina);
+    }, []);
+
     // El tab "Membresía y Pagos" solo aparece si el usuario tiene negocio comercial o
     // publicidad pagada/vigente; un usuario puramente personal no lo ve.
     //
