@@ -167,6 +167,7 @@ export function ComposerSection({ modoServiciosDefault }: ComposerSectionProps) 
             sinScrollInterno
             mostrarHeader={false}
             className="h-[560px] lg:h-[600px] 2xl:h-[660px] lg:!max-w-[740px] 2xl:!max-w-[798px]"
+            discriminador={`_composerServiciosFull_${guardKey}`}
         >
             {composer}
         </ModalAdaptativo>

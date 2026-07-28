@@ -143,6 +143,7 @@ export function ComposerSection() {
             sinScrollInterno
             mostrarHeader={false}
             className="h-[560px] lg:h-[600px] 2xl:h-[660px]"
+            discriminador={`_composerNegocioFull_${guardKey}`}
         >
             {composer}
         </ModalAdaptativo>

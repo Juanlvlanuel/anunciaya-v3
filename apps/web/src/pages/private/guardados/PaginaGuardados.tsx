@@ -133,6 +133,7 @@ interface NegocioSeguido {
 
 export function PaginaGuardados() {
     const navigate = useNavigate();
+    const navegarASeccion = useNavegarASeccion();
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
     const cuerpoRef = useScrollAppShell();
@@ -762,7 +763,7 @@ export function PaginaGuardados() {
                                 loading={loadingServicios}
                                 onClickBookmark={handleClickBookmark}
                                 onClickCard={(servicioId) =>
-                                    navigate(`/servicios/${servicioId}`)
+                                    navegarASeccion(`/servicios/${servicioId}`)
                                 }
                                 modoSeleccion={modoSeleccion}
                                 idsSeleccionados={idsSeleccionados}

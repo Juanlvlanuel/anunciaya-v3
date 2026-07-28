@@ -102,6 +102,15 @@ interface ModalAdaptativoProps {
   centrado?: boolean;
   /** Clase de z-index para el wrapper (default: 'z-52'). Usar z-90 para modales sobre ChatYA */
   zIndice?: string;
+  /**
+   * Key del back nativo (solo aplica en escritorio, vía `Modal`). Default
+   * `'_modalUI'` si se omite — dos `ModalAdaptativo` anidados en escritorio
+   * SIN discriminador propio comparten esa key y el back nativo se confunde
+   * (el primer back no cierra nada, el segundo cierra ambos de golpe). Pasar
+   * uno propio en cualquier `ModalAdaptativo` que pueda abrirse encima de otro
+   * (ej. diálogo de confirmación dentro de un composer).
+   */
+  discriminador?: string;
 }
 
 // =============================================================================
@@ -132,6 +141,7 @@ export function ModalAdaptativo({
   // Especial
   centrado = false,
   zIndice,
+  discriminador,
 }: ModalAdaptativoProps) {
   const { esMobile } = useBreakpoint();
 
@@ -174,6 +184,7 @@ export function ModalAdaptativo({
       mostrarHeader={mostrarHeader}
       className={className}
         zIndice={zIndice}
+        discriminador={discriminador}
     >
       {children}
     </Modal>

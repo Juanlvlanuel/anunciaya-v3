@@ -27,10 +27,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Newspaper, Search, Plus, X } from 'lucide-react';
 
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useNavegarASeccion } from '../../../../hooks/useNavegarASeccion';
 import {
     useMisPublicacionesNegocioBS,
     useKpisPublicacionesNegocioBS,
@@ -80,7 +80,7 @@ const TABS: { id: TabActivo; label: string }[] = [
 // =============================================================================
 
 export default function PaginaPublicaciones() {
-    const navigate = useNavigate();
+    const navegarASeccion = useNavegarASeccion();
     const usuario = useAuthStore((s) => s.usuario);
 
     // ---------------------------------------------------------------------------
@@ -126,10 +126,10 @@ export default function PaginaPublicaciones() {
     // ---------------------------------------------------------------------------
     // Handlers
     // ---------------------------------------------------------------------------
-    const abrirCrear = () => navigate('/business-studio/publicaciones?crear=1');
+    const abrirCrear = () => navegarASeccion('/business-studio/publicaciones?crear=1');
 
     const abrirEditar = (publicacion: PublicacionNegocioBSRow) =>
-        navigate(`/business-studio/publicaciones?editar=${publicacion.id}`);
+        navegarASeccion(`/business-studio/publicaciones?editar=${publicacion.id}`);
 
     const handleArchivar = async (publicacion: PublicacionNegocioBSRow) => {
         const ok = await notificar.confirmar(

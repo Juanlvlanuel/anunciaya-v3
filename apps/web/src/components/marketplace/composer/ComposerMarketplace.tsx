@@ -824,6 +824,7 @@ export function ComposerMarketplace({
                 alturaMaxima="sm"
                 paddingContenido="none"
                 zIndice="z-90"
+                discriminador="_composerMPConfirmarSalir"
             >
                 <div className="py-2">
                     <p className="px-4 pb-3 pt-4 text-[16px] font-bold text-slate-900">

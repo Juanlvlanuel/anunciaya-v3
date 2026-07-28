@@ -44,6 +44,7 @@ import { MenuBusinessStudio } from './MenuBusinessStudio';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { useDashboard } from '../../hooks/queries/useDashboard';
 import { useConfigPublica } from '../../hooks/queries/useConfigPublica';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 
 // =============================================================================
 // SISTEMA DE TEMAS — Configuración centralizada por ruta/módulo
@@ -344,6 +345,7 @@ export function ColumnaIzquierda() {
   const usuario = useAuthStore((state) => state.usuario);
   const location = useLocation();
   const navigate = useNavigate();
+  const navegarASeccion = useNavegarASeccion();
   const esComercial = usuario?.modoActivo === 'comercial';
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
 
@@ -443,7 +445,7 @@ export function ColumnaIzquierda() {
       <nav>
         {/* Business Studio */}
         <button
-          onClick={() => navigate(onboardingCompletado ? '/business-studio' : '/business/onboarding')}
+          onClick={() => navegarASeccion(onboardingCompletado ? '/business-studio' : '/business/onboarding')}
           className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:bg-white/5 border-b-[1.5px] border-white/10 border-l-4 border-l-transparent hover:border-l-blue-400"
         >
           <div
@@ -610,7 +612,7 @@ const TIPS_DIARIOS = [
 ];
 
 function ContenidoComercial() {
-  const navigate = useNavigate();
+  const navegarASeccion = useNavegarASeccion();
   const usuario = useAuthStore((state) => state.usuario);
   const sucursalActiva = usuario?.sucursalActiva;
   const { setSucursalActiva, setEsSucursalPrincipal, setSucursalPrincipalId, setTotalSucursales } = useAuthStore();
@@ -730,7 +732,7 @@ function ContenidoComercial() {
 
             {/* Clientes */}
             <button
-              onClick={() => navigate('/business-studio/clientes')}
+              onClick={() => navegarASeccion('/business-studio/clientes')}
               className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
             >
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
@@ -743,7 +745,7 @@ function ContenidoComercial() {
 
             {/* Transacciones */}
             <button
-              onClick={() => navigate('/business-studio/transacciones')}
+              onClick={() => navegarASeccion('/business-studio/transacciones')}
               className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
             >
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-indigo-500/20 rounded-lg flex items-center justify-center shrink-0">
