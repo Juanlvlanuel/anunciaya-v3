@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, Mail, MapPin, Save, Trash2, User as UserIcon, ZoomIn } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, Mail, MapPin, Save, Trash2, User as UserIcon, ZoomIn } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
 import { actualizarPerfil, generarUrlAvatar, type ActualizarPerfilInput } from '@/services/authService';
@@ -202,11 +202,29 @@ export default function TabDatosPersonales() {
                     <p className="text-sm font-bold text-slate-800 mb-2">Foto de perfil</p>
                     <div className="flex flex-wrap gap-2">
                         <label
-                            data-testid="input-avatar"
+                            data-testid="input-avatar-camara"
                             className="inline-flex items-center gap-1.5 rounded-lg bg-white text-slate-700 border border-slate-300 px-3 py-1.5 text-sm font-semibold cursor-pointer lg:hover:bg-slate-200"
                         >
                             <Camera className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                            {avatarMostrado ? 'Cambiar' : 'Subir foto'}
+                            Tomar foto
+                            <input
+                                type="file"
+                                accept="image/*"
+                                capture="user"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) elegirNuevoAvatar(f);
+                                    e.target.value = '';
+                                }}
+                            />
+                        </label>
+                        <label
+                            data-testid="input-avatar"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-white text-slate-700 border border-slate-300 px-3 py-1.5 text-sm font-semibold cursor-pointer lg:hover:bg-slate-200"
+                        >
+                            <ImagePlus className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                            Galería
                             <input
                                 type="file"
                                 accept="image/*"

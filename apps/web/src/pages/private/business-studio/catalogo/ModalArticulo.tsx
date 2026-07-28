@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Plus,
   Check,
+  Camera,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -448,18 +449,45 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                         </button>
                       </>
                     ) : (
-                      <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50 gap-1">
-                        <input
-                          id="input-imagen-articulo"
-                          name="input-imagen-articulo"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImagenChange}
-                          className="hidden"
-                        />
-                        <ImagePlus className="w-6 h-6 text-slate-400" />
-                        <p className="text-[10px] text-slate-500 font-medium text-center leading-tight px-1">Agregar imagen</p>
-                      </label>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
+                        {/* Primario: tomar foto con la cámara del celular — mismo estilo discreto que Galería */}
+                        <label
+                          htmlFor="input-imagen-articulo-camara"
+                          data-testid="input-imagen-articulo-camara-label"
+                          className="w-full flex-1 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-slate-300 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                        >
+                          <input
+                            id="input-imagen-articulo-camara"
+                            name="input-imagen-articulo-camara"
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handleImagenChange}
+                            data-testid="input-imagen-articulo-camara"
+                            className="hidden"
+                          />
+                          <Camera className="w-5 h-5 text-slate-500" />
+                          <p className="text-[10px] text-slate-600 font-semibold text-center leading-tight">Tomar foto</p>
+                        </label>
+                        {/* Secundario: subir desde galería */}
+                        <label
+                          htmlFor="input-imagen-articulo"
+                          data-testid="input-imagen-articulo-galeria-label"
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border-2 border-slate-300 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                        >
+                          <input
+                            id="input-imagen-articulo"
+                            name="input-imagen-articulo"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImagenChange}
+                            data-testid="input-imagen-articulo"
+                            className="hidden"
+                          />
+                          <ImagePlus className="w-3.5 h-3.5 text-slate-500" />
+                          <p className="text-[10px] text-slate-600 font-semibold">Galería</p>
+                        </label>
+                      </div>
                     )}
                   </div>
 

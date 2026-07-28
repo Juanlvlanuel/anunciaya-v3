@@ -18,7 +18,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ImagePlus, Trash2, Loader2, Repeat } from 'lucide-react';
+import { ImagePlus, Trash2, Loader2, Repeat, Camera } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -284,11 +284,20 @@ export default function ModalRecompensa({
                       </button>
                     </>
                   ) : (
-                    <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50 gap-1">
-                      <input type="file" accept="image/*" name="imagenRecompensa" onChange={handleImagenChange} className="sr-only" />
-                      <ImagePlus className="w-7 h-7 text-slate-600" />
-                      <span className="text-sm font-semibold text-slate-600">Imagen</span>
-                    </label>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
+                      {/* Primario: tomar foto con la cámara del celular — mismo estilo discreto que Galería */}
+                      <label className="w-full flex-1 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-slate-300 bg-white cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="file" accept="image/*" capture="environment" name="imagenRecompensaCamara" onChange={handleImagenChange} className="sr-only" />
+                        <Camera className="w-5 h-5 text-slate-500" />
+                        <span className="text-[10px] font-semibold text-slate-600 text-center leading-tight">Tomar foto</span>
+                      </label>
+                      {/* Secundario: subir desde galería */}
+                      <label className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border-2 border-slate-300 bg-white cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="file" accept="image/*" name="imagenRecompensa" onChange={handleImagenChange} className="sr-only" />
+                        <ImagePlus className="w-3.5 h-3.5 text-slate-500" />
+                        <span className="text-[10px] font-semibold text-slate-600">Galería</span>
+                      </label>
+                    </div>
                   )}
                 </div>
 

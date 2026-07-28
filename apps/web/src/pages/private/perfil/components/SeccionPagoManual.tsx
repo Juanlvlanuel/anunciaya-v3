@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Clock, ExternalLink, Info, Landmark, Loader2, Upload, X, XCircle } from 'lucide-react';
+import { Camera, Check, Clock, ExternalLink, Info, Landmark, Loader2, Upload, X, XCircle } from 'lucide-react';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
 import { queryKeys } from '@/config/queryKeys';
 import {
@@ -365,22 +365,41 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                         )}
                     </div>
                 ) : (
-                    <label
-                        data-testid="input-comprobante"
-                        className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer lg:hover:bg-slate-200"
-                    >
-                        <Upload className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                        Subir foto del comprobante
-                        <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) uploadImage(f);
-                            }}
-                        />
-                    </label>
+                    <div className="flex items-center gap-2">
+                        <label
+                            data-testid="input-comprobante-camara"
+                            className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer lg:hover:bg-slate-200"
+                        >
+                            <Camera className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                            Tomar foto
+                            <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) uploadImage(f);
+                                }}
+                            />
+                        </label>
+                        <label
+                            data-testid="input-comprobante"
+                            className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer lg:hover:bg-slate-200"
+                        >
+                            <Upload className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                            Galería
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) uploadImage(f);
+                                }}
+                            />
+                        </label>
+                    </div>
                 )}
             </div>
 

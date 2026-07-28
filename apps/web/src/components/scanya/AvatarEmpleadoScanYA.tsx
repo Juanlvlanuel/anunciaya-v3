@@ -14,12 +14,13 @@
  */
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, Images, Loader2 } from 'lucide-react';
 import { useR2Upload } from '@/hooks/useR2Upload';
 import { obtenerUrlSubidaAvatarEmpleado, actualizarAvatarEmpleado } from '@/services/scanyaService';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import { notificar } from '@/utils/notificaciones';
 import Tooltip from '@/components/ui/Tooltip';
+import { ModalBottom } from '@/components/ui';
 
 // =============================================================================
 // COMPONENTE
@@ -27,8 +28,10 @@ import Tooltip from '@/components/ui/Tooltip';
 
 export default function AvatarEmpleadoScanYA() {
   const { usuario, actualizarFotoUrl } = useScanYAStore();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputGaleriaRef = useRef<HTMLInputElement>(null);
+  const inputCamaraRef = useRef<HTMLInputElement>(null);
   const [guardando, setGuardando] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const { imageUrl, isUploading, uploadImage } = useR2Upload({
     maxWidth: 500,
@@ -77,7 +80,7 @@ export default function AvatarEmpleadoScanYA() {
 
   const handleClick = () => {
     if (!puedeEditar || enProceso) return;
-    inputRef.current?.click();
+    setMenuAbierto(true);
   };
 
   const handleSeleccion = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,15 +187,72 @@ export default function AvatarEmpleadoScanYA() {
         botonAvatar
       )}
 
-      {/* Input oculto para seleccionar imagen */}
+      {/* Inputs ocultos para seleccionar imagen (cámara y galería) */}
       <input
-        ref={inputRef}
+        ref={inputCamaraRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="user"
+        onChange={handleSeleccion}
+        className="hidden"
+        data-testid="input-avatar-empleado-camara"
+      />
+      <input
+        ref={inputGaleriaRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         onChange={handleSeleccion}
         className="hidden"
         data-testid="input-avatar-empleado"
       />
+
+      {/* Menú: Tomar foto / Galería */}
+      <ModalBottom
+        abierto={menuAbierto}
+        onCerrar={() => setMenuAbierto(false)}
+        mostrarHeader={false}
+        sinScrollInterno
+        alturaMaxima="sm"
+        fondo="linear-gradient(135deg, #000000, #0f172a)"
+        headerOscuro
+      >
+        <div className="px-4 pt-11 pb-4">
+          <p className="text-center text-sm font-bold text-slate-400 mb-3">Foto de perfil</p>
+
+          <button
+            type="button"
+            onClick={() => { setMenuAbierto(false); inputCamaraRef.current?.click(); }}
+            className="w-full flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer"
+          >
+            <div className="w-11 h-11 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
+              <Camera className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-base font-bold text-white">Tomar foto</p>
+              <p className="text-sm text-slate-400 font-medium">Usar la cámara</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setMenuAbierto(false); inputGaleriaRef.current?.click(); }}
+            className="w-full flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer"
+          >
+            <div className="w-11 h-11 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0">
+              <Images className="w-5 h-5 text-blue-400" />
+            </div>
+            <div className="text-left">
+              <p className="text-base font-bold text-white">Galería de fotos</p>
+              <p className="text-sm text-slate-400 font-medium">Elegir desde tu dispositivo</p>
+            </div>
+          </button>
+
+          <button type="button" onClick={() => setMenuAbierto(false)}
+            className="w-full mt-2 p-3.5 text-base font-bold text-slate-500 rounded-xl border-2 border-slate-800 active:bg-white/10 cursor-pointer">
+            Cancelar
+          </button>
+        </div>
+      </ModalBottom>
     </>
   );
 }

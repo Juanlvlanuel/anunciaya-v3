@@ -12,7 +12,7 @@
 
 import {
     Trash2, ImagePlus,
-    Tag,
+    Tag, Camera,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -267,11 +267,20 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
                                     <button type="button" onClick={() => imagen.reset()} className="absolute top-1.5 right-1.5 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 cursor-pointer"><Trash2 className="w-5 h-5" /></button>
                                 </>
                             ) : (
-                                <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200/50 gap-1" data-testid="btn-agregar-imagen-movil">
-                                    <input type="file" accept="image/*" name="imagenOfertaMovil" onChange={handleImagenChange} className="hidden" />
-                                    <ImagePlus className="w-6 h-6 text-slate-600" />
-                                    <p className="text-sm text-slate-600 font-medium text-center leading-tight px-1">Agregar imagen</p>
-                                </label>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-1.5">
+                                    {/* Primario: tomar foto con la cámara del celular — mismo estilo discreto que Galería */}
+                                    <label className="w-full flex-1 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-slate-300 bg-white cursor-pointer hover:bg-slate-50 transition-colors" data-testid="btn-agregar-imagen-movil-camara">
+                                        <input type="file" accept="image/*" capture="environment" name="imagenOfertaMovilCamara" onChange={handleImagenChange} className="hidden" />
+                                        <Camera className="w-5 h-5 text-slate-500" />
+                                        <p className="text-[11px] text-slate-600 font-semibold text-center leading-tight">Tomar foto</p>
+                                    </label>
+                                    {/* Secundario: subir desde galería */}
+                                    <label className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 border-slate-300 bg-white cursor-pointer hover:bg-slate-50 transition-colors" data-testid="btn-agregar-imagen-movil">
+                                        <input type="file" accept="image/*" name="imagenOfertaMovil" onChange={handleImagenChange} className="hidden" />
+                                        <ImagePlus className="w-3.5 h-3.5 text-slate-500" />
+                                        <p className="text-[11px] text-slate-600 font-semibold">Galería</p>
+                                    </label>
+                                </div>
                             )}
                         </div>
                     </div>

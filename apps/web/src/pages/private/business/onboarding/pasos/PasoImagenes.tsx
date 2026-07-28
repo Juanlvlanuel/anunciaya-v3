@@ -23,14 +23,14 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2, Move } from 'lucide-react';
+import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2, Move, Camera, Images } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
 import ModalAjustarPortada from '@/components/negocios/ModalAjustarPortada';
 import { notificar } from '@/utils/notificaciones';
 import { api } from '@/services/api';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
-import { ModalImagenes } from '@/components/ui';
+import { ModalImagenes, ModalBottom } from '@/components/ui';
 import { CargandoPaso } from '../componentes';
 
 // =============================================================================
@@ -87,17 +87,23 @@ function ZonaUpload({
     // Trackear QUÉ URL ya cargó (síncrono, sin delay de useEffect)
     const [urlCargada, setUrlCargada] = useState<string | null>(null);
     const cargada = imageUrl !== null && imageUrl === urlCargada;
+    // Menú Tomar foto / Galería — solo para la carga INICIAL (sin imagen aún).
+    // Reemplazar una imagen existente sigue abriendo la galería directo (como antes).
+    const [menuAbierto, setMenuAbierto] = useState(false);
+    const inputCamaraRef = useRef<HTMLInputElement>(null);
 
     // URL para capa blur: miniatura propia (blob separado) o imageUrl actual
     const urlBlur = miniatura || imageUrl;
     const objectPosition = posicion ? `${posicion.x}% ${posicion.y}%` : undefined;
 
     return (
+        <>
         <div
             onClick={() => {
                 if (isUploading) return;
                 if (imageUrl && cargada && onImageClick) { onImageClick(); return; }
-                inputRef.current?.click();
+                if (imageUrl) { inputRef.current?.click(); return; }
+                setMenuAbierto(true);
             }}
             onDragEnter={onDragEnter}
             onDragOver={onDragOver}
@@ -116,6 +122,7 @@ function ZonaUpload({
             `}
         >
             <input ref={inputRef} type="file" accept=".png,.jpg,.jpeg,.webp" onChange={onFileChange} className="hidden" disabled={isUploading} />
+            <input ref={inputCamaraRef} type="file" accept=".png,.jpg,.jpeg,.webp" capture="environment" onChange={onFileChange} className="hidden" disabled={isUploading} />
 
             {/* Placeholder vacío */}
             {!imageUrl && !isUploading && (
@@ -167,6 +174,49 @@ function ZonaUpload({
                 </>
             )}
         </div>
+
+        {/* Menú: Tomar foto / Galería — solo para la carga inicial (sin imagen aún) */}
+        <ModalBottom
+            abierto={menuAbierto}
+            onCerrar={() => setMenuAbierto(false)}
+            mostrarHeader={false}
+            sinScrollInterno
+            alturaMaxima="sm"
+            fondo="linear-gradient(135deg, #000000, #0f172a)"
+            headerOscuro
+        >
+            <div className="px-4 pt-11 pb-4">
+                <p className="text-center text-sm font-bold text-slate-400 mb-3">{placeholder}</p>
+
+                <button type="button" onClick={() => { setMenuAbierto(false); inputCamaraRef.current?.click(); }}
+                    className="w-full flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer">
+                    <div className="w-11 h-11 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
+                        <Camera className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div className="text-left">
+                        <p className="text-base font-bold text-white">Tomar foto</p>
+                        <p className="text-sm text-slate-400 font-medium">Usar la cámara</p>
+                    </div>
+                </button>
+
+                <button type="button" onClick={() => { setMenuAbierto(false); inputRef.current?.click(); }}
+                    className="w-full flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer">
+                    <div className="w-11 h-11 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0">
+                        <Images className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div className="text-left">
+                        <p className="text-base font-bold text-white">Galería de fotos</p>
+                        <p className="text-sm text-slate-400 font-medium">Elegir desde tu dispositivo</p>
+                    </div>
+                </button>
+
+                <button type="button" onClick={() => setMenuAbierto(false)}
+                    className="w-full mt-2 p-3.5 text-base font-bold text-slate-500 rounded-xl border-2 border-slate-800 active:bg-white/10 cursor-pointer">
+                    Cancelar
+                </button>
+            </div>
+        </ModalBottom>
+        </>
     );
 }
 

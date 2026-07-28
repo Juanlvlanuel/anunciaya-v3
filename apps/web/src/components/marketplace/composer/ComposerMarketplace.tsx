@@ -216,6 +216,18 @@ export function ComposerMarketplace({
         el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, [seccionAbierta]);
 
+    // Descripción auto-crece con su contenido (como Twitter/Instagram): la
+    // `<textarea>` nunca genera su propio scroll interno — su alto siempre
+    // sigue a `scrollHeight`. El único scroll de la zona título-hacia-abajo
+    // es el de `scrollContenidoRef` (descripción + fotos + paneles juntos).
+    const descripcionRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+        const el = descripcionRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    }, [draft.descripcion]);
+
     // ─── Ver foto completa (ModalImagenes) ──
     const [indiceImagenAbierta, setIndiceImagenAbierta] = useState<number | null>(null);
 
@@ -500,10 +512,9 @@ export function ComposerMarketplace({
                     }}
                     className="flex flex-1 min-h-0 flex-col"
                 >
-                    {/* Zona scrollable: título, descripción, fotos, panel abierto.
-                        `scroll-discreto` = misma canaleta+barra de scroll que
-                        el carrusel "Recién publicado" del feed en PC. */}
-                    <div ref={scrollContenidoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-3 scroll-discreto">
+                    {/* Título fijo (no scrollea) + zona con UN solo scroll
+                        unificado para descripción + fotos + paneles. */}
+                    <div className="flex-1 min-h-0 flex flex-col px-4">
                         <input
                             type="text"
                             data-testid="composer-mp-titulo"
@@ -514,156 +525,168 @@ export function ComposerMarketplace({
                                     ? 'Ej: Busco cama matrimonial en buen estado'
                                     : 'Ej: Bicicleta de montaña rodada 26'
                             }
-                            className="w-full border-0 bg-transparent py-2 text-xl text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-bold outline-none"
+                            className="w-full shrink-0 border-0 bg-transparent py-2 text-xl text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-bold outline-none"
                         />
                         {/* Hint del mínimo de caracteres — antes solo se
                             enteraba al chocar con el toast de error al
                             guardar. */}
                         <p
-                            className={`text-xs font-semibold ${
+                            className={`shrink-0 text-xs font-semibold ${
                                 errores.titulo ? 'text-red-600' : 'text-slate-400'
                             }`}
                         >
                             {draft.titulo.trim().length}/{TITULO_MAX} · mínimo {TITULO_MIN} caracteres
                         </p>
 
-                        <textarea
-                            data-testid="composer-mp-descripcion"
-                            value={draft.descripcion}
-                            onChange={(e) => actualizar({ descripcion: e.target.value.slice(0, 1000) })}
-                            placeholder={
-                                draft.modo === 'busco'
-                                    ? 'Cuenta qué buscas: características, para qué lo necesitas, condición aceptable…'
-                                    : 'Cuenta los detalles del artículo: marca, antigüedad, motivo de venta…'
-                            }
-                            rows={4}
-                            className="w-full resize-none border-0 bg-transparent py-2 text-[15px] text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-medium outline-none"
-                        />
+                        {/* Único scroll de la zona: descripción + hint de
+                            moderación + fotos + el panel de detalle abierto
+                            (Categoría/Precio/Condición/...). La descripción
+                            auto-crece con `descripcionRef` (nunca genera su
+                            propio scroll interno) y llena todo el alto
+                            visible cuando está vacía y sin fotos gracias a
+                            `grow` dentro de este mismo contenedor flex.
+                            `scroll-discreto` = misma canaleta+barra de
+                            scroll que el carrusel "Recién publicado" del
+                            feed en PC. */}
+                        <div ref={scrollContenidoRef} className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain pb-3 scroll-discreto">
+                            <textarea
+                                ref={descripcionRef}
+                                data-testid="composer-mp-descripcion"
+                                value={draft.descripcion}
+                                onChange={(e) => actualizar({ descripcion: e.target.value.slice(0, 1000) })}
+                                placeholder={
+                                    draft.modo === 'busco'
+                                        ? 'Cuenta qué buscas: características, para qué lo necesitas, condición aceptable…'
+                                        : 'Cuenta los detalles del artículo: marca, antigüedad, motivo de venta…'
+                                }
+                                rows={1}
+                                className="w-full grow shrink-0 min-h-24 resize-none overflow-hidden border-0 bg-transparent py-2 text-[15px] text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-medium outline-none"
+                            />
+                            <ComposerHintModeracion
+                                texto={`${draft.titulo} ${draft.descripcion}`}
+                                modo={draft.modo}
+                                onIrServicios={() => {
+                                    cerrarSinConfirmar();
+                                    navegar('/servicios?crear=ofrezco');
+                                }}
+                                onCambiarABusco={() => {
+                                    actualizar({ modo: 'busco' });
+                                    setSeccionAbierta(null);
+                                }}
+                            />
 
-                        <ComposerHintModeracion
-                            texto={`${draft.titulo} ${draft.descripcion}`}
-                            modo={draft.modo}
-                            onIrServicios={() => {
-                                cerrarSinConfirmar();
-                                navegar('/servicios?crear=ofrezco');
-                            }}
-                            onCambiarABusco={() => {
-                                actualizar({ modo: 'busco' });
-                                setSeccionAbierta(null);
-                            }}
-                        />
-
-                        {/* Fotos — grid 3 cols móvil / 5 cols desktop, hover-zoom
-                            + click abre ModalImagenes + Trash2 en barra inferior
-                            (mismo patrón que ComposerPublicacionNegocio). */}
-                        {(draft.fotos.length > 0 || fotosUploader.previews.length > 0) && (
-                            <div className="mt-3 grid grid-cols-3 lg:grid-cols-5 gap-2">
-                                {draft.fotos.map((url, i) => (
-                                    <div key={url} className="relative aspect-square rounded-xl overflow-hidden group">
-                                        {i === 0 && (
-                                            <span
-                                                aria-hidden
-                                                className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-teal-600/90 text-white text-[11px] font-semibold shadow pointer-events-none"
+                            {/* Fotos — grid 3 cols móvil / 5 cols desktop, hover-zoom
+                                + click abre ModalImagenes + Trash2 en barra inferior
+                                (mismo patrón que ComposerPublicacionNegocio). */}
+                            {(draft.fotos.length > 0 || fotosUploader.previews.length > 0) && (
+                                <div className="mt-3 grid grid-cols-3 lg:grid-cols-5 gap-2">
+                                    {draft.fotos.map((url, i) => (
+                                        <div key={url} className="relative aspect-square rounded-xl overflow-hidden group">
+                                            {i === 0 && (
+                                                <span
+                                                    aria-hidden
+                                                    className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-teal-600/90 text-white text-[11px] font-semibold shadow pointer-events-none"
+                                                >
+                                                    Portada
+                                                </span>
+                                            )}
+                                            <img
+                                                src={url}
+                                                alt=""
+                                                onClick={() => setIndiceImagenAbierta(i)}
+                                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110 lg:cursor-pointer"
+                                            />
+                                            <div
+                                                className="absolute bottom-0 inset-x-0 flex items-center justify-end py-1.5 px-1.5"
+                                                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}
                                             >
-                                                Portada
-                                            </span>
-                                        )}
-                                        <img
-                                            src={url}
-                                            alt=""
-                                            onClick={() => setIndiceImagenAbierta(i)}
-                                            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110 lg:cursor-pointer"
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); fotosUploader.eliminar(i); }}
+                                                    aria-label="Quitar foto"
+                                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 lg:cursor-pointer active:scale-95 transition-colors"
+                                                >
+                                                    <Trash2 className="w-5 h-5 text-white" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {fotosUploader.previews.map((p) => (
+                                        <div key={p.tempId} className="relative aspect-square rounded-xl overflow-hidden">
+                                            <img src={p.url} alt="" className="h-full w-full object-cover opacity-60" />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                <Loader2 className="h-6 w-6 text-white animate-spin" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <input {...fotosUploader.inputGaleriaProps} />
+                            <input {...fotosUploader.inputCamaraProps} />
+
+                            {/* Panel expandido inline (revelado progresivo) */}
+                            {seccionAbierta === 'categoria' && (
+                                <div className="mt-3">
+                                    <PanelCategoria
+                                        categorias={categorias}
+                                        valor={draft.categoriaId}
+                                        onCambio={(id) => actualizar({ categoriaId: id })}
+                                    />
+                                </div>
+                            )}
+                            {seccionAbierta === 'precio' && (
+                                <div className="mt-3">
+                                    {draft.modo === 'vendo' ? (
+                                        <PanelPrecio
+                                            valor={draft.precio}
+                                            onCambio={(v) => actualizar({ precio: v.replace(/[^\d]/g, '') })}
                                         />
-                                        <div
-                                            className="absolute bottom-0 inset-x-0 flex items-center justify-end py-1.5 px-1.5"
-                                            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={(e) => { e.stopPropagation(); fotosUploader.eliminar(i); }}
-                                                aria-label="Quitar foto"
-                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-black/30 hover:bg-red-600 lg:cursor-pointer active:scale-95 transition-colors"
-                                            >
-                                                <Trash2 className="w-5 h-5 text-white" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                                {fotosUploader.previews.map((p) => (
-                                    <div key={p.tempId} className="relative aspect-square rounded-xl overflow-hidden">
-                                        <img src={p.url} alt="" className="h-full w-full object-cover opacity-60" />
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                            <Loader2 className="h-6 w-6 text-white animate-spin" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <input {...fotosUploader.inputGaleriaProps} />
-                        <input {...fotosUploader.inputCamaraProps} />
-
-                        {/* Panel expandido inline (revelado progresivo) */}
-                        {seccionAbierta === 'categoria' && (
-                            <div className="mt-3">
-                                <PanelCategoria
-                                    categorias={categorias}
-                                    valor={draft.categoriaId}
-                                    onCambio={(id) => actualizar({ categoriaId: id })}
-                                />
-                            </div>
-                        )}
-                        {seccionAbierta === 'precio' && (
-                            <div className="mt-3">
-                                {draft.modo === 'vendo' ? (
-                                    <PanelPrecio
-                                        valor={draft.precio}
-                                        onCambio={(v) => actualizar({ precio: v.replace(/[^\d]/g, '') })}
+                                    ) : (
+                                        <PanelPresupuesto
+                                            min={draft.presupuestoMin}
+                                            max={draft.presupuestoMax}
+                                            urgente={draft.urgente}
+                                            onCambioMin={(v) => actualizar({ presupuestoMin: v.replace(/[^\d]/g, '') })}
+                                            onCambioMax={(v) => actualizar({ presupuestoMax: v.replace(/[^\d]/g, '') })}
+                                            onCambioUrgente={(v) => actualizar({ urgente: v })}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                            {seccionAbierta === 'condicion' && (
+                                <div className="mt-3">
+                                    <PanelCondicion
+                                        valor={draft.condicion}
+                                        onCambio={(c) => actualizar({ condicion: c })}
+                                        onQuitar={() => actualizar({ condicion: null })}
                                     />
-                                ) : (
-                                    <PanelPresupuesto
-                                        min={draft.presupuestoMin}
-                                        max={draft.presupuestoMax}
-                                        urgente={draft.urgente}
-                                        onCambioMin={(v) => actualizar({ presupuestoMin: v.replace(/[^\d]/g, '') })}
-                                        onCambioMax={(v) => actualizar({ presupuestoMax: v.replace(/[^\d]/g, '') })}
-                                        onCambioUrgente={(v) => actualizar({ urgente: v })}
+                                </div>
+                            )}
+                            {seccionAbierta === 'ofertas' && (
+                                <div className="mt-3">
+                                    <PanelOfertas
+                                        valor={draft.aceptaOfertas}
+                                        onCambio={(v) => actualizar({ aceptaOfertas: v })}
                                     />
-                                )}
-                            </div>
-                        )}
-                        {seccionAbierta === 'condicion' && (
-                            <div className="mt-3">
-                                <PanelCondicion
-                                    valor={draft.condicion}
-                                    onCambio={(c) => actualizar({ condicion: c })}
-                                    onQuitar={() => actualizar({ condicion: null })}
-                                />
-                            </div>
-                        )}
-                        {seccionAbierta === 'ofertas' && (
-                            <div className="mt-3">
-                                <PanelOfertas
-                                    valor={draft.aceptaOfertas}
-                                    onCambio={(v) => actualizar({ aceptaOfertas: v })}
-                                />
-                            </div>
-                        )}
-                        {seccionAbierta === 'unidad' && (
-                            <div className="mt-3">
-                                <PanelUnidad
-                                    valor={draft.unidadVenta}
-                                    onCambio={(v) => actualizar({ unidadVenta: v.slice(0, 30) })}
-                                />
-                            </div>
-                        )}
-                        {seccionAbierta === 'zona' && (
-                            <div className="mt-3">
-                                <PanelZona
-                                    valor={draft.zonaAproximada}
-                                    onCambio={(v) => actualizar({ zonaAproximada: v.slice(0, 150) })}
-                                />
-                            </div>
-                        )}
+                                </div>
+                            )}
+                            {seccionAbierta === 'unidad' && (
+                                <div className="mt-3">
+                                    <PanelUnidad
+                                        valor={draft.unidadVenta}
+                                        onCambio={(v) => actualizar({ unidadVenta: v.slice(0, 30) })}
+                                    />
+                                </div>
+                            )}
+                            {seccionAbierta === 'zona' && (
+                                <div className="mt-3">
+                                    <PanelZona
+                                        valor={draft.zonaAproximada}
+                                        onCambio={(v) => actualizar({ zonaAproximada: v.slice(0, 150) })}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* ── Chip bar anclada: Galería + Categoría + Precio/Presupuesto
@@ -672,15 +695,21 @@ export function ComposerMarketplace({
                         <div className="flex items-center gap-2 lg:gap-1.5 overflow-x-auto lg:flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                             <button
                                 type="button"
+                                data-testid="composer-mp-chip-camara"
+                                onClick={fotosUploader.abrirCamara}
+                                className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
+                            >
+                                <Camera className="h-4 w-4" strokeWidth={2} />
+                                Cámara
+                            </button>
+
+                            <button
+                                type="button"
                                 data-testid="composer-mp-chip-galeria"
                                 onClick={fotosUploader.abrirGaleria}
                                 className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
                             >
-                                {draft.fotos.length === 0 ? (
-                                    <Camera className="h-4 w-4" strokeWidth={2} />
-                                ) : (
-                                    <ImageIcon className="h-4 w-4" strokeWidth={2} />
-                                )}
+                                <ImageIcon className="h-4 w-4" strokeWidth={2} />
                                 Galería
                                 {draft.fotos.length > 0 && (
                                     <span className="tabular-nums text-slate-500">

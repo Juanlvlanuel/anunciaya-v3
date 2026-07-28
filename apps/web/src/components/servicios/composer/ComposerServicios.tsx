@@ -632,15 +632,21 @@ export function ComposerServicios({
                         <div className="flex items-center gap-2 lg:gap-1.5 overflow-x-auto lg:flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                             <button
                                 type="button"
+                                data-testid="composer-chip-camara"
+                                onClick={fotosUploader.abrirCamara}
+                                className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
+                            >
+                                <Camera className="h-4 w-4" strokeWidth={2} />
+                                Cámara
+                            </button>
+
+                            <button
+                                type="button"
                                 data-testid="composer-chip-galeria"
                                 onClick={fotosUploader.abrirGaleria}
                                 className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
                             >
-                                {draft.fotos.length === 0 ? (
-                                    <Camera className="h-4 w-4" strokeWidth={2} />
-                                ) : (
-                                    <ImageIcon className="h-4 w-4" strokeWidth={2} />
-                                )}
+                                <ImageIcon className="h-4 w-4" strokeWidth={2} />
                                 Galería
                                 {draft.fotos.length > 0 && (
                                     <span className="tabular-nums text-slate-500">

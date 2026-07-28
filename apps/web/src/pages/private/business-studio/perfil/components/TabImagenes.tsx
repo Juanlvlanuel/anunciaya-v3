@@ -581,16 +581,16 @@ export default function TabImagenes({
         {/* Botones */}
         <div className="flex flex-col gap-1.5 pt-1 shrink-0">
           <Tooltip text={imageUrl ? labelCambiar : labelSubir} position="bottom" className="2xl:hidden">
-            <label
-              className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-28 px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-white rounded-lg cursor-pointer whitespace-nowrap shadow-sm hover:opacity-90 transition-opacity ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            <button
+              type="button"
+              onClick={() => abrirMenuCamara(onUpload)}
+              disabled={isUploading || disabled}
+              className={`h-9 lg:h-8 2xl:h-9 lg:w-8 2xl:w-28 px-3 lg:px-0 2xl:px-3 flex items-center justify-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-white rounded-lg cursor-pointer whitespace-nowrap shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed`}
               style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
             >
               <Camera className="w-3.5 h-3.5 shrink-0" />
               <span className="lg:hidden 2xl:inline">{imageUrl ? 'Cambiar' : 'Subir'}</span>
-              <input type="file" accept=".png,.jpg,.jpeg,.webp" name="imagenPerfil"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }}
-                disabled={isUploading || disabled} className="hidden" />
-            </label>
+            </button>
           </Tooltip>
           {imageUrl && onAjustar && (
             <Tooltip text="Ajustar posición" position="bottom" className="2xl:hidden">
@@ -949,17 +949,6 @@ export default function TabImagenes({
           <p className="text-center text-sm font-bold text-slate-400 mb-3">Seleccionar imagen</p>
 
           <label className="flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer">
-            <div className="w-11 h-11 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0">
-              <Images className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <p className="text-base font-bold text-white">Galería de fotos</p>
-              <p className="text-sm text-slate-400 font-medium">Elegir desde tu dispositivo</p>
-            </div>
-            <input type="file" accept=".png,.jpg,.jpeg,.webp" name="fotoGaleria" onChange={handleArchivoSeleccionado} className="hidden" />
-          </label>
-
-          <label className="flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer">
             <div className="w-11 h-11 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
               <Camera className="w-5 h-5 text-emerald-400" />
             </div>
@@ -968,6 +957,17 @@ export default function TabImagenes({
               <p className="text-sm text-slate-400 font-medium">Usar la cámara</p>
             </div>
             <input type="file" accept=".png,.jpg,.jpeg,.webp" capture="environment" name="fotoCamara" onChange={handleArchivoSeleccionado} className="hidden" />
+          </label>
+
+          <label className="flex items-center gap-3 p-3.5 rounded-xl active:bg-white/10 cursor-pointer">
+            <div className="w-11 h-11 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0">
+              <Images className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-white">Galería de fotos</p>
+              <p className="text-sm text-slate-400 font-medium">Elegir desde tu dispositivo</p>
+            </div>
+            <input type="file" accept=".png,.jpg,.jpeg,.webp" name="fotoGaleria" onChange={handleArchivoSeleccionado} className="hidden" />
           </label>
 
           <button type="button" onClick={() => setMenuCamara(null)}
