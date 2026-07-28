@@ -319,6 +319,14 @@ export function PaginaCatalogo() {
     const [articuloDuplicando, setArticuloDuplicando] = useState<Articulo | null>(null);
     const [articulosCargados, setArticulosCargados] = useState(ARTICULOS_POR_PAGINA);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
+    // IDs recién creados en esta sesión de la página — el backend ordena el
+    // catálogo por `destacado DESC, orden ASC, nombre ASC` (no por fecha de
+    // creación), así que un artículo nuevo puede caer fuera de la ventana de
+    // paginación móvil (`articulosCargados`) en cuanto el refetch post-alta
+    // reemplaza el prepend optimista por el orden real del servidor. En PC no
+    // pasa porque la tabla no pagina (`articulosOrdenados` completo). Se
+    // fuerza a que estos IDs sigan visibles aunque queden fuera del slice.
+    const [idsRecienCreados, setIdsRecienCreados] = useState<Set<string>>(new Set());
 
     // Ordenación
     const [orden, setOrden] = useState<OrdenState | null>(null);
@@ -441,9 +449,18 @@ export function PaginaCatalogo() {
     // ===========================================================================
 
     const articulosMostrados = useMemo(() => {
-        if (isMobile) return articulosOrdenados.slice(0, articulosCargados);
-        return articulosOrdenados;
-    }, [articulosOrdenados, articulosCargados, isMobile]);
+        if (!isMobile) return articulosOrdenados;
+        const visibles = articulosOrdenados.slice(0, articulosCargados);
+        if (idsRecienCreados.size === 0) return visibles;
+        // Los recién creados que el orden real del servidor dejó fuera de la
+        // ventana paginada se agregan arriba, para que sigan visibles al
+        // instante (mismo criterio que la tabla desktop, que no pagina).
+        const idsVisibles = new Set(visibles.map((a) => a.id));
+        const pendientes = articulosOrdenados.filter(
+            (a) => idsRecienCreados.has(a.id) && !idsVisibles.has(a.id)
+        );
+        return pendientes.length > 0 ? [...pendientes, ...visibles] : visibles;
+    }, [articulosOrdenados, articulosCargados, isMobile, idsRecienCreados]);
 
     const hayMas = isMobile && articulosCargados < articulosOrdenados.length;
 
@@ -1126,7 +1143,10 @@ export function PaginaCatalogo() {
                                 if (articuloEditando) {
                                     await actualizarMutation.mutateAsync({ id: articuloEditando.id, datos });
                                 } else {
-                                    await crearMutation.mutateAsync(datos as CrearArticuloInput);
+                                    const res = await crearMutation.mutateAsync(datos as CrearArticuloInput);
+                                    if (res.data?.id) {
+                                        setIdsRecienCreados((prev) => new Set(prev).add(res.data!.id));
+                                    }
                                 }
                                 setModalAbierto(false);
                                 setArticuloEditando(null);
