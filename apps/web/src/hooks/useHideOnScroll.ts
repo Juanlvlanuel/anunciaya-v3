@@ -21,6 +21,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useMainScrollStore } from '../stores/useMainScrollStore';
 
 // =============================================================================
 // TIPOS
@@ -67,6 +68,11 @@ export function useHideOnScroll({
   }, [desktopBreakpoint]);
 
   const [shouldShow, setShouldShow] = useState(true);
+
+  // Ref del scroller REAL de la página (registrado por MainLayout o por
+  // `useScrollAppShell` en cada página app-shell) — mismo store que usa
+  // `useCollapsibleBanner`. `null` cuando la página scrollea en `window`.
+  const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
 
   // Refs para tracking interno
   const lastScrollTopRef = useRef(0);
@@ -132,39 +138,34 @@ export function useHideOnScroll({
       return;
     }
 
-    // Los eventos `scroll` NO burbujean, pero SÍ se propagan en fase de
-    // captura. Escuchamos en `document` con `capture: true` para enterarnos
-    // del scroll de CUALQUIER contenedor (el <main> del layout, el contenedor
-    // interno de una página app-shell, o el documento), sin depender de
-    // acertar cuál es el scroller real de cada página.
-    const leerScrollTop = (target: EventTarget | null): number | null => {
-      if (!target || target === document || target === window ||
-          target === document.documentElement || target === document.body) {
-        return window.scrollY || document.documentElement.scrollTop || 0;
-      }
-      if (target instanceof HTMLElement) {
-        // Ignorar scrollers puramente horizontales (carruseles nativos):
-        // no aportan dirección vertical para ocultar/mostrar el navbar.
-        if (target.scrollHeight <= target.clientHeight) return null;
-        return target.scrollTop;
-      }
-      return null;
+    // Escuchamos el scroll SOLO del contenedor real de la página (el mismo
+    // `mainScrollRef` que usa `useCollapsibleBanner`): el `<main>` del layout
+    // en páginas normales, o el contenedor interno que cada página app-shell
+    // registra vía `useScrollAppShell`. Si no hay ninguno registrado, la
+    // página scrollea en `window` (caso `esPaginaConHeaderPropio` sin
+    // app-shell). Así, el scroll interno de un dropdown, un `ModalBottom` o
+    // cualquier otro popup NUNCA dispara este handler — sin importar su alto
+    // ni requerir heurísticas de tamaño — porque nunca es ese elemento.
+    const el = mainScrollRef?.current ?? null;
+    const target: EventTarget = el ?? window;
+
+    const leerScrollTop = (): number => {
+      if (el) return el.scrollTop;
+      return window.scrollY || document.documentElement.scrollTop || 0;
     };
 
-    const onScroll = (e: Event) => {
-      const scrollTop = leerScrollTop(e.target);
-      if (scrollTop === null) return;
+    const onScroll = () => {
       cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => handleScroll(scrollTop));
+      rafRef.current = requestAnimationFrame(() => handleScroll(leerScrollTop()));
     };
 
-    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    target.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
-      document.removeEventListener('scroll', onScroll, { capture: true } as EventListenerOptions);
+      target.removeEventListener('scroll', onScroll);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [isMobile, disabled, handleScroll]);
+  }, [isMobile, disabled, handleScroll, mainScrollRef]);
 
   // Transform
   const getTransform = (): string => {

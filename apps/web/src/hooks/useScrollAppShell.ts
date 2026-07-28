@@ -36,15 +36,29 @@ import { useBreakpoint } from './useBreakpoint';
  */
 export function useScrollAppShell<T extends HTMLElement = HTMLDivElement>(enabled: boolean = true) {
   const ref = useRef<T>(null);
+  const ultimoNodoRegistradoRef = useRef<T | null>(null);
   const setMainScrollRef = useMainScrollStore((s) => s.setMainScrollRef);
   const { esMobile } = useBreakpoint();
 
+  // Sin arreglo de dependencias a propósito: corre después de CADA render de
+  // la página que usa este hook. Necesario porque páginas con un estado de
+  // carga (isLoading/isPending) que NO monta el contenedor con `ref` hasta
+  // que llegan los datos (ej. detalle de una publicación, perfil de un
+  // negocio/vendedor/prestador) hacen que `ref.current` pase de `null` a un
+  // elemento real DESPUÉS del primer render — una reasignación de
+  // `ref.current` por React es una mutación directa, NO dispara los
+  // suscriptores de Zustand (useHideOnScroll, useCollapsibleBanner), así que
+  // sin este chequeo se quedan escuchando el registro viejo (o `window`) y
+  // el BottomNav/header nunca reaccionan al scroll real de la página.
   useEffect(() => {
-    // En desktop el scroll lo maneja el <main> del layout (mainRef). Solo en
-    // móvil (y en modo app-shell) el scroll vive en el contenedor interno.
     if (!enabled || !esMobile) return;
-    setMainScrollRef(ref as RefObject<HTMLElement | null>);
-  }, [enabled, esMobile, setMainScrollRef]);
+    if (ref.current === ultimoNodoRegistradoRef.current) return;
+    ultimoNodoRegistradoRef.current = ref.current;
+    // Objeto NUEVO en cada registro (aunque sea el mismo `ref`): así el
+    // store siempre notifica el cambio, incluso si la referencia de `ref`
+    // en sí no cambió — lo que cambió es a qué nodo apunta `.current`.
+    setMainScrollRef({ current: ref.current } as RefObject<HTMLElement | null>);
+  });
 
   return ref;
 }
