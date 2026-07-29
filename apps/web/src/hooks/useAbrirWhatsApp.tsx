@@ -23,7 +23,8 @@
  */
 import { useCallback, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Icon, ICONOS_REMOTOS } from '../config/iconos';
+import { Icon } from '@iconify/react';
+import { ICONOS_REMOTOS } from '../config/iconos';
 
 /** Limpia el número y arma el link de WhatsApp (mismo criterio que ya usaba cada sitio). */
 export function construirLinkWhatsApp(numero: string, mensaje?: string): string {
