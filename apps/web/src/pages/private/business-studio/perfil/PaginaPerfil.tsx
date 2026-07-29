@@ -25,6 +25,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { usePerfil } from './hooks/usePerfil';
 import { useUiStore } from '../../../../stores/useUiStore';
+import { useHideOnScroll } from '../../../../hooks/useHideOnScroll';
 import { Spinner } from '../../../../components/ui';
 import TabInformacion from './components/TabInformacion';
 import TabUbicacion from './components/TabUbicacion';
@@ -90,6 +91,10 @@ export default function PaginaPerfil() {
   const { loading, error, esGerente, guardando, hayCambios, datosInformacion, datosUbicacion } = hookPerfil;
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
   const { setGuardarBsFn, setGuardandoBs, setBsPuedeGuardar } = useUiStore();
+  // Mismo cálculo de scroll que el BottomNav (misma dirección/umbral) para que
+  // el FAB baje a pegarse al borde cuando el BottomNav se oculta, y suba de
+  // nuevo cuando reaparece — sin depender de su altura, solo de si está visible.
+  const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
 
   // Validación: campos requeridos para habilitar guardado
   const camposRequeridosCompletos = Boolean(datosUbicacion.estado);
@@ -326,9 +331,12 @@ export default function PaginaPerfil() {
       {/* FAB - FLOATING ACTION BUTTON */}
       {/* ===================================================================== */}
 
-      {/* FAB solo en desktop — en móvil se usa el botón del MobileHeader */}
+      {/* FAB en móvil y desktop — en Mi Perfil el guardado vive solo aquí,
+          el botón del MobileHeader queda oculto para esta sección. En móvil
+          baja al borde cuando el BottomNav se oculta (scroll down) y sube
+          de nuevo cuando reaparece. */}
       {hayCambios && createPortal(
-        <div className={`hidden lg:block fixed lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-transform duration-75 ${previewNegocioAbierto
+        <div className={`fixed ${bottomNavVisible ? 'bottom-20' : 'bottom-4'} right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-all duration-300 ${previewNegocioAbierto
           ? 'lg:right-[375px] 2xl:translate-x-[510px]'
           : 'lg:right-[45px] 2xl:translate-x-[895px]'
           }`}>

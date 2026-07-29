@@ -332,7 +332,7 @@ export function HeaderBusinessStudioMovil() {
                 >
                   {previewNegocioAbierto ? <X className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
                 </button>
-                {guardarBsFn ? (
+                {guardarBsFn && !location.pathname.includes('/perfil') ? (
                 <button
                   data-testid="btn-guardar-bs-movil"
                   onClick={() => { if (!guardandoBs) useUiStore.getState().guardarBsFn?.(); }}

@@ -68,6 +68,7 @@ import { MarcadorPopup } from '../../../components/mapa/MarcadorPopup';
 import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../components/negocios/ModalHorarios';
 import { ModalBottom } from '../../../components/ui/ModalBottom';
 import { Modal } from '../../../components/ui/Modal';
+import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useGpsStore } from '../../../stores/useGpsStore';
@@ -78,7 +79,7 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 // useNegociosCacheStore eliminado — React Query maneja caché
 import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
-import { useAbrirWhatsApp, formatearNumero, calcularPosicionPopover } from '../../../hooks/useAbrirWhatsApp';
+import { useAbrirWhatsApp, formatearNumero } from '../../../hooks/useAbrirWhatsApp';
 import { notificar } from '../../../utils/notificaciones';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
@@ -504,55 +505,57 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     // Teléfono alterno: solo 2 lugares en toda la app usan `tel:` mostrando
-    // solo el ícono (sin el número como texto), así que basta un popover
-    // local — mismo criterio discreto que el hook de WhatsApp (sin alterno,
-    // comportamiento idéntico a hoy; con alterno, popover anclado al ícono).
-    const [telefonoPendiente, setTelefonoPendiente] = useState<{ principal: string; alterno: string; top: number; left: number } | null>(null);
-    const abrirTelefono = useCallback((e: MouseEvent<HTMLElement>, principal?: string | null, alterno?: string | null) => {
+    // solo el ícono (sin el número como texto). Antes era un popover anclado
+    // con posición manual (fixed + coordenadas propias) — no se renderizaba
+    // dentro del preview embebido de Business Studio por una causa que no se
+    // pudo aislar pese a confirmar con logs que el estado y las coordenadas
+    // eran correctos. Se usa `ModalAdaptativo` (misma base que el resto de
+    // los modales de esta página, que sí funcionan en ese contexto) en vez
+    // de reinventar el posicionamiento.
+    const [telefonoPendiente, setTelefonoPendiente] = useState<{ principal: string; alterno: string } | null>(null);
+    const abrirTelefono = useCallback((_e: unknown, principal?: string | null, alterno?: string | null) => {
         if (!principal) return;
         if (!alterno) {
             window.location.href = `tel:${principal.replace(/\s+/g, '')}`;
             return;
         }
-        const rect = e.currentTarget.getBoundingClientRect();
-        setTelefonoPendiente({ principal, alterno, top: rect.top - 8, left: rect.left + rect.width / 2 });
+        setTelefonoPendiente({ principal, alterno });
     }, []);
     const elegirTelefono = (numero: string) => {
         window.location.href = `tel:${numero.replace(/\s+/g, '')}`;
         setTelefonoPendiente(null);
     };
-    const posicionMenuTelefono = telefonoPendiente ? calcularPosicionPopover(telefonoPendiente.left) : null;
-    const menuTelefono = telefonoPendiente && posicionMenuTelefono ? createPortal(
-        <>
-            <div className="fixed inset-0 z-[9998]" onClick={() => setTelefonoPendiente(null)} />
-            <div
-                className="fixed z-[9999] bg-slate-900 rounded-xl py-1.5 min-w-[190px]"
-                style={{ top: telefonoPendiente.top, left: posicionMenuTelefono.boxLeft, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
-            >
-                <button
-                    type="button"
-                    onClick={() => elegirTelefono(telefonoPendiente.principal)}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/10 cursor-pointer"
-                >
-                    <Phone className="w-4 h-4 text-slate-300 shrink-0" />
-                    <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(telefonoPendiente.principal)}</span>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => elegirTelefono(telefonoPendiente.alterno)}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/10 cursor-pointer"
-                >
-                    <Phone className="w-4 h-4 text-slate-300 shrink-0" />
-                    <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(telefonoPendiente.alterno)}</span>
-                </button>
-                <div
-                    className="absolute top-full -translate-x-1/2 w-0 h-0"
-                    style={{ left: posicionMenuTelefono.flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
-                />
-            </div>
-        </>,
-        document.body
-    ) : null;
+    const menuTelefono = (
+        <ModalAdaptativo
+            abierto={!!telefonoPendiente}
+            onCerrar={() => setTelefonoPendiente(null)}
+            titulo="Elegir número de teléfono"
+            ancho="sm"
+            paddingContenido="sm"
+            discriminador="_modalTelefonoAlterno"
+        >
+            {telefonoPendiente && (
+                <div className="flex flex-col gap-2">
+                    <button
+                        type="button"
+                        onClick={() => elegirTelefono(telefonoPendiente.principal)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                    >
+                        <Phone className="w-5 h-5 text-slate-600 shrink-0" />
+                        <span className="text-base font-semibold text-slate-800">{formatearNumero(telefonoPendiente.principal)}</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => elegirTelefono(telefonoPendiente.alterno)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                    >
+                        <Phone className="w-5 h-5 text-slate-600 shrink-0" />
+                        <span className="text-base font-semibold text-slate-800">{formatearNumero(telefonoPendiente.alterno)}</span>
+                    </button>
+                </div>
+            )}
+        </ModalAdaptativo>
+    );
 
     // ✅ Store de caché para ofertas y catálogo
     // React Query

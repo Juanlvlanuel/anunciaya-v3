@@ -9,9 +9,15 @@
  *   - Sin alterno → abre el link de WhatsApp directo (idéntico a como
  *     funcionaba antes en los ~16 lugares que ya construían su propio
  *     `wa.me/...`), sin ningún cambio visible.
- *   - Con alterno → muestra un popover discreto (2 renglones con los
- *     números, NO modal de pantalla completa) anclado justo encima del
- *     ícono que se clickeó, y abre el que el usuario elija.
+ *   - Con alterno → muestra un `ModalAdaptativo` chiquito para elegir cuál
+ *     abrir. Antes era un popover anclado con posición manual (fixed +
+ *     coordenadas de getBoundingClientRect), pero no se renderizaba dentro
+ *     del preview embebido de Business Studio / ChatYA por una causa que no
+ *     se pudo aislar pese a confirmar con logs que el estado y las
+ *     coordenadas eran correctos. ModalAdaptativo ya resuelve el portal
+ *     (`usePortalTarget`) igual que el resto de los modales de la página,
+ *     que sí funcionan en ese contexto — se usa esa base probada en vez de
+ *     reinventar el posicionamiento.
  *
  * USO:
  *   const { abrir, menu } = useAbrirWhatsApp();
@@ -21,10 +27,10 @@
  *
  * Ubicación: apps/web/src/hooks/useAbrirWhatsApp.tsx
  */
-import { useCallback, useState, type MouseEvent } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { ICONOS_REMOTOS } from '../config/iconos';
+import { ModalAdaptativo } from '../components/ui/ModalAdaptativo';
 
 /** Limpia el número y arma el link de WhatsApp (mismo criterio que ya usaba cada sitio). */
 export function construirLinkWhatsApp(numero: string, mensaje?: string): string {
@@ -58,41 +64,18 @@ interface OpcionesPendientes {
   principal: string;
   alterno: string;
   mensaje?: string;
-  top: number;
-  left: number;
-}
-
-/** Ancho del popover (min-w-[190px]) — usado para no dejarlo salir de la pantalla en móvil. */
-const ANCHO_POPOVER = 190;
-const MARGEN_VIEWPORT = 8;
-/** Margen mínimo del triángulo respecto a las esquinas redondeadas del popover. */
-const MARGEN_FLECHA = 14;
-
-/**
- * Calcula la posición del popover y de su triángulo indicador a partir del
- * centro X real del ícono clickeado (`anchorX`, sin clampear).
- * - `boxLeft`: dónde centrar el popover (clampeado para no salirse del viewport).
- * - `flechaLeft`: offset del triángulo DENTRO del popover para que siga
- *   apuntando al ícono original aunque el popover se haya desplazado.
- */
-export function calcularPosicionPopover(anchorX: number): { boxLeft: number; flechaLeft: number } {
-  const mitad = ANCHO_POPOVER / 2;
-  const boxLeft = Math.min(Math.max(anchorX, mitad + MARGEN_VIEWPORT), window.innerWidth - mitad - MARGEN_VIEWPORT);
-  const flechaLeft = Math.min(Math.max(anchorX - boxLeft + mitad, MARGEN_FLECHA), ANCHO_POPOVER - MARGEN_FLECHA);
-  return { boxLeft, flechaLeft };
 }
 
 export function useAbrirWhatsApp() {
   const [pendiente, setPendiente] = useState<OpcionesPendientes | null>(null);
 
-  const abrir = useCallback((e: MouseEvent<HTMLElement>, principal: string | null | undefined, alterno?: string | null, mensaje?: string) => {
+  const abrir = useCallback((_e: unknown, principal: string | null | undefined, alterno?: string | null, mensaje?: string) => {
     if (!principal) return;
     if (!alterno) {
       window.open(construirLinkWhatsApp(principal, mensaje), '_blank', 'noopener,noreferrer');
       return;
     }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPendiente({ principal, alterno, mensaje, top: rect.top - 8, left: rect.left + rect.width / 2 });
+    setPendiente({ principal, alterno, mensaje });
   }, []);
 
   const elegir = useCallback((numero: string) => {
@@ -101,40 +84,37 @@ export function useAbrirWhatsApp() {
     setPendiente(null);
   }, [pendiente]);
 
-  const menu = pendiente ? (() => {
-    const { boxLeft, flechaLeft } = calcularPosicionPopover(pendiente.left);
-    return createPortal(
-    <>
-      <div className="fixed inset-0 z-[9998]" onClick={() => setPendiente(null)} />
-      <div
-        className="fixed z-[9999] bg-slate-900 rounded-xl py-1.5 min-w-[190px]"
-        style={{ top: pendiente.top, left: boxLeft, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
-      >
-        <button
-          type="button"
-          onClick={() => elegir(pendiente.principal)}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/10 cursor-pointer"
-        >
-          <Icon icon={ICONOS_REMOTOS.whatsapp} className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(pendiente.principal)}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => elegir(pendiente.alterno)}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/10 cursor-pointer"
-        >
-          <Icon icon={ICONOS_REMOTOS.whatsapp} className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(pendiente.alterno)}</span>
-        </button>
-        <div
-          className="absolute top-full -translate-x-1/2 w-0 h-0"
-          style={{ left: flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
-        />
-      </div>
-    </>,
-    document.body
-    );
-  })() : null;
+  const menu = (
+    <ModalAdaptativo
+      abierto={!!pendiente}
+      onCerrar={() => setPendiente(null)}
+      titulo="Elegir número de WhatsApp"
+      ancho="sm"
+      paddingContenido="sm"
+      discriminador="_modalWhatsappAlterno"
+    >
+      {pendiente && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => elegir(pendiente.principal)}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
+          >
+            <Icon icon={ICONOS_REMOTOS.whatsapp} className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span className="text-base font-semibold text-slate-800">{formatearNumero(pendiente.principal)}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => elegir(pendiente.alterno)}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
+          >
+            <Icon icon={ICONOS_REMOTOS.whatsapp} className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span className="text-base font-semibold text-slate-800">{formatearNumero(pendiente.alterno)}</span>
+          </button>
+        </div>
+      )}
+    </ModalAdaptativo>
+  );
 
   return { abrir, menu };
 }
