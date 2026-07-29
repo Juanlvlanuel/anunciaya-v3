@@ -9,10 +9,14 @@
  * Identidad de negocio (`esNegocio`): si el comentario se hizo en Modo
  * Comercial (Negocios, Servicios, Coyo — NO MarketPlace, que es personal-only
  * y bloquea el modo comercial por completo), el nombre/avatar muestran el
- * negocio en vez de la persona. El click debe ir al perfil del NEGOCIO
- * (`/negocios/{sucursalId}`), no al perfil personal — esa ruta está detrás de
- * `ModoPersonalEstrictoGuard` y redirige con un toast si el usuario actual
- * está en Modo Comercial.
+ * negocio en vez de la persona. El click va al perfil del NEGOCIO
+ * (`/negocios/{sucursalId}`), no al perfil personal.
+ *
+ * El perfil personal (`/marketplace/usuario/:id`) está detrás de
+ * `ModoPersonalEstrictoGuard` y NO es accesible en Modo Comercial. Si la
+ * identidad mostrada es de persona y quien mira está en Modo Comercial, el
+ * nombre se pinta como texto plano (sin click) en vez de disparar el toast
+ * de "sección no disponible".
  *
  * Antes tenía un menú de clic derecho (Enviar mensaje / Ver perfil); se retiró
  * porque era redundante y poco descubrible: ahora "Contactar" (ChatYA) vive en
@@ -24,6 +28,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 interface BotonComentaristaProps {
     usuarioId: string;
@@ -54,6 +59,7 @@ export function BotonComentarista({
 }: BotonComentaristaProps) {
     const navigate = useNavigate();
     const navegarASeccion = useNavegarASeccion();
+    const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
 
     const irAPerfil = () => {
         if (esNegocio && sucursalId) {
@@ -63,6 +69,24 @@ export function BotonComentarista({
         navigate(`/marketplace/usuario/${usuarioId}`);
     };
 
+    const etiquetaEditado = editado && (
+        <span className="ml-1.5 text-xs font-normal italic text-slate-500">
+            (editada)
+        </span>
+    );
+
+    // El perfil personal está bloqueado en Modo Comercial (ModoPersonalEstrictoGuard).
+    // Si la identidad mostrada es de persona (no negocio), no ofrecemos un click
+    // que solo produce un toast de "sección no disponible".
+    if (!esNegocio && modoActivo === 'comercial') {
+        return (
+            <span data-testid={`comentarista-${usuarioId}`} className="text-left">
+                {displayName ?? nombre}
+                {etiquetaEditado}
+            </span>
+        );
+    }
+
     return (
         <button
             type="button"
@@ -71,11 +95,7 @@ export function BotonComentarista({
             className="text-left lg:cursor-pointer lg:hover:underline"
         >
             {displayName ?? nombre}
-            {editado && (
-                <span className="ml-1.5 text-xs font-normal italic text-slate-500">
-                    (editada)
-                </span>
-            )}
+            {etiquetaEditado}
         </button>
     );
 }

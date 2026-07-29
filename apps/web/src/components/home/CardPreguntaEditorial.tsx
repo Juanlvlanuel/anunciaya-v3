@@ -332,7 +332,8 @@ interface CardPreguntaEditorialProps {
 }
 
 function CardPreguntaEditorialBase({ pregunta, comentarioDestacadoId = null }: CardPreguntaEditorialProps) {
-    const usuarioId = useAuthStore((s) => s.usuario?.id);
+    const usuario = useAuthStore((s) => s.usuario);
+    const usuarioId = usuario?.id;
     const navigate = useNavigate();
     const navegarASeccion = useNavegarASeccion();
     // Si el autor publicó en Modo Comercial (autorNombre/autorAvatarUrl muestran
@@ -346,6 +347,10 @@ function CardPreguntaEditorialBase({ pregunta, comentarioDestacadoId = null }: C
         }
         navigate(`/marketplace/usuario/${pregunta.autorId}`);
     };
+    // El perfil personal está bloqueado en Modo Comercial (ModoPersonalEstrictoGuard).
+    // Si el autor es persona (no negocio), no ofrecemos un click que solo produce
+    // un toast de "sección no disponible" — el nombre queda como texto plano.
+    const nombreAutorBloqueado = !pregunta.autorEsNegocio && usuario?.modoActivo === 'comercial';
     const esAutor = !!usuarioId && usuarioId === pregunta.autorId;
     const preguntaActiva = pregunta.estadoPregunta === 'activa';
     const mostrarInteres = preguntaActiva && !esAutor;
@@ -377,14 +382,23 @@ function CardPreguntaEditorialBase({ pregunta, comentarioDestacadoId = null }: C
                 <div className="flex items-center gap-2.5 min-w-0">
                     <Avatar url={pregunta.autorAvatarUrl} alt={pregunta.autorNombre} fallback={iniciales} />
                     <div className="min-w-0">
-                        <button
-                            type="button"
-                            data-testid={`pregunta-autor-${pregunta.id}`}
-                            onClick={irAPerfilAutor}
-                            className="block max-w-full truncate text-left text-base font-bold text-slate-800 leading-tight lg:cursor-pointer lg:hover:underline"
-                        >
-                            {pregunta.autorNombre}
-                        </button>
+                        {nombreAutorBloqueado ? (
+                            <span
+                                data-testid={`pregunta-autor-${pregunta.id}`}
+                                className="block max-w-full truncate text-left text-base font-bold text-slate-800 leading-tight"
+                            >
+                                {pregunta.autorNombre}
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                data-testid={`pregunta-autor-${pregunta.id}`}
+                                onClick={irAPerfilAutor}
+                                className="block max-w-full truncate text-left text-base font-bold text-slate-800 leading-tight lg:cursor-pointer lg:hover:underline"
+                            >
+                                {pregunta.autorNombre}
+                            </button>
+                        )}
                         {tiempo && <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">{tiempo}</p>}
                     </div>
                     {/* Badges de estado — solo aparecen en "Mis preguntas"
