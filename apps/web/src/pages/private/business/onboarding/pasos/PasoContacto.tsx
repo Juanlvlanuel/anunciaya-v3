@@ -44,7 +44,9 @@ import { CargandoPaso } from '../componentes';
 const cache3 = {
     cargado: false,
     telefono: '', whatsapp: '', correo: '', sitioWeb: '',
+    telefonoAlterno: '', whatsappAlterno: '',
     ladaTelefono: '+52', ladaWhatsapp: '+52',
+    ladaTelefonoAlterno: '+52', ladaWhatsappAlterno: '+52',
     usarMismoNumero: false,
 };
 
@@ -60,10 +62,15 @@ export function PasoContacto() {
     const [whatsapp, setWhatsapp] = useState(cache3.whatsapp);
     const [correo, setCorreo] = useState(cache3.correo);
     const [sitioWeb, setSitioWeb] = useState(cache3.sitioWeb);
+    // Segundo número opcional (ej. línea de pedidos aparte de la principal).
+    const [telefonoAlterno, setTelefonoAlterno] = useState(cache3.telefonoAlterno);
+    const [whatsappAlterno, setWhatsappAlterno] = useState(cache3.whatsappAlterno);
 
     // Estados de ladas (editables)
     const [ladaTelefono, setLadaTelefono] = useState(cache3.ladaTelefono);
     const [ladaWhatsapp, setLadaWhatsapp] = useState(cache3.ladaWhatsapp);
+    const [ladaTelefonoAlterno, setLadaTelefonoAlterno] = useState(cache3.ladaTelefonoAlterno);
+    const [ladaWhatsappAlterno, setLadaWhatsappAlterno] = useState(cache3.ladaWhatsappAlterno);
 
     // Estados de control
     const [usarMismoNumero, setUsarMismoNumero] = useState(cache3.usarMismoNumero);
@@ -73,9 +80,11 @@ export function PasoContacto() {
     useEffect(() => {
         cache3.telefono = telefono; cache3.whatsapp = whatsapp;
         cache3.correo = correo; cache3.sitioWeb = sitioWeb;
+        cache3.telefonoAlterno = telefonoAlterno; cache3.whatsappAlterno = whatsappAlterno;
         cache3.ladaTelefono = ladaTelefono; cache3.ladaWhatsapp = ladaWhatsapp;
+        cache3.ladaTelefonoAlterno = ladaTelefonoAlterno; cache3.ladaWhatsappAlterno = ladaWhatsappAlterno;
         cache3.usarMismoNumero = usarMismoNumero;
-    }, [telefono, whatsapp, correo, sitioWeb, ladaTelefono, ladaWhatsapp, usarMismoNumero]);
+    }, [telefono, whatsapp, correo, sitioWeb, telefonoAlterno, whatsappAlterno, ladaTelefono, ladaWhatsapp, ladaTelefonoAlterno, ladaWhatsappAlterno, usarMismoNumero]);
 
     // ---------------------------------------------------------------------------
     // Cargar datos existentes
@@ -104,6 +113,16 @@ export function PasoContacto() {
                         const { lada, numero } = separarLadaYNumero(datos.sucursal.whatsapp);
                         setLadaWhatsapp(lada);
                         setWhatsapp(numero);
+                    }
+                    if (datos.sucursal.telefonoAlterno) {
+                        const { lada, numero } = separarLadaYNumero(datos.sucursal.telefonoAlterno);
+                        setLadaTelefonoAlterno(lada);
+                        setTelefonoAlterno(numero);
+                    }
+                    if (datos.sucursal.whatsappAlterno) {
+                        const { lada, numero } = separarLadaYNumero(datos.sucursal.whatsappAlterno);
+                        setLadaWhatsappAlterno(lada);
+                        setWhatsappAlterno(numero);
                     }
                     setCorreo(datos.sucursal.correo || '');
                     setSitioWeb(datos.sucursal.sitio_web || '');
@@ -221,6 +240,22 @@ export function PasoContacto() {
         setLadaWhatsapp(formateado);
     };
 
+    const handleTelefonoAlternoChange = (valor: string) => {
+        setTelefonoAlterno(formatearNumero(valor));
+    };
+
+    const handleLadaTelefonoAlternoChange = (valor: string) => {
+        setLadaTelefonoAlterno(formatearLada(valor));
+    };
+
+    const handleWhatsappAlternoChange = (valor: string) => {
+        setWhatsappAlterno(formatearNumero(valor));
+    };
+
+    const handleLadaWhatsappAlternoChange = (valor: string) => {
+        setLadaWhatsappAlterno(formatearLada(valor));
+    };
+
     const handleUsarMismoNumeroChange = (checked: boolean) => {
         setUsarMismoNumero(checked);
         if (checked && telefono) {
@@ -270,8 +305,12 @@ export function PasoContacto() {
         // Validar teléfonos (si están llenos, deben tener 10 dígitos y lada válida)
         const telefonoValido = telefono.length === 0 || (telefono.length === 10 && validarLada(ladaTelefono));
         const whatsappValido = whatsapp.length === 0 || (whatsapp.length === 10 && validarLada(ladaWhatsapp));
+        // Alternos: mismo formato si están llenos, pero NO cuentan para "al menos
+        // un campo" (son un extra sobre los principales, no un método por sí solos).
+        const telefonoAlternoValido = telefonoAlterno.length === 0 || (telefonoAlterno.length === 10 && validarLada(ladaTelefonoAlterno));
+        const whatsappAlternoValido = whatsappAlterno.length === 0 || (whatsappAlterno.length === 10 && validarLada(ladaWhatsappAlterno));
 
-        return emailValido && urlValida && telefonoValido && whatsappValido;
+        return emailValido && urlValida && telefonoValido && whatsappValido && telefonoAlternoValido && whatsappAlternoValido;
     };
 
     useEffect(() => {
@@ -281,7 +320,7 @@ export function PasoContacto() {
         // ✅ NUEVO: Actualizar estado de paso completado en tiempo real
         const { actualizarPasoCompletado } = useOnboardingStore.getState();
         actualizarPasoCompletado(2, esValido); // índice 2 = Paso 3
-    }, [telefono, whatsapp, correo, sitioWeb, ladaTelefono, ladaWhatsapp]);
+    }, [telefono, whatsapp, correo, sitioWeb, telefonoAlterno, whatsappAlterno, ladaTelefono, ladaWhatsapp, ladaTelefonoAlterno, ladaWhatsappAlterno]);
 
 
     // ---------------------------------------------------------------------------
@@ -298,6 +337,8 @@ export function PasoContacto() {
                 const datos = {
                     telefono: telefono ? `${ladaTelefono}${telefono}` : undefined,
                     whatsapp: whatsapp ? `${ladaWhatsapp}${whatsapp}` : undefined,
+                    telefonoAlterno: telefonoAlterno ? `${ladaTelefonoAlterno}${telefonoAlterno}` : undefined,
+                    whatsappAlterno: whatsappAlterno ? `${ladaWhatsappAlterno}${whatsappAlterno}` : undefined,
                     correo: correo || undefined,
                     sitioWeb: sitioWeb ? (sitioWeb.startsWith('http') ? sitioWeb : `https://${sitioWeb}`) : undefined,
                 };
@@ -322,7 +363,7 @@ export function PasoContacto() {
         return () => {
             delete (window as unknown as Record<string, unknown>).guardarPaso3;
         };
-    }, [telefono, whatsapp, correo, sitioWeb, ladaTelefono, ladaWhatsapp]);
+    }, [telefono, whatsapp, correo, sitioWeb, telefonoAlterno, whatsappAlterno, ladaTelefono, ladaWhatsapp, ladaTelefonoAlterno, ladaWhatsappAlterno]);
 
     // ---------------------------------------------------------------------------
     // Render de carga
@@ -364,7 +405,7 @@ export function PasoContacto() {
                         </div>
                     </div>
 
-                    {/* Grid 2 columnas: Teléfono + WhatsApp */}
+                    {/* Grid 2 columnas: Teléfono+alterno / WhatsApp+alterno en la misma línea */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-3 2xl:gap-4">
 
                         {/* Teléfono */}
@@ -394,6 +435,33 @@ export function PasoContacto() {
                             )}
                         </div>
 
+                        {/* Teléfono alterno — segundo número opcional */}
+                        <div>
+                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-slate-500" />
+                                Teléfono alterno <span className="font-normal text-slate-500">(opcional)</span>
+                            </label>
+                            <div className="flex gap-2">
+                                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 border-2 border-slate-300 w-16"
+                                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                    <input type="text" value={ladaTelefonoAlterno}
+                                        onChange={(e) => handleLadaTelefonoAlternoChange(e.target.value)}
+                                        placeholder="+52"
+                                        className="w-full bg-transparent outline-none text-sm lg:text-sm 2xl:text-base font-medium text-slate-800 text-center" />
+                                </div>
+                                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300 flex-1"
+                                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                    <input type="tel" value={telefonoAlterno}
+                                        onChange={(e) => handleTelefonoAlternoChange(e.target.value)}
+                                        placeholder="6381234567" maxLength={10}
+                                        className="w-full bg-transparent outline-none text-sm lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500" />
+                                </div>
+                            </div>
+                            {telefonoAlterno && telefonoAlterno.length !== 10 && (
+                                <p className="text-sm font-medium text-red-500 mt-1">Debe tener 10 dígitos</p>
+                            )}
+                        </div>
+
                         {/* WhatsApp */}
                         <div>
                             <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
@@ -417,6 +485,33 @@ export function PasoContacto() {
                                 </div>
                             </div>
                             {whatsapp && whatsapp.length !== 10 && (
+                                <p className="text-sm font-medium text-red-500 mt-1">Debe tener 10 dígitos</p>
+                            )}
+                        </div>
+
+                        {/* WhatsApp alterno — segundo número opcional */}
+                        <div>
+                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                                <MessageCircle className="w-4 h-4 text-slate-500" />
+                                WhatsApp alterno <span className="font-normal text-slate-500">(opcional)</span>
+                            </label>
+                            <div className="flex gap-2">
+                                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 border-2 border-slate-300 w-16"
+                                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                    <input type="text" value={ladaWhatsappAlterno}
+                                        onChange={(e) => handleLadaWhatsappAlternoChange(e.target.value)}
+                                        placeholder="+52"
+                                        className="w-full bg-transparent outline-none text-sm lg:text-sm 2xl:text-base font-medium text-slate-800 text-center" />
+                                </div>
+                                <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-3 border-2 border-slate-300 flex-1"
+                                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                                    <input type="tel" value={whatsappAlterno}
+                                        onChange={(e) => handleWhatsappAlternoChange(e.target.value)}
+                                        placeholder="6381234567" maxLength={10}
+                                        className="w-full bg-transparent outline-none text-sm lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500" />
+                                </div>
+                            </div>
+                            {whatsappAlterno && whatsappAlterno.length !== 10 && (
                                 <p className="text-sm font-medium text-red-500 mt-1">Debe tener 10 dígitos</p>
                             )}
                         </div>

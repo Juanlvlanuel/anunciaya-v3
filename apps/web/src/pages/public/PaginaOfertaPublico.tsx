@@ -13,7 +13,7 @@
  * ACTUALIZADO: Enero 2026 - Layout 2 columnas + footer minimalista
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type MouseEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Loader2,
@@ -33,6 +33,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 import { useOpenGraph } from '../../hooks/useOpenGraph';
+import { useAbrirWhatsApp } from '../../hooks/useAbrirWhatsApp';
 import { useAuthStore } from '../../stores/useAuthStore';
 import api from '../../services/api';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
@@ -61,6 +62,7 @@ interface OfertaPublica {
     logoUrl?: string | null;
     ciudad?: string | null;
     whatsapp?: string | null;
+    whatsappAlterno?: string | null;
     // Sucursal
     sucursalId: string;
     sucursalNombre?: string | null;
@@ -197,6 +199,7 @@ export function PaginaOfertaPublico() {
     const { ofertaId: id } = useParams<{ ofertaId: string }>();
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     // -------------------------------------------------------------------------
     // Estado
@@ -256,14 +259,10 @@ export function PaginaOfertaPublico() {
     // -------------------------------------------------------------------------
     // Handlers
     // -------------------------------------------------------------------------
-    const handleWhatsApp = () => {
-        if (oferta?.whatsapp) {
-            const numeroLimpio = oferta.whatsapp.replace(/\D/g, '');
-            const mensaje = encodeURIComponent(
-                `Hola! Me interesa la oferta "${oferta.titulo}" que vi en AnunciaYA`
-            );
-            window.open(`https://wa.me/${numeroLimpio}?text=${mensaje}`, '_blank');
-        }
+    const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
+        if (!oferta?.whatsapp) return;
+        const mensaje = `Hola! Me interesa la oferta "${oferta.titulo}" que vi en AnunciaYA`;
+        abrirWhatsApp(e, oferta.whatsapp, oferta.whatsappAlterno, mensaje);
     };
 
     const handleVerNegocio = () => {
@@ -545,6 +544,7 @@ export function PaginaOfertaPublico() {
 
                 <FooterPublico />
             </main>
+            {menuWhatsApp}
         </div>
     );
 }
@@ -660,7 +660,7 @@ function CardNegocioOferta({ oferta, className = '' }: CardNegocioOfertaProps) {
 }
 
 interface BotonAccionProps {
-    onClick: () => void;
+    onClick: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
 function BotonWhatsappOferta({ onClick }: BotonAccionProps) {

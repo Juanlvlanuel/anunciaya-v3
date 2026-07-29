@@ -174,6 +174,8 @@ export interface PublicacionConOferenteRow extends PublicacionRow {
          *  botón WhatsApp en el detalle de vacante-empresa (público y
          *  privado). El FE oculta el botón si es null. */
         sucursalWhatsapp: string | null;
+        /** Segundo WhatsApp opcional de la sucursal (ej. línea de pedidos aparte de la principal). */
+        sucursalWhatsappAlterno: string | null;
         /** Portada del local (foto grande de la sucursal) — usada como hero
          *  en el detalle de vacante-empresa. */
         sucursalPortada: string | null;
@@ -708,6 +710,7 @@ export async function obtenerPublicacionPorId(
             sucursal_nombre: string | null;
             sucursal_foto_perfil: string | null;
             sucursal_whatsapp: string | null;
+            sucursal_whatsapp_alterno: string | null;
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
@@ -748,6 +751,7 @@ export async function obtenerPublicacionPorId(
                 -- distinto al telefono del usuario dueño porque el negocio
                 -- tiene su propio canal de contacto.
                 ns.whatsapp       AS sucursal_whatsapp,
+                ns.whatsapp_alterno AS sucursal_whatsapp_alterno,
                 -- Portada del local (foto grande de la sucursal) — usada
                 -- como background hero en el detalle de vacante-empresa.
                 ns.portada_url    AS sucursal_portada,
@@ -821,6 +825,7 @@ export async function obtenerPublicacionPorId(
             sucursal_nombre: string | null;
             sucursal_foto_perfil: string | null;
             sucursal_whatsapp: string | null;
+            sucursal_whatsapp_alterno: string | null;
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
@@ -865,6 +870,7 @@ export async function obtenerPublicacionPorId(
                 sucursalNombre: row.sucursal_nombre,
                 sucursalFotoPerfil: row.sucursal_foto_perfil,
                 sucursalWhatsapp: row.sucursal_whatsapp,
+                sucursalWhatsappAlterno: row.sucursal_whatsapp_alterno,
                 sucursalPortada: row.sucursal_portada,
                 sucursalEsPrincipal: row.sucursal_es_principal,
                 totalSucursales: Number(row.total_sucursales) || 0,

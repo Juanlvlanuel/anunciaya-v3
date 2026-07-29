@@ -60,6 +60,8 @@ function mapearPerfilAResumen(data: Record<string, unknown>): NegocioResumen {
     ciudad: (data.ciudad as string) ?? '',
     telefono: (data.telefono as string) ?? '',
     whatsapp: (data.whatsapp as string | null) ?? null,
+    telefonoAlterno: (data.telefonoAlterno as string | null) ?? null,
+    whatsappAlterno: (data.whatsappAlterno as string | null) ?? null,
     tieneEnvioDomicilio: (data.tieneEnvioDomicilio as boolean) ?? false,
     tieneServicioDomicilio: (data.tieneServicioDomicilio as boolean) ?? false,
     calificacionPromedio: String(data.calificacionPromedio ?? '0'),

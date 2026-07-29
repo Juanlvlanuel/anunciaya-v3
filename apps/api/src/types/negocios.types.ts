@@ -43,6 +43,8 @@ export interface PerfilSucursalRow {
     estado: string | null;
     telefono: string | null;
     whatsapp: string | null;
+    telefono_alterno: string | null;
+    whatsapp_alterno: string | null;
     correo: string | null;
     tiene_envio_domicilio: boolean;
     tiene_servicio_domicilio: boolean;
@@ -125,6 +127,8 @@ export interface SucursalResumenRow {
     estado: string | null;
     telefono: string | null;
     whatsapp: string | null;
+    telefono_alterno: string | null;
+    whatsapp_alterno: string | null;
     portada_url: string | null;
     tiene_envio_domicilio: boolean;
     tiene_servicio_domicilio: boolean;

@@ -18,12 +18,13 @@ import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
 import { DropdownCompartir } from '../compartir';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Modal } from '../ui/Modal';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import Tooltip from '../ui/Tooltip';
 import api from '../../services/api';
 import { useIniciarChatNegocio } from '@/hooks/useIniciarChatNegocio';
+import { useAbrirWhatsApp } from '@/hooks/useAbrirWhatsApp';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 // =============================================================================
@@ -48,6 +49,8 @@ interface ItemCatalogo {
 interface ModalDetalleItemProps {
     item: ItemCatalogo | null;
     whatsapp?: string | null;
+    /** Segundo WhatsApp opcional del negocio (ej. línea de pedidos aparte de la principal). */
+    whatsappAlterno?: string | null;
     negocioUsuarioId?: string | null;
     sucursalId?: string | null;
     negocioNombre?: string | null;
@@ -65,10 +68,11 @@ interface ModalDetalleItemProps {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
+export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
     const iniciarChatNegocio = useIniciarChatNegocio();
     const usuario = useAuthStore((s) => s.usuario);
     const [imagenExpandida, setImagenExpandida] = useState(false);
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
     // Registrar vista del artículo (con filtro de cooldown)
     useEffect(() => {
         if (!item) return;
@@ -111,12 +115,9 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
 
     const esServicio = item.tipo === 'servicio';
 
-    const abrirWhatsApp = () => {
+    const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
         if (!whatsapp) return;
-        // Limpiar el número: quitar espacios, + y cualquier carácter no numérico
-        const numeroLimpio = whatsapp.replace(/\D/g, '');
-        const mensaje = encodeURIComponent(`Hola, me interesa: ${item.nombre}`);
-        window.open(`https://wa.me/${numeroLimpio}?text=${mensaje}`, '_blank');
+        abrirWhatsApp(e, whatsapp, whatsappAlterno, `Hola, me interesa: ${item.nombre}`);
     };
 
     const handleChatYA = async () => {
@@ -278,7 +279,7 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                             )}
                             {whatsapp && (
                                 <button
-                                    onClick={abrirWhatsApp}
+                                    onClick={handleWhatsApp}
                                     className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-[6px]"
                                 >
                                     <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -308,6 +309,7 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                     onClose={() => setImagenExpandida(false)}
                 />
             )}
+            {menuWhatsApp}
         </>
     );
 }

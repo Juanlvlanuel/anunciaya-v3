@@ -18,6 +18,7 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 import type { BilleteraNegocio } from '../../../../types/cardya';
 import { useIniciarChatNegocio } from '../../../../hooks/useIniciarChatNegocio';
+import { useAbrirWhatsApp } from '../../../../hooks/useAbrirWhatsApp';
 
 // Configuración de niveles
 const NIVELES_CONFIG = {
@@ -66,6 +67,7 @@ export default function CardBilletera({
 
   // ─── ChatYA ───
   const iniciarChatNegocio = useIniciarChatNegocio();
+  const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
   const handleChatYA = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -276,15 +278,13 @@ export default function CardBilletera({
           ) : (
             <div className="flex items-center gap-2">
               {billetera.whatsappContacto && (
-                <a
-                  href={`https://wa.me/${billetera.whatsappContacto.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-8 h-8 flex items-center justify-center active:scale-95 transition-transform"
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, billetera.whatsappContacto, billetera.whatsappContactoAlterno); }}
+                  className="w-8 h-8 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
                 >
                   <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8 object-contain" />
-                </a>
+                </button>
               )}
               <button
                 onClick={handleChatYA}
@@ -372,15 +372,13 @@ export default function CardBilletera({
           {!nivelesActivos && (
             <div className="flex items-center gap-2 mt-2.5 lg:mt-2 2xl:mt-2.5">
               {billetera.whatsappContacto && (
-                <a
-                  href={`https://wa.me/${billetera.whatsappContacto.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-9 h-9 flex items-center justify-center active:scale-95 transition-transform"
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, billetera.whatsappContacto, billetera.whatsappContactoAlterno); }}
+                  className="w-9 h-9 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
                 >
                   <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8 object-contain" />
-                </a>
+                </button>
               )}
               <button
                 onClick={handleChatYA}
@@ -404,6 +402,7 @@ export default function CardBilletera({
           </div>
         </div>
       </div>
+      {menuWhatsApp}
     </>
   );
 }

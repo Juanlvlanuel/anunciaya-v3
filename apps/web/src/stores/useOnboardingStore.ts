@@ -161,6 +161,8 @@ interface OnboardingState {
     guardarPaso3: (datos: {
         telefono?: string;
         whatsapp?: string;
+        telefonoAlterno?: string;
+        whatsappAlterno?: string;
         correo?: string;
         sitioWeb?: string;
     }) => Promise<void>;
@@ -207,6 +209,8 @@ interface OnboardingState {
     guardarBorradorPaso3: (datos: {
         telefono?: string;
         whatsapp?: string;
+        telefonoAlterno?: string;
+        whatsappAlterno?: string;
         correo?: string;
         sitioWeb?: string;
     }) => Promise<void>;

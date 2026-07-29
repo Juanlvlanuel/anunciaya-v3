@@ -64,12 +64,14 @@ interface ItemDetalle {
 interface DetalleOfertaEnChat {
   oferta: Oferta;
   whatsapp: string | null;
+  whatsappAlterno?: string | null;
   negocioNombre: string;
 }
 
 interface DetalleArticuloEnChat {
   item: ItemDetalle;
   whatsapp: string | null;
+  whatsappAlterno?: string | null;
   sucursalId: string | null;
   negocioNombre: string;
   logoUrl: string | null;
@@ -177,6 +179,7 @@ export function ChatOverlay() {
             sucursalNombre: o.sucursalNombre,
           } as Oferta,
           whatsapp: o.whatsapp ?? null,
+          whatsappAlterno: o.whatsappAlterno ?? null,
           negocioNombre: o.negocioNombre,
         });
       } catch (error) {
@@ -211,6 +214,7 @@ export function ChatOverlay() {
             destacado: a.destacado,
           },
           whatsapp: a.negocio?.whatsapp ?? null,
+          whatsappAlterno: a.negocio?.whatsappAlterno ?? null,
           sucursalId: a.negocio?.sucursalId ?? null,
           negocioNombre: a.negocio?.nombre ?? '',
           logoUrl: a.negocio?.logoUrl ?? null,
@@ -1117,6 +1121,7 @@ export function ChatOverlay() {
         <ModalOfertaDetalle
           oferta={detalleOferta.oferta}
           whatsapp={detalleOferta.whatsapp}
+          whatsappAlterno={detalleOferta.whatsappAlterno}
           negocioNombre={detalleOferta.negocioNombre}
           negocioUsuarioId={null}
           onClose={() => setDetalleOferta(null)}
@@ -1129,6 +1134,7 @@ export function ChatOverlay() {
         <ModalDetalleItem
           item={detalleArticulo.item}
           whatsapp={detalleArticulo.whatsapp}
+          whatsappAlterno={detalleArticulo.whatsappAlterno}
           negocioUsuarioId={null}
           sucursalId={detalleArticulo.sucursalId}
           negocioNombre={detalleArticulo.negocioNombre}

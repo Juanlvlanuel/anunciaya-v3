@@ -57,6 +57,7 @@ import { useUiStore } from '../../../stores/useUiStore';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
+import { useAbrirWhatsApp } from '../../../hooks/useAbrirWhatsApp';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
@@ -244,6 +245,7 @@ interface PopupNegocioProps {
 function PopupNegocio({ negocio, onVerPerfil, onChat }: PopupNegocioProps) {
   const calificacion = negocio.calificacionPromedio ? parseFloat(negocio.calificacionPromedio) : 0;
   const tieneResenas = negocio.totalCalificaciones > 0;
+  const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
   const distanciaTexto = negocio.distanciaKm !== null
     ? Number(negocio.distanciaKm) < 1
@@ -359,7 +361,7 @@ function PopupNegocio({ negocio, onVerPerfil, onChat }: PopupNegocioProps) {
           </button>
           {negocio.whatsapp && (
             <button
-              onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp}`, '_blank'); }}
+              onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno); }}
               className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer shrink-0 hover:scale-110 active:scale-95 p-1.5"
             >
               <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -369,6 +371,7 @@ function PopupNegocio({ negocio, onVerPerfil, onChat }: PopupNegocioProps) {
           )}
         </div>
       </div>
+      {menuWhatsApp}
     </div>
   );
 }

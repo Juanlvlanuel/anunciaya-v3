@@ -356,6 +356,8 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                     estado: negocioSucursales.estado,
                     telefono: negocioSucursales.telefono,
                     whatsapp: negocioSucursales.whatsapp,
+                    telefonoAlterno: negocioSucursales.telefonoAlterno,
+                    whatsappAlterno: negocioSucursales.whatsappAlterno,
                     correo: negocioSucursales.correo,
                     portadaUrl: negocioSucursales.portadaUrl,
                     portadaPosX: negocioSucursales.portadaPosX,
@@ -416,6 +418,8 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                 longitud: sucursal.longitud || null,
                 telefono: sucursal.telefono || null,
                 whatsapp: sucursal.whatsapp || null,
+                telefonoAlterno: sucursal.telefonoAlterno || null,
+                whatsappAlterno: sucursal.whatsappAlterno || null,
                 correo: sucursal.correo || null,
                 portadaUrl: sucursal.portadaUrl || null,
                 portadaPosX: sucursal.portadaPosX,
@@ -595,6 +599,8 @@ export const guardarBorradorContacto = async (
         // Permite null o string (para borrar o actualizar)
         if (data.telefono !== undefined) updateSucursal.telefono = data.telefono || null;
         if (data.whatsapp !== undefined) updateSucursal.whatsapp = data.whatsapp || null;
+        if (data.telefonoAlterno !== undefined) updateSucursal.telefonoAlterno = data.telefonoAlterno || null;
+        if (data.whatsappAlterno !== undefined) updateSucursal.whatsappAlterno = data.whatsappAlterno || null;
         if (data.correo !== undefined) updateSucursal.correo = data.correo || null;
         if (data.sitioWeb !== undefined) updateNegocio.sitioWeb = data.sitioWeb || null;
 

@@ -86,6 +86,7 @@ export function ModalOfertaCoyo() {
                 <ModalOfertaDetalle
                     oferta={oferta}
                     whatsapp={oferta.whatsapp ?? undefined}
+                    whatsappAlterno={oferta.whatsappAlterno ?? undefined}
                     negocioNombre={oferta.negocioNombre}
                     negocioUsuarioId={oferta.negocioUsuarioId}
                     onClose={cerrar}

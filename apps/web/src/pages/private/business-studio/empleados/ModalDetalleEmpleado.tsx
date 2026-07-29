@@ -32,6 +32,7 @@ const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
+import { formatearNumero } from '../../../../hooks/useAbrirWhatsApp';
 import { useToggleEmpleadoActivo, useEliminarEmpleado, useRevocarSesion } from '../../../../hooks/queries/useEmpleados';
 import { notificar } from '../../../../utils/notificaciones';
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
@@ -141,7 +142,7 @@ export function ModalDetalleEmpleado({ empleado, onCerrar, onEditar }: Props) {
 							{empleado.telefono && (
 								<div className="flex items-center gap-2.5">
 									<Phone className="w-4 h-4 text-slate-400" />
-									<span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-700">{empleado.telefono}</span>
+									<span className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-700">{formatearNumero(empleado.telefono)}</span>
 								</div>
 							)}
 							{empleado.correo && (

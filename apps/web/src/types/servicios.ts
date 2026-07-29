@@ -208,6 +208,8 @@ export interface OferenteServicio {
      *  usuario dueño (campo personal). Solo se usa cuando la publicación
      *  es vacante-empresa. El FE oculta el botón WhatsApp si es null. */
     sucursalWhatsapp?: string | null;
+    /** Segundo WhatsApp opcional de la sucursal (ej. línea de pedidos aparte de la principal). */
+    sucursalWhatsappAlterno?: string | null;
     /** Portada del local (foto grande de la sucursal) — usada como hero en
      *  el detalle de vacante-empresa. */
     sucursalPortada?: string | null;

@@ -15,6 +15,7 @@ const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
+import { formatearNumero } from '@/hooks/useAbrirWhatsApp';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { useClientesInactivos } from '../../../../../hooks/queries/useReportes';
@@ -157,7 +158,7 @@ export function ModalClientesInactivos({ abierto, onCerrar, tipo }: Props) {
                         {c.telefono && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
                             <Phone className="w-3.5 h-3.5 text-slate-600" />
-                            {c.telefono}
+                            {formatearNumero(c.telefono)}
                           </span>
                         )}
                         {c.correo && (

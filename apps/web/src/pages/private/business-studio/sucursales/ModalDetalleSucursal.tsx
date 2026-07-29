@@ -32,6 +32,7 @@ const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { InputCorreoValidado, type ResultadoValidacionCorreo } from '../../../../components/ui/InputCorreoValidado';
+import { formatearNumero } from '../../../../hooks/useAbrirWhatsApp';
 import {
 	useSucursalGerente,
 	useCrearGerente,
@@ -217,7 +218,7 @@ export function ModalDetalleSucursal({ sucursal, onCerrar, onEditar }: Props) {
 							{sucursal.telefono && (
 								<div className="flex items-center gap-2 px-3 h-10 bg-slate-200 rounded-lg border border-slate-300">
 									<Phone className="w-4 h-4 text-slate-600 shrink-0" />
-									<span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 truncate">{sucursal.telefono}</span>
+									<span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 truncate">{formatearNumero(sucursal.telefono)}</span>
 								</div>
 							)}
 							{sucursal.correo && (

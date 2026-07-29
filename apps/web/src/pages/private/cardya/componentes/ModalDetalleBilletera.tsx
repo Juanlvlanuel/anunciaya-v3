@@ -21,6 +21,7 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import type { DetalleNegocioBilletera } from '../../../../types/cardya';
 import { useIniciarChatNegocio } from '../../../../hooks/useIniciarChatNegocio';
+import { useAbrirWhatsApp } from '../../../../hooks/useAbrirWhatsApp';
 
 // Configuración de niveles
 const NIVELES_CONFIG = {
@@ -64,11 +65,13 @@ export default function ModalDetalleBilletera({
   billetera: DetalleNegocioBilletera | null;
   onVerHistorial?: (negocioNombre: string) => void;
 }) {
+  const iniciarChatNegocio = useIniciarChatNegocio();
+  const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
+
   if (!abierto || !billetera) return null;
 
   const nivel = NIVELES_CONFIG[billetera.nivelActual];
   const nivelesActivos = billetera.nivelesActivos ?? true;
-  const iniciarChatNegocio = useIniciarChatNegocio();
 
   const handleChatYA = () => {
     if (!billetera.negocioUsuarioId) return;
@@ -106,6 +109,7 @@ export default function ModalDetalleBilletera({
   };
 
   return (
+    <>
     <ModalAdaptativo
       abierto={abierto}
       onCerrar={onCerrar}
@@ -150,14 +154,13 @@ export default function ModalDetalleBilletera({
                 {nivelesActivos && <span className="text-base">{nivel.icono}</span>}
                 {nivelesActivos && <span className="text-sm font-bold text-white/70">Nivel {nivel.label}</span>}
                 {billetera.whatsappContacto && (
-                  <a
-                    href={`https://wa.me/${billetera.whatsappContacto.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => abrirWhatsApp(e, billetera.whatsappContacto, billetera.whatsappContactoAlterno)}
                     className="w-9 h-9 flex items-center justify-center cursor-pointer shrink-0 active:scale-95 transition-transform ml-1"
                   >
                     <img src="/whatsapp.webp" alt="WhatsApp" className="w-8 h-8 object-contain" />
-                  </a>
+                  </button>
                 )}
                 <button
                   onClick={handleChatYA}
@@ -197,14 +200,13 @@ export default function ModalDetalleBilletera({
             <div className="flex items-center gap-1.5 shrink-0 ml-2">
               {billetera.whatsappContacto && (
                 <Tooltip text="WhatsApp" position="bottom">
-                  <a
-                    href={`https://wa.me/${billetera.whatsappContacto.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => abrirWhatsApp(e, billetera.whatsappContacto, billetera.whatsappContactoAlterno)}
                     className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg flex items-center justify-center cursor-pointer shrink-0 hover:scale-110 transition-transform"
                   >
                     <img src="/whatsapp.webp" alt="WhatsApp" className="w-6 h-6 2xl:w-12 2xl:h-12 object-contain" />
-                  </a>
+                  </button>
                 </Tooltip>
               )}
               <Tooltip text="ChatYA" position="bottom">
@@ -432,5 +434,7 @@ export default function ModalDetalleBilletera({
       </div>
       </div>
     </ModalAdaptativo>
+    {menuWhatsApp}
+    </>
   );
 }

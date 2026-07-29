@@ -190,7 +190,8 @@ export async function obtenerArticuloDetalle(
                 s.nombre as "sucursalNombre",
                 cd.nombre AS ciudad,
                 s.direccion,
-                s.whatsapp as "negocioWhatsapp"
+                s.whatsapp as "negocioWhatsapp",
+                s.whatsapp_alterno as "negocioWhatsappAlterno"
 
             FROM articulos a
             INNER JOIN negocios n ON a.negocio_id = n.id
@@ -235,6 +236,7 @@ export async function obtenerArticuloDetalle(
                     ciudad: row.ciudad,
                     direccion: row.direccion,
                     whatsapp: row.negocioWhatsapp,
+                    whatsappAlterno: row.negocioWhatsappAlterno,
                 },
             },
         };

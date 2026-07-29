@@ -629,6 +629,7 @@ export default function PaginaOfertas() {
           <ModalOfertaDetalle
             oferta={ofertaSeleccionada}
             whatsapp={ofertaSeleccionada.whatsapp ?? undefined}
+            whatsappAlterno={ofertaSeleccionada.whatsappAlterno ?? undefined}
             negocioNombre={ofertaSeleccionada.negocioNombre}
             negocioUsuarioId={ofertaSeleccionada.negocioUsuarioId}
             onClose={handleCerrarModal}

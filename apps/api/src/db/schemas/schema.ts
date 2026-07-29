@@ -426,6 +426,10 @@ export const negocioSucursales = pgTable("negocio_sucursales", {
 	ubicacion: text("ubicacion"),
 	telefono: varchar({ length: 20 }),
 	whatsapp: varchar({ length: 20 }),
+	// Segundo número opcional (ej. línea de pedidos/domicilios aparte de la principal).
+	// Puramente aditivo: el principal (arriba) sigue siendo el que se usa cuando no hay alterno.
+	telefonoAlterno: varchar("telefono_alterno", { length: 20 }),
+	whatsappAlterno: varchar("whatsapp_alterno", { length: 20 }),
 	activa: boolean().default(true).notNull(),
 	correo: varchar({ length: 100 }),
 	fotoPerfil: text('foto_perfil'),

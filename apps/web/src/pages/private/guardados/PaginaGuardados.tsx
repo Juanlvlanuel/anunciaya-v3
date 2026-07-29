@@ -97,6 +97,7 @@ interface GuardadoOferta {
         nombre: string;
         logoUrl?: string | null;
         whatsapp?: string | null;
+        whatsappAlterno?: string | null;
         sucursalId: string;
         sucursalNombre?: string | null;
         sucursalFotoPerfil?: string | null;
@@ -827,6 +828,7 @@ export function PaginaGuardados() {
                     }}
                     onClose={handleCloseModal}
                     whatsapp={ofertaSeleccionada.negocio?.whatsapp || undefined}
+                    whatsappAlterno={ofertaSeleccionada.negocio?.whatsappAlterno || undefined}
                     negocioNombre={ofertaSeleccionada.negocio?.nombre || undefined}
                     negocioUsuarioId={ofertaSeleccionada.negocio?.usuarioId || undefined}
                 />

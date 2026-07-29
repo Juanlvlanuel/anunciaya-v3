@@ -38,6 +38,7 @@ export type { Oferta };
 interface SeccionOfertasProps {
     ofertas: Oferta[];
     whatsapp?: string | null;
+    whatsappAlterno?: string | null;
     negocioNombre?: string;
     negocioUsuarioId?: string | null;
     className?: string;
@@ -58,7 +59,7 @@ const getId = (oferta: Oferta): string => {
 // COMPONENTE PRINCIPAL: SeccionOfertas
 // =============================================================================
 
-export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negocioUsuarioId, className = '', esRutaPublica = false }: SeccionOfertasProps) {
+export default function SeccionOfertas({ ofertas, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, className = '', esRutaPublica = false }: SeccionOfertasProps) {
     const [modalAbierto, setModalAbierto] = useState(false);
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<Oferta | null>(null);
     const { esMobile, esDesktop } = useBreakpoint();
@@ -273,6 +274,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                 onClose={() => setModalAbierto(false)}
                 ofertas={ofertasOrdenadas}
                 whatsapp={whatsapp ?? undefined}
+                whatsappAlterno={whatsappAlterno ?? undefined}
                 negocioNombre={negocioNombre}
                 negocioUsuarioId={negocioUsuarioId}
             />
@@ -281,6 +283,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
             <ModalOfertaDetalle
                 oferta={ofertaSeleccionada}
                 whatsapp={whatsapp}
+                whatsappAlterno={whatsappAlterno}
                 negocioNombre={negocioNombre}
                 negocioUsuarioId={negocioUsuarioId}
                 onClose={() => setOfertaSeleccionada(null)}

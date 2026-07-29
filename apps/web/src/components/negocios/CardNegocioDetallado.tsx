@@ -25,6 +25,7 @@ const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { ModalHorarios } from './ModalHorarios';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
+import { useAbrirWhatsApp } from '../../hooks/useAbrirWhatsApp';
 
 // =============================================================================
 // TIPOS
@@ -48,6 +49,8 @@ export interface CardNegocioDetalladoProps {
         calificacionPromedio?: string;
         totalCalificaciones?: number;
         whatsapp?: string;
+        /** Segundo número opcional (ej. línea de pedidos aparte de la principal). */
+        whatsappAlterno?: string | null;
         liked?: boolean;
     };
     onClick: () => void;
@@ -155,6 +158,7 @@ export function CardNegocioDetallado({
     const prefetchEjecutado = useRef(false);
 
     const accent = getAccentColor(negocio.categoria);
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     const distanciaTexto = negocio.distanciaKm !== null && negocio.distanciaKm !== undefined
         ? Number(negocio.distanciaKm) < 1
@@ -449,7 +453,7 @@ export function CardNegocioDetallado({
                             <>
                                 <div className="w-px h-6 bg-white/18" />
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp}`, '_blank'); }}
+                                    onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno); }}
                                     className="cursor-pointer flex items-center bg-transparent border-0 p-0 active:opacity-70"
                                 >
                                     <WhatsAppIcon className="w-8 h-8 text-green-500" />
@@ -477,6 +481,7 @@ export function CardNegocioDetallado({
             )}
 
             <style>{CARD_STYLES}</style>
+            {menuWhatsApp}
         </div>
     );
 }

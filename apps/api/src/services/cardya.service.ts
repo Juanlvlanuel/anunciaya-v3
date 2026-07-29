@@ -70,6 +70,7 @@ export async function obtenerBilleterasPorUsuario(
         negocioUsuarioId: negocios.usuarioId,
         negocioSucursalId: negocioSucursales.id,
         whatsappContacto: negocioSucursales.whatsapp,
+        whatsappContactoAlterno: negocioSucursales.whatsappAlterno,
         negocioActivo: negocios.activo,
         negocioEstadoMembresia: negocios.estadoMembresia,
         negocioEstadoAdmin: negocios.estadoAdmin,
@@ -134,6 +135,7 @@ export async function obtenerBilleterasPorUsuario(
         negocioUsuarioId: b.negocioUsuarioId ?? null,
         negocioSucursalId: b.negocioSucursalId ?? null,
         whatsappContacto: b.whatsappContacto ?? null,
+        whatsappContactoAlterno: b.whatsappContactoAlterno ?? null,
         estadoCirculacion: clasificarCirculacion({
           activo: b.negocioActivo,
           estadoMembresia: b.negocioEstadoMembresia,
@@ -276,6 +278,7 @@ export async function obtenerDetalleNegocioBilletera(
       .select({
         telefono: negocioSucursales.telefono,
         whatsapp: negocioSucursales.whatsapp,
+        whatsappAlterno: negocioSucursales.whatsappAlterno,
         id: negocioSucursales.id,
         fotoPerfil: negocioSucursales.fotoPerfil,
       })
@@ -333,6 +336,7 @@ export async function obtenerDetalleNegocioBilletera(
       ultimasTransacciones: transaccionesResumen,
       telefonoContacto: sucursalPrincipal[0]?.telefono ?? null,
       whatsappContacto: sucursalPrincipal[0]?.whatsapp ?? null,
+      whatsappContactoAlterno: sucursalPrincipal[0]?.whatsappAlterno ?? null,
       negocioUsuarioId: billetera.negocioUsuarioId ?? null,
       negocioSucursalId: sucursalPrincipal[0]?.id ?? null,
       estadoCirculacion: clasificarCirculacion({

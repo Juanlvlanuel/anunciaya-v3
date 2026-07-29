@@ -68,6 +68,8 @@ interface ModalCatalogoProps {
   catalogo: ItemCatalogo[];
   /** WhatsApp del negocio (para ModalDetalleItem) */
   whatsapp?: string | null;
+  /** Segundo WhatsApp opcional del negocio (ej. línea de pedidos aparte de la principal). */
+  whatsappAlterno?: string | null;
   /** Nombre del negocio (para el título) */
   nombreNegocio?: string;
   /** ID del usuario dueño del negocio (para ChatYA) */
@@ -461,6 +463,7 @@ export function ModalCatalogo({
   onCerrar,
   catalogo,
   whatsapp,
+  whatsappAlterno,
   nombreNegocio: _nombreNegocio = 'Catálogo',
   negocioUsuarioId,
   sucursalId,
@@ -618,6 +621,7 @@ export function ModalCatalogo({
         <ModalDetalleItem
           item={itemSeleccionado}
           whatsapp={whatsapp}
+          whatsappAlterno={whatsappAlterno}
           negocioUsuarioId={negocioUsuarioId}
           sucursalId={sucursalId}
           negocioNombre={negocioNombre}
@@ -682,6 +686,7 @@ export function ModalCatalogo({
       <ModalDetalleItem
         item={itemSeleccionado}
         whatsapp={whatsapp}
+        whatsappAlterno={whatsappAlterno}
         negocioUsuarioId={negocioUsuarioId}
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}

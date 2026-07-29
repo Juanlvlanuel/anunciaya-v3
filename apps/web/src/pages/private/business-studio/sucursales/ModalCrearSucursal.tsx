@@ -297,6 +297,9 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 	const [direccion, setDireccion] = useState('');
 	const [telefono, setTelefono] = useState('');
 	const [whatsapp, setWhatsapp] = useState('');
+	// Segundo número opcional (ej. línea de pedidos aparte de la principal).
+	const [telefonoAlterno, setTelefonoAlterno] = useState('');
+	const [whatsappAlterno, setWhatsappAlterno] = useState('');
 	const [correo, setCorreo] = useState('');
 
 	// Coordenadas — se auto-llenan al seleccionar ciudad; el usuario ajusta el marcador en el mapa
@@ -414,6 +417,16 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 			notificar.error('El WhatsApp debe tener 10 dígitos');
 			return;
 		}
+		const numeroTelefonoAlterno = normalizarTelefono(telefonoAlterno).numero;
+		if (telefonoAlterno && telefonoAlterno.trim() !== '' && numeroTelefonoAlterno.length !== 10) {
+			notificar.error('El teléfono alterno debe tener 10 dígitos');
+			return;
+		}
+		const numeroWhatsappAlterno = normalizarTelefono(whatsappAlterno).numero;
+		if (whatsappAlterno && whatsappAlterno.trim() !== '' && numeroWhatsappAlterno.length !== 10) {
+			notificar.error('El WhatsApp alterno debe tener 10 dígitos');
+			return;
+		}
 
 		// Mostrar progreso y disparar request simultáneamente
 		setMostrandoProgreso(true);
@@ -428,6 +441,8 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 				// Solo enviar si hay un número completo (no solo la lada "+52")
 				telefono: numeroTelefono.length === 10 ? telefono.trim() : undefined,
 				whatsapp: numeroWhatsapp.length === 10 ? whatsapp.trim() : undefined,
+				telefonoAlterno: numeroTelefonoAlterno.length === 10 ? telefonoAlterno.trim() : undefined,
+				whatsappAlterno: numeroWhatsappAlterno.length === 10 ? whatsappAlterno.trim() : undefined,
 				correo: correo.trim() || undefined,
 				latitud,
 				longitud,
@@ -616,6 +631,28 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 										onChange={setWhatsapp}
 										prefijo="sucursal-wa"
 										testIdNumero="input-whatsapp-sucursal"
+									/>
+								</div>
+							</div>
+
+							{/* Teléfono alterno + WhatsApp alterno — segundo número opcional */}
+							<div className="flex gap-3">
+								<div className="flex-1 min-w-0">
+									<label className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 block">Teléfono alterno <span className="font-normal text-slate-500">(opcional)</span></label>
+									<InputTelefono
+										value={telefonoAlterno}
+										onChange={setTelefonoAlterno}
+										prefijo="sucursal-tel-alterno"
+										testIdNumero="input-telefono-alterno-sucursal"
+									/>
+								</div>
+								<div className="flex-1 min-w-0">
+									<label className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 mb-1 block">WhatsApp alterno <span className="font-normal text-slate-500">(opcional)</span></label>
+									<InputTelefono
+										value={whatsappAlterno}
+										onChange={setWhatsappAlterno}
+										prefijo="sucursal-wa-alterno"
+										testIdNumero="input-whatsapp-alterno-sucursal"
 									/>
 								</div>
 							</div>

@@ -53,6 +53,8 @@ interface ItemCatalogo {
 interface SeccionCatalogoProps {
   catalogo: ItemCatalogo[];
   whatsapp?: string | null;
+  /** Segundo WhatsApp opcional del negocio (ej. línea de pedidos aparte de la principal). */
+  whatsappAlterno?: string | null;
   nombreNegocio?: string;
   negocioUsuarioId?: string | null;
   sucursalId?: string | null;
@@ -81,6 +83,7 @@ const ITEMS_PREVIEW_DESKTOP = 4;
 export function SeccionCatalogo({
   catalogo,
   whatsapp,
+  whatsappAlterno,
   nombreNegocio = 'Catálogo',
   negocioUsuarioId,
   sucursalId,
@@ -266,6 +269,7 @@ export function SeccionCatalogo({
         onCerrar={() => setModalAbierto(false)}
         catalogo={catalogo}
         whatsapp={whatsapp}
+        whatsappAlterno={whatsappAlterno}
         nombreNegocio={nombreNegocio}
         negocioUsuarioId={negocioUsuarioId}
         sucursalId={sucursalId}
@@ -278,6 +282,7 @@ export function SeccionCatalogo({
         item={itemSeleccionado}
         onClose={() => setItemSeleccionado(null)}
         whatsapp={whatsapp}
+        whatsappAlterno={whatsappAlterno}
         negocioUsuarioId={negocioUsuarioId}
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}

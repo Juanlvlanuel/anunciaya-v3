@@ -168,11 +168,11 @@ export const actualizarContacto = async (req: Request, res: Response) => {
             });
         }
 
-        const { telefono, whatsapp, correo, sitioWeb } = validacion.data;
+        const { telefono, whatsapp, telefonoAlterno, whatsappAlterno, correo, sitioWeb } = validacion.data;
         const { sucursalId } = req.body;
 
         // ACTUALIZADO: Usa funciones del negocioManagement.service
-        if (telefono || whatsapp) {
+        if (telefono || whatsapp || telefonoAlterno || whatsappAlterno) {
             if (!sucursalId) {
                 return res.status(400).json({
                     success: false,
@@ -182,7 +182,9 @@ export const actualizarContacto = async (req: Request, res: Response) => {
 
             await actualizarContactoSucursal(sucursalId, {
                 telefono: telefono ?? undefined,
-                whatsapp: whatsapp ?? undefined
+                whatsapp: whatsapp ?? undefined,
+                telefonoAlterno: telefonoAlterno ?? undefined,
+                whatsappAlterno: whatsappAlterno ?? undefined,
             });
         }
 

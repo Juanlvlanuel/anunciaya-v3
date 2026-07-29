@@ -19,7 +19,7 @@
  * CREADO: Enero 2026
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { X, Flame, Store } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -49,6 +49,7 @@ import { ModalImagenes } from '../ui/ModalImagenes';
 import Tooltip from '../ui/Tooltip';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useIniciarChatNegocio } from '@/hooks/useIniciarChatNegocio';
+import { useAbrirWhatsApp } from '@/hooks/useAbrirWhatsApp';
 import { notificar } from '@/utils/notificaciones';
 
 // =============================================================================
@@ -89,6 +90,8 @@ interface Oferta {
 interface ModalOfertaDetalleProps {
     oferta: Oferta | null;
     whatsapp?: string | null;
+    /** Segundo WhatsApp opcional del negocio (ej. línea de pedidos aparte de la principal). */
+    whatsappAlterno?: string | null;
     negocioNombre?: string;
     negocioUsuarioId?: string | null;
     onClose: () => void;
@@ -264,10 +267,11 @@ const CONFIG_TIPO: Record<Oferta['tipo'], ConfigTipo> = {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsuarioId, onClose }: ModalOfertaDetalleProps) {
+export function ModalOfertaDetalle({ oferta, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, onClose }: ModalOfertaDetalleProps) {
     const { usuario } = useAuthStore();
     const iniciarChatNegocio = useIniciarChatNegocio();
     const navigate = useNavigate();
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     // Click en logo/nombre del negocio → navega al perfil del negocio
     // dentro de la pagina /negocios (in-app, autenticado), NO al perfil
@@ -418,12 +422,11 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         });
     };
 
-    const handleWhatsApp = () => {
+    const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
         if (!whatsapp) return;
-        const numeroLimpio = whatsapp.replace(/\D/g, '');
         const nombreNegocio = negocioNombre ? ` de ${negocioNombre}` : '';
-        const mensaje = encodeURIComponent(`Hola! Me interesa esta oferta${nombreNegocio}: ${oferta.titulo}`);
-        window.open(`https://wa.me/${numeroLimpio}?text=${mensaje}`, '_blank');
+        const mensaje = `Hola! Me interesa esta oferta${nombreNegocio}: ${oferta.titulo}`;
+        abrirWhatsApp(e, whatsapp, whatsappAlterno, mensaje);
     };
 
     const handleChatYA = async () => {
@@ -852,6 +855,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                     onClose={() => setImagenExpandida(false)}
                 />
             )}
+            {menuWhatsApp}
         </>
     );
 }

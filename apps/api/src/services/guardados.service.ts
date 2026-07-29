@@ -332,6 +332,7 @@ export async function obtenerGuardados(
                         nombre: negocios.nombre,                     // nombre del NEGOCIO
                         logoUrl: negocios.logoUrl,                   // logo del negocio
                         whatsapp: negocioSucursales.whatsapp,
+                        whatsappAlterno: negocioSucursales.whatsappAlterno,
                         sucursalId: negocioSucursales.id,
                         sucursalNombre: negocioSucursales.nombre,    // nombre de la SUCURSAL
                         sucursalFotoPerfil: negocioSucursales.fotoPerfil, // avatar chat

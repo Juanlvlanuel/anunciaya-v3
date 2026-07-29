@@ -203,6 +203,8 @@ export async function obtenerFeedOfertas(
           cd.nombre AS ciudad,
           s.telefono,
           s.whatsapp,
+          s.telefono_alterno,
+          s.whatsapp_alterno,
 
           -- Coordenadas de la sucursal
           ST_Y(s.ubicacion::geometry) AS latitud,
@@ -442,6 +444,8 @@ export async function obtenerOfertaDetalle(
         cd.nombre as ciudad,
         s.telefono,
         s.whatsapp,
+        s.telefono_alterno,
+        s.whatsapp_alterno,
         s.correo,
 
         -- Coordenadas
@@ -1345,6 +1349,8 @@ export async function obtenerSucursalesDeOferta(
         cd.nombre AS ciudad,
         s.telefono,
         s.whatsapp,
+        s.telefono_alterno,
+        s.whatsapp_alterno,
         s.es_principal,
         ST_Y(s.ubicacion::geometry) AS latitud,
         ST_X(s.ubicacion::geometry) AS longitud,

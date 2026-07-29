@@ -37,6 +37,7 @@ import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useClienteDetalle, useClienteHistorial } from '../../../../hooks/queries/useClientes';
 import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
+import { formatearNumero as formatearTelefono } from '../../../../hooks/useAbrirWhatsApp';
 
 // =============================================================================
 // HELPERS
@@ -44,14 +45,6 @@ import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 
 const formatearMoneda = (valor: number) =>
   valor.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-
-const formatearTelefono = (tel: string): string => {
-  const limpio = tel.replace(/\s+/g, '');
-  if (limpio.startsWith('+52') && limpio.length === 13) {
-    return `+52 ${limpio.slice(3, 6)} ${limpio.slice(6, 9)} ${limpio.slice(9)}`;
-  }
-  return tel;
-};
 
 const formatearFechaCorta = (fechaISO: string | null) => {
   if (!fechaISO) return '—';

@@ -59,6 +59,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 import { useAuthStore } from '../../stores/useAuthStore';
 import { usePublicacionServicio } from '../../hooks/queries/useServicios';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
+import { useAbrirWhatsApp } from '../../hooks/useAbrirWhatsApp';
 import { GaleriaServicio } from '../../components/servicios/GaleriaServicio';
 import { MapaUbicacion } from '../../components/marketplace/MapaUbicacion';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
@@ -563,6 +564,7 @@ function CardOferentePublico({
 }: CardOferentePublicoProps) {
     const { oferente, tipo, titulo } = publicacion;
     const esVacante = tipo === 'vacante-empresa';
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     const labelTitulo = esVacante
         ? 'Sobre el negocio'
@@ -661,19 +663,21 @@ function CardOferentePublico({
                 requerir login (ChatYA sí lo requiere). Mensaje precargado
                 hace referencia al título de la vacante. */}
             {esVacante && oferente.sucursalWhatsapp && (
-                <a
-                    href={`https://wa.me/${oferente.sucursalWhatsapp.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                <button
+                    type="button"
+                    onClick={(e) => abrirWhatsApp(
+                        e,
+                        oferente.sucursalWhatsapp,
+                        oferente.sucursalWhatsappAlterno,
                         `Hola, vi su vacante "${titulo}" en AnunciaYA. Me interesa.`,
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    )}
                     data-testid="btn-whatsapp-negocio-publico"
                     aria-label="Contactar al negocio por WhatsApp"
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer"
                 >
                     <WhatsAppIcon className="h-5 w-5" />
                     WhatsApp
-                </a>
+                </button>
             )}
 
             {/* Botón "Contactar oferente/solicitante" — SOLO para servicios
@@ -688,6 +692,7 @@ function CardOferentePublico({
                     className="mt-3"
                 />
             )}
+            {menuWhatsApp}
         </div>
     );
 }

@@ -57,6 +57,9 @@ export interface DatosContacto {
   nombreSucursal?: string;  // Solo para gerentes
   telefono: string;
   whatsapp: string;
+  /** Segundo número opcional (ej. línea de pedidos aparte de la principal). */
+  telefonoAlterno: string;
+  whatsappAlterno: string;
   email: string;
   sitioWeb: string;
   redesSociales: {
@@ -124,6 +127,8 @@ interface PerfilCompleto {
   longitud: number | null;
   telefono: string | null;
   whatsapp: string | null;
+  telefonoAlterno: string | null;
+  whatsappAlterno: string | null;
   correo: string | null;
   fotoPerfilUrl: string | null;
   portadaUrl: string | null;
@@ -214,6 +219,8 @@ export function usePerfil() {
     nombreSucursal: '',
     telefono: '',
     whatsapp: '',
+    telefonoAlterno: '',
+    whatsappAlterno: '',
     email: '',
     sitioWeb: '',
     redesSociales: {},
@@ -301,6 +308,8 @@ export function usePerfil() {
       nombreSucursal: perfil.sucursalNombre || '',
       telefono: perfil.telefono || '',
       whatsapp: perfil.whatsapp || '',
+      telefonoAlterno: perfil.telefonoAlterno || '',
+      whatsappAlterno: perfil.whatsappAlterno || '',
       email: perfil.correo || '',
       sitioWeb: perfil.sitioWeb || '',
       redesSociales: perfil.redesSociales || {},
@@ -478,6 +487,8 @@ export function usePerfil() {
               nombreSucursal: vistaComoGerenteGuardado ? datosInformacion.nombreSucursal : undefined,
               telefono: datosContacto.telefono,
               whatsapp: datosContacto.whatsapp,
+              telefonoAlterno: datosContacto.telefonoAlterno,
+              whatsappAlterno: datosContacto.whatsappAlterno,
               correo: datosContacto.email,
               sitioWeb: !vistaComoGerenteGuardado ? datosContacto.sitioWeb : undefined,
               redesSociales: datosContacto.redesSociales,

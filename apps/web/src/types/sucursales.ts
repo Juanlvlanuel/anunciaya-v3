@@ -21,6 +21,9 @@ export interface SucursalResumen {
 	estado: string | null;
 	telefono: string | null;
 	whatsapp: string | null;
+	/** Segundo número opcional (ej. línea de pedidos aparte de la principal). */
+	telefonoAlterno: string | null;
+	whatsappAlterno: string | null;
 	correo: string | null;
 	activa: boolean;
 	fotoPerfil: string | null;
@@ -41,6 +44,8 @@ export interface CrearSucursalInput {
 	direccion?: string;
 	telefono?: string;
 	whatsapp?: string;
+	telefonoAlterno?: string;
+	whatsappAlterno?: string;
 	correo?: string;
 	latitud: number;
 	longitud: number;

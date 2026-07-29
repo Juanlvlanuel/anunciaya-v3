@@ -38,6 +38,7 @@ interface ModalOfertasProps {
     onClose: () => void;
     ofertas: Oferta[];
     whatsapp?: string;
+    whatsappAlterno?: string;
     negocioNombre?: string;
     negocioUsuarioId?: string | null;
 }
@@ -97,7 +98,7 @@ const ContenidoOfertas = ({ ofertas, onClickOferta, esMobile }: ContenidoOfertas
 // COMPONENTE PRINCIPAL: ModalOfertas
 // =============================================================================
 
-export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negocioNombre, negocioUsuarioId }: ModalOfertasProps) {
+export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId }: ModalOfertasProps) {
     const { esMobile } = useBreakpoint();
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<Oferta | null>(null);
 
@@ -193,6 +194,7 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, negoc
                     oferta={ofertaSeleccionada}
                     onClose={handleCloseDetalle}
                     whatsapp={whatsapp}
+                    whatsappAlterno={whatsappAlterno}
                     negocioNombre={negocioNombre}
                     negocioUsuarioId={negocioUsuarioId}
                 />

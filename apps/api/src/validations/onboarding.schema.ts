@@ -97,6 +97,40 @@ export const contactoSchema = z
         z.null()
       ])
       .optional(),
+    // Segundo número opcional — mismo formato, no participa en el .refine de
+    // "al menos un método de contacto" (ese sigue exigiendo uno de los principales).
+    telefonoAlterno: z
+      .union([
+        z.string()
+          .transform((val) => {
+            if (!val) return undefined;
+            return val.replace(/[\s\-()]/g, '');
+          })
+          .pipe(
+            z.string().regex(
+              /^\+[1-9]\d{1,14}$/,
+              'Formato inválido. Usa formato internacional: +52XXXXXXXXXX'
+            )
+          ),
+        z.null()
+      ])
+      .optional(),
+    whatsappAlterno: z
+      .union([
+        z.string()
+          .transform((val) => {
+            if (!val) return undefined;
+            return val.replace(/[\s\-()]/g, '');
+          })
+          .pipe(
+            z.string().regex(
+              /^\+[1-9]\d{1,14}$/,
+              'Formato inválido. Usa formato internacional: +52XXXXXXXXXX'
+            )
+          ),
+        z.null()
+      ])
+      .optional(),
     correo: z
       .union([
         z.string()
@@ -357,6 +391,8 @@ export const ubicacionDraftSchema = z.object({
 export const contactoDraftSchema = z.object({
   telefono: z.union([z.string(), z.null()]).optional(),
   whatsapp: z.union([z.string(), z.null()]).optional(),
+  telefonoAlterno: z.union([z.string(), z.null()]).optional(),
+  whatsappAlterno: z.union([z.string(), z.null()]).optional(),
   correo: z.union([z.string(), z.null()]).optional(),
   sitioWeb: z.union([z.string(), z.null()]).optional(),
 });

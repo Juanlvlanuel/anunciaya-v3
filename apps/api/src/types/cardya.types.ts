@@ -64,6 +64,8 @@ export interface BilleteraNegocio {
   negocioUsuarioId: string | null;
   negocioSucursalId: string | null;
   whatsappContacto: string | null;
+  /** Segundo WhatsApp opcional del negocio (ej. línea de pedidos aparte de la principal). */
+  whatsappContactoAlterno: string | null;
   /** Estado de circulación del negocio — para pintar "no disponible" en CardYA. */
   estadoCirculacion?: EstadoCirculacion;
 }

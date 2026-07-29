@@ -401,7 +401,7 @@ export const actualizarSucursal = async (
  */
 export const actualizarContactoSucursal = async (
     sucursalId: string,
-    data: { telefono?: string; whatsapp?: string }
+    data: { telefono?: string; whatsapp?: string; telefonoAlterno?: string; whatsappAlterno?: string }
 ) => {
     try {
         await db
@@ -409,6 +409,8 @@ export const actualizarContactoSucursal = async (
             .set({
                 telefono: data.telefono || null,
                 whatsapp: data.whatsapp || null,
+                telefonoAlterno: data.telefonoAlterno || null,
+                whatsappAlterno: data.whatsappAlterno || null,
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocioSucursales.id, sucursalId));
@@ -1247,6 +1249,8 @@ export const crearSucursal = async (
 		direccion?: string;
 		telefono?: string;
 		whatsapp?: string;
+		telefonoAlterno?: string;
+		whatsappAlterno?: string;
 		correo?: string;
 		latitud: number;
 		longitud: number;
@@ -1295,6 +1299,8 @@ export const crearSucursal = async (
 				direccion: datos.direccion || null,
 				telefono: datos.telefono || null,
 				whatsapp: datos.whatsapp || null,
+				telefonoAlterno: datos.telefonoAlterno || null,
+				whatsappAlterno: datos.whatsappAlterno || null,
 				correo: datos.correo || null,
 				ubicacion: sql`ST_GeogFromText(${ubicacionPostGIS})`,
 				esPrincipal: false,

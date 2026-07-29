@@ -180,6 +180,7 @@ export async function obtenerDetalleArticulo(articuloId: string) {
       ciudad: string | null;
       direccion: string | null;
       whatsapp: string | null;
+      whatsappAlterno: string | null;
     };
   }>(`/articulos/detalle/${articuloId}`);
 }

@@ -58,6 +58,9 @@ export interface NegocioResumen {
   ciudad: string;
   telefono: string;
   whatsapp: string | null;
+  /** Segundo número opcional (ej. línea de pedidos aparte de la principal). */
+  telefonoAlterno: string | null;
+  whatsappAlterno: string | null;
   tieneEnvioDomicilio: boolean;
   tieneServicioDomicilio: boolean;
   calificacionPromedio: string;
@@ -185,6 +188,9 @@ export interface NegocioCompleto {
   ciudad: string;
   telefono: string;
   whatsapp: string | null;
+  /** Segundo número opcional (ej. línea de pedidos aparte de la principal). */
+  telefonoAlterno: string | null;
+  whatsappAlterno: string | null;
   correo: string | null;
   tieneEnvioDomicilio: boolean;
   tieneServicioDomicilio: boolean;

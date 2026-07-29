@@ -21,6 +21,7 @@ import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import type { ClienteAsignado, UsuarioBuscadoCupon } from '../../../../services/ofertasService';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 import { useBuscarUsuariosSelector } from '../../../../hooks/queries/useOfertas';
+import { formatearNumero } from '../../../../hooks/useAbrirWhatsApp';
 
 // =============================================================================
 // TIPOS
@@ -425,7 +426,7 @@ export function TabClientes({
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{cliente.nombre}</p>
                                 <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">
-                                    {cliente.telefono && <>{cliente.telefono} • </>}{cliente.totalVisitas} visitas
+                                    {cliente.telefono && <>{formatearNumero(cliente.telefono)} • </>}{cliente.totalVisitas} visitas
                                 </p>
                             </div>
                             {nivelesActivos && (

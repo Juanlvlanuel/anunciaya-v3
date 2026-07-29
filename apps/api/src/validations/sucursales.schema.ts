@@ -57,6 +57,36 @@ export const crearSucursalSchema = z.object({
 			'El WhatsApp debe tener lada + 10 dígitos (ej: +52 6381234567)'
 		)
 		.optional(),
+	// Segundo número opcional (ej. línea de pedidos aparte de la principal). Mismo
+	// formato que telefono/whatsapp — no participa en ningún .refine obligatorio.
+	telefonoAlterno: z
+		.string()
+		.max(20)
+		.trim()
+		.refine(
+			(val) => {
+				if (!val) return true;
+				if (/^\+\d{1,3}\s?\d{10}$/.test(val)) return true;
+				if (/^\d{10}$/.test(val)) return true;
+				return false;
+			},
+			'El teléfono alterno debe tener lada + 10 dígitos (ej: +52 6381234567)'
+		)
+		.optional(),
+	whatsappAlterno: z
+		.string()
+		.max(20)
+		.trim()
+		.refine(
+			(val) => {
+				if (!val) return true;
+				if (/^\+\d{1,3}\s?\d{10}$/.test(val)) return true;
+				if (/^\d{10}$/.test(val)) return true;
+				return false;
+			},
+			'El WhatsApp alterno debe tener lada + 10 dígitos (ej: +52 6381234567)'
+		)
+		.optional(),
 	correo: z
 		.string()
 		.email('Correo inválido')

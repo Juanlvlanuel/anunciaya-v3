@@ -18,7 +18,7 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useBackNativo } from '../../../hooks/useBackNativo';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback, type MouseEvent } from 'react';
 import {
     ArrowLeft,
     Store,
@@ -27,7 +27,7 @@ import {
     ChevronDown,
     Image as ImageIcon,
     X,
-    Send,
+    Contact,
     UtensilsCrossed,
     Link2,
     Home,
@@ -78,6 +78,7 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 // useNegociosCacheStore eliminado — React Query maneja caché
 import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
+import { useAbrirWhatsApp, formatearNumero } from '../../../hooks/useAbrirWhatsApp';
 import { notificar } from '../../../utils/notificaciones';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
@@ -189,6 +190,7 @@ interface ModalMapaProps {
         esPrincipal: boolean;
         logoUrl: string | null;
         whatsapp: string | null;
+        whatsappAlterno?: string | null;
         direccion: string;
         latitud: number;
         longitud: number;
@@ -206,6 +208,7 @@ interface ModalMapaProps {
 function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProps) {
 
     const mapRef = useRef<MapRef | null>(null);
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     // Back nativo / flecha del navegador → cierra el mapa expandido (overlay
     // full-screen desktop). Se monta solo cuando está abierto → abierto: true.
@@ -223,7 +226,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
     const centerLat = userLat && userLng ? (negocio.latitud + userLat) / 2 : negocio.latitud;
     const centerLng = userLat && userLng ? (negocio.longitud + userLng) / 2 : negocio.longitud;
 
-    return createPortal(
+    return <>{createPortal(
         <div
             className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] flex items-center justify-center p-3 lg:p-4 2xl:p-6 z-9999"
             onClick={onClose}
@@ -443,7 +446,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                             </button>
                                             {negocio.whatsapp && (
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }}
+                                                    onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno); }}
                                                     className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-1.5"
                                                 >
                                                     <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -476,7 +479,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
             </div>
         </div>,
         document.body
-    );
+    )}{menuWhatsApp}</>;
 }
 
 // =============================================================================
@@ -498,6 +501,57 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
     const iniciarChatNegocio = useIniciarChatNegocio();
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
+
+    // Teléfono alterno: solo 2 lugares en toda la app usan `tel:` mostrando
+    // solo el ícono (sin el número como texto), así que basta un popover
+    // local — mismo criterio discreto que el hook de WhatsApp (sin alterno,
+    // comportamiento idéntico a hoy; con alterno, popover anclado al ícono).
+    const [telefonoPendiente, setTelefonoPendiente] = useState<{ principal: string; alterno: string; top: number; left: number } | null>(null);
+    const abrirTelefono = useCallback((e: MouseEvent<HTMLElement>, principal?: string | null, alterno?: string | null) => {
+        if (!principal) return;
+        if (!alterno) {
+            window.location.href = `tel:${principal.replace(/\s+/g, '')}`;
+            return;
+        }
+        const rect = e.currentTarget.getBoundingClientRect();
+        setTelefonoPendiente({ principal, alterno, top: rect.top - 8, left: rect.left + rect.width / 2 });
+    }, []);
+    const elegirTelefono = (numero: string) => {
+        window.location.href = `tel:${numero.replace(/\s+/g, '')}`;
+        setTelefonoPendiente(null);
+    };
+    const menuTelefono = telefonoPendiente ? createPortal(
+        <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => setTelefonoPendiente(null)} />
+            <div
+                className="fixed z-[9999] bg-slate-900 rounded-xl py-1.5 min-w-[190px]"
+                style={{ top: telefonoPendiente.top, left: telefonoPendiente.left, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
+            >
+                <button
+                    type="button"
+                    onClick={() => elegirTelefono(telefonoPendiente.principal)}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/10 cursor-pointer"
+                >
+                    <Phone className="w-4 h-4 text-slate-300 shrink-0" />
+                    <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(telefonoPendiente.principal)}</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => elegirTelefono(telefonoPendiente.alterno)}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/10 cursor-pointer"
+                >
+                    <Phone className="w-4 h-4 text-slate-300 shrink-0" />
+                    <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(telefonoPendiente.alterno)}</span>
+                </button>
+                <div
+                    className="absolute left-1/2 top-full -translate-x-1/2 w-0 h-0"
+                    style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
+                />
+            </div>
+        </>,
+        document.body
+    ) : null;
 
     // ✅ Store de caché para ofertas y catálogo
     // React Query
@@ -785,13 +839,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /negocios.
     const handleVolver = useVolverAtras('/negocios');
 
-    const handleWhatsApp = () => {
-        if (negocio?.whatsapp) {
-            // Limpiar el número: quitar espacios, + y cualquier carácter no numérico
-            const numeroLimpio = negocio.whatsapp.replace(/\D/g, '');
-            const mensaje = encodeURIComponent(`Hola! Vi tu negocio en AnunciaYA`);
-            window.open(`https://wa.me/${numeroLimpio}?text=${mensaje}`, '_blank');
-        }
+    const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
+        if (!negocio?.whatsapp) return;
+        abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno, 'Hola! Vi tu negocio en AnunciaYA');
     };
 
     const handleDirecciones = () => {
@@ -1302,17 +1352,18 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             {/* Fila de iconos: Phone + WhatsApp + ChatYA + Ubicación */}
                             <div className="flex items-center justify-center gap-3">
                                 {negocio.telefono && (
-                                    <a
-                                        href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => abrirTelefono(e, negocio.telefono, negocio.telefonoAlterno)}
                                         className="w-11 h-11 bg-slate-500 rounded-full flex items-center justify-center shadow-md cursor-pointer"
                                     >
                                         <Phone className="w-5 h-5 text-white" />
-                                    </a>
+                                    </button>
                                 )}
                                 {negocio.whatsapp && (
-                                    <a href={`https://wa.me/${negocio.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                                    <button type="button" onClick={(e) => abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno)} className="cursor-pointer">
                                         <img src="/whatsapp.webp" alt="WhatsApp" className="w-11 h-11" />
-                                    </a>
+                                    </button>
                                 )}
                                 <button onClick={handleChatYA} className="cursor-pointer">
                                     <img src="/ChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
@@ -1413,6 +1464,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 <SeccionOfertas
                                     ofertas={ofertas}
                                     whatsapp={negocio?.whatsapp}
+                                    whatsappAlterno={negocio?.whatsappAlterno}
                                     negocioNombre={negocio?.negocioNombre}
                                     negocioUsuarioId={negocio?.usuarioId}
                                     esRutaPublica={esRutaPublica}
@@ -1426,6 +1478,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 <SeccionCatalogo
                                     catalogo={catalogo}
                                     whatsapp={negocio?.whatsapp}
+                                    whatsappAlterno={negocio?.whatsappAlterno}
                                     negocioUsuarioId={negocio?.usuarioId}
                                     sucursalId={sucursalId}
                                     negocioNombre={negocio?.negocioNombre}
@@ -1656,7 +1709,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                                     <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-8 w-auto" />
                                                                 </button>
                                                                 {negocio.whatsapp && (
-                                                                    <button onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }} className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-1">
+                                                                    <button onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno); }} className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-1">
                                                                         <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
                                                                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                                                                         </svg>
@@ -1698,34 +1751,49 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                                 {/* CONTACTO */}
                                 <h4 className="flex items-center gap-2 @5xl:text-[11px] @[96rem]:text-sm font-semibold text-slate-600 uppercase tracking-wider @5xl:mb-3 @[96rem]:mb-3">
-                                    <Send className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
+                                    <Contact className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                     <span>Contacto</span>
                                 </h4>
 
-                                {/* TELÉFONO */}
+                                {/* TELÉFONO — el número ya se muestra como texto, así que si hay
+                                    alterno se agrega como segunda línea debajo (sin popup: no
+                                    tiene caso preguntar cuál usar si ambos ya están a la vista).
+                                    Lista densa inline sin rectángulo (Regla 13 Tokens Globales):
+                                    un solo ícono, números apilados. */}
                                 {negocio.telefono && (
-                                    <a
-                                        href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
-                                        className="flex items-center gap-2.5 @5xl:px-2.5 @5xl:py-2 @[96rem]:px-3 @[96rem]:py-2 @5xl:mb-2 @[96rem]:mb-2 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
-                                    >
-                                        <Phone className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
-                                        <span className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors">
-                                            {negocio.telefono}
-                                        </span>
-                                    </a>
+                                    <div className="flex items-center gap-2.5 @5xl:mb-2.5 @[96rem]:mb-3">
+                                        <Phone className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-slate-500 shrink-0" />
+                                        <div className="flex flex-col @5xl:gap-0.5 @[96rem]:gap-1">
+                                            <a
+                                                href={`tel:${negocio.telefono.replace(/\s+/g, '')}`}
+                                                className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
+                                            >
+                                                {formatearNumero(negocio.telefono)}
+                                            </a>
+                                            {negocio.telefonoAlterno && (
+                                                <a
+                                                    href={`tel:${negocio.telefonoAlterno.replace(/\s+/g, '')}`}
+                                                    className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
+                                                >
+                                                    {formatearNumero(negocio.telefonoAlterno)}
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
 
-                                {/* CORREO */}
+                                {/* CORREO — mismo estilo que teléfono: lista densa inline sin
+                                    rectángulo (Regla 13 Tokens Globales). */}
                                 {negocio.correo && (
-                                    <a
-                                        href={`mailto:${negocio.correo}`}
-                                        className="flex items-center gap-2.5 @5xl:px-2.5 @5xl:py-2 @[96rem]:px-3 @[96rem]:py-2 @5xl:mb-3 @[96rem]:mb-3 bg-slate-200 border-2 border-slate-300 rounded-lg cursor-pointer group"
-                                    >
-                                        <Mail className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
-                                        <span className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 group-hover:text-blue-600 transition-colors truncate">
+                                    <div className="flex items-center gap-2.5 @5xl:mb-2.5 @[96rem]:mb-3">
+                                        <Mail className="@5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-slate-500 shrink-0" />
+                                        <a
+                                            href={`mailto:${negocio.correo}`}
+                                            className="@5xl:text-sm @[96rem]:text-base font-medium text-slate-700 hover:text-blue-600 transition-colors cursor-pointer truncate"
+                                        >
                                             {negocio.correo}
-                                        </span>
-                                    </a>
+                                        </a>
+                                    </div>
                                 )}
 
                                 <div className="flex @5xl:gap-3 @[96rem]:gap-4 items-center">
@@ -2108,7 +2176,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                         <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
                                                     </button>
                                                     {negocio.whatsapp && (
-                                                        <button onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${negocio.whatsapp!.replace(/\D/g, '')}`, '_blank'); }} className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-1.5">
+                                                        <button onClick={(e) => { e.stopPropagation(); abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno); }} className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-1.5">
                                                             <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="currentColor">
                                                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                                                             </svg>
@@ -2435,6 +2503,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     </button>
                 </div>
             </div>
+            {menuWhatsApp}
+            {menuTelefono}
         </div>
     );
 

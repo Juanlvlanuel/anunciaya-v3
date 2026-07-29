@@ -703,7 +703,7 @@ export async function actualizarParticipacionPuntosController(req: Request, res:
 export async function actualizarContactoController(req: Request, res: Response) {
     try {
         const { id: negocioId } = req.params;
-        const { nombreSucursal, telefono, whatsapp, correo, sitioWeb, redesSociales } = req.body;
+        const { nombreSucursal, telefono, whatsapp, telefonoAlterno, whatsappAlterno, correo, sitioWeb, redesSociales } = req.body;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         const sucursalId = req.query.sucursalId as string | undefined;
@@ -740,6 +740,8 @@ export async function actualizarContactoController(req: Request, res: Response) 
         await actualizarContactoSucursal(sucursalId, {
             telefono: telefono || null,
             whatsapp: whatsapp || null,
+            telefonoAlterno: telefonoAlterno || null,
+            whatsappAlterno: whatsappAlterno || null,
         });
 
         // 3. Actualizar correo en sucursal

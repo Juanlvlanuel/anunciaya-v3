@@ -51,6 +51,7 @@ import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useClientesKPIs, useClientesLista } from '../../../../hooks/queries/useClientes';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
+import { formatearNumero } from '../../../../hooks/useAbrirWhatsApp';
 import { descargarExcel } from '../../../../services/clientesService';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
@@ -783,7 +784,7 @@ export default function PaginaClientes() {
                           {c.telefono && (
                             <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium flex items-center gap-1">
                               <Phone className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
-                              {c.telefono}
+                              {formatearNumero(c.telefono)}
                             </p>
                           )}
                         </div>

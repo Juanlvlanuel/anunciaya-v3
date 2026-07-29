@@ -46,6 +46,7 @@ import {
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
+import { formatearNumero } from '../../../../hooks/useAbrirWhatsApp';
 import { notificar } from '../../../../utils/notificaciones';
 import { escucharEvento } from '../../../../services/socketService';
 import { queryKeys } from '../../../../config/queryKeys';
@@ -601,7 +602,7 @@ function CardSucursalMovil({ sucursal, onClick }: {
 							<>
 								{' · '}
 								<Phone className="w-3 h-3 inline mr-0.5" />
-								{sucursal.telefono}
+								{formatearNumero(sucursal.telefono)}
 							</>
 						)}
 					</p>
@@ -666,7 +667,7 @@ function FilaSucursalDesktop({ sucursal, onClick, onEditar, onToggleActiva, onEl
 					</div>
 					{sucursal.telefono && (
 						<p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600 truncate">
-							{sucursal.telefono}
+							{formatearNumero(sucursal.telefono)}
 						</p>
 					)}
 				</div>

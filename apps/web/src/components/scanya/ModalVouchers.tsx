@@ -45,6 +45,7 @@ import {
 import scanyaService from '@/services/scanyaService';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import { useIniciarChatDirectoPersona } from '@/hooks/useIniciarChatDirectoPersona';
+import { formatearNumero as formatearTelefono } from '@/hooks/useAbrirWhatsApp';
 import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import { TarjetaVoucher } from './TarjetaVoucher';
 import type { VoucherCompleto, ClienteConVouchers } from '@/types/scanya';
@@ -131,16 +132,6 @@ const TABS: TabConfig[] = [
     // del cliente: ver en CardYA o en BS si se requiere consulta puntual.
 ];
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-const formatearTelefono = (telefono: string): string => {
-    if (telefono.startsWith('+52') && telefono.length === 13) {
-        return `+52 ${telefono.slice(3, 6)} ${telefono.slice(6, 9)} ${telefono.slice(9)}`;
-    }
-    return telefono;
-};
 
 // =============================================================================
 // COMPONENTE: DROPDOWN PERSONALIZADO

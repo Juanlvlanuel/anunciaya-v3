@@ -113,6 +113,9 @@ export interface OfertaFeed {
   ciudad: string;
   telefono: string | null;
   whatsapp: string | null;
+  /** Segundo número opcional (ej. línea de pedidos aparte de la principal). */
+  telefonoAlterno: string | null;
+  whatsappAlterno: string | null;
 
   // Coordenadas
   latitud: number;

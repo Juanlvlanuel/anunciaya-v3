@@ -14,7 +14,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type MouseEvent } from 'react';
 import {
     Loader2,
     CheckCircle,
@@ -34,6 +34,7 @@ const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import api from '../../services/api';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
+import { useAbrirWhatsApp } from '../../hooks/useAbrirWhatsApp';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
@@ -62,6 +63,7 @@ interface ArticuloPublico {
         logoUrl?: string | null;
         ciudad?: string | null;
         whatsapp?: string | null;
+        whatsappAlterno?: string | null;
     };
 }
 
@@ -73,6 +75,7 @@ export function PaginaArticuloPublico() {
     const { articuloId } = useParams<{ articuloId: string }>();
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
+    const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     // Estados
     const [articulo, setArticulo] = useState<ArticuloPublico | null>(null);
@@ -132,14 +135,10 @@ export function PaginaArticuloPublico() {
     // -------------------------------------------------------------------------
     // Handlers
     // -------------------------------------------------------------------------
-    const handleWhatsApp = () => {
-        if (articulo?.negocio.whatsapp) {
-            const numeroLimpio = articulo.negocio.whatsapp.replace(/\D/g, '');
-            const mensaje = encodeURIComponent(
-                `Hola! Me interesa "${articulo.nombre}" que vi en AnunciaYA`
-            );
-            window.open(`https://wa.me/${numeroLimpio}?text=${mensaje}`, '_blank');
-        }
+    const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
+        if (!articulo?.negocio.whatsapp) return;
+        const mensaje = `Hola! Me interesa "${articulo.nombre}" que vi en AnunciaYA`;
+        abrirWhatsApp(e, articulo.negocio.whatsapp, articulo.negocio.whatsappAlterno, mensaje);
     };
 
     const handleVerNegocio = () => {
@@ -419,6 +418,7 @@ export function PaginaArticuloPublico() {
 
                 <FooterPublico />
             </main>
+            {menuWhatsApp}
         </div>
     );
 }
@@ -551,7 +551,7 @@ function CardNegocioArticulo({ negocio }: CardNegocioArticuloProps) {
 }
 
 interface BotonAccionArticuloProps {
-    onClick: () => void;
+    onClick: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
 function BotonWhatsappArticulo({ onClick }: BotonAccionArticuloProps) {
