@@ -147,22 +147,27 @@ export function contenidoPopupNegocio(props: { nombre?: string; estado?: string;
         + `</div>`;
 }
 
-/** SVG de un pin (gota) del color dado, con borde blanco y punto central. Sombra de elevación. */
-function svgPin(color: string): string {
+/** SVG de un pin (gota) del color dado, con borde blanco y punto central. Sombra de elevación.
+ *  `conNota`: agrega el mismo badge ámbar que los negocios cuando la marca tiene una nota escrita. */
+function svgPin(color: string, conNota = false): string {
+    const badge = conNota
+        ? `<circle cx="21" cy="4.5" r="4.5" fill="${COLOR_BADGE_NOTA}" stroke="#fff" stroke-width="1.4"/>`
+        : '';
     return `<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 2px rgba(15,23,42,0.32));">`
         + `<path d="M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>`
-        + `<circle cx="13" cy="13" r="4.5" fill="#ffffff"/></svg>`;
+        + `<circle cx="13" cy="13" r="4.5" fill="#ffffff"/>${badge}</svg>`;
 }
 /** Elemento HTML de un pin: el wrapper es el element del Marker (MapLibre lo posiciona con su propio
  *  transform → NO tocarlo); el INNER es el que escalamos al resaltar. anchor 'bottom' = la punta marca. */
-export function elementoPin(tipo: TipoMarca): HTMLDivElement {
+export function elementoPin(tipo: TipoMarca, conNota = false): HTMLDivElement {
     const el = document.createElement('div');
     el.dataset.tipo = tipo;
+    el.dataset.nota = conNota ? '1' : '';
     el.style.cursor = 'pointer';
     const inner = document.createElement('div');
     inner.style.transformOrigin = 'bottom center';
     inner.style.transition = 'transform 0.15s ease';
-    inner.innerHTML = svgPin(COLOR_TIPO[tipo]);
+    inner.innerHTML = svgPin(COLOR_TIPO[tipo], conNota);
     el.appendChild(inner);
     return el;
 }
@@ -185,15 +190,22 @@ export function elementoPinNegocio(color: string): HTMLDivElement {
     el.appendChild(inner);
     return el;
 }
-/** Recolorea el pin si cambió su estado (sin recrear el elemento). */
-function actualizarColorPin(el: HTMLElement, tipo: TipoMarca): void {
-    if (el.dataset.tipo === tipo) return;
+/** Recolorea el pin si cambió su estado y/o sincroniza el badge de nota (sin recrear el elemento). */
+function actualizarColorPin(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
+    const notaTexto = conNota ? '1' : '';
+    if (el.dataset.tipo === tipo && el.dataset.nota === notaTexto) return;
     el.dataset.tipo = tipo;
-    el.querySelector('path')?.setAttribute('fill', COLOR_TIPO[tipo]);
+    el.dataset.nota = notaTexto;
+    const inner = el.firstElementChild as HTMLElement | null;
+    if (inner) inner.innerHTML = svgPin(COLOR_TIPO[tipo], conNota);
 }
+/** Color del badge de "tiene nota" sobre el pin de negocio (ámbar, distinto del violeta/teal de atribución). */
+export const COLOR_BADGE_NOTA = '#f59e0b';
+
 /** Ícono de un negocio para el sprite del mapa: un PIN (gota, mismo perfil que las marcas) del color
- *  de atribución, con el ícono de tienda blanco DENTRO en vez del punto. Renderizado a 2x (retina). */
-export function iconoNegocio(color: string): { data: ImageData; ratio: number } {
+ *  de atribución, con el ícono de tienda blanco DENTRO en vez del punto. Renderizado a 2x (retina).
+ *  `conNota`: agrega un punto ámbar en la esquina superior derecha (hay una nota guardada). */
+export function iconoNegocio(color: string, conNota = false): { data: ImageData; ratio: number } {
     const escala = 2, w = 26, h = 34, cw = w * escala, ch = h * escala;
     const c = document.createElement('canvas');
     c.width = cw; c.height = ch;
@@ -213,6 +225,14 @@ export function iconoNegocio(color: string): { data: ImageData; ratio: number } 
     ctx.moveTo(cx - 5, cy); ctx.lineTo(cx - 5.5, cy - 3.4); ctx.lineTo(cx + 5.5, cy - 3.4); ctx.lineTo(cx + 5, cy);
     ctx.moveTo(cx - 4, cy); ctx.lineTo(cx - 4, cy + 4.6); ctx.lineTo(cx + 4, cy + 4.6); ctx.lineTo(cx + 4, cy);
     ctx.stroke();
+    if (conNota) {
+        // Badge de "tiene nota": puntito ámbar con borde blanco, esquina superior derecha de la cabeza.
+        ctx.beginPath();
+        ctx.arc(21, 4.5, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = COLOR_BADGE_NOTA;
+        ctx.fill();
+        ctx.lineWidth = 1.4; ctx.strokeStyle = '#fff'; ctx.stroke();
+    }
     return { data: ctx.getImageData(0, 0, cw, ch), ratio: escala };
 }
 
@@ -388,13 +408,14 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         }
         for (const m of marcasRef.current) {
             const existente = markers.get(m.id);
+            const conNota = !!m.nota?.trim();
             if (existente) {
                 existente.setLngLat([m.lng, m.lat]);
-                actualizarColorPin(existente.getElement(), m.tipo);
+                actualizarColorPin(existente.getElement(), m.tipo, conNota);
                 aplicarResalte(existente.getElement(), m.id === marcaSeleccionadaRef.current);
                 continue;
             }
-            const el = elementoPin(m.tipo);
+            const el = elementoPin(m.tipo, conNota);
             const marker = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable: true });
             marker.setLngLat([m.lng, m.lat]).addTo(mapa);
             const idMarca = m.id;
@@ -509,12 +530,17 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
             mapa.addSource(ID_NEGOCIOS, { type: 'geojson', data: negociosGeoJSON(negociosRef.current) });
             if (!mapa.hasImage('negocio-sin')) { const i = iconoNegocio(COLOR_NEGOCIO.sinVendedor); mapa.addImage('negocio-sin', i.data, { pixelRatio: i.ratio }); }
             if (!mapa.hasImage('negocio-con')) { const i = iconoNegocio(COLOR_NEGOCIO.conVendedor); mapa.addImage('negocio-con', i.data, { pixelRatio: i.ratio }); }
+            if (!mapa.hasImage('negocio-con-nota')) { const i = iconoNegocio(COLOR_NEGOCIO.conVendedor, true); mapa.addImage('negocio-con-nota', i.data, { pixelRatio: i.ratio }); }
             mapa.addLayer({
                 id: ID_NEGOCIOS_C,
                 type: 'symbol',
                 source: ID_NEGOCIOS,
                 layout: {
-                    'icon-image': ['case', ['==', ['get', 'embajadorId'], ''], 'negocio-sin', 'negocio-con'],
+                    'icon-image': ['case',
+                        ['==', ['get', 'embajadorId'], ''], 'negocio-sin',
+                        ['!=', ['get', 'nota'], ''], 'negocio-con-nota',
+                        'negocio-con',
+                    ],
                     'icon-anchor': 'bottom',
                     'icon-allow-overlap': true,
                     'icon-size': 1,

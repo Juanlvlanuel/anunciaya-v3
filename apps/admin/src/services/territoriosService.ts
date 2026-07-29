@@ -203,3 +203,20 @@ export async function actualizarNotaNegocio(id: string, nota: string | null): Pr
   const { data } = await api.patch<RespuestaAPI<{ id: string }>>(`/admin/territorios/negocios/${id}/nota`, { nota });
   return data.data ?? { id };
 }
+
+/** Una nota guardada sobre uno de mis negocios asignados (página "Mis notas"). */
+export interface NotaNegocio {
+  id: string;
+  nombre: string;
+  nota: string;
+  ciudadId: string | null;
+  ciudadNombre: string | null;
+  lat: number;
+  lng: number;
+}
+
+/** Todas las notas que escribí sobre mis negocios asignados (ordenadas por nombre). */
+export async function listarMisNotasNegocio(): Promise<NotaNegocio[]> {
+  const { data } = await api.get<RespuestaAPI<NotaNegocio[]>>('/admin/territorios/mis-notas');
+  return data.data ?? [];
+}

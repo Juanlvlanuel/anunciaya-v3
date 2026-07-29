@@ -8,7 +8,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance, listarMarcasEquipo, listarNegociosMapa } from '../../services/admin/territorios.service.js';
+import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance, listarMarcasEquipo, listarNegociosMapa, listarMisNotasNegocio } from '../../services/admin/territorios.service.js';
 import { crearZona, editarZona, asignarZona, borrarZona } from '../../services/admin/territorios-acciones.service.js';
 import { listarMisMarcas, crearMarca, editarMarca, borrarMarca, actualizarNotaNegocio } from '../../services/admin/territorios-marcas.service.js';
 import { crearZonaSchema, editarZonaSchema, asignarZonaSchema, crearMarcaSchema, editarMarcaSchema, notaNegocioSchema } from '../../validations/admin/territorios.schema.js';
@@ -79,6 +79,17 @@ export async function listarNegociosMapaController(req: Request, res: Response):
     } catch (error) {
         console.error('Error en listarNegociosMapaController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener los negocios del mapa' });
+    }
+}
+
+/** GET /api/admin/territorios/mis-notas — mis notas guardadas sobre negocios asignados (vendedor/gerente). */
+export async function listarMisNotasNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const data = await listarMisNotasNegocio(req.usuarioPanel!);
+        res.status(200).json({ success: true, message: 'Notas obtenidas', data });
+    } catch (error) {
+        console.error('Error en listarMisNotasNegocioController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener las notas' });
     }
 }
 

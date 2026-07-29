@@ -21,6 +21,7 @@ import {
     listarVendedoresController,
     listarMarcasEquipoController,
     listarNegociosMapaController,
+    listarMisNotasNegocioController,
     crearZonaController,
     editarZonaController,
     asignarZonaController,
@@ -65,5 +66,8 @@ router.delete('/marcas/:id', requierePanel(['vendedor', 'gerente']), borrarMarca
 // ─── Nota del vendedor sobre uno de SUS negocios asignados (pin del mapa). El gerente entra
 // también: tiene su propio embajador_id y puede tener negocios asignados como vendedor.
 router.patch('/negocios/:id/nota', requierePanel(['vendedor', 'gerente']), actualizarNotaNegocioController);
+
+// ─── Mis notas (página completa "Notas"): todas las que escribí sobre mis negocios asignados.
+router.get('/mis-notas', requierePanel(['vendedor', 'gerente']), listarMisNotasNegocioController);
 
 export default router;

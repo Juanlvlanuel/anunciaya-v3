@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, ChevronRight, ChevronLeft, Store, X, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronRight, ChevronLeft, Store, X, MapPin, StickyNote } from 'lucide-react';
 import {
     useZonas,
     useCiudadesDelAlcance,
@@ -33,12 +33,14 @@ import {
     useEditarMarca,
     useMoverMarca,
     useBorrarMarca,
+    useMisNotasNegocio,
 } from '../../hooks/queries/useTerritoriosAdmin';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { MapaTerritorios } from './MapaTerritorios';
 import { HojaMovil } from './HojaMovil';
 import { VistaVendedorTerritorio } from './VistaVendedorTerritorio';
+import { PanelNotasNegocios, type NotaListItem } from './PanelNotasNegocios';
 import { COLOR_TIPO, ETIQUETA_TIPO } from './MapaMarcas';
 import { SelectorBuscable, type OpcionBuscable } from '../ui/SelectorBuscable';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
@@ -78,6 +80,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const { data: marcas = [] } = useMarcasEquipo(ciudadId || undefined, puedeEditar);
     const { data: negocios = [] } = useNegociosMapa(ciudadId || undefined, puedeEditar);
     const { data: misMarcas = [] } = useMisMarcas(esGerente);
+    const { data: notasNegocio = [], isLoading: cargandoNotas } = useMisNotasNegocio(esGerente);
     const crear = useCrearZona();
     const editar = useEditarZona();
     const asignar = useAsignarZona();
@@ -88,6 +91,9 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const moverMiMarca = useMoverMarca();
     const borrarMiMarca = useBorrarMarca();
 
+    // "Mis notas" (solo gerente, tiene embajador propio): página completa con todas mis notas
+    // guardadas, buscable por nombre de negocio. El super nunca tiene negocios "suyos".
+    const [vista, setVista] = useState<'mapa' | 'notas'>('mapa');
     const [dibujando, setDibujando] = useState(false);
     const [zonaEditando, setZonaEditando] = useState<ZonaTerritorio | null>(null);
     const [filtroMarca, setFiltroMarca] = useState<TipoMarca | null>(null);
@@ -149,6 +155,31 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const enfocarZona = (z: ZonaTerritorio) => {
         setFoco((f) => ({ poligono: z.poligono, nonce: (f?.nonce ?? 0) + 1 }));
         setHojaExpandida(false);
+    };
+
+    // "Mis notas" (solo gerente): une mis negocios con nota + mis puntos con nota en una sola lista
+    // buscable por nombre. Reusa los datos ya cargados (sin pedirlos de nuevo).
+    const notasUnificadas: NotaListItem[] = useMemo(() => {
+        if (!esGerente) return [];
+        const deNegocios: NotaListItem[] = notasNegocio.map((n) => ({
+            id: `negocio-${n.id}`, entidadId: n.id, nombre: n.nombre, nota: n.nota,
+            origen: 'negocio', subtitulo: n.ciudadNombre, lat: n.lat, lng: n.lng, ciudadId: n.ciudadId,
+        }));
+        const deMarcas: NotaListItem[] = misMarcas
+            .filter((m) => m.nota?.trim())
+            .map((m) => ({
+                id: `marca-${m.id}`, entidadId: m.id, nombre: m.nombre || ETIQUETA_TIPO[m.tipo], nota: m.nota as string,
+                origen: 'marca', subtitulo: ETIQUETA_TIPO[m.tipo], lat: m.lat, lng: m.lng,
+            }));
+        return [...deNegocios, ...deMarcas].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }, [esGerente, notasNegocio, misMarcas]);
+
+    /** "Ver en el mapa" desde "Mis notas": si es un negocio, cambia a su ciudad (el mapa reencuadra
+     *  solo); si es una de mis marcas, abre su editor (mismo pin que "editar" en "Mis puntos"). */
+    const irANotaEnMapa = (n: NotaListItem) => {
+        setVista('mapa');
+        if (n.origen === 'negocio') { if (n.ciudadId) setCiudadId(n.ciudadId); return; }
+        abrirMarca(n.entidadId);
     };
 
     const ciudadSel = useMemo(() => ciudades.find((c) => c.id === ciudadId), [ciudades, ciudadId]);
@@ -678,12 +709,25 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         </div>
     ) : null;
 
+    // "Mis notas" (solo gerente: tiene embajador propio, puede tener negocios en su cartera).
+    const botonNotas = esGerente ? (
+        <button
+            type="button"
+            data-testid="ir-notas"
+            onClick={() => setVista('notas')}
+            className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-superficie-2"
+        >
+            <StickyNote size={14} /> Mis notas
+        </button>
+    ) : null;
+
     // Contenido del panel de gestión (ciudad + filtros + lista/form). El "Nueva zona" ya NO vive aquí:
     // es un FAB sobre el mapa en todos los layouts. `filtrosCarrusel`: en HORIZONTAL (panel angosto) los
     // 4 filtros van en 1 fila deslizable; en ESCRITORIO se acomodan con flex-wrap.
     const contenidoPanel = (filtrosCarrusel: boolean) => (
         <>
             <div className="shrink-0">{piezaCiudad}</div>
+            {botonNotas && <div className="shrink-0">{botonNotas}</div>}
             {hayFiltros && <div className="shrink-0">{piezaFiltros(filtrosCarrusel)}</div>}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {piezaLista}
@@ -691,6 +735,21 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             </div>
         </>
     );
+
+    // El panel de notas se arma una sola vez: en escritorio vive DENTRO de la columna derecha (el mapa
+    // se sigue viendo); en móvil (vertical u horizontal) es página completa (early return más abajo).
+    const panelNotas = (
+        <PanelNotasNegocios
+            items={notasUnificadas}
+            cargando={cargandoNotas}
+            onVolver={() => setVista('mapa')}
+            onVerEnMapa={irANotaEnMapa}
+        />
+    );
+
+    if (vista === 'notas' && !esEscritorio) {
+        return panelNotas;
+    }
 
     // ── Móvil HORIZONTAL: mapa de fondo + panel de gestión 1/3 a la derecha, ocultable ──
     if (!esEscritorio && esHorizontal && puedeEditar) {
@@ -758,6 +817,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     resumen={piezaFiltros(true)}
                     altura="68%"
                 >
+                    {botonNotas && <div className="shrink-0">{botonNotas}</div>}
                     {piezaLista}
                     {piezaMisPuntos}
                 </HojaMovil>
@@ -781,7 +841,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
             {puedeEditar && (
                 <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-[420px] lg:pr-3 lg:pt-3">
-                    {contenidoPanel(false)}
+                    {vista === 'notas' ? panelNotas : contenidoPanel(false)}
                 </aside>
             )}
 

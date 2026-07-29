@@ -21,7 +21,7 @@ import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike }
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
 import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, MarcaTerritorio, NegocioMapa, TipoMarca } from '../../services/territoriosService';
-import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, COLOR_BADGE_NOTA, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
 import { Tooltip } from '../ui/Tooltip';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 
@@ -83,29 +83,39 @@ interface MapaTerritoriosProps {
 // distinguen a simple vista de las marcas del equipo (por estado) y de los negocios (violeta/teal).
 const COLOR_MI_PUNTO = '#0e8a52';
 
-/** SVG de un pin (gota) del color dado — copia de `svgPin` de MapaMarcas.tsx (no exportada). */
-function svgPinFijo(color: string): string {
+/** SVG de un pin (gota) del color dado — copia de `svgPin` de MapaMarcas.tsx (no exportada).
+ *  `conNota`: mismo badge ámbar que los negocios/marcas cuando el punto tiene una nota escrita. */
+function svgPinFijo(color: string, conNota = false): string {
+    const badge = conNota
+        ? `<circle cx="21" cy="4.5" r="4.5" fill="${COLOR_BADGE_NOTA}" stroke="#fff" stroke-width="1.4"/>`
+        : '';
     return `<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 2px rgba(15,23,42,0.32));">`
         + `<path d="M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>`
-        + `<circle cx="13" cy="13" r="4.5" fill="#ffffff"/></svg>`;
+        + `<circle cx="13" cy="13" r="4.5" fill="#ffffff"/>${badge}</svg>`;
 }
 
 /** Elemento HTML del pin de "mi punto": mismo perfil que `elementoPin`, siempre verde. */
-function elementoMiPunto(tipo: TipoMarca): HTMLDivElement {
+function elementoMiPunto(tipo: TipoMarca, conNota = false): HTMLDivElement {
     const el = document.createElement('div');
     el.dataset.tipo = tipo;
+    el.dataset.nota = conNota ? '1' : '';
     el.style.cursor = 'pointer';
     const inner = document.createElement('div');
     inner.style.transformOrigin = 'bottom center';
     inner.style.transition = 'transform 0.15s ease';
-    inner.innerHTML = svgPinFijo(COLOR_MI_PUNTO);
+    inner.innerHTML = svgPinFijo(COLOR_MI_PUNTO, conNota);
     el.appendChild(inner);
     return el;
 }
 
-/** Solo actualiza el estado guardado del pin (el color es fijo, no depende del tipo). */
-function actualizarColorMiMarca(el: HTMLElement, tipo: TipoMarca): void {
+/** Actualiza el estado guardado del pin (el color es fijo) y sincroniza el badge de nota. */
+function actualizarColorMiMarca(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
+    const notaTexto = conNota ? '1' : '';
+    if (el.dataset.tipo === tipo && el.dataset.nota === notaTexto) return;
     el.dataset.tipo = tipo;
+    el.dataset.nota = notaTexto;
+    const inner = el.firstElementChild as HTMLElement | null;
+    if (inner) inner.innerHTML = svgPinFijo(COLOR_MI_PUNTO, conNota);
 }
 
 /** Bounding box de un solo polígono (reusa calcularBounds). */
@@ -374,14 +384,15 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         }
         for (const m of misMarcasRef.current) {
             const tipo = m.tipo as TipoMarca;
+            const conNota = !!m.nota?.trim();
             const existente = markers.get(m.id);
             if (existente) {
                 existente.setLngLat([m.lng, m.lat]);
-                actualizarColorMiMarca(existente.getElement(), tipo);
+                actualizarColorMiMarca(existente.getElement(), tipo, conNota);
                 aplicarResalte(existente.getElement(), m.id === miMarcaSeleccionadaRef.current);
                 continue;
             }
-            const el = elementoMiPunto(tipo);
+            const el = elementoMiPunto(tipo, conNota);
             const marker = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable: true });
             marker.setLngLat([m.lng, m.lat]).addTo(mapa);
             const idMarca = m.id;
@@ -489,10 +500,15 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             mapa.addSource(ID_NEGOCIOS, { type: 'geojson', data: negociosGeoJSON(negociosRef.current) });
             if (!mapa.hasImage('negocio-sin')) { const i = iconoNegocio(COLOR_NEGOCIO.sinVendedor); mapa.addImage('negocio-sin', i.data, { pixelRatio: i.ratio }); }
             if (!mapa.hasImage('negocio-con')) { const i = iconoNegocio(COLOR_NEGOCIO.conVendedor); mapa.addImage('negocio-con', i.data, { pixelRatio: i.ratio }); }
+            if (!mapa.hasImage('negocio-con-nota')) { const i = iconoNegocio(COLOR_NEGOCIO.conVendedor, true); mapa.addImage('negocio-con-nota', i.data, { pixelRatio: i.ratio }); }
             mapa.addLayer({
                 id: ID_NEGOCIOS_C, type: 'symbol', source: ID_NEGOCIOS,
                 layout: {
-                    'icon-image': ['case', ['==', ['get', 'embajadorId'], ''], 'negocio-sin', 'negocio-con'],
+                    'icon-image': ['case',
+                        ['==', ['get', 'embajadorId'], ''], 'negocio-sin',
+                        ['!=', ['get', 'nota'], ''], 'negocio-con-nota',
+                        'negocio-con',
+                    ],
                     'icon-anchor': 'bottom',
                     'icon-allow-overlap': true,
                     'icon-size': 1,

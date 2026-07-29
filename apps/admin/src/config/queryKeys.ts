@@ -214,6 +214,7 @@ export const queryKeys = {
     marcas: () => ['territorios', 'marcas'] as const,
     marcasEquipo: (ciudadId?: string) => ['territorios', 'marcas-equipo', ciudadId ?? 'todas'] as const,
     negociosMapa: (ciudadId?: string) => ['territorios', 'negocios', ciudadId ?? 'todas'] as const,
+    misNotas: () => ['territorios', 'mis-notas'] as const,
   },
   configuracion: {
     all: () => ['configuracion'] as const,

@@ -270,6 +270,51 @@ export async function listarNegociosMapa(panel: UsuarioPanel, ciudadId?: string)
     }));
 }
 
+/** Una nota guardada sobre uno de mis negocios asignados (para la página "Mis notas"). */
+export interface NotaNegocio {
+    id: string;
+    nombre: string;
+    nota: string;
+    ciudadId: string | null;
+    ciudadNombre: string | null;
+    lat: number;
+    lng: number;
+}
+
+/**
+ * Todas las notas que YO escribí sobre negocios asignados a mi propio embajador (vendedor o
+ * gerente-vendedor). El super nunca tiene negocios "suyos" → siempre []. Ordenadas por nombre
+ * del negocio (lista "bien ordenada" para buscar rápido).
+ */
+export async function listarMisNotasNegocio(panel: UsuarioPanel): Promise<NotaNegocio[]> {
+    if ((panel.rolEquipo !== 'vendedor' && panel.rolEquipo !== 'gerente') || !panel.usuarioId) return [];
+
+    const [e] = await db.select({ id: embajadores.id }).from(embajadores).where(eq(embajadores.usuarioId, panel.usuarioId)).limit(1);
+    if (!e) return [];
+
+    const filas = (await db.execute(sql`
+        SELECT n.id::text AS id, n.nombre AS nombre, n.nota_territorio AS nota,
+               s.ciudad_id::text AS ciudad_id, c.nombre AS ciudad_nombre,
+               ST_Y(s.ubicacion::geometry) AS lat, ST_X(s.ubicacion::geometry) AS lng
+        FROM negocios n
+        JOIN negocio_sucursales s ON s.negocio_id = n.id AND s.es_principal = true
+        LEFT JOIN ciudades c ON c.id = s.ciudad_id
+        WHERE n.embajador_id = ${e.id}
+          AND n.nota_territorio IS NOT NULL AND n.nota_territorio != ''
+        ORDER BY n.nombre
+    `)).rows as Array<{ id: string; nombre: string; nota: string; ciudad_id: string | null; ciudad_nombre: string | null; lat: string | number | null; lng: string | number | null }>;
+
+    return filas.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        nota: f.nota,
+        ciudadId: f.ciudad_id,
+        ciudadNombre: f.ciudad_nombre,
+        lat: f.lat != null ? Number(f.lat) : NaN,
+        lng: f.lng != null ? Number(f.lng) : NaN,
+    }));
+}
+
 /** Vendedores asignables a una zona según el rol (super = todos activos · gerente = los de su región). */
 export async function listarVendedoresAsignables(panel: UsuarioPanel): Promise<Array<{ embajadorId: string; nombre: string | null }>> {
     if (panel.rolEquipo === 'vendedor') return [];

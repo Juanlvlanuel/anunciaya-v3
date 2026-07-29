@@ -214,13 +214,28 @@ export function useMoverMarca() {
   });
 }
 
-/** Guardar la nota del vendedor sobre uno de sus negocios asignados. Invalida los negocios del mapa. */
+/** Guardar la nota del vendedor sobre uno de sus negocios asignados. Invalida los negocios del mapa
+ *  y la lista "Mis notas". */
 export function useActualizarNotaNegocio() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, nota }: { id: string; nota: string | null }) => territoriosService.actualizarNotaNegocio(id, nota),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['territorios', 'negocios'] }); toast.exito('Nota guardada'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['territorios', 'negocios'] });
+      qc.invalidateQueries({ queryKey: queryKeys.territorios.misNotas() });
+      toast.exito('Nota guardada');
+    },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar la nota')),
+  });
+}
+
+/** Todas mis notas guardadas (página completa "Notas"). */
+export function useMisNotasNegocio(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.territorios.misNotas(),
+    queryFn: () => territoriosService.listarMisNotasNegocio(),
+    enabled,
+    staleTime: 1000 * 60,
   });
 }
 

@@ -9,7 +9,9 @@
 > en ambas vistas (rediseño responsive móvil/horizontal/escritorio, mapa fijo al viewport, pines, FABs, cards
 > inline, tarjeta de detalle). `tsc` de `apps/api` y `apps/admin` en verde. Backlog (no bloqueante): cobertura
 > multi-región (Pieza F) y curvas en el dibujo.
-> **Última actualización:** 27 Julio 2026 (permiso de edición del super ampliado a cualquier zona + nota
+> **Última actualización:** 28 Julio 2026 (página completa "Mis notas" — todas las notas que escribí sobre
+> mis negocios asignados, buscable por nombre — + badge ámbar en el pin del negocio que ya tiene nota).
+> Anterior: 27 Julio 2026 (permiso de edición del super ampliado a cualquier zona + nota
 > del vendedor sobre sus negocios asignados, con paridad para el gerente-vendedor + el gerente puede poner
 > "sus puntos" sin necesitar una zona propia, eligiendo ciudad en su lugar).
 
@@ -89,6 +91,18 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   "Mi territorio"), el pin de un negocio **suyo** abre la nota **editable** dentro de la misma tarjeta de
   detalle; los de otros vendedores siguen en **solo lectura**. El super nunca tiene negocios "suyos", así que
   siempre ve solo lectura.
+- **Badge de "tiene nota" (28 jul 2026):** el pin que ya tiene una nota escrita muestra un **puntito
+  ámbar** en la esquina — aplica tanto al pin de un **negocio** con vendedor asignado como al pin de
+  **mi propia marca** de prospección (el vendedor en "Mi territorio" y el gerente en "Mis puntos"). Antes
+  no había ninguna señal visual de qué puntos ya tenían seguimiento anotado.
+- **"Mis notas" (28 jul 2026):** botón "Notas" (vendedor siempre; gerente si tiene negocios/marcas en su
+  cartera) que abre una **página completa** (reemplaza el mapa) con **todas** mis notas — de **dos orígenes
+  distintos, unificados en una sola lista**: mis **negocios** asignados con nota (`nota_territorio`) y mis
+  **marcas** de prospección con nota (`territorio_marcas.nota`, los pines que yo mismo pongo al recorrer la
+  zona). Buscable por nombre (el de la marca es el campo opcional "Nombre del negocio" del editor de marca).
+  Cada tarjeta tiene "Ver en el mapa": si es un negocio, centra/cambia de ciudad; si es una marca, centra
+  exacto (vendedor) o abre su editor (gerente). Alcance **solo mis propias notas** (dueño real por
+  `embajador_id`) — no hay vista agregada de las notas de todo el equipo.
 
 ### Cómo se conecta con la app
 Es un módulo **interno del Panel** (operación de la red de ventas). No tiene contraparte pública en
@@ -158,6 +172,7 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 - `POST /zonas` · `PATCH /zonas/:id` · `PATCH /zonas/:id/vendedor` · `DELETE /zonas/:id` (super+gerente; el super sobre **cualquier** zona)
 - `GET /marcas` · `POST /marcas` · `PATCH /marcas/:id` · `DELETE /marcas/:id` (vendedor **o gerente**; el gerente exige `ciudadId` al crear)
 - `PATCH /negocios/:id/nota` (vendedor **o gerente**, solo sobre uno de **sus** negocios asignados — verificado por `embajador_id`, no por rol)
+- `GET /mis-notas` (vendedor **o gerente**, 28 jul) — negocios de mi propio `embajador_id` con `nota_territorio` no vacía, ordenados por nombre (`listarMisNotasNegocio` en `territorios.service.ts`)
 
 ### Frontend del Panel (`apps/admin`)
 | Archivo | Rol |
@@ -167,7 +182,8 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 | `components/territorios/MapaTerritorios.tsx` | Mapa admin (MapLibre + OpenFreeMap): pinta zonas + **editor de 4 herramientas** con snapping a calles (arrastre de vértices por mouse **y touch**) + **marcas de vendedores** y **negocios** como **pines** (capa `symbol`) + **tarjeta de detalle** al clic (marca siempre solo-lectura; negocio solo-lectura salvo que `esMio` → editor de nota inline) + **"mis puntos"** del gerente como `maplibregl.Marker` arrastrables (props `misMarcas`/`modoAgregarMarca`/`onAgregarMarca`/`onClicMiMarca`/`onMoverMiMarca`/`miMarcaSeleccionadaId`, mismo patrón que `MapaMarcas.tsx` pero sin restricción de zona), vía **portal** cuando el mapa es fijo. Recibe `mapaFijo` · `onGuardarNotaNegocio` · `guardandoNotaNegocio` |
 | `components/territorios/VistaVendedorTerritorio.tsx` | Vista "Mi territorio": shell responsive (vertical con hoja peek · horizontal con panel deslizable · escritorio con sidebar), FABs sobre el mapa, editor de marca, editor de **nota de negocio** (mini-form análogo, sin selector de estado ni borrar), lista (cards inline con ver/editar) |
 | `components/territorios/HojaMovil.tsx` | Bottom-sheet con "peek" reutilizado por ambas vistas (gerente y vendedor): resumen siempre asomado + FABs anclados que suben/bajan con la hoja |
-| `components/territorios/MapaMarcas.tsx` | Mapa del vendedor: zona enmascarada (capa "mundo con huecos", **sin `maxBounds`** — paneo libre) + intro animado + marcas como **`maplibregl.Marker`** HTML (arrastrables, con resalte al seleccionar) + negocios pin-tienda + popup (con nota si tiene) + bloqueo dentro/fuera de zona. Prop `onClicNegocio` (clic en un negocio propio abre el editor de nota en vez del popup). **Exporta** utilidades reusadas por el mapa admin (`COLOR_TIPO`/`ETIQUETA_TIPO`/`OFFSET_PIN`/`iconoNegocio`/`iconoPinMarca`/`elementoPin`/`aplicarResalte`/`centrarPinBajoEditor`/`ESTADO_BADGE`/`contenidoPopupNegocio`) |
+| `components/territorios/MapaMarcas.tsx` | Mapa del vendedor: zona enmascarada (capa "mundo con huecos", **sin `maxBounds`** — paneo libre) + intro animado + marcas como **`maplibregl.Marker`** HTML (arrastrables, con resalte al seleccionar) + negocios pin-tienda + popup (con nota si tiene) + bloqueo dentro/fuera de zona. Prop `onClicNegocio` (clic en un negocio propio abre el editor de nota en vez del popup). **Exporta** utilidades reusadas por el mapa admin (`COLOR_TIPO`/`ETIQUETA_TIPO`/`OFFSET_PIN`/`iconoNegocio`/`iconoPinMarca`/`elementoPin`/`aplicarResalte`/`centrarPinBajoEditor`/`ESTADO_BADGE`/`contenidoPopupNegocio`). `iconoNegocio(color, conNota?)` (28 jul) agrega el badge ámbar; el sprite `negocio-con-nota` se registra junto a `negocio-sin`/`negocio-con` y el `icon-image` del layer elige por `nota !== ''` — mismo patrón calcado en `MapaTerritorios.tsx` |
+| `components/territorios/PanelNotasNegocios.tsx` | Página completa "Mis notas" (28 jul), puramente presentacional: recibe `items: NotaListItem[]` ya unificados (no pide datos). Cada vista padre arma el arreglo combinando `useMisNotasNegocio()` (negocios) + `useMisMarcas()`/`misMarcas` filtradas por `nota` no vacía (marcas) — datos que YA tenía cargados, sin duplicar requests. Buscador por nombre + "Ver en el mapa" por tarjeta. La monta tanto `VistaVendedorTerritorio` como `VistaAdminTerritorio` (solo gerente) como un `if (vista === 'notas') return <PanelNotasNegocios .../>` antes de los 3 layouts responsive — no duplica el armazón móvil/escritorio |
 | `data/menuPanel.ts` | Ítem "Territorios" en "Red de ventas" (`roles: ['superadmin','gerente','vendedor']`, `etiquetaPorRol: { vendedor: 'Mi territorio' }`) |
 
 ### Decisiones de diseño

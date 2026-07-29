@@ -16,12 +16,13 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapPin, Plus, Trash2, X, Store, ChevronRight, ChevronLeft, Pencil } from 'lucide-react';
-import { useZonas, useMisMarcas, useNegociosMapa, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca, useActualizarNotaNegocio } from '../../hooks/queries/useTerritoriosAdmin';
+import { MapPin, Plus, Trash2, X, Store, ChevronRight, ChevronLeft, Pencil, StickyNote } from 'lucide-react';
+import { useZonas, useMisMarcas, useNegociosMapa, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca, useActualizarNotaNegocio, useMisNotasNegocio } from '../../hooks/queries/useTerritoriosAdmin';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { MapaMarcas, COLOR_TIPO, ETIQUETA_TIPO, fechaCorta } from './MapaMarcas';
 import { HojaMovil } from './HojaMovil';
+import { PanelNotasNegocios, type NotaListItem } from './PanelNotasNegocios';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
 import type { TipoMarca } from '../../services/territoriosService';
@@ -47,6 +48,7 @@ export function VistaVendedorTerritorio() {
     const { data: zonas = [], isLoading: cargandoZonas } = useZonas({});
     const { data: marcas = [] } = useMisMarcas();
     const { data: negocios = [] } = useNegociosMapa();
+    const { data: notasNegocio = [], isLoading: cargandoNotas } = useMisNotasNegocio();
     const crear = useCrearMarca();
     const editar = useEditarMarca();
     const mover = useMoverMarca();
@@ -54,6 +56,10 @@ export function VistaVendedorTerritorio() {
     const actualizarNota = useActualizarNotaNegocio();
 
     const esEscritorio = useEsEscritorio();
+    // "Mis notas": página completa (reemplaza el mapa) con todas mis notas guardadas, buscable por
+    // nombre de negocio. "Ver en el mapa" regresa aquí y centra en el negocio (reusa `foco`, igual
+    // que "ver en el mapa" de una marca).
+    const [vista, setVista] = useState<'mapa' | 'notas'>('mapa');
     const [modoAgregar, setModoAgregar] = useState(false);
     const [editando, setEditando] = useState<MarcaEnEdicion | null>(null);
     const [editandoNegocio, setEditandoNegocio] = useState<NegocioEnEdicion | null>(null);
@@ -165,6 +171,30 @@ export function VistaVendedorTerritorio() {
     const verMarca = (m: { id: string; lng: number; lat: number }) => {
         setHojaExpandida(false);
         setFoco((f) => ({ id: m.id, coords: [m.lng, m.lat], nonce: (f?.nonce ?? 0) + 1 }));
+    };
+
+    // "Mis notas": une mis negocios con nota + mis marcas con nota (dos orígenes distintos, una sola
+    // lista buscable por nombre). Reusa los datos ya cargados (sin pedirlos de nuevo).
+    const notasUnificadas: NotaListItem[] = useMemo(() => {
+        const deNegocios: NotaListItem[] = notasNegocio.map((n) => ({
+            id: `negocio-${n.id}`, entidadId: n.id, nombre: n.nombre, nota: n.nota,
+            origen: 'negocio', subtitulo: n.ciudadNombre, lat: n.lat, lng: n.lng,
+        }));
+        const deMarcas: NotaListItem[] = marcas
+            .filter((m) => m.nota?.trim())
+            .map((m) => ({
+                id: `marca-${m.id}`, entidadId: m.id, nombre: m.nombre || ETIQUETA_TIPO[m.tipo], nota: m.nota as string,
+                origen: 'marca', subtitulo: ETIQUETA_TIPO[m.tipo], lat: m.lat, lng: m.lng,
+            }));
+        return [...deNegocios, ...deMarcas].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }, [notasNegocio, marcas]);
+
+    // "Ver en el mapa" desde "Mis notas": vuelve al mapa y centra en ese punto (mismo mecanismo que
+    // "ver en el mapa" de una marca, sirve igual para negocio o marca).
+    const irANotaEnMapa = (n: NotaListItem) => {
+        setVista('mapa');
+        setHojaExpandida(false);
+        setFoco((f) => ({ id: n.entidadId, coords: [n.lng, n.lat], nonce: (f?.nonce ?? 0) + 1 }));
     };
 
     const alAgregarMarca = (lat: number, lng: number) => {
@@ -447,8 +477,20 @@ export function VistaVendedorTerritorio() {
     // El "Agregar marca" ya NO vive en el panel: es un FAB sobre el mapa en todos los layouts.
     // `filtrosCarrusel`: en HORIZONTAL (panel angosto) los filtros van en 1 fila deslizable; en
     // ESCRITORIO con flex-wrap.
+    const botonNotas = (
+        <button
+            type="button"
+            data-testid="ir-notas"
+            onClick={() => setVista('notas')}
+            className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-superficie-2"
+        >
+            <StickyNote size={14} /> Mis notas
+        </button>
+    );
+
     const contenidoPanel = (filtrosCarrusel: boolean) => (
         <>
+            <div className="shrink-0">{botonNotas}</div>
             {piezaFiltros(filtrosCarrusel)}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{piezaLista}</div>
         </>
@@ -474,6 +516,21 @@ export function VistaVendedorTerritorio() {
             onConfirmar={borrarMarca}
         />
     ) : null;
+
+    // El panel de notas se arma una sola vez: en escritorio vive DENTRO de la columna derecha (el mapa
+    // se sigue viendo); en móvil (vertical u horizontal) es página completa (early return más abajo).
+    const panelNotas = (
+        <PanelNotasNegocios
+            items={notasUnificadas}
+            cargando={cargandoNotas}
+            onVolver={() => setVista('mapa')}
+            onVerEnMapa={irANotaEnMapa}
+        />
+    );
+
+    if (vista === 'notas' && !esEscritorio) {
+        return panelNotas;
+    }
 
     // ── Móvil HORIZONTAL: mapa de fondo + panel 1/3 a la derecha, ocultable ────
     if (!esEscritorio && esHorizontal) {
@@ -533,6 +590,7 @@ export function VistaVendedorTerritorio() {
                     fabIzquierda={!editando && !editandoNegocio ? fabNegocios : undefined}
                     fabDerecha={!editando && !editandoNegocio ? fabAgregar : undefined}
                 >
+                    {botonNotas}
                     {piezaLista}
                 </HojaMovil>
 
@@ -558,7 +616,7 @@ export function VistaVendedorTerritorio() {
                 {miniFormNegocio}
             </div>
             <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-[420px] lg:pr-3 lg:pt-3">
-                {contenidoPanel(false)}
+                {vista === 'notas' ? panelNotas : contenidoPanel(false)}
             </aside>
             {dialogoBorrar}
         </div>
