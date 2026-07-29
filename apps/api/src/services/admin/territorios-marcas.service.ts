@@ -34,6 +34,7 @@ export interface MarcaTerritorio {
     lng: number;
     tipo: string;
     nombre: string | null;
+    telefono: string | null;
     nota: string | null;
     createdAt: string | null;
 }
@@ -57,6 +58,7 @@ export async function listarMisMarcas(panel: UsuarioPanel): Promise<MarcaTerrito
             lng: territorioMarcas.lng,
             tipo: territorioMarcas.tipo,
             nombre: territorioMarcas.nombre,
+            telefono: territorioMarcas.telefono,
             nota: territorioMarcas.nota,
             createdAt: territorioMarcas.createdAt,
         })
@@ -83,7 +85,7 @@ export async function crearMarca(panel: UsuarioPanel, datos: CrearMarcaInput): P
 
     const [m] = await db
         .insert(territorioMarcas)
-        .values({ embajadorId: embId, lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nombre: datos.nombre?.trim() || null, nota: datos.nota?.trim() || null, ciudadId: datos.ciudadId ?? null })
+        .values({ embajadorId: embId, lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nombre: datos.nombre?.trim() || null, telefono: datos.telefono?.trim() || null, nota: datos.nota?.trim() || null, ciudadId: datos.ciudadId ?? null })
         .returning({ id: territorioMarcas.id });
     return { ok: true, data: { id: m.id } };
 }
@@ -107,6 +109,7 @@ export async function editarMarca(panel: UsuarioPanel, id: string, datos: Editar
     if (datos.lng !== undefined) cambios.lng = datos.lng;
     if (datos.tipo !== undefined) cambios.tipo = datos.tipo;
     if (datos.nombre !== undefined) cambios.nombre = datos.nombre?.trim() || null;
+    if (datos.telefono !== undefined) cambios.telefono = datos.telefono?.trim() || null;
     if (datos.nota !== undefined) cambios.nota = datos.nota?.trim() || null;
     await db.update(territorioMarcas).set(cambios).where(eq(territorioMarcas.id, id));
     return { ok: true, data: { id } };

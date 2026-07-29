@@ -135,6 +135,7 @@ export interface MarcaEquipo {
     lng: number;
     tipo: string;
     nombre: string | null;
+    telefono: string | null;
     nota: string | null;
     vendedorNombre: string | null;
     createdAt: string | null;
@@ -177,14 +178,14 @@ export async function listarMarcasEquipo(panel: UsuarioPanel, ciudadId?: string)
     const filtroEmbajador = condiciones.length ? sql`WHERE ${sql.join(condiciones, sql` AND `)}` : sql``;
 
     const filas = (await db.execute(sql`
-        SELECT m.id::text AS id, m.lat AS lat, m.lng AS lng, m.tipo AS tipo, m.nombre AS marca_nombre, m.nota AS nota,
-               m.created_at AS created_at, u.nombre AS vendedor_nombre
+        SELECT m.id::text AS id, m.lat AS lat, m.lng AS lng, m.tipo AS tipo, m.nombre AS marca_nombre,
+               m.telefono AS telefono, m.nota AS nota, m.created_at AS created_at, u.nombre AS vendedor_nombre
         FROM territorio_marcas m
         JOIN embajadores e ON e.id = m.embajador_id
         LEFT JOIN usuarios u ON u.id = e.usuario_id
         ${filtroEmbajador}
         ORDER BY m.created_at DESC
-    `)).rows as Array<{ id: string; lat: string | number; lng: string | number; tipo: string; marca_nombre: string | null; nota: string | null; created_at: string | null; vendedor_nombre: string | null }>;
+    `)).rows as Array<{ id: string; lat: string | number; lng: string | number; tipo: string; marca_nombre: string | null; telefono: string | null; nota: string | null; created_at: string | null; vendedor_nombre: string | null }>;
 
     return filas.map((f) => ({
         id: f.id,
@@ -192,6 +193,7 @@ export async function listarMarcasEquipo(panel: UsuarioPanel, ciudadId?: string)
         lng: Number(f.lng),
         tipo: f.tipo,
         nombre: f.marca_nombre,
+        telefono: f.telefono,
         nota: f.nota,
         vendedorNombre: f.vendedor_nombre,
         createdAt: f.created_at,

@@ -15,7 +15,7 @@
  * Ubicación: apps/admin/src/components/territorios/SeccionTerritorios.tsx
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Pencil, Trash2, ChevronRight, ChevronLeft, Store, X, MapPin, StickyNote } from 'lucide-react';
 import {
     useZonas,
@@ -117,11 +117,27 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
     // "Mis puntos" (gerente, G.2 sin zona propia): igual patrón que el editor de marca del vendedor.
     const [modoAgregarMarca, setModoAgregarMarca] = useState(false);
-    const [marcaEditando, setMarcaEditando] = useState<{ id: string | null; tipo: TipoMarca; nombre: string; nota: string } | null>(null);
+    const [marcaEditando, setMarcaEditando] = useState<{ id: string | null; tipo: TipoMarca; nombre: string; telefono: string; nota: string } | null>(null);
     const [confirmarBorrarMarca, setConfirmarBorrarMarca] = useState(false);
     // Menú del FAB "+" único (gerente: elige entre "Dibujar zona" y "Agregar punto"; el super, al no
     // tener la 2ª opción, entra directo a dibujar sin menú).
     const [menuAgregarAbierto, setMenuAgregarAbierto] = useState(false);
+
+    // Cerrar el editor de "mi punto" al hacer click/tap FUERA de él (mismo patrón que el editor de
+    // marca del vendedor). 'click' (no 'pointerdown') para que arrastrar el mapa no lo cierre.
+    const formMarcaGerenteRef = useRef<HTMLDivElement>(null);
+    // Ignora el click-fuera justo tras CREAR/ABRIR: el mismo tap que dispara la apertura (o su "ghost
+    // click" en táctil) llegaría al listener y cerraría el editor recién abierto.
+    const ignorarCierreMarcaRef = useRef(false);
+    useEffect(() => {
+        if (!marcaEditando || confirmarBorrarMarca) return;
+        const alClickFuera = (e: MouseEvent) => {
+            if (ignorarCierreMarcaRef.current) return;
+            if (formMarcaGerenteRef.current && !formMarcaGerenteRef.current.contains(e.target as Node)) setMarcaEditando(null);
+        };
+        document.addEventListener('click', alClickFuera);
+        return () => document.removeEventListener('click', alClickFuera);
+    }, [marcaEditando, confirmarBorrarMarca]);
 
     // Al terminar de dibujar (aparece el formulario) la hoja se expande para verlo;
     // al empezar a dibujar se colapsa a peek para no tapar el mapa.
@@ -271,7 +287,9 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const alAgregarMarca = (lat: number, lng: number) => {
         if (!ciudadId) return;
         setModoAgregarMarca(false);
-        setMarcaEditando({ id: null, tipo: 'visitado', nombre: '', nota: '' });
+        ignorarCierreMarcaRef.current = true;
+        window.setTimeout(() => { ignorarCierreMarcaRef.current = false; }, 400);
+        setMarcaEditando({ id: null, tipo: 'visitado', nombre: '', telefono: '', nota: '' });
         crearMiMarca.mutate(
             { lat, lng, tipo: 'visitado', ciudadId },
             { onSuccess: (data) => setMarcaEditando((p) => (p && p.id === null ? { ...p, id: data.id } : p)) },
@@ -282,15 +300,19 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const abrirMarca = (id: string) => {
         const m = misMarcas.find((x) => x.id === id);
         if (!m) return;
+        // Ignora el click-fuera del propio gesto: el botón "editar" de la lista no hace stopPropagation
+        // como el pin → sin esto, su click cerraría el editor recién abierto.
+        ignorarCierreMarcaRef.current = true;
+        window.setTimeout(() => { ignorarCierreMarcaRef.current = false; }, 400);
         setModoAgregarMarca(false);
         setMenuAgregarAbierto(false);
-        setMarcaEditando({ id: m.id, tipo: m.tipo as TipoMarca, nombre: m.nombre ?? '', nota: m.nota ?? '' });
+        setMarcaEditando({ id: m.id, tipo: m.tipo as TipoMarca, nombre: m.nombre ?? '', telefono: m.telefono ?? '', nota: m.nota ?? '' });
     };
 
     const guardarMarca = () => {
         if (!marcaEditando?.id) return;
         editarMiMarca.mutate(
-            { id: marcaEditando.id, datos: { tipo: marcaEditando.tipo, nombre: marcaEditando.nombre.trim() || null, nota: marcaEditando.nota.trim() || null } },
+            { id: marcaEditando.id, datos: { tipo: marcaEditando.tipo, nombre: marcaEditando.nombre.trim() || null, telefono: marcaEditando.telefono.trim() || null, nota: marcaEditando.nota.trim() || null } },
             { onSuccess: () => setMarcaEditando(null) },
         );
     };
@@ -520,7 +542,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     // Mini-form de "mi punto" (nuevo o en edición): mismo patrón que el editor de marca del vendedor
     // (estado + nota + borrar/guardar), sin selector de zona porque el punto no depende de una.
     const miniFormMarca = marcaEditando ? (
-        <div className="absolute left-3 top-3 z-30 w-[min(420px,calc(100%-1.5rem))] rounded-[14px] border border-borde bg-superficie p-3 shadow-tarjeta-panel" data-testid="form-marca-gerente">
+        <div ref={formMarcaGerenteRef} className="absolute left-3 top-3 z-30 w-[min(420px,calc(100%-1.5rem))] rounded-[14px] border border-borde bg-superficie p-3 shadow-tarjeta-panel" data-testid="form-marca-gerente">
             <div className="mb-1 flex items-center justify-between">
                 <span className="text-[13px] font-semibold text-texto">{marcaEditando.id ? 'Editar punto' : 'Nuevo punto'}</span>
                 <button type="button" onClick={() => setMarcaEditando(null)} aria-label="Cerrar" className="grid h-9 w-9 place-items-center rounded-full text-texto-3 transition hover:bg-superficie-2">
@@ -550,12 +572,20 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 placeholder="Nombre del negocio (opcional)"
                 className="mt-2 w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[14px] text-texto outline-none focus:border-marca"
             />
+            <input
+                data-testid="marca-gerente-telefono"
+                type="tel"
+                value={marcaEditando.telefono}
+                onChange={(e) => setMarcaEditando((p) => (p ? { ...p, telefono: e.target.value } : p))}
+                placeholder="Teléfono o celular (opcional)"
+                className="mt-2 w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[14px] text-texto outline-none focus:border-marca"
+            />
             <textarea
                 data-testid="marca-gerente-nota"
                 value={marcaEditando.nota}
                 onChange={(e) => setMarcaEditando((p) => (p ? { ...p, nota: e.target.value } : p))}
                 placeholder="Nota (ej. contactar la próxima semana…)"
-                rows={3}
+                rows={8}
                 className="mt-2 w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[14px] text-texto outline-none focus:border-marca"
             />
             <div className="mt-2 flex gap-2">

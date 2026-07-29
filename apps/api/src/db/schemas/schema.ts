@@ -96,6 +96,9 @@ export const territorioMarcas = pgTable("territorio_marcas", {
 	// Nombre libre del negocio que representa el punto (no liga a un `negocios.id` real — la liga
 	// marca↔negocio se descartó antes). Opcional: puede ser solo una nota sin nombre.
 	nombre: varchar({ length: 120 }),
+	// Teléfono/celular libre de contacto del negocio marcado (opcional, sin validación de formato —
+	// es una nota de prospección, no un dato de un negocio real ya registrado).
+	telefono: varchar({ length: 20 }),
 	nota: text(),
 	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),

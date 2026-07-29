@@ -162,13 +162,13 @@ function useInvalidarMarcas() {
 export function useCrearMarca() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (datos: { lat: number; lng: number; tipo: TipoMarca; nombre?: string; nota?: string; ciudadId?: string | null }) => territoriosService.crearMarca(datos),
+    mutationFn: (datos: { lat: number; lng: number; tipo: TipoMarca; nombre?: string; telefono?: string; nota?: string; ciudadId?: string | null }) => territoriosService.crearMarca(datos),
     onMutate: async (datos) => {
       await qc.cancelQueries({ queryKey: queryKeys.territorios.marcas() });
       const previo = qc.getQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas());
       const optimista: MarcaTerritorio = {
         id: `temp-${previo?.length ?? 0}-${datos.lat}-${datos.lng}`,
-        lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nombre: datos.nombre ?? null, nota: datos.nota ?? null, createdAt: null,
+        lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nombre: datos.nombre ?? null, telefono: datos.telefono ?? null, nota: datos.nota ?? null, createdAt: null,
       };
       qc.setQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas(), (old) => [...(old ?? []), optimista]);
       return { previo };
@@ -185,7 +185,7 @@ export function useCrearMarca() {
 export function useEditarMarca() {
   const invalidar = useInvalidarMarcas();
   return useMutation({
-    mutationFn: ({ id, datos }: { id: string; datos: { tipo?: TipoMarca; nombre?: string | null; nota?: string | null } }) => territoriosService.editarMarca(id, datos),
+    mutationFn: ({ id, datos }: { id: string; datos: { tipo?: TipoMarca; nombre?: string | null; telefono?: string | null; nota?: string | null } }) => territoriosService.editarMarca(id, datos),
     onSuccess: () => { invalidar(); toast.exito('Marca guardada'); },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar la marca')),
   });

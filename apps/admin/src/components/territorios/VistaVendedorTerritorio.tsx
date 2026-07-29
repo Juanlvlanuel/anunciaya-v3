@@ -34,6 +34,7 @@ interface MarcaEnEdicion {
     id: string | null; // null = recién creada, esperando el id real del servidor (editor ya abierto)
     tipo: TipoMarca;
     nombre: string;
+    telefono: string;
     nota: string;
 }
 
@@ -143,7 +144,7 @@ export function VistaVendedorTerritorio() {
         setModoAgregar(false);
         setEditandoNegocio(null);
         setFoco(null); // el resalte pasa a ser el de la marca en edición
-        setEditando({ id: m.id, tipo: m.tipo, nombre: m.nombre ?? '', nota: m.nota ?? '' });
+        setEditando({ id: m.id, tipo: m.tipo, nombre: m.nombre ?? '', telefono: m.telefono ?? '', nota: m.nota ?? '' });
     };
 
     // Abre el editor de la nota de uno de los negocios asignados (clic en su pin en el mapa).
@@ -204,7 +205,7 @@ export function VistaVendedorTerritorio() {
         // Ignora el click-fuera del propio gesto que crea (si no, cerraría el editor recién abierto).
         ignorarCierreRef.current = true;
         window.setTimeout(() => { ignorarCierreRef.current = false; }, 400);
-        setEditando({ id: null, tipo: 'visitado', nombre: '', nota: '' }); // abre el editor AL INSTANTE (sin esperar al servidor)
+        setEditando({ id: null, tipo: 'visitado', nombre: '', telefono: '', nota: '' }); // abre el editor AL INSTANTE (sin esperar al servidor)
         crear.mutate(
             { lat, lng, tipo: 'visitado' },
             {
@@ -218,7 +219,7 @@ export function VistaVendedorTerritorio() {
     const guardarMarca = () => {
         if (!editando?.id) return; // aún sin id real (servidor respondiendo): el botón está deshabilitado
         editar.mutate(
-            { id: editando.id, datos: { tipo: editando.tipo, nombre: editando.nombre.trim() || null, nota: editando.nota.trim() || null } },
+            { id: editando.id, datos: { tipo: editando.tipo, nombre: editando.nombre.trim() || null, telefono: editando.telefono.trim() || null, nota: editando.nota.trim() || null } },
             { onSuccess: () => setEditando(null) },
         );
     };
@@ -349,12 +350,20 @@ export function VistaVendedorTerritorio() {
                 placeholder="Nombre del negocio (opcional)"
                 className="mt-2 w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[15px] text-texto outline-none focus:border-marca"
             />
+            <input
+                data-testid="marca-telefono"
+                type="tel"
+                value={editando.telefono}
+                onChange={(e) => setEditando((p) => (p ? { ...p, telefono: e.target.value } : p))}
+                placeholder="Teléfono o celular (opcional)"
+                className="mt-2 w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[15px] text-texto outline-none focus:border-marca"
+            />
             <textarea
                 data-testid="marca-nota"
                 value={editando.nota}
                 onChange={(e) => setEditando((p) => (p ? { ...p, nota: e.target.value } : p))}
                 placeholder="Nota (ej. Volver el martes, hablar con el dueño…)"
-                rows={4}
+                rows={10}
                 className="mt-2 w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[15px] text-texto outline-none focus:border-marca"
             />
             <div className="mt-2 flex gap-2">
@@ -395,7 +404,7 @@ export function VistaVendedorTerritorio() {
                 value={editandoNegocio.nota}
                 onChange={(e) => setEditandoNegocio((p) => (p ? { ...p, nota: e.target.value } : p))}
                 placeholder="Nota sobre este negocio (ej. pidió que le llamen la próxima semana…)"
-                rows={4}
+                rows={10}
                 className="mt-2 w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[15px] text-texto outline-none focus:border-marca"
             />
             <div className="mt-2 flex gap-2">

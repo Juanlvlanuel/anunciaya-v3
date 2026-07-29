@@ -78,6 +78,15 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   **arrastrables** (sin restricción de zona: se pueden mover a cualquier parte) y aparecen en una lista
   aparte ("Mis puntos") debajo de la lista de zonas, con botón editar. No compiten con "Marcas del equipo":
   esas son de los vendedores reales; las del propio gerente quedan excluidas de ahí para no verse dos veces.
+- **Editor de marca/punto — teléfono + nota más grande (29 jul 2026):** el editor de una marca (tanto
+  "mis puntos" del gerente como las marcas del vendedor) gana un campo **teléfono/celular** (opcional,
+  libre — junto al de nombre, `territorio_marcas.telefono`) y la **textarea de la nota se agrandó ~2.5x**
+  (de 3–4 filas a 8–10) en PC y móvil, para escribir notas largas sin scroll. El teléfono se muestra
+  también en los popups de hover y en la tarjeta de detalle (gerente/super), si tiene uno cargado.
+- **Cierre por click afuera (29 jul 2026):** el editor de "mis puntos" (gerente) y la tarjeta de detalle
+  de un pin (marca o negocio, vista de gestión) ahora se cierran con un click/tap fuera de ellos —
+  antes solo se cerraban con la ✕ o (para la tarjeta) un click sobre el mapa vacío; en móvil, un tap
+  sobre la barra de ciudad, la hoja o el nav no los cerraba. La vista del vendedor ya lo tenía.
 - **Cuando un negocio de una marca manual ya se registró en la app:** su pin real (negocio) va a aparecer
   junto al pin manual (marca) del mismo lugar — **no hay borrado ni ocultado automático** (decisión de
   Juan, 27 jul): no hay forma confiable de saber que son "el mismo lugar" sin coordenadas idénticas (la liga
@@ -163,8 +172,10 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
   `embajador_id`.
 - **`territorio_marcas`** (migración `docs/migraciones/2026-06-23-territorio-marcas.sql`): `id` ·
   `embajador_id` → `embajadores` CASCADE · `lat`/`lng` **numeric(9,6)** · `tipo` varchar(20) default
-  `'visitado'` + CHECK (`visitado`/`interesado`/`cerrado`/`sin_interes`) · `nota` text · `ciudad_id` →
-  `ciudades` SET NULL · timestamps. (Existe una columna `negocio_id` pero quedó **inerte**: la liga marca↔negocio se revirtió por no tener caso de uso — el onboarding siempre captura ubicación.)
+  `'visitado'` + CHECK (`visitado`/`interesado`/`cerrado`/`sin_interes`) · `nombre` varchar(120) ·
+  **`telefono` varchar(20)** (migración `docs/migraciones/2026-07-29-territorio-marcas-telefono.sql`,
+  29 jul — libre, sin validar formato) · `nota` text · `ciudad_id` → `ciudades` SET NULL · timestamps.
+  (Existe una columna `negocio_id` pero quedó **inerte**: la liga marca↔negocio se revirtió por no tener caso de uso — el onboarding siempre captura ubicación.)
 - **`negocios.nota_territorio`** (migración `docs/migraciones/2026-07-27-negocios-nota-territorio.sql`):
   columna `text` nullable en la tabla `negocios` ya existente. Nota **única** (se sobrescribe) del vendedor
   asignado sobre ese negocio; NO es una tabla nueva ni un historial — mismo patrón que `contraprestacion`

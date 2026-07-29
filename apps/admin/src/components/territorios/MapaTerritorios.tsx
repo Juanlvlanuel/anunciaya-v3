@@ -54,7 +54,7 @@ type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
 
 /** Datos del pin abierto en la tarjeta de detalle (solo lectura). */
 type DetallePin =
-    | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nombre: string | null; nota: string | null; vendedor: string | null; fecha: string | null }
+    | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nombre: string | null; telefono: string | null; nota: string | null; vendedor: string | null; fecha: string | null }
     | { tipo: 'negocio'; id: string; nombre: string; estado: string; asignado: boolean; vendedor: string | null; nota: string | null; esMio: boolean };
 
 interface MapaTerritoriosProps {
@@ -149,12 +149,14 @@ function escaparHtml(s: string): string {
 /** HTML del popup de hover de una marca del vendedor: nombre (o estado) + estado + nota + quién la puso. */
 function contenidoPopupEq(m: MarcaEquipo): string {
     const nombre = m.nombre?.trim();
+    const telefono = m.telefono?.trim();
     const nota = m.nota?.trim();
     const vendedor = m.vendedorNombre?.trim();
     const filaNota = nota
         ? `<div style="font-size:14px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
         : `<div style="font-size:13.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
     const filaEstado = nombre ? badgeHtml(ETIQUETA_TIPO[m.tipo], COLOR_TIPO[m.tipo], `${COLOR_TIPO[m.tipo]}1f`) : '';
+    const filaTelefono = telefono ? `<div style="font-size:13.5px;color:#475569;">Tel: ${escaparHtml(telefono)}</div>` : '';
     const filaVend = vendedor
         ? `<div style="font-size:13px;color:#64748b;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(vendedor)}</span></div>`
         : '';
@@ -162,7 +164,7 @@ function contenidoPopupEq(m: MarcaEquipo): string {
     const filaFecha = fecha ? `<div style="font-size:13px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
     return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
         + tituloPopup(COLOR_TIPO[m.tipo], nombre || ETIQUETA_TIPO[m.tipo], true, true)
-        + filaEstado + filaNota + filaVend + filaFecha + `</div>`;
+        + filaEstado + filaTelefono + filaNota + filaVend + filaFecha + `</div>`;
 }
 
 function construirGeoJSON(zonas: ZonaTerritorio[]) {
@@ -236,6 +238,19 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     // Borrador de la nota mientras se edita un negocio "esMio" (se resetea al abrir cada tarjeta).
     const [notaBorrador, setNotaBorrador] = useState('');
     const cerrarDetalle = () => { setDetalle(null); marcadorResalteRef.current?.remove(); marcadorResalteRef.current = null; };
+    // Cerrar la tarjeta de detalle al hacer click/tap FUERA de ella (móvil: antes solo se cerraba si el
+    // click caía sobre el mapa vacío — clics en la barra de ciudad, la hoja o el nav no la cerraban).
+    const tarjetaDetalleRef = useRef<HTMLDivElement>(null);
+    const ignorarCierreDetalleRef = useRef(false);
+    useEffect(() => {
+        if (!detalle) return;
+        const alClickFuera = (e: MouseEvent) => {
+            if (ignorarCierreDetalleRef.current) return;
+            if (tarjetaDetalleRef.current && !tarjetaDetalleRef.current.contains(e.target as Node)) cerrarDetalle();
+        };
+        document.addEventListener('click', alClickFuera);
+        return () => document.removeEventListener('click', alClickFuera);
+    }, [detalle]);
 
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
@@ -567,7 +582,9 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                 if (idMarca) {
                     const m = marcasRef.current.find((x) => x.id === idMarca);
                     if (m) {
-                        setDetalle({ tipo: 'marca', estado: m.tipo, nombre: m.nombre ?? null, nota: m.nota ?? null, vendedor: m.vendedorNombre ?? null, fecha: m.createdAt });
+                        ignorarCierreDetalleRef.current = true;
+                        window.setTimeout(() => { ignorarCierreDetalleRef.current = false; }, 400);
+                        setDetalle({ tipo: 'marca', estado: m.tipo, nombre: m.nombre ?? null, telefono: m.telefono ?? null, nota: m.nota ?? null, vendedor: m.vendedorNombre ?? null, fecha: m.createdAt });
                         // Pin HTML resaltado (crece + glow) ENCIMA del symbol pin, igual que el vendedor.
                         // pointer-events none → no bloquea el clic al mapa (el symbol pin sigue debajo).
                         const elPin = elementoPin(m.tipo);
@@ -586,6 +603,8 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                     const coords = (neg.geometry as { coordinates: [number, number] }).coordinates;
                     const asignado = !!p.embajadorId;
                     const esMio = p.esMio === '1';
+                    ignorarCierreDetalleRef.current = true;
+                    window.setTimeout(() => { ignorarCierreDetalleRef.current = false; }, 400);
                     setDetalle({ tipo: 'negocio', id: p.id, nombre: p.nombre || 'Negocio', estado: p.estado || '', asignado, vendedor: p.vendedorNombre || null, nota: asignado ? (p.nota || null) : null, esMio });
                     if (esMio) setNotaBorrador(p.nota || '');
                     // Pin de negocio resaltado (crece + glow) ENCIMA del symbol pin, igual que las marcas.
@@ -886,7 +905,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     // Tarjeta de detalle SOLO LECTURA de un pin. Si el mapa es FIJO (móvil vertical) se PORTA a body para
     // escapar del stacking del wrapper `fixed` (si no, quedaría debajo de la barra de ciudad).
     const tarjetaDetalle = detalle && !modoDibujo ? (
-        <div className={`${mapaFijo ? 'fixed z-[60]' : 'absolute z-30'} left-1/2 top-3 w-[min(380px,calc(100%-1.5rem))] -translate-x-1/2 rounded-[14px] border border-borde bg-superficie p-3.5 shadow-tarjeta-panel`} data-testid="detalle-pin">
+        <div ref={tarjetaDetalleRef} className={`${mapaFijo ? 'fixed z-[60]' : 'absolute z-30'} left-1/2 top-3 w-[min(380px,calc(100%-1.5rem))] -translate-x-1/2 rounded-[14px] border border-borde bg-superficie p-3.5 shadow-tarjeta-panel`} data-testid="detalle-pin">
             <button type="button" onClick={cerrarDetalle} aria-label="Cerrar" className="absolute right-2.5 top-2.5 grid h-8 w-8 place-items-center rounded-full text-texto-3 transition hover:bg-superficie-2">
                 <X size={18} />
             </button>
@@ -907,6 +926,12 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                             <span className="text-texto-3">Vendedor</span>
                             <span className="truncate font-medium text-texto">{detalle.vendedor ?? '—'}</span>
                         </div>
+                        {detalle.telefono && (
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-texto-3">Teléfono</span>
+                                <span className="text-texto-2">{detalle.telefono}</span>
+                            </div>
+                        )}
                         {detalle.fecha && (
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-texto-3">Marcado</span>
@@ -940,7 +965,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                                     value={notaBorrador}
                                     onChange={(e) => setNotaBorrador(e.target.value)}
                                     placeholder="Nota sobre este negocio (ej. pidió que le llamen la próxima semana…)"
-                                    rows={3}
+                                    rows={8}
                                     className="w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[14px] text-texto outline-none focus:border-marca"
                                 />
                                 <button
