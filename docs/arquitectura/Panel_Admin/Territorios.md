@@ -48,6 +48,9 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   y cortaba el vuelo a medias con un salto instantáneo. Se simplificó: el centro/zoom inicial del
   mapa (`CENTRO_PUERTO_PENASCO`/`ZOOM_INICIAL` en `MapaTerritorios.tsx`) es la ciudad directamente,
   sin animación de entrada. Cuando haya más de una ciudad, esto debe resolverse dinámicamente.
+- **Botón "Mi ubicación"** (icono de mira, junto al zoom, 29 jul): detecta el GPS real del navegador y
+  vuela ahí (puntito azul). Antes ("Centrar zonas") encuadraba las zonas de la ciudad — se cambió para
+  que gerente/super también puedan ubicarse en campo si están de visita, no solo desde escritorio.
 - **"Nueva zona"** abre el editor de dibujo con **4 herramientas**: ✏️ Agregar punto · ✋ Mover punto ·
   🗑️ Quitar punto · 🖐️ Mapa (mover/zoom). Los puntos se **pegan a las calles** (snapping) y el pan solo
   está activo en la herramienta "Mapa" (así dibujar no mueve el mapa).
@@ -83,8 +86,9 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
 
 **Vista del Vendedor** ("Mi territorio"):
 - Su zona queda **resaltada** y el resto del mapa se **oscurece** (overlay), pero **puede alejar y moverse
-  libremente** por el mapa (la restricción de paneo `maxBounds` se quitó — solo se mantiene el overlay). De
-  arranque hace un **vuelo con zoom** desde México hasta su zona.
+  libremente** por el mapa (la restricción de paneo `maxBounds` se quitó — solo se mantiene el overlay). El
+  mapa arranca ya en Puerto Peñasco (29 jul) y, en cuanto cargan las zonas, hace un **vuelo con zoom** hasta
+  la suya.
 - **"Agregar marca"** (FAB +): toca el mapa y pone un pin (dentro de su zona; fuera está bloqueado); el
   editor abre **al instante** (optimista). Cada marca guarda un **estado** (color) y una **nota**. Puede
   **editar**, **borrar** (optimista) y **arrastrar** el pin para reubicarlo; al seleccionar un pin **crece +
@@ -92,6 +96,9 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
 - Una **lista** de sus marcas (cards inline) con **filtro por estado** (excluyente) y, por card, botón
   **"ver en el mapa"** (centra + acerca + resalta) y **"editar"** (abre el editor).
 - Toggle **"Mis negocios"**: pinta **solo sus negocios** (los que tiene asignados); no ve los de otros ni los sin asignar.
+- **Botón "Mi ubicación"** (icono de mira, junto al zoom, 29 jul): detecta el GPS real del navegador
+  (`navigator.geolocation`) y vuela ahí, dejando un puntito azul (estilo Google Maps). Antes centraba
+  la zona asignada — poco útil porque la zona ya está resaltada; ahora sirve para ubicarse en campo.
 - **Nota del negocio:** al hacer clic en el pin de uno de **sus** negocios asignados se abre un mini-editor
   (nombre + textarea) para escribir/editar una **nota libre de seguimiento** ("pidió llamar la próxima
   semana…"). Nota **única por negocio** (se sobrescribe, sin historial); solo la escribe el **vendedor dueño

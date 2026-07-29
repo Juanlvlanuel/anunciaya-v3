@@ -21,9 +21,10 @@ import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike }
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
 import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, MarcaTerritorio, NegocioMapa, TipoMarca } from '../../services/territoriosService';
-import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, COLOR_BADGE_NOTA, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, COLOR_BADGE_NOTA, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, elementoUbicacion, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
 import { Tooltip } from '../ui/Tooltip';
 import { useScrollPanel } from '../../stores/useScrollPanel';
+import { toast } from '../../stores/useToastPanel';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
 // El mapa arranca YA centrado en Puerto Peñasco (única ciudad de la beta) en vez de mostrar México y
@@ -203,6 +204,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     const negociosRef = useRef<NegocioMapa[]>(negocios);
     const misMarcasRef = useRef<MarcaTerritorio[]>(misMarcas);
     const misMarcadoresRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+    const miUbicacionMarkerRef = useRef<maplibregl.Marker | null>(null);
     const modoAgregarMarcaRef = useRef(modoAgregarMarca);
     const onAgregarMarcaRef = useRef(onAgregarMarca);
     const onClicMiMarcaRef = useRef(onClicMiMarca);
@@ -431,23 +433,34 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         mapa.scrollZoom.setWheelZoomRate(1 / 200);
         mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
-        // Botón "Centrar": encuadra todas las zonas de la ciudad (o el centro si no hay). Va en el mismo
-        // grupo top-right que el zoom → se apila justo debajo (abajo-derecha la ocupa el FAB en móvil).
+        // Botón "Mi ubicación": detecta el GPS real del navegador y vuela ahí (deja un puntito azul).
+        // Va en el mismo grupo top-right que el zoom → se apila justo debajo (abajo-derecha el FAB en móvil).
         const ctrlCentrar: maplibregl.IControl = {
             onAdd() {
                 const div = document.createElement('div');
                 div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.title = 'Centrar zonas';
-                btn.setAttribute('aria-label', 'Centrar zonas');
+                btn.title = 'Mi ubicación';
+                btn.setAttribute('aria-label', 'Mi ubicación');
                 btn.style.display = 'grid';
                 btn.style.placeItems = 'center';
                 btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>';
                 btn.onclick = () => {
-                    const b = calcularBounds(zonasRef.current);
-                    if (b) mapa.fitBounds(b, { padding: 60, maxZoom: 15, duration: 900, essential: true });
-                    else if (centroRef.current) mapa.flyTo({ center: centroRef.current, zoom: 12, duration: 900, essential: true });
+                    if (!navigator.geolocation) {
+                        toast.advertencia('Tu navegador no soporta geolocalización.');
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+                            if (miUbicacionMarkerRef.current) miUbicacionMarkerRef.current.setLngLat(coords);
+                            else miUbicacionMarkerRef.current = new maplibregl.Marker({ element: elementoUbicacion(), anchor: 'center' }).setLngLat(coords).addTo(mapa);
+                            mapa.flyTo({ center: coords, zoom: 16, duration: 1200, essential: true });
+                        },
+                        () => toast.advertencia('No se pudo obtener tu ubicación. Revisa los permisos del navegador.'),
+                        { enableHighAccuracy: true, timeout: 10000 },
+                    );
                 };
                 div.appendChild(btn);
                 return div;
@@ -714,6 +727,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         return () => {
             window.clearTimeout(tResize); ro.disconnect(); popupEqRef.current?.remove(); popupNegRef.current?.remove(); marcadorResalteRef.current?.remove();
             misMarcadoresRef.current.forEach((mk) => mk.remove()); misMarcadoresRef.current.clear();
+            miUbicacionMarkerRef.current?.remove();
             mapa.remove(); mapaRef.current = null;
         };
     }, []);

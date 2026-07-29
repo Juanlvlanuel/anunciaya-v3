@@ -194,6 +194,17 @@ export function elementoPinNegocio(color: string): HTMLDivElement {
     el.appendChild(inner);
     return el;
 }
+/** Puntito azul de "mi ubicación" (estilo Google Maps): círculo sólido con anillo y borde blanco. */
+export function elementoUbicacion(): HTMLDivElement {
+    const el = document.createElement('div');
+    el.style.width = '16px';
+    el.style.height = '16px';
+    el.style.borderRadius = '50%';
+    el.style.background = '#2563eb';
+    el.style.border = '3px solid #ffffff';
+    el.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.35), 0 1px 4px rgba(15,23,42,0.35)';
+    return el;
+}
 /** Recolorea el pin si cambió su estado y/o sincroniza el badge de nota (sin recrear el elemento). */
 function actualizarColorPin(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
     const notaTexto = conNota ? '1' : '';
@@ -379,6 +390,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
     const popupNegRef = useRef<maplibregl.Popup | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
     const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+    const miUbicacionMarkerRef = useRef<maplibregl.Marker | null>(null);
     const marcaSeleccionadaRef = useRef<string | null>(marcaSeleccionadaId);
     const [cargando, setCargando] = useState(true);
     const [listo, setListo] = useState(false);
@@ -472,22 +484,34 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         mapa.scrollZoom.setWheelZoomRate(1 / 200);
         mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
-        // Botón "Centrar mi zona": encuadra la zona del vendedor en pantalla. Va en el mismo grupo
-        // top-right que el zoom → se apila justo debajo (abajo-derecha la ocupan los FABs).
+        // Botón "Mi ubicación": detecta el GPS real del navegador y vuela ahí (deja un puntito azul).
+        // Va en el mismo grupo top-right que el zoom → se apila justo debajo (abajo-derecha los FABs).
         const ctrlCentrar: maplibregl.IControl = {
             onAdd() {
                 const div = document.createElement('div');
                 div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.title = 'Centrar mi zona';
-                btn.setAttribute('aria-label', 'Centrar mi zona');
+                btn.title = 'Mi ubicación';
+                btn.setAttribute('aria-label', 'Mi ubicación');
                 btn.style.display = 'grid';
                 btn.style.placeItems = 'center';
                 btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>';
                 btn.onclick = () => {
-                    const b = boundsDeZonas(zonasRef.current);
-                    if (b) mapa.fitBounds(b, { padding: 40, maxZoom: 16, duration: 900, easing: EASING_CINE, essential: true });
+                    if (!navigator.geolocation) {
+                        toast.advertencia('Tu navegador no soporta geolocalización.');
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+                            if (miUbicacionMarkerRef.current) miUbicacionMarkerRef.current.setLngLat(coords);
+                            else miUbicacionMarkerRef.current = new maplibregl.Marker({ element: elementoUbicacion(), anchor: 'center' }).setLngLat(coords).addTo(mapa);
+                            mapa.flyTo({ center: coords, zoom: 16, duration: 1200, easing: EASING_CINE, essential: true });
+                        },
+                        () => toast.advertencia('No se pudo obtener tu ubicación. Revisa los permisos del navegador.'),
+                        { enableHighAccuracy: true, timeout: 10000 },
+                    );
                 };
                 div.appendChild(btn);
                 return div;
@@ -602,6 +626,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
             ro.disconnect();
             markersRef.current.forEach((mk) => mk.remove());
             markersRef.current.clear();
+            miUbicacionMarkerRef.current?.remove();
             popup.remove();
             popupNeg.remove();
             mapa.remove();
