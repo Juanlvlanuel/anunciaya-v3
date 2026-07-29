@@ -78,7 +78,7 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 // useNegociosCacheStore eliminado — React Query maneja caché
 import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
-import { useAbrirWhatsApp, formatearNumero } from '../../../hooks/useAbrirWhatsApp';
+import { useAbrirWhatsApp, formatearNumero, calcularPosicionPopover } from '../../../hooks/useAbrirWhatsApp';
 import { notificar } from '../../../utils/notificaciones';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
@@ -521,12 +521,13 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         window.location.href = `tel:${numero.replace(/\s+/g, '')}`;
         setTelefonoPendiente(null);
     };
-    const menuTelefono = telefonoPendiente ? createPortal(
+    const posicionMenuTelefono = telefonoPendiente ? calcularPosicionPopover(telefonoPendiente.left) : null;
+    const menuTelefono = telefonoPendiente && posicionMenuTelefono ? createPortal(
         <>
             <div className="fixed inset-0 z-[9998]" onClick={() => setTelefonoPendiente(null)} />
             <div
                 className="fixed z-[9999] bg-slate-900 rounded-xl py-1.5 min-w-[190px]"
-                style={{ top: telefonoPendiente.top, left: telefonoPendiente.left, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
+                style={{ top: telefonoPendiente.top, left: posicionMenuTelefono.boxLeft, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
             >
                 <button
                     type="button"
@@ -545,8 +546,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(telefonoPendiente.alterno)}</span>
                 </button>
                 <div
-                    className="absolute left-1/2 top-full -translate-x-1/2 w-0 h-0"
-                    style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
+                    className="absolute top-full -translate-x-1/2 w-0 h-0"
+                    style={{ left: posicionMenuTelefono.flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
                 />
             </div>
         </>,

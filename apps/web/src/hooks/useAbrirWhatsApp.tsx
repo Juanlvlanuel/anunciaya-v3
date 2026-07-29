@@ -62,6 +62,26 @@ interface OpcionesPendientes {
   left: number;
 }
 
+/** Ancho del popover (min-w-[190px]) — usado para no dejarlo salir de la pantalla en móvil. */
+const ANCHO_POPOVER = 190;
+const MARGEN_VIEWPORT = 8;
+/** Margen mínimo del triángulo respecto a las esquinas redondeadas del popover. */
+const MARGEN_FLECHA = 14;
+
+/**
+ * Calcula la posición del popover y de su triángulo indicador a partir del
+ * centro X real del ícono clickeado (`anchorX`, sin clampear).
+ * - `boxLeft`: dónde centrar el popover (clampeado para no salirse del viewport).
+ * - `flechaLeft`: offset del triángulo DENTRO del popover para que siga
+ *   apuntando al ícono original aunque el popover se haya desplazado.
+ */
+export function calcularPosicionPopover(anchorX: number): { boxLeft: number; flechaLeft: number } {
+  const mitad = ANCHO_POPOVER / 2;
+  const boxLeft = Math.min(Math.max(anchorX, mitad + MARGEN_VIEWPORT), window.innerWidth - mitad - MARGEN_VIEWPORT);
+  const flechaLeft = Math.min(Math.max(anchorX - boxLeft + mitad, MARGEN_FLECHA), ANCHO_POPOVER - MARGEN_FLECHA);
+  return { boxLeft, flechaLeft };
+}
+
 export function useAbrirWhatsApp() {
   const [pendiente, setPendiente] = useState<OpcionesPendientes | null>(null);
 
@@ -81,12 +101,14 @@ export function useAbrirWhatsApp() {
     setPendiente(null);
   }, [pendiente]);
 
-  const menu = pendiente ? createPortal(
+  const menu = pendiente ? (() => {
+    const { boxLeft, flechaLeft } = calcularPosicionPopover(pendiente.left);
+    return createPortal(
     <>
       <div className="fixed inset-0 z-[9998]" onClick={() => setPendiente(null)} />
       <div
         className="fixed z-[9999] bg-slate-900 rounded-xl py-1.5 min-w-[190px]"
-        style={{ top: pendiente.top, left: pendiente.left, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
+        style={{ top: pendiente.top, left: boxLeft, transform: 'translate(-50%, -100%)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
       >
         <button
           type="button"
@@ -105,13 +127,14 @@ export function useAbrirWhatsApp() {
           <span className="text-sm font-semibold text-white whitespace-nowrap">{formatearNumero(pendiente.alterno)}</span>
         </button>
         <div
-          className="absolute left-1/2 top-full -translate-x-1/2 w-0 h-0"
-          style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
+          className="absolute top-full -translate-x-1/2 w-0 h-0"
+          style={{ left: flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }}
         />
       </div>
     </>,
     document.body
-  ) : null;
+    );
+  })() : null;
 
   return { abrir, menu };
 }

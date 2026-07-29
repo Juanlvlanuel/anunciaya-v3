@@ -412,7 +412,7 @@ export function PasoContacto() {
                         <div>
                             <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
                                 <Phone className="w-4 h-4 text-slate-500" />
-                                Teléfono
+                                Teléfonos:
                             </label>
                             <div className="flex gap-2">
                                 <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 border-2 border-slate-300 w-16"
@@ -435,11 +435,13 @@ export function PasoContacto() {
                             )}
                         </div>
 
-                        {/* Teléfono alterno — segundo número opcional */}
+                        {/* Teléfono alterno — segundo número opcional. Label invisible en
+                            desktop (reserva el alto para alinear con "Teléfonos:") y
+                            colapsado en móvil, donde ya no hace falta esa alineación. */}
                         <div>
-                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                            <label className="hidden lg:flex text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 items-center gap-2 invisible">
                                 <Phone className="w-4 h-4 text-slate-500" />
-                                Teléfono alterno <span className="font-normal text-slate-500">(opcional)</span>
+                                Teléfonos:
                             </label>
                             <div className="flex gap-2">
                                 <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 border-2 border-slate-300 w-16"
@@ -489,11 +491,12 @@ export function PasoContacto() {
                             )}
                         </div>
 
-                        {/* WhatsApp alterno — segundo número opcional */}
+                        {/* WhatsApp alterno — segundo número opcional. Mismo criterio que
+                            Teléfono alterno: label invisible en desktop, colapsado en móvil. */}
                         <div>
-                            <label className="text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                            <label className="hidden lg:flex text-sm lg:text-sm 2xl:text-base font-bold text-slate-700 mb-1.5 items-center gap-2 invisible">
                                 <MessageCircle className="w-4 h-4 text-slate-500" />
-                                WhatsApp alterno <span className="font-normal text-slate-500">(opcional)</span>
+                                WhatsApp
                             </label>
                             <div className="flex gap-2">
                                 <div className="flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg px-2 border-2 border-slate-300 w-16"
