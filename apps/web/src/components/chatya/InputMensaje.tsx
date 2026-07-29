@@ -1356,7 +1356,7 @@ export function InputMensaje({
             {/* ═══ MODO NORMAL: pill + botón enviar/mic ═══ */}
 
             {/* Pill: emoji(desktop) + input + clip + cámara */}
-            <div className="flex-1 flex items-center gap-0.5 pl-2 pr-0 py-2 bg-white/10 border-0 lg:border lg:bg-slate-100 lg:border-slate-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)]">
+            <div className="flex-1 min-w-0 flex items-center gap-0.5 pl-2 pr-0 py-2 bg-white/10 border-0 lg:border lg:bg-slate-100 lg:border-slate-300 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.25)] focus-within:shadow-[0_4px_22px_rgba(0,0,0,0.45)]">
 
               {/* Botón emoji (solo desktop) */}
               <button

@@ -1344,8 +1344,8 @@ function VentanaChatInner() {
                       <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight min-w-0">{nombreMostrar}</p>
                       {mostrarSucursalHeader && (
                         <>
-                          <span className="w-px h-4 bg-white/30 lg:bg-gray-300 shrink-0" />
-                          <p className="text-sm text-white/60 lg:text-gray-600 font-medium truncate leading-tight shrink-0 max-w-[40%]">
+                          <span className="hidden lg:block w-px h-4 bg-white/30 lg:bg-gray-300 shrink-0" />
+                          <p className="hidden lg:block text-sm text-white/60 lg:text-gray-600 font-medium truncate leading-tight shrink-0 max-w-[40%]">
                             {sucursalSufijo}
                           </p>
                         </>
@@ -1366,8 +1366,8 @@ function VentanaChatInner() {
                       <span className="text-blue-500 font-semibold">Escribiendo...</span>
                     </p>
                   ) : esInterSucursal ? (
-                    // Inter-sucursal: sin presencia (reflejaría al propio dueño). Mostramos el nombre de la sucursal en el renglón de abajo.
-                    <p className="text-[13px] font-medium text-white/60 lg:text-gray-600 truncate">
+                    // Inter-sucursal: sin presencia (reflejaría al propio dueño). Mostramos el nombre de la sucursal en el renglón de abajo (solo desktop).
+                    <p className="hidden lg:block text-[13px] font-medium text-white/60 lg:text-gray-600 truncate">
                       {sucursalSufijo}
                     </p>
                   ) : (
@@ -1404,8 +1404,8 @@ function VentanaChatInner() {
                     )}
                       {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
                         <>
-                          <span className="text-white/30 lg:text-gray-300">·</span>
-                          <span className="text-white/40 lg:text-slate-600 truncate">
+                          <span className="hidden lg:inline text-white/30 lg:text-gray-300">·</span>
+                          <span className="hidden lg:inline text-white/40 lg:text-slate-600 truncate">
                             {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
                             {conversacion.contextoTipo === 'oferta' && (conversacion.contextoNombre ? `Desde oferta: ${conversacion.contextoNombre}` : 'Desde una oferta')}
                             {conversacion.contextoTipo === 'marketplace' && (conversacion.contextoNombre ? `Desde MarketPlace: ${conversacion.contextoNombre}` : 'Desde MarketPlace')}
