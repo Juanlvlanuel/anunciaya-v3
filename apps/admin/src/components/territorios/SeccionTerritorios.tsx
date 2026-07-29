@@ -75,6 +75,12 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
     const [ciudadId, setCiudadId] = useState('');
     const { data: ciudades = [] } = useCiudadesDelAlcance(puedeEditar);
+    // Con una sola ciudad en el alcance (hoy: solo Puerto Peñasco), el selector "Todas mis ciudades"
+    // no tiene nada que elegir — se autoselecciona sin pedirle nada al usuario (el dropdown se oculta
+    // más abajo). El mapa además ya arranca centrado en Puerto Peñasco (ver `MapaTerritorios.tsx`).
+    useEffect(() => {
+        if (ciudades.length === 1 && !ciudadId) setCiudadId(ciudades[0].id);
+    }, [ciudades, ciudadId]);
     const { data: vendedores = [] } = useVendedoresAsignables(puedeEditar);
     const { data: zonas = [], isLoading, isError } = useZonas(ciudadId ? { ciudadId } : {});
     const { data: marcas = [] } = useMarcasEquipo(ciudadId || undefined, puedeEditar);
@@ -183,8 +189,15 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     };
 
     const ciudadSel = useMemo(() => ciudades.find((c) => c.id === ciudadId), [ciudades, ciudadId]);
-    const centro: [number, number] | null =
-        ciudadSel && ciudadSel.lng != null && ciudadSel.lat != null ? [ciudadSel.lng, ciudadSel.lat] : null;
+    // Memoizado: sin esto, `centro` era un array NUEVO en cada render (así ciudadSel no cambiara) y
+    // MapaTerritorios lo recibe como dependencia de efecto — cualquier re-render ajeno (abrir un menú,
+    // etc.) volvía a "armar" el reencuadre pendiente y cortaba a medias el vuelo cinematográfico de 2.6s
+    // con un snap instantáneo justo después. Con la referencia estable, el efecto solo reacciona cuando
+    // la ciudad realmente cambia.
+    const centro: [number, number] | null = useMemo(
+        () => (ciudadSel && ciudadSel.lng != null && ciudadSel.lat != null ? [ciudadSel.lng, ciudadSel.lat] : null),
+        [ciudadSel],
+    );
 
     const opcCiudades: OpcionBuscable[] = useMemo(
         () => [{ id: '', etiqueta: 'Todas mis ciudades' }, ...ciudades.map((c) => ({ id: c.id, etiqueta: c.nombre }))],
@@ -306,7 +319,6 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             poligonoPreview={poligonoNuevo}
             enfocarPoligono={foco?.poligono ?? null}
             enfocarNonce={foco?.nonce ?? 0}
-            introAnimado={rol === 'gerente'}
             onPoligonoCompleto={alPoligonoCompleto}
             mapaFijo={!esEscritorio && !esHorizontal}
             onGuardarNotaNegocio={(id, nota) => actualizarNotaNegocio.mutate({ id, nota })}
@@ -320,7 +332,9 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         />
     );
 
-    const piezaCiudad = (
+    // Con una sola ciudad en el alcance no hay nada que elegir — el dropdown no aporta (ya se
+    // autoseleccionó arriba). Se oculta por completo en vez de mostrar un selector inerte.
+    const piezaCiudad = ciudades.length <= 1 ? null : (
         <SelectorBuscable
             value={ciudadId}
             onChange={(id) => { setCiudadId(id); setDibujando(false); }}
@@ -726,7 +740,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     // 4 filtros van en 1 fila deslizable; en ESCRITORIO se acomodan con flex-wrap.
     const contenidoPanel = (filtrosCarrusel: boolean) => (
         <>
-            <div className="shrink-0">{piezaCiudad}</div>
+            {piezaCiudad && <div className="shrink-0">{piezaCiudad}</div>}
             {botonNotas && <div className="shrink-0">{botonNotas}</div>}
             {hayFiltros && <div className="shrink-0">{piezaFiltros(filtrosCarrusel)}</div>}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -803,8 +817,9 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 </div>
 
                 {/* Barra flotante: solo la ciudad (el "Nueva zona" pasó a ser un FAB abajo a la derecha).
-                    Se oculta mientras se DIBUJA o se nombra la zona; reaparece al cancelar o terminar. */}
-                {!dibujando && !poligonoNuevo && !modoAgregarMarca && !marcaEditando && (
+                    Se oculta mientras se DIBUJA o se nombra la zona; reaparece al cancelar o terminar.
+                    Con una sola ciudad no hay selector que mostrar (piezaCiudad es null). */}
+                {piezaCiudad && !dibujando && !poligonoNuevo && !modoAgregarMarca && !marcaEditando && (
                     <div className="absolute left-2 right-14 top-2 z-10">
                         <div className="rounded-[10px] shadow-tarjeta-panel">{piezaCiudad}</div>
                     </div>

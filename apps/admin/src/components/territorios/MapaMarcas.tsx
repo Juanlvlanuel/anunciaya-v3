@@ -20,7 +20,11 @@ import { toast } from '../../stores/useToastPanel';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
-const CENTRO_MX: [number, number] = [-102.5, 23.6];
+// El mapa arranca YA centrado en Puerto Peñasco (única ciudad de la beta) en vez de México — si el
+// vendedor todavía no tiene zona asignada, el intro (línea ~618) no tiene bounds a los que volar y el
+// mapa se quedaba en el centro/zoom iniciales para siempre. Mismo criterio que MapaTerritorios.tsx.
+const CENTRO_PUERTO_PENASCO: [number, number] = [-113.535, 31.3167];
+const ZOOM_INICIAL = 12.5;
 const ID_ZONA = 'mi-zona';
 const ID_ZONA_LINE = 'mi-zona-line';
 const ID_MASCARA = 'mascara';
@@ -459,8 +463,8 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         const mapa = new maplibregl.Map({
             container: contenedorRef.current,
             style: ESTILO_TILES,
-            center: CENTRO_MX,
-            zoom: 4.3,
+            center: CENTRO_PUERTO_PENASCO,
+            zoom: ZOOM_INICIAL,
             attributionControl: { compact: true },
         });
         mapaRef.current = mapa;
@@ -615,7 +619,8 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         sincronizarMarcas();
     }, [zonas, marcas, negocios, listo]);
 
-    // Intro: mostrar México completo y volar con zoom hasta la zona; al llegar, recortar y acotar el paneo.
+    // Intro: el mapa ya arranca en Puerto Peñasco (ver CENTRO_PUERTO_PENASCO); en cuanto llegan las
+    // zonas, vuela con zoom hasta la zona del vendedor y enciende la máscara del resto.
     useEffect(() => {
         const mapa = mapaRef.current;
         if (!mapa || !listo || ajustadoRef.current) return;

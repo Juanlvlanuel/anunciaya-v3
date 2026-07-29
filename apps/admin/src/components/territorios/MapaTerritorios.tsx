@@ -26,7 +26,12 @@ import { Tooltip } from '../ui/Tooltip';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
-const CENTRO_MX: [number, number] = [-102.5, 23.6];
+// El mapa arranca YA centrado en Puerto Peñasco (única ciudad de la beta) en vez de mostrar México y
+// volar hacia allá — el vuelo "de cine" se quitó por poco confiable (cualquier re-render ajeno del
+// panel podía rearmar el reencuadre pendiente y cortarlo a medias). Cuando haya más de una ciudad,
+// esto debe volver a resolverse dinámicamente (p.ej. con la región del gerente).
+const CENTRO_PUERTO_PENASCO: [number, number] = [-113.535, 31.3167];
+const ZOOM_INICIAL = 12.5;
 const ID_SOURCE = 'zonas';
 const ID_FILL = 'zonas-fill';
 const ID_LINE = 'zonas-line';
@@ -61,7 +66,6 @@ interface MapaTerritoriosProps {
     poligonoPreview?: PoligonoGeoJSON | null;  // polígono ya terminado pero aún sin guardar (preview en el form)
     enfocarPoligono?: PoligonoGeoJSON | null;  // al cambiar enfocarNonce, vuela (zoom cine) hacia este polígono
     enfocarNonce?: number;
-    introAnimado?: boolean; // intro de cine (México → vuelo a sus zonas), p.ej. para el gerente
     onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
     mapaFijo?: boolean; // el mapa va `fixed` al viewport (móvil vertical) → la tarjeta de detalle se porta a body
     /** Guarda la nota de un negocio "esMio" (el usuario logueado es el vendedor/gerente dueño de la
@@ -191,7 +195,7 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false, misMarcas = [], modoAgregarMarca = false, onAgregarMarca, onClicMiMarca, onMoverMiMarca, miMarcaSeleccionadaId = null }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false, misMarcas = [], modoAgregarMarca = false, onAgregarMarca, onClicMiMarca, onMoverMiMarca, miMarcaSeleccionadaId = null }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
@@ -213,8 +217,6 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     const popupEqIdRef = useRef<string | null>(null);
     const popupNegRef = useRef<maplibregl.Popup | null>(null);
     const marcadorResalteRef = useRef<maplibregl.Marker | null>(null); // pin HTML resaltado de la marca abierta
-    const introAnimadoRef = useRef(introAnimado);
-    const introHechoRef = useRef(false);
     const poligonoEditandoRef = useRef(poligonoEditando);
     const enfocarPoligonoRef = useRef(enfocarPoligono);
     const centroRef = useRef(centro);
@@ -245,7 +247,6 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         miMarcaSeleccionadaRef.current = miMarcaSeleccionadaId;
         for (const [id, mk] of misMarcadoresRef.current) aplicarResalte(mk.getElement(), id === miMarcaSeleccionadaId);
     }, [miMarcaSeleccionadaId]);
-    useEffect(() => { introAnimadoRef.current = introAnimado; }, [introAnimado]);
     useEffect(() => { poligonoEditandoRef.current = poligonoEditando; }, [poligonoEditando]);
     useEffect(() => { enfocarPoligonoRef.current = enfocarPoligono; }, [enfocarPoligono]);
     // Cambió la ciudad (centro) → marcar para reencuadrar cuando lleguen sus zonas.
@@ -421,8 +422,8 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         const mapa = new maplibregl.Map({
             container: contenedor,
             style: ESTILO_TILES,
-            center: CENTRO_MX,
-            zoom: 4.3,
+            center: CENTRO_PUERTO_PENASCO,
+            zoom: ZOOM_INICIAL,
             attributionControl: { compact: true },
         });
         mapaRef.current = mapa;
@@ -725,15 +726,6 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         if (modoDibujoRef.current) return;
         const bounds = calcularBounds(zonas);
 
-        // Intro de cine (gerente, una sola vez): se ve México y vuela con zoom hasta sus zonas (su región).
-        if (introAnimado && !introHechoRef.current && bounds) {
-            introHechoRef.current = true;
-            pendienteEncuadrarRef.current = false;
-            yaEncuadroRef.current = true;
-            const t = setTimeout(() => mapa.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 2600, essential: true }), 900);
-            return () => clearTimeout(t);
-        }
-
         // Reencuadrar solo si está pendiente (carga inicial o cambio de ciudad) — NO al guardar/editar.
         if (pendienteEncuadrarRef.current) {
             const dur = yaEncuadroRef.current ? 400 : 0;
@@ -742,7 +734,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: dur, maxZoom: 14 });
             else if (centroRef.current) mapa.flyTo({ center: centroRef.current, zoom: 12, duration: dur });
         }
-    }, [zonas, listo, introAnimado]);
+    }, [zonas, listo]);
 
     // ── Re-pintar marcas de vendedores y negocios cuando cambian ─────────────────
     useEffect(() => {
