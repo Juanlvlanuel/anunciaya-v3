@@ -614,7 +614,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
     // Lista de zonas (en el panel/hoja). El formulario ya NO vive aquí: salió al mini-form del mapa.
     const piezaLista = (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 flex-col">
             {isLoading ? (
                 <div className="rounded-[10px] border border-borde px-3 py-6 text-center text-[13px] text-texto-3">Cargando…</div>
             ) : zonas.length === 0 ? (

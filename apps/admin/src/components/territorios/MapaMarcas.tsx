@@ -207,6 +207,52 @@ export function elementoUbicacion(): HTMLDivElement {
     el.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.35), 0 1px 4px rgba(15,23,42,0.35)';
     return el;
 }
+/**
+ * Detecta la ubicación GPS real del navegador y centra el mapa ahí (botón "Mi ubicación", compartido
+ * por los 3 mapas de Territorios). Feedback INMEDIATO: el ícono gira apenas se toca el botón — antes
+ * el botón parecía "no reaccionar" porque `enableHighAccuracy` puede tardar varios segundos en dar un
+ * fix de GPS real, sin ninguna señal visual de que ya estaba trabajando.
+ *
+ * Además, en vez de esperar directo por alta precisión (lento, a veces 10+ s), primero pide una
+ * posición RÁPIDA (red/wifi, responde casi al instante) para centrar YA, y luego refina en silencio
+ * con GPS de alta precisión — el mapa se reacomoda suave si la posición final difiere.
+ */
+export function ubicarme(mapa: MapaLibre, btn: HTMLButtonElement, markerRef: { current: maplibregl.Marker | null }): void {
+    if (!navigator.geolocation) {
+        toast.advertencia('Tu navegador no soporta geolocalización.');
+        return;
+    }
+    const svg = btn.querySelector('svg');
+    svg?.classList.add('animate-spin');
+    btn.disabled = true;
+
+    const centrar = (pos: GeolocationPosition, duracion: number) => {
+        const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        if (markerRef.current) markerRef.current.setLngLat(coords);
+        else markerRef.current = new maplibregl.Marker({ element: elementoUbicacion(), anchor: 'center' }).setLngLat(coords).addTo(mapa);
+        mapa.flyTo({ center: coords, zoom: 16, duration: duracion, easing: EASING_CINE, essential: true });
+    };
+    const terminar = () => { svg?.classList.remove('animate-spin'); btn.disabled = false; };
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            centrar(pos, 1200);
+            terminar();
+            // Refinamiento silencioso: si falla o tarda, no importa — ya se centró con la posición rápida.
+            navigator.geolocation.getCurrentPosition(
+                (posFina) => centrar(posFina, 500),
+                () => {},
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+            );
+        },
+        () => {
+            terminar();
+            toast.advertencia('No se pudo obtener tu ubicación. Revisa los permisos del navegador.');
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 30000 },
+    );
+}
+
 /** Recolorea el pin si cambió su estado y/o sincroniza el badge de nota (sin recrear el elemento). */
 function actualizarColorPin(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
     const notaTexto = conNota ? '1' : '';
@@ -499,22 +545,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
                 btn.style.display = 'grid';
                 btn.style.placeItems = 'center';
                 btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>';
-                btn.onclick = () => {
-                    if (!navigator.geolocation) {
-                        toast.advertencia('Tu navegador no soporta geolocalización.');
-                        return;
-                    }
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                            const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
-                            if (miUbicacionMarkerRef.current) miUbicacionMarkerRef.current.setLngLat(coords);
-                            else miUbicacionMarkerRef.current = new maplibregl.Marker({ element: elementoUbicacion(), anchor: 'center' }).setLngLat(coords).addTo(mapa);
-                            mapa.flyTo({ center: coords, zoom: 16, duration: 1200, easing: EASING_CINE, essential: true });
-                        },
-                        () => toast.advertencia('No se pudo obtener tu ubicación. Revisa los permisos del navegador.'),
-                        { enableHighAccuracy: true, timeout: 10000 },
-                    );
-                };
+                btn.onclick = () => ubicarme(mapa, btn, miUbicacionMarkerRef);
                 div.appendChild(btn);
                 return div;
             },

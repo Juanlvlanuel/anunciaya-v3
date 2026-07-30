@@ -51,6 +51,11 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
 - **Botón "Mi ubicación"** (icono de mira, junto al zoom, 29 jul): detecta el GPS real del navegador y
   vuela ahí (puntito azul). Antes ("Centrar zonas") encuadraba las zonas de la ciudad — se cambió para
   que gerente/super también puedan ubicarse en campo si están de visita, no solo desde escritorio.
+  **Feedback instantáneo (30 jul):** el ícono gira apenas se toca el botón (antes parecía "no
+  reaccionar" porque `enableHighAccuracy` puede tardar 10+ s en dar un fix de GPS real sin ninguna
+  señal visual). Además ya no espera esa alta precisión de entrada: primero pide una posición rápida
+  (red/wifi, casi instantánea) para centrar YA, y refina en silencio con GPS de alta precisión después
+  — función compartida `ubicarme()` en `MapaMarcas.tsx`, usada por los 3 mapas.
 - **"Nueva zona"** abre el editor de dibujo con **4 herramientas**: ✏️ Agregar punto · ✋ Mover punto ·
   🗑️ Quitar punto · 🖐️ Mapa (mover/zoom). Los puntos se **pegan a las calles** (snapping) y el pan solo
   está activo en la herramienta "Mapa" (así dibujar no mueve el mapa).
@@ -108,6 +113,7 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
 - **Botón "Mi ubicación"** (icono de mira, junto al zoom, 29 jul): detecta el GPS real del navegador
   (`navigator.geolocation`) y vuela ahí, dejando un puntito azul (estilo Google Maps). Antes centraba
   la zona asignada — poco útil porque la zona ya está resaltada; ahora sirve para ubicarse en campo.
+  Feedback instantáneo + posición rápida primero (30 jul) — ver detalle en la vista del gerente/super.
 - **Nota del negocio:** al hacer clic en el pin de uno de **sus** negocios asignados se abre un mini-editor
   (nombre + textarea) para escribir/editar una **nota libre de seguimiento** ("pidió llamar la próxima
   semana…"). Nota **única por negocio** (se sobrescribe, sin historial); solo la escribe el **vendedor dueño
