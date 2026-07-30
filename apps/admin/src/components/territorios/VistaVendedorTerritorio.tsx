@@ -533,6 +533,8 @@ export function VistaVendedorTerritorio() {
             cargando={cargandoNotas}
             onVolver={() => setVista('mapa')}
             onVerEnMapa={irANotaEnMapa}
+            onGuardarNotaNegocio={(id, nota) => actualizarNota.mutate({ id, nota })}
+            guardandoNotaNegocio={actualizarNota.isPending}
         />
     );
 

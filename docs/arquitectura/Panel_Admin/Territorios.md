@@ -84,6 +84,9 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   del equipo": esas son de los vendedores reales; las del propio gerente quedan excluidas de ahí para no
   verse dos veces. **Ya no tienen una lista aparte en el panel** (esa lista se quitó el 30 jul — quedó
   unificada dentro de "Mis notas", ver más abajo); se editan tocando el pin en el mapa o desde ahí.
+  El pin usa el **mismo color por estado** que las marcas del vendedor (`elementoPin`/`actualizarColorPin`
+  de `MapaMarcas.tsx`, reusados — antes tenían su propia copia con la gota siempre verde fija, y cambiar
+  Visitado/Interesado/Cerrado/Sin interés no se reflejaba visualmente en el pin, 30 jul).
 - **Editor de marca/punto — teléfono + nota más grande (29 jul 2026):** el editor de una marca (tanto
   "mis puntos" del gerente como las marcas del vendedor) gana un campo **teléfono/celular** (opcional,
   libre — junto al de nombre, `territorio_marcas.telefono`) y la **textarea de la nota se agrandó ~2.5x**
@@ -134,9 +137,15 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   yo mismo pongo al recorrer la zona), **tengan o no nota** (antes solo entraban las marcas con nota; el
   30 jul se amplió para reemplazar por completo a la antigua lista aparte "Mis puntos" del gerente, que
   mostraba lo mismo con un botón editar). Buscable por nombre (el de la marca es el campo opcional
-  "Nombre del negocio" del editor). Acción por tarjeta: un **negocio** centra/cambia de ciudad (su nota se
-  edita tocando el pin real); una **marca** abre su **editor directo** (ícono de lápiz, no de pin — mismo
-  editor que "editar" desde el mapa). Alcance **solo mis propias notas/puntos** (dueño real por
+  "Nombre del negocio" del editor). Acción por tarjeta (ajustada 30 jul): una **marca** tiene un solo
+  ícono de lápiz que abre su editor completo sobre el mapa (sale de "Mis notas": el formulario —
+  tipo/nombre/teléfono/nota— no cabe inline); un **negocio** tiene DOS íconos — lápiz edita la nota
+  **inline, sin salir de "Mis notas"** (un solo campo, sí cabe) y pin **"ver en el mapa" vuela hasta la
+  ubicación exacta del negocio** aunque no esté en la ciudad seleccionada (antes, si ya estabas en su
+  ciudad, el pin "no hacía nada" — ahora usa un mecanismo de vuelo por coordenadas independiente de
+  esperar a que los negocios de esa ciudad terminen de cargar: `enfocarPunto`/`enfocarPuntoNonce` en
+  `MapaTerritorios.tsx`, mismo patrón nonce que ya usaban zonas y "mis puntos"). Alcance **solo mis
+  propias notas/puntos** (dueño real por
   `embajador_id`) — no hay vista agregada de todo el equipo.
 
 ### Cómo se conecta con la app

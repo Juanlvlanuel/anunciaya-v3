@@ -254,7 +254,7 @@ export function ubicarme(mapa: MapaLibre, btn: HTMLButtonElement, markerRef: { c
 }
 
 /** Recolorea el pin si cambió su estado y/o sincroniza el badge de nota (sin recrear el elemento). */
-function actualizarColorPin(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
+export function actualizarColorPin(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
     const notaTexto = conNota ? '1' : '';
     if (el.dataset.tipo === tipo && el.dataset.nota === notaTexto) return;
     el.dataset.tipo = tipo;
@@ -407,7 +407,7 @@ function boundsDeZonas(zonas: ZonaTerritorio[]): [[number, number], [number, num
 }
 
 /** Easing cinematográfico (ease-in-out cubic): arranca y termina suave, acelera en medio. */
-const EASING_CINE = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const EASING_CINE = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 /** Coloca el pin en la franja inferior (debajo del editor/tarjeta centrada) SOLO desplazando el mapa:
  *  mantiene el zoom actual. `altoForm` = alto aprox del modal (el editor del vendedor ~290; la tarjeta

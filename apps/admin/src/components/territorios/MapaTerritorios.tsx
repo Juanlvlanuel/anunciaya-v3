@@ -21,7 +21,7 @@ import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike }
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
 import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, MarcaTerritorio, NegocioMapa, TipoMarca } from '../../services/territoriosService';
-import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, COLOR_BADGE_NOTA, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, ubicarme, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, ESTADO_BADGE, badgeHtml, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, actualizarColorPin, elementoPinNegocio, ubicarme, aplicarResalte, OFFSET_PIN, EASING_CINE } from './MapaMarcas';
 import { Tooltip } from '../ui/Tooltip';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 
@@ -66,6 +66,11 @@ interface MapaTerritoriosProps {
     poligonoPreview?: PoligonoGeoJSON | null;  // polígono ya terminado pero aún sin guardar (preview en el form)
     enfocarPoligono?: PoligonoGeoJSON | null;  // al cambiar enfocarNonce, vuela (zoom cine) hacia este polígono
     enfocarNonce?: number;
+    /** Al cambiar `enfocarPuntoNonce`, vuela (zoom cine) hacia estas coordenadas exactas [lng, lat] —
+     *  p. ej. "ver en el mapa" de un negocio desde "Mis notas", sin depender de que sus datos ya
+     *  hayan cargado para esta ciudad (la cámara se mueve con las coordenadas que ya trae la nota). */
+    enfocarPunto?: [number, number] | null;
+    enfocarPuntoNonce?: number;
     onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
     mapaFijo?: boolean; // el mapa va `fixed` al viewport (móvil vertical) → la tarjeta de detalle se porta a body
     /** Guarda la nota de un negocio "esMio" (el usuario logueado es el vendedor/gerente dueño de la
@@ -83,44 +88,9 @@ interface MapaTerritoriosProps {
     miMarcaSeleccionadaId?: string | null;
 }
 
-// "Mis puntos" (gerente) van SIEMPRE en verde (--panel-ok), sin importar su estado — así se
-// distinguen a simple vista de las marcas del equipo (por estado) y de los negocios (violeta/teal).
-const COLOR_MI_PUNTO = '#0e8a52';
-
-/** SVG de un pin (gota) del color dado — copia de `svgPin` de MapaMarcas.tsx (no exportada).
- *  `conNota`: mismo badge ámbar que los negocios/marcas cuando el punto tiene una nota escrita. */
-function svgPinFijo(color: string, conNota = false): string {
-    const badge = conNota
-        ? `<circle cx="21" cy="4.5" r="4.5" fill="${COLOR_BADGE_NOTA}" stroke="#fff" stroke-width="1.4"/>`
-        : '';
-    return `<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 2px rgba(15,23,42,0.32));">`
-        + `<path d="M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>`
-        + `<circle cx="13" cy="13" r="4.5" fill="#ffffff"/>${badge}</svg>`;
-}
-
-/** Elemento HTML del pin de "mi punto": mismo perfil que `elementoPin`, siempre verde. */
-function elementoMiPunto(tipo: TipoMarca, conNota = false): HTMLDivElement {
-    const el = document.createElement('div');
-    el.dataset.tipo = tipo;
-    el.dataset.nota = conNota ? '1' : '';
-    el.style.cursor = 'pointer';
-    const inner = document.createElement('div');
-    inner.style.transformOrigin = 'bottom center';
-    inner.style.transition = 'transform 0.15s ease';
-    inner.innerHTML = svgPinFijo(COLOR_MI_PUNTO, conNota);
-    el.appendChild(inner);
-    return el;
-}
-
-/** Actualiza el estado guardado del pin (el color es fijo) y sincroniza el badge de nota. */
-function actualizarColorMiMarca(el: HTMLElement, tipo: TipoMarca, conNota: boolean): void {
-    const notaTexto = conNota ? '1' : '';
-    if (el.dataset.tipo === tipo && el.dataset.nota === notaTexto) return;
-    el.dataset.tipo = tipo;
-    el.dataset.nota = notaTexto;
-    const inner = el.firstElementChild as HTMLElement | null;
-    if (inner) inner.innerHTML = svgPinFijo(COLOR_MI_PUNTO, conNota);
-}
+// "Mis puntos" (gerente) usan el MISMO pin que las marcas del vendedor (`elementoPin`/`actualizarColorPin`
+// de MapaMarcas.tsx, reusados) — color por estado (30 jul: antes la gota era siempre verde fija y
+// cambiar Visitado/Interesado/Cerrado/Sin interés no se reflejaba visualmente en el pin).
 
 /** Bounding box de un solo polígono (reusa calcularBounds). */
 function boundsDePoligono(poly: PoligonoGeoJSON): [[number, number], [number, number]] | null {
@@ -197,7 +167,7 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false, misMarcas = [], modoAgregarMarca = false, onAgregarMarca, onClicMiMarca, onMoverMiMarca, miMarcaSeleccionadaId = null }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, enfocarPunto = null, enfocarPuntoNonce = 0, onPoligonoCompleto, mapaFijo = false, onGuardarNotaNegocio, guardandoNotaNegocio = false, misMarcas = [], modoAgregarMarca = false, onAgregarMarca, onClicMiMarca, onMoverMiMarca, miMarcaSeleccionadaId = null }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
@@ -222,6 +192,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     const marcadorResalteRef = useRef<maplibregl.Marker | null>(null); // pin HTML resaltado de la marca abierta
     const poligonoEditandoRef = useRef(poligonoEditando);
     const enfocarPoligonoRef = useRef(enfocarPoligono);
+    const enfocarPuntoRef = useRef(enfocarPunto);
     const centroRef = useRef(centro);
     const pendienteEncuadrarRef = useRef(true);  // reencuadrar al cargar / cambiar de ciudad, NO al guardar
     const yaEncuadroRef = useRef(false);
@@ -265,6 +236,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     }, [miMarcaSeleccionadaId]);
     useEffect(() => { poligonoEditandoRef.current = poligonoEditando; }, [poligonoEditando]);
     useEffect(() => { enfocarPoligonoRef.current = enfocarPoligono; }, [enfocarPoligono]);
+    useEffect(() => { enfocarPuntoRef.current = enfocarPunto; }, [enfocarPunto]);
     // Cambió la ciudad (centro) → marcar para reencuadrar cuando lleguen sus zonas.
     useEffect(() => { centroRef.current = centro; pendienteEncuadrarRef.current = true; }, [centro]);
     useEffect(() => { onCompletoRef.current = onPoligonoCompleto; }, [onPoligonoCompleto]);
@@ -405,11 +377,11 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             const existente = markers.get(m.id);
             if (existente) {
                 existente.setLngLat([m.lng, m.lat]);
-                actualizarColorMiMarca(existente.getElement(), tipo, conNota);
+                actualizarColorPin(existente.getElement(), tipo, conNota);
                 aplicarResalte(existente.getElement(), m.id === miMarcaSeleccionadaRef.current);
                 continue;
             }
-            const el = elementoMiPunto(tipo, conNota);
+            const el = elementoPin(tipo, conNota);
             const marker = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable: true });
             marker.setLngLat([m.lng, m.lat]).addTo(mapa);
             const idMarca = m.id;
@@ -832,6 +804,13 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         const b = boundsDePoligono(enfocarPoligonoRef.current);
         if (b) mapa.fitBounds(b, { padding: 60, maxZoom: 15, duration: 1400, essential: true });
     }, [enfocarNonce, listo]);
+
+    // ── Volar (zoom cine) a un punto exacto — "ver en el mapa" de un negocio desde "Mis notas" ────
+    useEffect(() => {
+        const mapa = mapaRef.current;
+        if (!mapa || !listo || !enfocarPuntoNonce || !enfocarPuntoRef.current) return;
+        mapa.flyTo({ center: enfocarPuntoRef.current, zoom: 16, duration: 1400, easing: EASING_CINE, essential: true });
+    }, [enfocarPuntoNonce, listo]);
 
     // ── Cambiar de herramienta ───────────────────────────────────────────────────
     useEffect(() => {

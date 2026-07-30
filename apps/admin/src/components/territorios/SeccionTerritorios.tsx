@@ -107,6 +107,9 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const [embajadorId, setEmbajadorId] = useState('');
     const [zonaABorrar, setZonaABorrar] = useState<{ id: string; nombre: string } | null>(null);
     const [foco, setFoco] = useState<{ poligono: PoligonoGeoJSON; nonce: number } | null>(null);
+    // "Ver en el mapa" de un negocio desde "Mis notas": vuela a sus coordenadas exactas (no depende
+    // de esperar a que carguen los negocios de la ciudad — ya trae lat/lng desde la nota).
+    const [focoPunto, setFocoPunto] = useState<{ coords: [number, number]; nonce: number } | null>(null);
     // Estado de la hoja móvil (peek/expandida). En escritorio no se usa.
     const [hojaExpandida, setHojaExpandida] = useState(false);
     // Panel derecho en móvil horizontal: visible u oculto (deslizado a la derecha).
@@ -192,11 +195,15 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         return [...deNegocios, ...deMarcas].sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [esGerente, notasNegocio, misMarcas]);
 
-    /** Acción de una tarjeta en "Mis notas": si es un negocio, cambia a su ciudad (el mapa reencuadra
-     *  solo); si es una de mis marcas, abre su editor directo. */
+    /** "Ver en el mapa" de una tarjeta en "Mis notas": si es un negocio, cambia a su ciudad (si hace
+     *  falta) Y vuela a sus coordenadas exactas; si es una de mis marcas, abre su editor directo. */
     const irANotaEnMapa = (n: NotaListItem) => {
         setVista('mapa');
-        if (n.origen === 'negocio') { if (n.ciudadId) setCiudadId(n.ciudadId); return; }
+        if (n.origen === 'negocio') {
+            if (n.ciudadId && n.ciudadId !== ciudadId) setCiudadId(n.ciudadId);
+            setFocoPunto((f) => ({ coords: [n.lng, n.lat], nonce: (f?.nonce ?? 0) + 1 }));
+            return;
+        }
         abrirMarca(n.entidadId);
     };
 
@@ -337,6 +344,8 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             poligonoPreview={poligonoNuevo}
             enfocarPoligono={foco?.poligono ?? null}
             enfocarNonce={foco?.nonce ?? 0}
+            enfocarPunto={focoPunto?.coords ?? null}
+            enfocarPuntoNonce={focoPunto?.nonce ?? 0}
             onPoligonoCompleto={alPoligonoCompleto}
             mapaFijo={!esEscritorio && !esHorizontal}
             onGuardarNotaNegocio={(id, nota) => actualizarNotaNegocio.mutate({ id, nota })}
@@ -756,6 +765,8 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             cargando={cargandoNotas}
             onVolver={() => setVista('mapa')}
             onVerEnMapa={irANotaEnMapa}
+            onGuardarNotaNegocio={(id, nota) => actualizarNotaNegocio.mutate({ id, nota })}
+            guardandoNotaNegocio={actualizarNotaNegocio.isPending}
         />
     );
 

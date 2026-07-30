@@ -7,12 +7,17 @@
  * una sola lista buscable por nombre. Reemplaza a la antigua lista aparte "Mis puntos" del gerente
  * (28→29 jul): mismo dato, sin duplicar sección (30 jul).
  *
- * Acción por tarjeta: una marca se **edita** directo (abre su editor sobre el mapa); un negocio
- * solo **centra/cambia de ciudad** (su nota se edita tocando su pin real en el mapa, no desde aquí).
+ * Acción por tarjeta:
+ *   - **Marca**: un solo ícono de lápiz — abre su editor completo (tipo/nombre/teléfono/nota) sobre
+ *     el mapa (sale de "Mis notas": es un formulario grande, no cabe inline).
+ *   - **Negocio**: DOS íconos — lápiz = edita la nota **inline, sin salir de "Mis notas"** (solo tiene
+ *     un campo, cabe perfecto aquí); pin = "ver en el mapa", vuela hasta la ubicación exacta del
+ *     negocio aunque su ciudad no sea la que está seleccionada ahorita (30 jul: antes el pin de
+ *     negocio no hacía nada visible si ya estabas en la misma ciudad).
  *
- * Es puramente presentacional: recibe la lista ya unificada (`items`) — cada vista padre
- * (VistaVendedorTerritorio / VistaAdminTerritorio) arma el arreglo con los datos que YA tiene
- * cargados (useMisNotasNegocio + useMisMarcas), sin volver a pedirlos aquí.
+ * Casi presentacional: recibe la lista ya unificada (`items`) de cada vista padre (arma el arreglo
+ * con datos que YA tenía cargados), pero SÍ dispara directo la mutación de guardar nota de negocio
+ * (`onGuardarNotaNegocio`) para poder editar sin navegar.
  *
  * Ubicación: apps/admin/src/components/territorios/PanelNotasNegocios.tsx
  */
@@ -41,19 +46,33 @@ interface PanelNotasNegociosProps {
     items: NotaListItem[];
     cargando?: boolean;
     onVolver: () => void;
-    /** Acción por tarjeta: si es marca, abre su editor sobre el mapa; si es negocio, centra/cambia de
-     *  ciudad (su nota se edita tocando el pin real). El padre decide cuál hacer según `item.origen`. */
+    /** "Ver en el mapa" (negocio) o "editar" (marca): navega al mapa. */
     onVerEnMapa: (item: NotaListItem) => void;
+    /** Guarda la nota de un negocio SIN navegar (edición inline aquí mismo). */
+    onGuardarNotaNegocio: (negocioId: string, nota: string | null) => void;
+    guardandoNotaNegocio?: boolean;
 }
 
-export function PanelNotasNegocios({ items, cargando = false, onVolver, onVerEnMapa }: PanelNotasNegociosProps) {
+export function PanelNotasNegocios({ items, cargando = false, onVolver, onVerEnMapa, onGuardarNotaNegocio, guardandoNotaNegocio = false }: PanelNotasNegociosProps) {
     const [busqueda, setBusqueda] = useState('');
+    const [editandoId, setEditandoId] = useState<string | null>(null);
+    const [borrador, setBorrador] = useState('');
 
     const filtrados = useMemo(() => {
         const q = busqueda.trim().toLowerCase();
         if (!q) return items;
         return items.filter((n) => n.nombre.toLowerCase().includes(q));
     }, [items, busqueda]);
+
+    const abrirEdicion = (n: NotaListItem) => {
+        setEditandoId(n.id);
+        setBorrador(n.nota);
+    };
+    const cancelarEdicion = () => setEditandoId(null);
+    const guardarEdicion = (n: NotaListItem) => {
+        onGuardarNotaNegocio(n.entidadId, borrador.trim() || null);
+        setEditandoId(null);
+    };
 
     return (
         <div className="flex h-full flex-col gap-3 p-3 lg:p-0" data-testid="panel-mis-notas">
@@ -110,49 +129,95 @@ export function PanelNotasNegocios({ items, cargando = false, onVolver, onVerEnM
                         Ningún negocio coincide con "{busqueda}".
                     </div>
                 ) : (
-                    filtrados.map((n) => (
-                        <div key={n.id} data-testid={`nota-${n.id}`} className="flex flex-col gap-1.5 border-b border-borde py-3 last:border-b-0">
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5">
-                                        {n.origen === 'negocio' ? (
-                                            <Store size={13} className="shrink-0 text-texto-4" />
-                                        ) : (
-                                            <Pin size={13} className="shrink-0 text-texto-4" />
-                                        )}
-                                        <span className="truncate text-[14px] font-semibold text-texto">{n.nombre}</span>
+                    filtrados.map((n) => {
+                        const enEdicion = editandoId === n.id;
+                        return (
+                            <div key={n.id} data-testid={`nota-${n.id}`} className="flex flex-col gap-1.5 border-b border-borde py-3 last:border-b-0">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5">
+                                            {n.origen === 'negocio' ? (
+                                                <Store size={13} className="shrink-0 text-texto-4" />
+                                            ) : (
+                                                <Pin size={13} className="shrink-0 text-texto-4" />
+                                            )}
+                                            <span className="truncate text-[14px] font-semibold text-texto">{n.nombre}</span>
+                                        </div>
+                                        {n.subtitulo && <span className="text-[12px] text-texto-3">{n.subtitulo}</span>}
                                     </div>
-                                    {n.subtitulo && <span className="text-[12px] text-texto-3">{n.subtitulo}</span>}
+                                    <div className="flex shrink-0 items-center gap-1.5">
+                                        {n.origen === 'marca' ? (
+                                            <button
+                                                type="button"
+                                                data-testid={`nota-editar-${n.id}`}
+                                                onClick={() => onVerEnMapa(n)}
+                                                aria-label="Editar punto"
+                                                className="grid h-9 w-9 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
+                                            >
+                                                <Pencil size={18} />
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    data-testid={`nota-editar-${n.id}`}
+                                                    onClick={() => (enEdicion ? cancelarEdicion() : abrirEdicion(n))}
+                                                    aria-label={enEdicion ? 'Cancelar edición' : 'Editar nota'}
+                                                    className={`grid h-9 w-9 place-items-center rounded-full transition hover:opacity-80 ${enEdicion ? 'bg-superficie-2 text-texto-3' : 'bg-marca-suave text-marca'}`}
+                                                >
+                                                    {enEdicion ? <X size={18} /> : <Pencil size={18} />}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    data-testid={`nota-ver-mapa-${n.id}`}
+                                                    onClick={() => onVerEnMapa(n)}
+                                                    aria-label="Ver en el mapa"
+                                                    className="grid h-9 w-9 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
+                                                >
+                                                    <MapPin size={18} />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                                {n.origen === 'marca' ? (
-                                    <button
-                                        type="button"
-                                        data-testid={`nota-editar-${n.id}`}
-                                        onClick={() => onVerEnMapa(n)}
-                                        aria-label="Editar punto"
-                                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
-                                    >
-                                        <Pencil size={18} />
-                                    </button>
+                                {enEdicion ? (
+                                    <div className="flex flex-col gap-2">
+                                        <textarea
+                                            data-testid={`nota-editar-textarea-${n.id}`}
+                                            autoFocus
+                                            value={borrador}
+                                            onChange={(e) => setBorrador(e.target.value)}
+                                            placeholder="Nota sobre este negocio (ej. pidió que le llamen la próxima semana…)"
+                                            rows={5}
+                                            className="w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[13.5px] text-texto outline-none focus:border-marca"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={cancelarEdicion}
+                                                className="flex-1 rounded-[10px] border border-borde px-3 py-2 text-[13px] text-texto-2 transition hover:bg-superficie-2"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                data-testid={`nota-editar-guardar-${n.id}`}
+                                                onClick={() => guardarEdicion(n)}
+                                                disabled={guardandoNotaNegocio}
+                                                className="flex-1 rounded-[10px] bg-marca px-3 py-2 text-[13px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+                                            >
+                                                Guardar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : n.nota ? (
+                                    <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-texto-2">{n.nota}</p>
                                 ) : (
-                                    <button
-                                        type="button"
-                                        data-testid={`nota-ver-mapa-${n.id}`}
-                                        onClick={() => onVerEnMapa(n)}
-                                        aria-label="Ver en el mapa"
-                                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
-                                    >
-                                        <MapPin size={18} />
-                                    </button>
+                                    <p className="text-[13px] italic text-texto-3">Sin nota</p>
                                 )}
                             </div>
-                            {n.nota ? (
-                                <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-texto-2">{n.nota}</p>
-                            ) : (
-                                <p className="text-[13px] italic text-texto-3">Sin nota</p>
-                            )}
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>
