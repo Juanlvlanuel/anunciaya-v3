@@ -80,9 +80,10 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   contorno para distinguirlo de "Nueva zona") — exige **elegir una ciudad** del selector primero (misma UX
   que "Nueva zona"; el punto queda atribuido a esa ciudad), luego un toque en el mapa pone el punto y abre
   su editor al instante (estado + nota), igual que el editor del vendedor. Los pines de "mis puntos" son
-  **arrastrables** (sin restricción de zona: se pueden mover a cualquier parte) y aparecen en una lista
-  aparte ("Mis puntos") debajo de la lista de zonas, con botón editar. No compiten con "Marcas del equipo":
-  esas son de los vendedores reales; las del propio gerente quedan excluidas de ahí para no verse dos veces.
+  **arrastrables** (sin restricción de zona: se pueden mover a cualquier parte). No compiten con "Marcas
+  del equipo": esas son de los vendedores reales; las del propio gerente quedan excluidas de ahí para no
+  verse dos veces. **Ya no tienen una lista aparte en el panel** (esa lista se quitó el 30 jul — quedó
+  unificada dentro de "Mis notas", ver más abajo); se editan tocando el pin en el mapa o desde ahí.
 - **Editor de marca/punto — teléfono + nota más grande (29 jul 2026):** el editor de una marca (tanto
   "mis puntos" del gerente como las marcas del vendedor) gana un campo **teléfono/celular** (opcional,
   libre — junto al de nombre, `territorio_marcas.telefono`) y la **textarea de la nota se agrandó ~2.5x**
@@ -126,14 +127,17 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   ámbar** en la esquina — aplica tanto al pin de un **negocio** con vendedor asignado como al pin de
   **mi propia marca** de prospección (el vendedor en "Mi territorio" y el gerente en "Mis puntos"). Antes
   no había ninguna señal visual de qué puntos ya tenían seguimiento anotado.
-- **"Mis notas" (28 jul 2026):** botón "Notas" (vendedor siempre; gerente si tiene negocios/marcas en su
-  cartera) que abre una **página completa** (reemplaza el mapa) con **todas** mis notas — de **dos orígenes
-  distintos, unificados en una sola lista**: mis **negocios** asignados con nota (`nota_territorio`) y mis
-  **marcas** de prospección con nota (`territorio_marcas.nota`, los pines que yo mismo pongo al recorrer la
-  zona). Buscable por nombre (el de la marca es el campo opcional "Nombre del negocio" del editor de marca).
-  Cada tarjeta tiene "Ver en el mapa": si es un negocio, centra/cambia de ciudad; si es una marca, centra
-  exacto (vendedor) o abre su editor (gerente). Alcance **solo mis propias notas** (dueño real por
-  `embajador_id`) — no hay vista agregada de las notas de todo el equipo.
+- **"Mis notas" (28 jul 2026, ampliada 30 jul):** botón "Notas" (vendedor siempre; gerente si tiene
+  negocios/marcas en su cartera) que abre una **página completa** (reemplaza el mapa) con **todos mis
+  puntos** — de **dos orígenes distintos, unificados en una sola lista**: mis **negocios** asignados con
+  nota (`nota_territorio`) y **todas** mis **marcas** de prospección (`territorio_marcas`, los pines que
+  yo mismo pongo al recorrer la zona), **tengan o no nota** (antes solo entraban las marcas con nota; el
+  30 jul se amplió para reemplazar por completo a la antigua lista aparte "Mis puntos" del gerente, que
+  mostraba lo mismo con un botón editar). Buscable por nombre (el de la marca es el campo opcional
+  "Nombre del negocio" del editor). Acción por tarjeta: un **negocio** centra/cambia de ciudad (su nota se
+  edita tocando el pin real); una **marca** abre su **editor directo** (ícono de lápiz, no de pin — mismo
+  editor que "editar" desde el mapa). Alcance **solo mis propias notas/puntos** (dueño real por
+  `embajador_id`) — no hay vista agregada de todo el equipo.
 
 ### Cómo se conecta con la app
 Es un módulo **interno del Panel** (operación de la red de ventas). No tiene contraparte pública en
@@ -211,7 +215,7 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 | Archivo | Rol |
 |---|---|
 | `services/territoriosService.ts` · `config/queryKeys.ts` · `hooks/queries/useTerritoriosAdmin.ts` | React Query: zonas/ciudades/vendedores/marcas-equipo (lectura) + mutaciones de zona + marcas del vendedor/gerente (`useMisMarcas`/`useCrearMarca` —admite `ciudadId`—/`useEditarMarca`/`useMoverMarca`/`useBorrarMarca`) + `useActualizarNotaNegocio` (nota de un negocio asignado) |
-| `components/territorios/SeccionTerritorios.tsx` | **Bifurca por rol**: vendedor → `VistaVendedorTerritorio`; super/gerente → `VistaAdminTerritorio` (selector de ciudad · "Nueva zona" · lista de zonas con reasignar/borrar · filtro de "Marcas del equipo" · **si es gerente**: FAB "Agregar punto" + mini-editor + lista "Mis puntos", mutuamente excluyente con el dibujo de zonas) |
+| `components/territorios/SeccionTerritorios.tsx` | **Bifurca por rol**: vendedor → `VistaVendedorTerritorio`; super/gerente → `VistaAdminTerritorio` (selector de ciudad · "Nueva zona" · lista de zonas con reasignar/borrar · filtro de "Marcas del equipo" · **si es gerente**: FAB "Agregar punto" + mini-editor, mutuamente excluyente con el dibujo de zonas — la lista "Mis puntos" se retiró el 30 jul, ver "Mis notas") |
 | `components/territorios/MapaTerritorios.tsx` | Mapa admin (MapLibre + OpenFreeMap): pinta zonas + **editor de 4 herramientas** con snapping a calles (arrastre de vértices por mouse **y touch**) + **marcas de vendedores** y **negocios** como **pines** (capa `symbol`) + **tarjeta de detalle** al clic (marca siempre solo-lectura; negocio solo-lectura salvo que `esMio` → editor de nota inline) + **"mis puntos"** del gerente como `maplibregl.Marker` arrastrables (props `misMarcas`/`modoAgregarMarca`/`onAgregarMarca`/`onClicMiMarca`/`onMoverMiMarca`/`miMarcaSeleccionadaId`, mismo patrón que `MapaMarcas.tsx` pero sin restricción de zona), vía **portal** cuando el mapa es fijo. Recibe `mapaFijo` · `onGuardarNotaNegocio` · `guardandoNotaNegocio` |
 | `components/territorios/VistaVendedorTerritorio.tsx` | Vista "Mi territorio": shell responsive (vertical con hoja peek · horizontal con panel deslizable · escritorio con sidebar), FABs sobre el mapa, editor de marca, editor de **nota de negocio** (mini-form análogo, sin selector de estado ni borrar), lista (cards inline con ver/editar) |
 | `components/territorios/HojaMovil.tsx` | Bottom-sheet con "peek" reutilizado por ambas vistas (gerente y vendedor): resumen siempre asomado + FABs anclados que suben/bajan con la hoja |

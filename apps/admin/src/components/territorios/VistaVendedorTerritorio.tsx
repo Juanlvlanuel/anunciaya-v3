@@ -181,20 +181,19 @@ export function VistaVendedorTerritorio() {
             id: `negocio-${n.id}`, entidadId: n.id, nombre: n.nombre, nota: n.nota,
             origen: 'negocio', subtitulo: n.ciudadNombre, lat: n.lat, lng: n.lng,
         }));
-        const deMarcas: NotaListItem[] = marcas
-            .filter((m) => m.nota?.trim())
-            .map((m) => ({
-                id: `marca-${m.id}`, entidadId: m.id, nombre: m.nombre || ETIQUETA_TIPO[m.tipo], nota: m.nota as string,
-                origen: 'marca', subtitulo: ETIQUETA_TIPO[m.tipo], lat: m.lat, lng: m.lng,
-            }));
+        const deMarcas: NotaListItem[] = marcas.map((m) => ({
+            id: `marca-${m.id}`, entidadId: m.id, nombre: m.nombre || ETIQUETA_TIPO[m.tipo], nota: m.nota ?? '',
+            origen: 'marca', subtitulo: ETIQUETA_TIPO[m.tipo], lat: m.lat, lng: m.lng,
+        }));
         return [...deNegocios, ...deMarcas].sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [notasNegocio, marcas]);
 
-    // "Ver en el mapa" desde "Mis notas": vuelve al mapa y centra en ese punto (mismo mecanismo que
-    // "ver en el mapa" de una marca, sirve igual para negocio o marca).
+    // Acción de una tarjeta en "Mis notas": si es un negocio, centra ahí (su nota se edita tocando
+    // el pin real); si es una de mis marcas, abre su editor directo (mismo que "editar" de la lista).
     const irANotaEnMapa = (n: NotaListItem) => {
         setVista('mapa');
         setHojaExpandida(false);
+        if (n.origen === 'marca') { abrirMarca(n.entidadId); return; }
         setFoco((f) => ({ id: n.entidadId, coords: [n.lng, n.lat], nonce: (f?.nonce ?? 0) + 1 }));
     };
 

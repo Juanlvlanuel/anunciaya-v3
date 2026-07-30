@@ -955,7 +955,10 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                                 <button
                                     type="button"
                                     data-testid="negocio-guardar-nota"
-                                    onClick={() => onGuardarNotaNegocio?.(detalle.id, notaBorrador.trim() || null)}
+                                    onClick={() => {
+                                        onGuardarNotaNegocio?.(detalle.id, notaBorrador.trim() || null);
+                                        cerrarDetalle();
+                                    }}
                                     disabled={guardandoNotaNegocio}
                                     className="mt-2 w-full rounded-[10px] bg-marca px-3 py-2 text-[13px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
                                 >

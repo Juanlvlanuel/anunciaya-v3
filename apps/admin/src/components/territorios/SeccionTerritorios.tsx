@@ -50,9 +50,6 @@ import type { PoligonoGeoJSON, TipoMarca, ZonaTerritorio } from '../../services/
 
 const COLORES = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
 const TIPOS_MARCA: TipoMarca[] = ['visitado', 'interesado', 'cerrado', 'sin_interes'];
-// "Mis puntos" del gerente van siempre en verde en el mapa (ver MapaTerritorios.tsx) — mismo color
-// aquí, en el punto de la lista, para que se reconozcan como el mismo elemento.
-const COLOR_MI_PUNTO = '#0e8a52';
 
 interface SeccionTerritoriosProps {
     rol: RolPanel;
@@ -179,25 +176,24 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         setHojaExpandida(false);
     };
 
-    // "Mis notas" (solo gerente): une mis negocios con nota + mis puntos con nota en una sola lista
-    // buscable por nombre. Reusa los datos ya cargados (sin pedirlos de nuevo).
+    // "Mis notas" (solo gerente): une mis negocios con nota + TODOS mis puntos (tengan o no nota) en
+    // una sola lista buscable por nombre — reemplaza la antigua lista aparte "Mis puntos" (30 jul,
+    // eran casi lo mismo). Reusa los datos ya cargados (sin pedirlos de nuevo).
     const notasUnificadas: NotaListItem[] = useMemo(() => {
         if (!esGerente) return [];
         const deNegocios: NotaListItem[] = notasNegocio.map((n) => ({
             id: `negocio-${n.id}`, entidadId: n.id, nombre: n.nombre, nota: n.nota,
             origen: 'negocio', subtitulo: n.ciudadNombre, lat: n.lat, lng: n.lng, ciudadId: n.ciudadId,
         }));
-        const deMarcas: NotaListItem[] = misMarcas
-            .filter((m) => m.nota?.trim())
-            .map((m) => ({
-                id: `marca-${m.id}`, entidadId: m.id, nombre: m.nombre || ETIQUETA_TIPO[m.tipo], nota: m.nota as string,
-                origen: 'marca', subtitulo: ETIQUETA_TIPO[m.tipo], lat: m.lat, lng: m.lng,
-            }));
+        const deMarcas: NotaListItem[] = misMarcas.map((m) => ({
+            id: `marca-${m.id}`, entidadId: m.id, nombre: m.nombre || ETIQUETA_TIPO[m.tipo], nota: m.nota ?? '',
+            origen: 'marca', subtitulo: ETIQUETA_TIPO[m.tipo], lat: m.lat, lng: m.lng,
+        }));
         return [...deNegocios, ...deMarcas].sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [esGerente, notasNegocio, misMarcas]);
 
-    /** "Ver en el mapa" desde "Mis notas": si es un negocio, cambia a su ciudad (el mapa reencuadra
-     *  solo); si es una de mis marcas, abre su editor (mismo pin que "editar" en "Mis puntos"). */
+    /** Acción de una tarjeta en "Mis notas": si es un negocio, cambia a su ciudad (el mapa reencuadra
+     *  solo); si es una de mis marcas, abre su editor directo. */
     const irANotaEnMapa = (n: NotaListItem) => {
         setVista('mapa');
         if (n.origen === 'negocio') { if (n.ciudadId) setCiudadId(n.ciudadId); return; }
@@ -365,6 +361,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             buscarPlaceholder="Buscar ciudad…"
             testid="territorios-ciudad"
             textoClase="text-[13.5px]"
+            paddingClase="px-3 py-3"
             redondo
         />
     );
@@ -722,36 +719,8 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         />
     ) : null;
 
-    // "Mis puntos" (gerente): lista compacta debajo de las zonas, con editar por fila. Sin filtros
-    // (volumen bajo esperado — es una capa secundaria del gerente, no su vista principal).
-    const piezaMisPuntos = esGerente ? (
-        <div className="mt-3 shrink-0 border-t border-borde pt-3">
-            <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-wide text-texto-3">Mis puntos</h3>
-            {misMarcas.length === 0 ? (
-                <div className="rounded-[10px] border border-dashed border-borde px-3 py-4 text-center text-[12.5px] text-texto-3">
-                    Aún no tienes puntos. Elige una ciudad y usa "Agregar punto".
-                </div>
-            ) : (
-                misMarcas.map((m) => (
-                    <div key={m.id} data-testid={`marca-gerente-item-${m.id}`} className="flex items-center gap-2 border-b border-borde py-2 last:border-b-0">
-                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: COLOR_MI_PUNTO }} />
-                        <span className="min-w-0 flex-1 truncate text-[12.5px] text-texto-2">{m.nombre || m.nota || ETIQUETA_TIPO[m.tipo as TipoMarca]}</span>
-                        <Tooltip text="Editar punto">
-                            <button
-                                type="button"
-                                data-testid={`marca-gerente-editar-${m.id}`}
-                                onClick={() => abrirMarca(m.id)}
-                                aria-label="Editar punto"
-                                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
-                            >
-                                <Pencil size={16} />
-                            </button>
-                        </Tooltip>
-                    </div>
-                ))
-            )}
-        </div>
-    ) : null;
+    // "Mis puntos" como lista aparte se retiró (30 jul): quedó unificada dentro de "Mis notas"
+    // (PanelNotasNegocios), que ahora también lista los puntos sin nota. Ver notasUnificadas.
 
     // "Mis notas" (solo gerente: tiene embajador propio, puede tener negocios en su cartera).
     const botonNotas = esGerente ? (
@@ -775,7 +744,6 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             {hayFiltros && <div className="shrink-0">{piezaFiltros(filtrosCarrusel)}</div>}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {piezaLista}
-                {piezaMisPuntos}
             </div>
         </>
     );
@@ -850,7 +818,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     Se oculta mientras se DIBUJA o se nombra la zona; reaparece al cancelar o terminar.
                     Con una sola ciudad no hay selector que mostrar (piezaCiudad es null). */}
                 {piezaCiudad && !dibujando && !poligonoNuevo && !modoAgregarMarca && !marcaEditando && (
-                    <div className="absolute left-2 right-14 top-2 z-10">
+                    <div className="absolute left-2 top-2 z-10 w-[70%] max-w-[260px]">
                         <div className="rounded-[10px] shadow-tarjeta-panel">{piezaCiudad}</div>
                     </div>
                 )}
@@ -864,7 +832,6 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 >
                     {botonNotas && <div className="shrink-0">{botonNotas}</div>}
                     {piezaLista}
-                    {piezaMisPuntos}
                 </HojaMovil>
 
                 {dialogoBorrar}

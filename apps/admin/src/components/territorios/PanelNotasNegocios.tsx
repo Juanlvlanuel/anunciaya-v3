@@ -1,11 +1,14 @@
 /**
  * PanelNotasNegocios.tsx
  * =======================
- * Página completa "Mis notas" del módulo Territorios: TODAS las notas que YO escribí — tanto sobre
- * mis NEGOCIOS asignados (`negocios.nota_territorio`) como sobre mis MARCAS de prospección
- * (`territorio_marcas.nota`, los pines que yo mismo pongo al recorrer la zona) — en una sola lista
- * buscable por nombre. Se abre con el botón "Notas" (reemplaza el mapa); "Ver en el mapa" regresa
- * a él centrado en ese punto.
+ * Página completa "Mis notas" del módulo Territorios: TODOS mis puntos — tanto mis NEGOCIOS
+ * asignados con nota (`negocios.nota_territorio`) como TODAS mis MARCAS de prospección
+ * (`territorio_marcas`, los pines que yo mismo pongo al recorrer la zona, tengan o no nota) — en
+ * una sola lista buscable por nombre. Reemplaza a la antigua lista aparte "Mis puntos" del gerente
+ * (28→29 jul): mismo dato, sin duplicar sección (30 jul).
+ *
+ * Acción por tarjeta: una marca se **edita** directo (abre su editor sobre el mapa); un negocio
+ * solo **centra/cambia de ciudad** (su nota se edita tocando su pin real en el mapa, no desde aquí).
  *
  * Es puramente presentacional: recibe la lista ya unificada (`items`) — cada vista padre
  * (VistaVendedorTerritorio / VistaAdminTerritorio) arma el arreglo con los datos que YA tiene
@@ -15,7 +18,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { ArrowLeft, MapPin, Search, X, StickyNote, Store, Pin } from 'lucide-react';
+import { ArrowLeft, MapPin, Pencil, Search, X, StickyNote, Store, Pin } from 'lucide-react';
 
 /** Una nota unificada (negocio real o marca de prospección propia) para la lista "Mis notas". */
 export interface NotaListItem {
@@ -38,7 +41,8 @@ interface PanelNotasNegociosProps {
     items: NotaListItem[];
     cargando?: boolean;
     onVolver: () => void;
-    /** "Ver en el mapa" de una nota: regresa al mapa centrado/abierto en ese punto. */
+    /** Acción por tarjeta: si es marca, abre su editor sobre el mapa; si es negocio, centra/cambia de
+     *  ciudad (su nota se edita tocando el pin real). El padre decide cuál hacer según `item.origen`. */
     onVerEnMapa: (item: NotaListItem) => void;
 }
 
@@ -98,7 +102,7 @@ export function PanelNotasNegocios({ items, cargando = false, onVolver, onVerEnM
                     <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed border-borde px-3 py-10 text-center">
                         <StickyNote size={26} className="text-texto-4" />
                         <p className="text-[13px] text-texto-3">
-                            Aún no has guardado ninguna nota. Anota un negocio o una marca desde el mapa.
+                            Aún no tienes ningún punto. Agrega uno desde el mapa.
                         </p>
                     </div>
                 ) : filtrados.length === 0 ? (
@@ -120,17 +124,33 @@ export function PanelNotasNegocios({ items, cargando = false, onVolver, onVerEnM
                                     </div>
                                     {n.subtitulo && <span className="text-[12px] text-texto-3">{n.subtitulo}</span>}
                                 </div>
-                                <button
-                                    type="button"
-                                    data-testid={`nota-ver-mapa-${n.id}`}
-                                    onClick={() => onVerEnMapa(n)}
-                                    aria-label="Ver en el mapa"
-                                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
-                                >
-                                    <MapPin size={18} />
-                                </button>
+                                {n.origen === 'marca' ? (
+                                    <button
+                                        type="button"
+                                        data-testid={`nota-editar-${n.id}`}
+                                        onClick={() => onVerEnMapa(n)}
+                                        aria-label="Editar punto"
+                                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
+                                    >
+                                        <Pencil size={18} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        data-testid={`nota-ver-mapa-${n.id}`}
+                                        onClick={() => onVerEnMapa(n)}
+                                        aria-label="Ver en el mapa"
+                                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
+                                    >
+                                        <MapPin size={18} />
+                                    </button>
+                                )}
                             </div>
-                            <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-texto-2">{n.nota}</p>
+                            {n.nota ? (
+                                <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-texto-2">{n.nota}</p>
+                            ) : (
+                                <p className="text-[13px] italic text-texto-3">Sin nota</p>
+                            )}
                         </div>
                     ))
                 )}

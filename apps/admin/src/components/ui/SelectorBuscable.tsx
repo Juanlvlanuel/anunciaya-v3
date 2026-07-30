@@ -33,6 +33,8 @@ interface SelectorBuscableProps {
   conBuscador?: boolean;
   /** Trigger tipo píldora (rounded-full) en vez de rounded-[10px]. Default false. */
   redondo?: boolean;
+  /** Padding Tailwind del trigger (px/py). Default 'px-3 py-2'. */
+  paddingClase?: string;
 }
 
 export function SelectorBuscable({
@@ -46,6 +48,7 @@ export function SelectorBuscable({
   textoClase = 'text-[13px]',
   conBuscador = true,
   redondo = false,
+  paddingClase = 'px-3 py-2',
 }: SelectorBuscableProps) {
   const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
@@ -154,7 +157,7 @@ export function SelectorBuscable({
         data-testid={testid}
         disabled={disabled}
         onClick={() => setAbierto((v) => !v)}
-        className={`flex w-full items-center justify-between gap-2 ${redondo ? 'rounded-full' : 'rounded-[10px]'} border bg-campo px-3 py-2 ${textoClase} outline-none transition ${
+        className={`flex w-full items-center justify-between gap-2 ${redondo ? 'rounded-full' : 'rounded-[10px]'} border bg-campo ${paddingClase} ${textoClase} outline-none transition ${
           abierto ? 'border-marca bg-superficie [box-shadow:0_0_0_3px_var(--panel-ring)]' : 'border-campo-borde hover:border-borde-fuerte'
         } disabled:cursor-not-allowed disabled:opacity-50`}
       >
