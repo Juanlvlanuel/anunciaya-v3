@@ -634,7 +634,7 @@ export function ComposerServicios({
                                 type="button"
                                 data-testid="composer-chip-camara"
                                 onClick={fotosUploader.abrirCamara}
-                                className="flex shrink-0 items-center gap-2 lg:gap-1.5 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 lg:px-3 lg:py-1.5 text-sm lg:text-[13px] font-semibold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-100"
+                                className="lg:hidden flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700"
                             >
                                 <Camera className="h-4 w-4" strokeWidth={2} />
                                 Cámara

@@ -68,7 +68,6 @@ import { MarcadorPopup } from '../../../components/mapa/MarcadorPopup';
 import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../components/negocios/ModalHorarios';
 import { ModalBottom } from '../../../components/ui/ModalBottom';
 import { Modal } from '../../../components/ui/Modal';
-import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useGpsStore } from '../../../stores/useGpsStore';
@@ -79,7 +78,7 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 // useNegociosCacheStore eliminado — React Query maneja caché
 import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
-import { useAbrirWhatsApp, formatearNumero } from '../../../hooks/useAbrirWhatsApp';
+import { useAbrirWhatsApp, formatearNumero, calcularPosicionCentrada } from '../../../hooks/useAbrirWhatsApp';
 import { notificar } from '../../../utils/notificaciones';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
@@ -505,56 +504,73 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
 
     // Teléfono alterno: solo 2 lugares en toda la app usan `tel:` mostrando
-    // solo el ícono (sin el número como texto). Antes era un popover anclado
-    // con posición manual (fixed + coordenadas propias) — no se renderizaba
-    // dentro del preview embebido de Business Studio por una causa que no se
-    // pudo aislar pese a confirmar con logs que el estado y las coordenadas
-    // eran correctos. Se usa `ModalAdaptativo` (misma base que el resto de
-    // los modales de esta página, que sí funcionan en ese contexto) en vez
-    // de reinventar el posicionamiento.
-    const [telefonoPendiente, setTelefonoPendiente] = useState<{ principal: string; alterno: string } | null>(null);
-    const abrirTelefono = useCallback((_e: unknown, principal?: string | null, alterno?: string | null) => {
+    // solo el ícono (sin el número como texto), así que basta un dropdown
+    // anclado — mismo patrón que `useAbrirWhatsApp` (fixed + getBoundingClientRect
+    // + portal a document.body + back nativo + Escape).
+    const [telefonoPendiente, setTelefonoPendiente] = useState<{ principal: string; alterno: string; posicion: { top: number; centro: number } } | null>(null);
+    const cerrarTelefono = useCallback(() => setTelefonoPendiente(null), []);
+    useBackNativo({
+        abierto: !!telefonoPendiente,
+        onCerrar: cerrarTelefono,
+        discriminador: '_popoverTelefonoAlterno',
+    });
+    useEffect(() => {
+        if (!telefonoPendiente) return;
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') cerrarTelefono();
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [telefonoPendiente, cerrarTelefono]);
+    const abrirTelefono = useCallback((e: MouseEvent<HTMLElement>, principal?: string | null, alterno?: string | null) => {
         if (!principal) return;
         if (!alterno) {
             window.location.href = `tel:${principal.replace(/\s+/g, '')}`;
             return;
         }
-        setTelefonoPendiente({ principal, alterno });
+        const rect = e.currentTarget.getBoundingClientRect();
+        setTelefonoPendiente({
+            principal,
+            alterno,
+            posicion: { top: rect.bottom + 12, centro: rect.left + rect.width / 2 },
+        });
     }, []);
     const elegirTelefono = (numero: string) => {
         window.location.href = `tel:${numero.replace(/\s+/g, '')}`;
         setTelefonoPendiente(null);
     };
-    const menuTelefono = (
-        <ModalAdaptativo
-            abierto={!!telefonoPendiente}
-            onCerrar={() => setTelefonoPendiente(null)}
-            titulo="Elegir número de teléfono"
-            ancho="sm"
-            paddingContenido="sm"
-            discriminador="_modalTelefonoAlterno"
-        >
-            {telefonoPendiente && (
-                <div className="flex flex-col gap-2">
-                    <button
-                        type="button"
-                        onClick={() => elegirTelefono(telefonoPendiente.principal)}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
-                    >
-                        <Phone className="w-5 h-5 text-slate-600 shrink-0" />
-                        <span className="text-base font-semibold text-slate-800">{formatearNumero(telefonoPendiente.principal)}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => elegirTelefono(telefonoPendiente.alterno)}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
-                    >
-                        <Phone className="w-5 h-5 text-slate-600 shrink-0" />
-                        <span className="text-base font-semibold text-slate-800">{formatearNumero(telefonoPendiente.alterno)}</span>
-                    </button>
-                </div>
-            )}
-        </ModalAdaptativo>
+    const posicionMenuTelefono = telefonoPendiente ? calcularPosicionCentrada(telefonoPendiente.posicion.centro) : null;
+    const menuTelefono = telefonoPendiente && posicionMenuTelefono && createPortal(
+        <>
+            <div className="fixed inset-0 z-9998" onClick={cerrarTelefono} />
+            <div
+                className="fixed w-56 bg-slate-900 rounded-xl shadow-lg py-2 z-9999"
+                style={{ top: telefonoPendiente.posicion.top, left: posicionMenuTelefono.boxLeft, transform: 'translateX(-50%)' }}
+            >
+                {/* Triángulo apuntando al ícono — arriba del dropdown, ya que este vive debajo del ícono */}
+                <div
+                    className="absolute bottom-full -translate-x-1/2 w-0 h-0"
+                    style={{ left: posicionMenuTelefono.flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '6px solid #0f172a' }}
+                />
+                <button
+                    type="button"
+                    onClick={() => elegirTelefono(telefonoPendiente.principal)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                    <Phone className="w-5 h-5 text-slate-300 shrink-0" />
+                    <span className="text-sm font-semibold text-white">{formatearNumero(telefonoPendiente.principal)}</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => elegirTelefono(telefonoPendiente.alterno)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                    <Phone className="w-5 h-5 text-slate-300 shrink-0" />
+                    <span className="text-sm font-semibold text-white">{formatearNumero(telefonoPendiente.alterno)}</span>
+                </button>
+            </div>
+        </>,
+        document.body
     );
 
     // ✅ Store de caché para ofertas y catálogo
@@ -846,6 +862,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
         if (!negocio?.whatsapp) return;
         abrirWhatsApp(e, negocio.whatsapp, negocio.whatsappAlterno, 'Hola! Vi tu negocio en AnunciaYA');
+    };
+
+    const handleTelefonoAcciones = (e: MouseEvent<HTMLElement>) => {
+        if (!negocio?.telefono) return;
+        abrirTelefono(e, negocio.telefono, negocio.telefonoAlterno);
     };
 
     const handleDirecciones = () => {
@@ -1801,6 +1822,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 )}
 
                                 <div className="flex @5xl:gap-3 @[96rem]:gap-4 items-center">
+                                    {negocio.telefono && (
+                                        <Tooltip text="Llamar" position="top">
+                                            <button
+                                                onClick={handleTelefonoAcciones}
+                                                className="hover:scale-110 transition-transform cursor-pointer w-9 h-9 @5xl:w-8 @5xl:h-8 @[96rem]:w-10 @[96rem]:h-10 rounded-full bg-slate-600 flex items-center justify-center"
+                                            >
+                                                <Phone className="w-4.5 h-4.5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 text-white" />
+                                            </button>
+                                        </Tooltip>
+                                    )}
                                     {negocio.whatsapp && (
                                         <Tooltip text="WhatsApp" position="top">
                                             <button

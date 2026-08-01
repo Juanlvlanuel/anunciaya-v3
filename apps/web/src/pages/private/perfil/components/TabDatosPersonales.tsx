@@ -203,9 +203,9 @@ export default function TabDatosPersonales() {
                     <div className="flex flex-wrap gap-2">
                         <label
                             data-testid="input-avatar-camara"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-white text-slate-700 border border-slate-300 px-3 py-1.5 text-sm font-semibold cursor-pointer lg:hover:bg-slate-200"
+                            className="lg:hidden inline-flex items-center gap-1.5 rounded-lg bg-white text-slate-700 border border-slate-300 px-3 py-1.5 text-sm font-semibold cursor-pointer"
                         >
-                            <Camera className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                            <Camera className="w-5 h-5" strokeWidth={2} />
                             Tomar foto
                             <input
                                 type="file"

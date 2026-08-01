@@ -368,9 +368,9 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                     <div className="flex items-center gap-2">
                         <label
                             data-testid="input-comprobante-camara"
-                            className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer lg:hover:bg-slate-200"
+                            className="lg:hidden flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer"
                         >
-                            <Camera className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                            <Camera className="w-5 h-5" strokeWidth={2} />
                             Tomar foto
                             <input
                                 type="file"

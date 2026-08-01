@@ -80,6 +80,8 @@ export default function AvatarEmpleadoScanYA() {
 
   const handleClick = () => {
     if (!puedeEditar || enProceso) return;
+    // Desktop no tiene cámara — salta el menú y abre el explorador directo.
+    if (esDesktop) { inputGaleriaRef.current?.click(); return; }
     setMenuAbierto(true);
   };
 

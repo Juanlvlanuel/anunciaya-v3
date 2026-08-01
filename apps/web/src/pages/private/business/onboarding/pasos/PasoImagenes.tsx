@@ -26,6 +26,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Image as ImageIcon, Grid3x3, Trash2, Plus, Loader2, Move, Camera, Images } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import ModalAjustarPortada from '@/components/negocios/ModalAjustarPortada';
 import { notificar } from '@/utils/notificaciones';
 import { api } from '@/services/api';
@@ -87,10 +88,12 @@ function ZonaUpload({
     // Trackear QUÉ URL ya cargó (síncrono, sin delay de useEffect)
     const [urlCargada, setUrlCargada] = useState<string | null>(null);
     const cargada = imageUrl !== null && imageUrl === urlCargada;
-    // Menú Tomar foto / Galería — solo para la carga INICIAL (sin imagen aún).
-    // Reemplazar una imagen existente sigue abriendo la galería directo (como antes).
+    // Menú Tomar foto / Galería — solo para la carga INICIAL (sin imagen aún) y
+    // solo en móvil, donde sí existe cámara. En desktop se salta directo al
+    // explorador de archivos, igual que al reemplazar una imagen existente.
     const [menuAbierto, setMenuAbierto] = useState(false);
     const inputCamaraRef = useRef<HTMLInputElement>(null);
+    const { esMobile } = useBreakpoint();
 
     // URL para capa blur: miniatura propia (blob separado) o imageUrl actual
     const urlBlur = miniatura || imageUrl;
@@ -103,6 +106,7 @@ function ZonaUpload({
                 if (isUploading) return;
                 if (imageUrl && cargada && onImageClick) { onImageClick(); return; }
                 if (imageUrl) { inputRef.current?.click(); return; }
+                if (!esMobile) { inputRef.current?.click(); return; }
                 setMenuAbierto(true);
             }}
             onDragEnter={onDragEnter}

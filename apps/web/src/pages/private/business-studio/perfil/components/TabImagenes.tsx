@@ -25,6 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Image, Trash2, Plus, Loader2, Store, UserCircle, Images, Camera, Move } from 'lucide-react';
 import type { DatosImagenes, DatosInformacion } from '../hooks/usePerfil';
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
+import { useBreakpoint } from '../../../../../hooks/useBreakpoint';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { api } from '../../../../../services/api';
 import { notificar } from '../../../../../utils/notificaciones';
@@ -102,6 +103,7 @@ export default function TabImagenes({
   const negocioId = useAuthStore((state) => state.usuario?.negocioId);
   const sucursalActiva = useAuthStore((state) => state.usuario?.sucursalActiva);
   const qc = useQueryClient();
+  const { esMobile } = useBreakpoint();
 
   /**
    * Invalida todas las caches que muestran datos del negocio/sucursal después
@@ -166,15 +168,32 @@ export default function TabImagenes({
   const [galeriaSubiendo, setGaleriaSubiendo] = useState<{ tempId: string; blobUrl: string }[]>([]);
   const [miniaturasGaleria, setMiniaturasGaleria] = useState<Record<string, string>>({});
 
-  // Menú de cámara móvil (galería vs tomar foto)
+  // Menú de cámara móvil (galería vs tomar foto) — en desktop no hay cámara,
+  // así que se salta el menú y se abre el explorador de archivos directo.
   const [menuCamara, setMenuCamara] = useState<{ onFile: (f: File) => void } | null>(null);
+  const inputArchivoDesktopRef = useRef<HTMLInputElement>(null);
+  const callbackDesktopRef = useRef<((f: File) => void) | null>(null);
 
-  const abrirMenuCamara = (onFile: (f: File) => void) => setMenuCamara({ onFile });
+  const abrirMenuCamara = (onFile: (f: File) => void) => {
+    if (esMobile) {
+      setMenuCamara({ onFile });
+    } else {
+      callbackDesktopRef.current = onFile;
+      inputArchivoDesktopRef.current?.click();
+    }
+  };
 
   const handleArchivoSeleccionado = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f && menuCamara) menuCamara.onFile(f);
     setMenuCamara(null);
+    e.target.value = '';
+  };
+
+  const handleArchivoDesktopSeleccionado = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f && callbackDesktopRef.current) callbackDesktopRef.current(f);
+    callbackDesktopRef.current = null;
     e.target.value = '';
   };
 
@@ -976,6 +995,15 @@ export default function TabImagenes({
           </button>
         </div>
       </ModalBottom>
+
+      {/* Input oculto para desktop — sin cámara, abre el explorador de archivos directo (sin el menú de arriba) */}
+      <input
+        ref={inputArchivoDesktopRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp"
+        onChange={handleArchivoDesktopSeleccionado}
+        className="hidden"
+      />
 
       <ModalImagenes
         images={modalImagenes.images}
