@@ -18,6 +18,8 @@ import {
     marcarResuelta,
     editarMiPregunta,
     reintentarMiPregunta,
+    generarUrlUploadImagenPregunta,
+    eliminarFotoPreguntaSiHuerfana,
 } from '../services/preguntasComunidad.service.js';
 import {
     listarComentarios,
@@ -49,10 +51,11 @@ function obtenerUsuarioId(req: Request): string {
 export async function crearPreguntaController(req: Request, res: Response) {
     try {
         const usuarioId = obtenerUsuarioId(req);
-        const { texto, ciudad, estado } = (req.body ?? {}) as {
+        const { texto, ciudad, estado, imagenUrl } = (req.body ?? {}) as {
             texto?: unknown;
             ciudad?: unknown;
             estado?: unknown;
+            imagenUrl?: unknown;
         };
 
         // Coerción defensiva — el service revalida formato/length.
@@ -62,8 +65,21 @@ export async function crearPreguntaController(req: Request, res: Response) {
                 message: 'texto, ciudad y estado son requeridos (string)',
             });
         }
+        if (imagenUrl !== undefined && imagenUrl !== null && typeof imagenUrl !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'imagenUrl debe ser string o null',
+            });
+        }
 
-        const resultado = await crearPregunta({ usuarioId, texto, ciudad, estado, modo: obtenerModoActual(req) });
+        const resultado = await crearPregunta({
+            usuarioId,
+            texto,
+            ciudad,
+            estado,
+            modo: obtenerModoActual(req),
+            imagenUrl: imagenUrl as string | null | undefined,
+        });
 
         if (!resultado.success) {
             return res.status(resultado.code || 500).json({
@@ -82,6 +98,82 @@ export async function crearPreguntaController(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/preguntas-comunidad/upload-imagen
+// =============================================================================
+
+const TIPOS_IMAGEN_PERMITIDOS = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+/**
+ * Genera una presigned URL para que el vecino suba la foto opcional de su
+ * pregunta directamente a R2 (prefijo `preguntas/`). Mismo patrón que
+ * `/marketplace/upload-imagen`.
+ */
+export async function uploadImagenPreguntaController(req: Request, res: Response) {
+    try {
+        const { nombreArchivo, contentType } = (req.body ?? {}) as {
+            nombreArchivo?: unknown;
+            contentType?: unknown;
+        };
+
+        if (
+            typeof nombreArchivo !== 'string' ||
+            nombreArchivo.trim().length === 0 ||
+            nombreArchivo.length > 255
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: 'nombreArchivo es requerido (máx 255 caracteres)',
+            });
+        }
+        if (typeof contentType !== 'string' || !TIPOS_IMAGEN_PERMITIDOS.has(contentType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El tipo de archivo debe ser image/jpeg, image/png o image/webp',
+            });
+        }
+
+        const resultado = await generarUrlUploadImagenPregunta(nombreArchivo, contentType);
+        return res.status(resultado.code).json(resultado);
+    } catch (error) {
+        console.error('Error en uploadImagenPreguntaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar URL de subida',
+        });
+    }
+}
+
+// =============================================================================
+// DELETE /api/preguntas-comunidad/foto-huerfana
+// =============================================================================
+
+/**
+ * Body: { url: string }. El composer dispara esto cuando el vecino sube una
+ * foto y la quita (o descarta la pregunta) antes de publicar. El service
+ * valida que ninguna pregunta la siga referenciando antes de borrar de R2.
+ */
+export async function eliminarFotoPreguntaHuerfanaController(req: Request, res: Response) {
+    try {
+        const { url } = (req.body ?? {}) as { url?: unknown };
+        if (typeof url !== 'string' || url.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Falta la URL de la foto a eliminar',
+            });
+        }
+
+        await eliminarFotoPreguntaSiHuerfana(url);
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error en eliminarFotoPreguntaHuerfanaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al eliminar la foto',
         });
     }
 }

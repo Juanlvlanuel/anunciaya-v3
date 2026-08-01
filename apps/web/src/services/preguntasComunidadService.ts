@@ -53,6 +53,32 @@ export async function crearPregunta(datos: CrearPreguntaInput) {
 }
 
 // =============================================================================
+// SUBIDA DE LA FOTO OPCIONAL (R2)
+// =============================================================================
+
+/**
+ * POST /api/preguntas-comunidad/upload-imagen
+ * Genera una presigned URL para subir la foto opcional de la pregunta
+ * directamente a R2 (prefijo `preguntas/`). Mismo flujo que
+ * `generarUrlUploadImagenArticulo` — la usa `useR2Upload` como `generarUrl`.
+ */
+export async function generarUrlUploadImagenPregunta(nombreArchivo: string, contentType: string) {
+    return post<{ uploadUrl: string; publicUrl: string; key: string; expiresIn: number }>(
+        '/preguntas-comunidad/upload-imagen',
+        { nombreArchivo, contentType },
+    );
+}
+
+/**
+ * DELETE /api/preguntas-comunidad/foto-huerfana
+ * El composer dispara esto cuando el vecino sube una foto y la quita (o
+ * descarta la pregunta) antes de publicar. Fire-and-forget desde el caller.
+ */
+export async function eliminarFotoPreguntaHuerfana(url: string): Promise<void> {
+    await api.delete('/preguntas-comunidad/foto-huerfana', { data: { url } });
+}
+
+// =============================================================================
 // LISTAR PREGUNTAS POR CIUDAD
 // =============================================================================
 
@@ -285,6 +311,8 @@ export async function editarMiPregunta({ preguntaId, textoNuevo }: EditarPregunt
 
 export default {
     crearPregunta,
+    generarUrlUploadImagenPregunta,
+    eliminarFotoPreguntaHuerfana,
     listarPreguntasPorCiudad,
     listarMisPreguntas,
     obtenerPregunta,

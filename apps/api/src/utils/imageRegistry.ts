@@ -114,6 +114,11 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // vacantes). Mismo patrón que marketplace.
     { tabla: 'servicios_publicaciones', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos de publicación de Servicios (JSONB array de URLs)' },
 
+    // ─── Home / Coyo — preguntas de la comunidad ───
+    // Foto opcional adjunta a la pregunta (carpeta R2 'preguntas'). Agregada
+    // 2026-08-01 — Coyo la usa como contexto multimodal para Gemini.
+    { tabla: 'preguntas_comunidad', columna: 'imagen_url', tipo: 'url', descripcion: 'Foto adjunta a la pregunta del vecino (Coyo)' },
+
     // ─── Negocios — Feed de publicaciones ───
     // Tabla `negocio_publicaciones` (Jul 2026). Campo `fotos` es JSONB array de
     // URLs en R2, sin límite de producto (solo tope técnico de 40). Mismo

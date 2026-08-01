@@ -143,6 +143,15 @@ function esErrorTransitorio(error: unknown): boolean {
 }
 
 /**
+ * Shape exacto que espera `cliente.models.generateContent({ contents })` —
+ * lo derivamos del propio SDK en vez de redefinirlo a mano, así que si
+ * `@google/genai` cambia su tipo, este archivo lo refleja sin desincronizarse.
+ * Acepta tanto un string plano (llamadas solo-texto) como un array de
+ * `Content` con `parts` multimodales (texto + `inlineData` de imagen).
+ */
+type ContenidoGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['contents'];
+
+/**
  * Llama a Gemini con resiliencia: reintenta el modelo principal hasta 3
  * veces con backoff (0s → 1s → 3s), y si todos los reintentos fallan
  * con errores transitorios, intenta con el modelo de respaldo.
@@ -156,7 +165,7 @@ function esErrorTransitorio(error: unknown): boolean {
  */
 async function llamarGeminiConReintento(
     cliente: GoogleGenAI,
-    contents: string,
+    contents: ContenidoGemini,
 ): Promise<{ texto: string; modelo: string } | null> {
     const modelos = [MODELO_GEMINI_PRINCIPAL, MODELO_GEMINI_FALLBACK];
 
@@ -454,7 +463,47 @@ RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN expli
 {"tipo": "busqueda_local"|"vaga"|"no_local"|"inapropiada", "terminos": "...", "mensajeReformular": "...", "intencion": "busca_oferta"|"busca_demanda", "esEmpleo": true|false}`;
 
 /**
- * Clasifica la pregunta del vecino y extrae términos buscables.
+ * Instrucción que se agrega al prompt SOLO cuando el vecino adjuntó una foto.
+ * Gemini 2.5-flash es multimodal nativo — la imagen se manda como `inlineData`
+ * junto con este texto. El objetivo (visión estratégica): que Coyo pueda
+ * responder al instante usando la imagen como contexto, sin esperar a que
+ * la comunidad interprete una pregunta vaga por el vecino.
+ */
+const INSTRUCCION_IMAGEN = `
+
+EL VECINO ADJUNTÓ UNA FOTO junto con su pregunta. Analízala como contexto ADICIONAL:
+- Úsala para identificar el objeto, producto, problema o categoría que el texto no deja claro (ej. una foto de una llave goteando + "esto tiene arreglo?" → terminos: "plomero plomería"; una foto de un platillo + "se ve rico esto?" → terminos del platillo o "restaurantes").
+- Si el texto YA es claro, la foto solo confirma o afina los términos — no cambies la interpretación si la imagen no aporta nada nuevo.
+- Si el texto por sí solo sería "vaga" pero la foto muestra algo identificable con UNA interpretación razonable, clasifica como "busqueda_local" usando lo que ves en la imagen — no dejes al vecino esperando cuando la foto ya resuelve la ambigüedad.
+- Si la imagen muestra contenido inapropiado (armas, drogas, sexo explícito, etc.) aunque el texto no lo sugiera, clasifica igual como "inapropiada".
+- Nunca inventes detalles que no se vean claramente en la imagen.`;
+
+/**
+ * Descarga una imagen pública de R2 y la devuelve en base64 lista para
+ * `inlineData`. Devuelve `null` si falla cualquier paso (URL caída, timeout,
+ * tipo no soportado) — el caller cae a interpretar solo con texto, nunca
+ * rompe el flujo por una imagen inaccesible.
+ */
+async function descargarImagenComoBase64(
+    url: string,
+): Promise<{ data: string; mimeType: string } | null> {
+    try {
+        const respuesta = await fetch(url);
+        if (!respuesta.ok) return null;
+        const contentType = respuesta.headers.get('content-type') ?? 'image/webp';
+        if (!contentType.startsWith('image/')) return null;
+        const buffer = Buffer.from(await respuesta.arrayBuffer());
+        return { data: buffer.toString('base64'), mimeType: contentType };
+    } catch (error) {
+        console.warn('Coyo IA — no se pudo descargar la imagen adjunta:', error);
+        return null;
+    }
+}
+
+/**
+ * Clasifica la pregunta del vecino y extrae términos buscables. Si el vecino
+ * adjuntó una foto (`imagenUrl`), Gemini la analiza junto con el texto
+ * (multimodal) para afinar la interpretación — ver {@link INSTRUCCION_IMAGEN}.
  *
  * @example
  *   const r = await interpretarPregunta("¿Hay plomeros que vengan hoy?");
@@ -464,6 +513,7 @@ RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN expli
  */
 export async function interpretarPregunta(
     texto: string,
+    imagenUrl?: string | null,
 ): Promise<RespuestaIA<PreguntaInterpretada>> {
     const cliente = obtenerCliente();
     if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
@@ -491,10 +541,28 @@ export async function interpretarPregunta(
         promptCompleto += `\n\nIMPORTANTE: cuando incluyas una CATEGORÍA o SUBCATEGORÍA de cualquiera de los dos catálogos, úsala EXACTAMENTE COMO APARECE (con la inicial en mayúscula). Así el buscador la matchea correctamente.`;
     }
 
-    const respuesta = await llamarGeminiConReintento(
-        cliente,
-        `${promptCompleto}\n\nPregunta del vecino:\n${texto}`,
-    );
+    // Si el vecino adjuntó foto, intenta descargarla para mandarla inline a
+    // Gemini (multimodal). Si falla la descarga, sigue solo con texto — la
+    // imagen es un plus, nunca un bloqueante.
+    const imagen = imagenUrl ? await descargarImagenComoBase64(imagenUrl) : null;
+    if (imagen) {
+        promptCompleto += INSTRUCCION_IMAGEN;
+    }
+
+    const textoPrompt = `${promptCompleto}\n\nPregunta del vecino:\n${texto}`;
+    const contents: ContenidoGemini = imagen
+        ? [
+              {
+                  role: 'user',
+                  parts: [
+                      { text: textoPrompt },
+                      { inlineData: { mimeType: imagen.mimeType, data: imagen.data } },
+                  ],
+              },
+          ]
+        : textoPrompt;
+
+    const respuesta = await llamarGeminiConReintento(cliente, contents);
     if (respuesta === null) {
         console.warn(
             'Coyo IA — interpretarPregunta agotó reintentos y fallback de Gemini',

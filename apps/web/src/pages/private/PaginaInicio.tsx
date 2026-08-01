@@ -29,6 +29,7 @@ import {
     usePregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
+import { useImagenAdjuntaPregunta } from '../../hooks/useImagenAdjuntaPregunta';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useMinDuracionVisible } from '../../hooks/useMinDuracionVisible';
@@ -429,6 +430,7 @@ export function PaginaInicio() {
     }, [preguntaIdDestacada, mainScrollRef]);
 
     const [texto, setTexto] = useState('');
+    const imagenAdjunta = useImagenAdjuntaPregunta();
     const [segmento, setSegmento] = useState<Segmento>('comunidad');
     // Suprime el indicador de refresco mientras se publica una pregunta: la
     // mutación invalida el feed → dispara un refetch (isRefetching=true) que
@@ -443,7 +445,8 @@ export function PaginaInicio() {
         preguntas,
     });
 
-    const puedeEnviar = texto.trim().length > 0 && hayCiudad && !crear.isPending;
+    const puedeEnviar =
+        texto.trim().length > 0 && hayCiudad && !crear.isPending && !imagenAdjunta.subiendo;
 
     const handleEnviar = () => {
         if (!puedeEnviar) return;
@@ -455,10 +458,18 @@ export function PaginaInicio() {
             scrollAVer(feedMovilRef.current);
         }
         crear.mutate(
-            { texto: texto.trim(), ciudad: nombreCiudad, estado: estadoCiudad },
+            {
+                texto: texto.trim(),
+                ciudad: nombreCiudad,
+                estado: estadoCiudad,
+                imagenUrl: imagenAdjunta.r2Url,
+            },
             {
                 onSuccess: (data) => {
                     setTexto('');
+                    // La foto ya quedó referenciada en la pregunta creada — solo
+                    // limpiar el estado local, SIN borrarla de R2.
+                    imagenAdjunta.confirmarUsada();
                     // Móvil: el input está arriba y la pregunta cae en el feed
                     // de abajo → marcamos su id para auto-scrollear hacia ella.
                     if (esMovil) setPreguntaRecienId(data?.id ?? null);
@@ -778,6 +789,10 @@ export function PaginaInicio() {
                         onEnviar={handleEnviar}
                         enviando={crear.isPending}
                         puedeEnviar={puedeEnviar}
+                        imagenPreview={imagenAdjunta.previewUrl}
+                        subiendoImagen={imagenAdjunta.subiendo}
+                        onSeleccionarImagen={imagenAdjunta.seleccionar}
+                        onQuitarImagen={imagenAdjunta.quitar}
                     />
                 </div>
 
@@ -785,7 +800,7 @@ export function PaginaInicio() {
                     hacia abajo (grid 0fr→1fr + opacity) cuando el de la escena
                     sale de vista al scrollear — se ve como un mismo input que
                     baja, no como uno nuevo que aparece de golpe. */}
-                <div ref={barraStickyRef} className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-2.5 backdrop-blur-sm">
+                <div ref={barraStickyRef} className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-2.5 bg-white/90 backdrop-blur-sm">
                     <div
                         className="grid transition-all duration-200 ease-out"
                         style={{
@@ -804,6 +819,10 @@ export function PaginaInicio() {
                                 enviando={crear.isPending}
                                 puedeEnviar={puedeEnviar}
                                 placeholder={hayCiudad ? 'Escribe lo que buscas…' : 'Activa tu ubicación para preguntar'}
+                                imagenPreview={imagenAdjunta.previewUrl}
+                                subiendoImagen={imagenAdjunta.subiendo}
+                                onSeleccionarImagen={imagenAdjunta.seleccionar}
+                                onQuitarImagen={imagenAdjunta.quitar}
                             />
                         </div>
                     </div>
@@ -862,6 +881,10 @@ export function PaginaInicio() {
                             onEnviar={handleEnviar}
                             enviando={crear.isPending}
                             puedeEnviar={puedeEnviar}
+                            imagenPreview={imagenAdjunta.previewUrl}
+                            subiendoImagen={imagenAdjunta.subiendo}
+                            onSeleccionarImagen={imagenAdjunta.seleccionar}
+                            onQuitarImagen={imagenAdjunta.quitar}
                         />
                     </div>
                 </div>

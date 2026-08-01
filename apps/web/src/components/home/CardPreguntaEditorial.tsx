@@ -88,6 +88,36 @@ function Avatar({ url, alt, fallback }: { url: string | null; alt: string; fallb
 }
 
 // =============================================================================
+// FOTO ADJUNTA A LA PREGUNTA (opcional)
+// =============================================================================
+
+function FotoPregunta({ url }: { url: string }) {
+    const [visorAbierto, setVisorAbierto] = useState(false);
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setVisorAbierto(true)}
+                aria-label="Ver foto adjunta"
+                data-testid="pregunta-foto-adjunta"
+                className="mt-3 block w-full overflow-hidden rounded-xl bg-slate-100 lg:cursor-pointer"
+            >
+                {/* object-contain (no cover): es UNA foto que el vecino adjuntó
+                    como evidencia/contexto — mostrarla completa importa más que
+                    llenar el recuadro. El fondo slate-100 rellena el sobrante
+                    cuando la proporción de la foto no calza con la caja. */}
+                <img
+                    src={url}
+                    alt="Foto adjunta a la pregunta"
+                    className="max-h-60 w-full object-contain lg:max-h-52 2xl:max-h-64"
+                />
+            </button>
+            <ModalImagenes images={[url]} isOpen={visorAbierto} onClose={() => setVisorAbierto(false)} />
+        </>
+    );
+}
+
+// =============================================================================
 // BLOQUE DE RESPUESTA DE COYO (según estadoCoyo)
 // =============================================================================
 
@@ -447,6 +477,9 @@ function CardPreguntaEditorialBase({ pregunta, comentarioDestacadoId = null }: C
                     {pregunta.texto}
                 </p>
             )}
+
+            {/* Foto adjunta (opcional) — oculta mientras se edita */}
+            {!editando && pregunta.imagenUrl && <FotoPregunta url={pregunta.imagenUrl} />}
 
             {/* Respuesta de Coyo (oculta mientras se edita — al guardar se re-procesa) */}
             {!editando && <RespuestaCoyo pregunta={pregunta} />}

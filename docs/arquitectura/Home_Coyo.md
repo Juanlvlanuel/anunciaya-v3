@@ -72,6 +72,7 @@ final.
 | **`estado_coyo`** | varchar(20) NOT NULL | `'pendiente'` | 5 valores (ver abajo) |
 | **`coyo_procesado_at`** | timestamptz | `NULL` | Cuándo terminó el orquestador |
 | **`modo`** | varchar(15) NOT NULL | `'personal'` | `'personal' \| 'comercial'` — modo activo del autor AL MOMENTO de publicar. Si es `'comercial'` y el autor tiene negocio propio (dueño) o pertenece a uno (gerente/empleado), la pregunta se muestra con la identidad del NEGOCIO (nombre + logo) en vez de la personal. Ver §Identidad Personal/Comercial |
+| **`imagen_url`** | varchar(500) | `NULL` | Foto opcional adjunta por el vecino (R2, carpeta `preguntas/`, UNA sola — no es galería). Coyo la manda a Gemini como contexto multimodal. Agregada 2026-08-01. Ver §Foto adjunta y visión de Coyo |
 
 ### `comunidad_comentarios`
 
@@ -143,6 +144,8 @@ pregunta que NO es suya. Idempotente por PK compuesta.
 
 ```
 POST    /api/preguntas-comunidad                               crearPreguntaController
+POST    /api/preguntas-comunidad/upload-imagen                 uploadImagenPreguntaController    ← presigned URL R2 (foto opcional)
+DELETE  /api/preguntas-comunidad/foto-huerfana                 eliminarFotoPreguntaHuerfanaController ← body { url }
 GET     /api/preguntas-comunidad?ciudad=&limit=&offset=        listarPreguntasPorCiudadController
 GET     /api/preguntas-comunidad/mis-preguntas                 listarMisPreguntasController ← historial del autor
 GET     /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController   ← sondeo
@@ -432,9 +435,10 @@ futuro se migra a otra LLM (Claude, GPT, etc.), solo se toca este archivo.
 ### Funciones expuestas
 
 ```typescript
-interpretarPregunta(texto: string): Promise<RespuestaIA<PreguntaInterpretada>>
+interpretarPregunta(texto: string, imagenUrl?: string | null): Promise<RespuestaIA<PreguntaInterpretada>>
   // → { tipo: TipoPregunta, terminos: string, mensajeReformular: string, intencion: IntencionPregunta }
   //   intencion: 'busca_oferta' (compra/contrata) | 'busca_demanda' (ofrece/vende). Ver §Intención (Fase 2).
+  //   imagenUrl (opcional): foto adjunta a la pregunta — ver §Foto adjunta y visión de Coyo.
 
 redactarRespuestaCoyo(pregunta: string, resultados: unknown, intencion?: IntencionPregunta): Promise<RespuestaIA<string>>
   // → texto cálido (1-2 frases). El tono cambia según la intención (comprador vs oferente).
@@ -447,6 +451,55 @@ RespuestaIA<T> =
 Las dos funciones NUNCA lanzan. Si Gemini falla tras todos los reintentos
 y el fallback, devuelven `{ disponible: false, razon }`. El caller decide
 cómo manejar la ausencia.
+
+### Foto adjunta y visión de Coyo (multimodal)
+
+El vecino puede adjuntar UNA foto opcional a su pregunta desde el composer
+del Home (`AreaPreguntaCoyo.tsx` → `CoyoInput`). La píldora tiene poco
+espacio horizontal (compite con el texto), así que en vez de mostrar 2
+íconos fijos (cámara + galería, como MarketPlace/Servicios) hay UN solo
+botón que abre un menú chico con las 2 opciones — "Tomar foto" (oculto en
+`lg:`, `capture="environment"`) y "Elegir de galería" — mismo patrón visual
+que `MenuContactarAutor` (menú flotante que cierra al hacer click afuera).
+Sube a R2 (carpeta `preguntas/`, presigned URL vía `POST
+/api/preguntas-comunidad/upload-imagen`) y se guarda en
+`preguntas_comunidad.imagen_url`.
+
+**Objetivo de producto:** que Coyo responda al instante usando la imagen
+como contexto, en vez de dejar al vecino esperando a que la comunidad
+interprete una pregunta ambigua (ej. una foto de una llave goteando + "esto
+se arregla?" → Coyo identifica "plomero plomería" sin que el texto lo diga).
+
+**Cómo funciona:** `gemini-2.5-flash` es multimodal nativo — no se agrega
+ningún proveedor ni modelo nuevo. Cuando `pregunta.imagenUrl` existe,
+`orquestador.ts` la pasa a `interpretarPregunta(texto, imagenUrl)`, que:
+
+1. Descarga la imagen pública de R2 (`descargarImagenComoBase64`) y la
+   codifica en base64. Si la descarga falla (URL caída, timeout, tipo no
+   soportado), se loguea y se sigue SOLO con texto — la imagen es un plus,
+   nunca bloquea el flujo.
+2. Si la descarga funcionó, agrega `INSTRUCCION_IMAGEN` al prompt (instruye
+   a Gemini a usar la imagen como contexto adicional, resolver preguntas que
+   serían "vaga" solo-texto cuando la foto identifica el dominio, y
+   clasificar como "inapropiada" si la imagen muestra contenido ofensivo
+   aunque el texto no lo sugiera) y arma `contents` como un `Content`
+   multimodal (`{ role: 'user', parts: [{ text }, { inlineData }] }`) en vez
+   del string plano de siempre.
+3. `llamarGeminiConReintento` acepta `contents` como `string` O como el array
+   multimodal (tipo derivado del propio SDK — `ContenidoGemini`) — la
+   resiliencia de reintento + fallback de modelo es la misma en ambos casos.
+
+`redactarRespuestaCoyo` (la función que redacta el texto final) NO recibe la
+imagen — solo lee los resultados del buscador unificado, que ya vienen
+influenciados por los `terminos` que `interpretarPregunta` extrajo con
+ayuda de la foto.
+
+**Limpieza de la foto:** si el vecino sube una foto y la quita (o abandona
+la pregunta sin publicar), el frontend llama `DELETE
+/api/preguntas-comunidad/foto-huerfana` (`eliminarFotoPreguntaSiHuerfana`),
+que borra de R2 solo si ninguna pregunta la referencia — mismo patrón
+reference-count que MarketPlace/Servicios. Registrada en `IMAGE_REGISTRY`
+(`apps/api/src/utils/imageRegistry.ts`).
 
 **`GEMINI_API_KEY` es OPCIONAL** en `apps/api/src/config/env.ts`:
 `z.string().min(1).optional()`. Si falta, el server arranca igual y Coyo

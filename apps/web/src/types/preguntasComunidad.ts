@@ -129,6 +129,8 @@ export interface EstadoCoyoResponse {
 export interface PreguntaComunidad {
     id: string;
     texto: string;
+    /** Foto opcional adjunta por el autor (R2). `null` si no adjuntó ninguna. */
+    imagenUrl: string | null;
     ciudad: string;
     estado: string;
     estadoPregunta: EstadoPregunta;
@@ -177,6 +179,8 @@ export interface CrearPreguntaInput {
     texto: string;
     ciudad: string;
     estado: string;
+    /** URL pública (R2) de la foto opcional adjunta. `null`/`undefined` si no hay foto. */
+    imagenUrl?: string | null;
 }
 
 export interface ListarPreguntasPorCiudadInput {

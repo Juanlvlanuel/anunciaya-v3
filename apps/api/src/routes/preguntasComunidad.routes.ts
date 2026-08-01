@@ -29,6 +29,8 @@ import {
     marcarResueltaController,
     editarMiPreguntaController,
     reintentarMiPreguntaController,
+    uploadImagenPreguntaController,
+    eliminarFotoPreguntaHuerfanaController,
 } from '../controllers/preguntasComunidad.controller.js';
 
 // Importar middlewares
@@ -56,6 +58,23 @@ router.use(verificarToken);
  * usuarioId se toma del token.
  */
 router.post('/', crearPreguntaController);
+
+/**
+ * POST /api/preguntas-comunidad/upload-imagen
+ * Genera presigned URL para subir la foto opcional de una pregunta a R2
+ * (prefijo `preguntas/`). Body: { nombreArchivo, contentType }.
+ * Ruta ESTÁTICA — debe ir antes de las dinámicas de 1 segmento (`/:id`,
+ * `/:preguntaId`) para que Express no la trague como un id.
+ */
+router.post('/upload-imagen', uploadImagenPreguntaController);
+
+/**
+ * DELETE /api/preguntas-comunidad/foto-huerfana
+ * Body: { url }. El composer dispara esto al quitar una foto ya subida o
+ * al descartar la pregunta antes de publicarla. Ruta ESTÁTICA — debe ir
+ * antes de `DELETE /:preguntaId` (dinámica, mismo método) para no chocar.
+ */
+router.delete('/foto-huerfana', eliminarFotoPreguntaHuerfanaController);
 
 /**
  * GET /api/preguntas-comunidad?ciudad=Puerto+Peñasco&limit=20&offset=0

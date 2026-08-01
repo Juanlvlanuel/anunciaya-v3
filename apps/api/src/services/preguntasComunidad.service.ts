@@ -21,6 +21,7 @@ import {
 } from '../db/schemas/schema.js';
 import { eq, and, desc, sql, isNull, type SQLWrapper } from 'drizzle-orm';
 import { resolverCiudadId } from '../utils/ciudades.js';
+import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import type {
     CrearPreguntaInput,
     ListarPreguntasPorCiudadInput,
@@ -183,6 +184,49 @@ function sqlSucursalPrincipalDe(negocioIdCol: SQLWrapper) {
 }
 
 // =============================================================================
+// SUBIDA DE IMAGEN (R2) — foto opcional adjunta a la pregunta
+// =============================================================================
+
+/**
+ * Genera una presigned URL para que el frontend suba directamente a R2 la
+ * foto opcional de una pregunta (prefijo `preguntas/`). Mismo patrón que
+ * `generarUrlUploadImagenMarketplace`.
+ */
+export async function generarUrlUploadImagenPregunta(
+    nombreArchivo: string,
+    contentType: string
+) {
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+    return generarPresignedUrl('preguntas', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
+}
+
+/**
+ * Borra una foto de R2 solo si ninguna pregunta sigue referenciándola en
+ * `imagen_url`. Útil cuando el vecino sube una foto en el composer y la
+ * quita antes de publicar (o descarta la pregunta sin enviarla).
+ *
+ * Best-effort: nunca lanza — el reconcile global de R2 atrapa cualquier
+ * huérfana que se le escape.
+ */
+export async function eliminarFotoPreguntaSiHuerfana(url: string): Promise<void> {
+    try {
+        const [{ total }] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(preguntasComunidad)
+            .where(eq(preguntasComunidad.imagenUrl, url));
+
+        if (total > 0) {
+            console.log(`ℹ️ Foto de pregunta conservada (en uso): ${url}`);
+            return;
+        }
+
+        await eliminarArchivo(url);
+    } catch (error) {
+        console.error('Error procesando foto de pregunta huérfana:', error);
+    }
+}
+
+// =============================================================================
 // CREAR PREGUNTA
 // =============================================================================
 
@@ -214,6 +258,7 @@ export async function crearPregunta(
         const ciudadId = await resolverCiudadId(ciudad);
 
         const modo = input.modo === 'comercial' ? 'comercial' : 'personal';
+        const imagenUrl = input.imagenUrl?.trim() || null;
 
         // Insert — estado_pregunta queda en el default 'activa'
         const [nueva] = await db
@@ -224,6 +269,7 @@ export async function crearPregunta(
                 ciudadId,
                 estado,
                 modo,
+                imagenUrl,
             })
             .returning();
 
@@ -276,6 +322,7 @@ export async function crearPregunta(
             estadoPregunta: nueva.estadoPregunta as EstadoPregunta,
             createdAt: nueva.createdAt ?? new Date().toISOString(),
             updatedAt: nueva.updatedAt ?? new Date().toISOString(),
+            imagenUrl: nueva.imagenUrl ?? null,
             autorId: autor.id,
             autorNombre: identidad.nombre,
             autorApellidos: identidad.apellidos,
@@ -373,6 +420,7 @@ export async function listarPreguntasPorCiudad(
             .select({
                 id: preguntasComunidad.id,
                 texto: preguntasComunidad.texto,
+                imagenUrl: preguntasComunidad.imagenUrl,
                 ciudad: ciudades.nombre,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
@@ -439,6 +487,7 @@ export async function listarPreguntasPorCiudad(
             return {
             id: f.id,
             texto: f.texto,
+            imagenUrl: f.imagenUrl ?? null,
             ciudad: f.ciudad ?? '',
             estado: f.estado,
             estadoPregunta: f.estadoPregunta as EstadoPregunta,
@@ -521,6 +570,7 @@ export async function obtenerPreguntaPorId(
             .select({
                 id: preguntasComunidad.id,
                 texto: preguntasComunidad.texto,
+                imagenUrl: preguntasComunidad.imagenUrl,
                 ciudad: ciudades.nombre,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
@@ -586,6 +636,7 @@ export async function obtenerPreguntaPorId(
         const pregunta: PreguntaComunidadResponse = {
             id: f.id,
             texto: f.texto,
+            imagenUrl: f.imagenUrl ?? null,
             ciudad: f.ciudad ?? '',
             estado: f.estado,
             estadoPregunta: f.estadoPregunta as EstadoPregunta,
@@ -649,6 +700,7 @@ export async function listarMisPreguntas(input: {
             .select({
                 id: preguntasComunidad.id,
                 texto: preguntasComunidad.texto,
+                imagenUrl: preguntasComunidad.imagenUrl,
                 ciudad: ciudades.nombre,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
@@ -701,6 +753,7 @@ export async function listarMisPreguntas(input: {
             return {
             id: f.id,
             texto: f.texto,
+            imagenUrl: f.imagenUrl ?? null,
             ciudad: f.ciudad ?? '',
             estado: f.estado,
             estadoPregunta: f.estadoPregunta as EstadoPregunta,

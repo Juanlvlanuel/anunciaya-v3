@@ -263,6 +263,7 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
                 usuarioId: preguntasComunidad.usuarioId,
                 texto: preguntasComunidad.texto,
                 ciudadId: preguntasComunidad.ciudadId,
+                imagenUrl: preguntasComunidad.imagenUrl,
             });
 
         const pregunta = filas[0];
@@ -284,7 +285,9 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
         }
 
         // ─── 2. Interpretar pregunta con la cajita IA ────────────────
-        const interpretacion = await interpretarPregunta(pregunta.texto);
+        // Si el vecino adjuntó foto, se manda como contexto multimodal —
+        // ver INSTRUCCION_IMAGEN en coyoIA.service.ts.
+        const interpretacion = await interpretarPregunta(pregunta.texto, pregunta.imagenUrl);
 
         if (!interpretacion.disponible) {
             // IA caída / sin key / error parseo → no podemos clasificar.

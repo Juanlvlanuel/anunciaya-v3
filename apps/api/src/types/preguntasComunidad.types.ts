@@ -31,6 +31,10 @@ export interface CrearPreguntaInput {
      *  server-side desde el JWT (`obtenerModoActual`) — el controller lo
      *  agrega, el cliente no lo manda. Default 'personal'. */
     modo?: 'personal' | 'comercial';
+    /** URL pública (R2, carpeta `preguntas/`) de la foto opcional adjunta.
+     *  `null`/`undefined` si el vecino no adjuntó foto. Coyo la usa como
+     *  contexto multimodal — ver `interpretarPregunta` en coyoIA.service.ts. */
+    imagenUrl?: string | null;
 }
 
 export interface ListarPreguntasPorCiudadInput {
@@ -62,6 +66,8 @@ export interface PreguntaComunidadResponse {
     estadoPregunta: EstadoPregunta;
     createdAt: string;
     updatedAt: string;
+    /** Foto opcional adjunta por el autor. `null` si no adjuntó ninguna. */
+    imagenUrl: string | null;
 
     // Datos del autor (flatten — mismo patrón que notificaciones.actorNombre)
     autorId: string;

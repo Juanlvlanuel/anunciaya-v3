@@ -43,6 +43,11 @@ interface EscenaCoyoProps {
     reducidoLg?: boolean;
     /** id del <input> (móvil usa 'coyo-input-movil' para enfoque/observer). */
     idInput?: string;
+    /** blob local mientras sube o URL final de R2 — null si no hay foto adjunta. */
+    imagenPreview?: string | null;
+    subiendoImagen?: boolean;
+    onSeleccionarImagen?: (file: File) => void;
+    onQuitarImagen?: () => void;
 }
 
 export function EscenaCoyo({
@@ -58,6 +63,10 @@ export function EscenaCoyo({
     compact = false,
     reducidoLg = false,
     idInput,
+    imagenPreview = null,
+    subiendoImagen = false,
+    onSeleccionarImagen,
+    onQuitarImagen,
 }: EscenaCoyoProps) {
     const { variant } = useAmbient();
     const p = PALETTES[variant];
@@ -124,6 +133,10 @@ export function EscenaCoyo({
                             enviando={enviando}
                             puedeEnviar={puedeEnviar}
                             placeholder={hayCiudad ? 'Escribe lo que buscas…' : 'Activa tu ubicación para preguntar'}
+                            imagenPreview={imagenPreview}
+                            subiendoImagen={subiendoImagen}
+                            onSeleccionarImagen={onSeleccionarImagen}
+                            onQuitarImagen={onQuitarImagen}
                         />
                     </div>
                 )}

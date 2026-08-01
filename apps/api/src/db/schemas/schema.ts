@@ -2626,6 +2626,11 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	// (nombre + logo) en vez de la personal. Mismo patrón que
 	// negocio_publicaciones_comentarios.modo / comunidad_comentarios.modo.
 	modo: varchar({ length: 15 }).default('personal').notNull(),
+	// Foto opcional adjunta a la pregunta (URL pública R2, carpeta `preguntas/`).
+	// Agregada 2026-08-01. Coyo la manda a Gemini junto al texto (multimodal)
+	// para afinar los términos de búsqueda cuando la imagen aporta contexto
+	// que el texto no da. Ver docs/arquitectura/Home_Coyo.md.
+	imagenUrl: varchar("imagen_url", { length: 500 }),
 }, (table) => [
 	index("idx_preguntas_comunidad_ciudad_id_fecha").using("btree", table.ciudadId.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`ciudad_id IS NOT NULL`),
 	index("idx_preguntas_comunidad_usuario").using("btree", table.usuarioId.asc().nullsLast()),
