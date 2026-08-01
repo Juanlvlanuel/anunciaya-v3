@@ -16,6 +16,8 @@ import { useNavigate } from 'react-router-dom';
 import { Star, BadgeCheck, Clock, Image as ImageIcon } from 'lucide-react';
 import type { ItemCoyo } from '../../types/preguntasComunidad';
 import { rutaDetalleItemCoyo } from './navegacionCoyo';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { notificar } from '../../utils/notificaciones';
 
 const TIPO_LABEL: Record<ItemCoyo['tipo'], string> = {
     negocio: 'Negocio',
@@ -133,6 +135,7 @@ interface CardItemCoyoProps {
 
 function CardItemCoyoBase({ item }: CardItemCoyoProps) {
     const navigate = useNavigate();
+    const usuario = useAuthStore((s) => s.usuario);
 
     // Oferta: se abre como modal SOBRE el Home (evento que escucha
     // ModalOfertaCoyo) en lugar de navegar a /ofertas, para que el back cierre
@@ -141,6 +144,17 @@ function CardItemCoyoBase({ item }: CardItemCoyoProps) {
     const handleClick = () => {
         if (item.tipo === 'oferta') {
             window.dispatchEvent(new CustomEvent('coyo:abrir-oferta', { detail: item.id }));
+            return;
+        }
+        // MarketPlace y Servicios son P2P de modo Personal — bloqueo total
+        // (ver ModoPersonalEstrictoGuard). En modo Comercial no navegamos:
+        // dejarlo entrar solo para que el guard rebote a /inicio rompía el
+        // hilo de la pregunta donde estaba el usuario.
+        if (
+            usuario?.modoActivo === 'comercial' &&
+            (item.tipo === 'marketplace' || item.tipo === 'servicio')
+        ) {
+            notificar.info('Cambia a modo Personal para ver esta publicación.');
             return;
         }
         navigate(rutaDetalleItemCoyo(item));

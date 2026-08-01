@@ -34,7 +34,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
     Camera,
@@ -61,6 +60,8 @@ import {
     useComposerMarketplace,
     TITULO_MIN,
     TITULO_MAX,
+    DESC_MIN,
+    DESC_MAX,
     type ComposerMarketplaceDraft,
     type ErroresComposerMP,
 } from '../../../hooks/useComposerMarketplace';
@@ -145,7 +146,6 @@ export function ComposerMarketplace({
     registrarIntentarCerrar,
     onReforzarGuardia,
 }: ComposerMarketplaceProps) {
-    const navigate = useNavigate();
     const navegar = useNavegarASeccion();
     const esEdicion = modo === 'editar' && !!articuloId;
 
@@ -367,7 +367,6 @@ export function ComposerMarketplace({
                 urlsSubidasEnSesion.current.clear();
                 limpiar();
                 onColapsar();
-                navigate(`/marketplace/articulo/${res.data.id}`);
                 return;
             }
             manejarRespuestaModeracion(res);
@@ -562,6 +561,13 @@ export function ComposerMarketplace({
                                 rows={1}
                                 className="w-full grow shrink-0 min-h-24 resize-none overflow-hidden border-0 bg-transparent py-2 text-[15px] text-slate-900 placeholder:text-slate-500 placeholder:font-normal font-medium outline-none"
                             />
+                            <p
+                                className={`shrink-0 text-xs font-semibold ${
+                                    errores.descripcion ? 'text-red-600' : 'text-slate-400'
+                                }`}
+                            >
+                                {draft.descripcion.trim().length}/{DESC_MAX} · mínimo {DESC_MIN} caracteres
+                            </p>
                             <ComposerHintModeracion
                                 texto={`${draft.titulo} ${draft.descripcion}`}
                                 modo={draft.modo}

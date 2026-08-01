@@ -19,6 +19,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Send, Sparkles, X, Loader2, Camera, Image as ImageIcon, ImagePlus } from 'lucide-react';
 import { CoyoAnimado, type EstadoCoyoVisual } from '../CoyoAnimado';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 const TEXTO_MAX = 500;
 
@@ -63,6 +64,7 @@ export function CoyoInput({
     const ref = useRef<HTMLInputElement>(null);
     const inputGaleriaRef = useRef<HTMLInputElement>(null);
     const inputCamaraRef = useRef<HTMLInputElement>(null);
+    const { esMobile } = useBreakpoint();
     // Posición del menú, calculada del botón con getBoundingClientRect al abrir.
     // El menú se PORTEA a document.body (position: fixed) en vez de vivir
     // anidado dentro de la píldora — la barra sticky del Home envuelve el
@@ -206,6 +208,13 @@ export function CoyoInput({
                                 data-testid="home-pregunta-adjuntar-foto"
                                 disabled={deshabilitarAdjuntar}
                                 onClick={() => {
+                                    // Desktop/laptop no tiene cámara — el menú
+                                    // solo tendría sentido con 1 opción. Saltarlo
+                                    // y abrir el explorador de archivos directo.
+                                    if (!esMobile) {
+                                        inputGaleriaRef.current?.click();
+                                        return;
+                                    }
                                     if (menuAdjuntarPos) {
                                         setMenuAdjuntarPos(null);
                                         return;

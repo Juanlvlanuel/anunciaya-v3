@@ -39,7 +39,8 @@ function claveDraft(ns: string) {
 // error al intentar guardar.
 export const TITULO_MIN = 10;
 export const TITULO_MAX = 80;
-const DESC_MAX = 1000;
+export const DESC_MIN = 20;
+export const DESC_MAX = 1000;
 const PRECIO_MAX = 999999;
 const ZONA_MAX = 150;
 const UNIDAD_MAX = 30;
@@ -284,11 +285,17 @@ export function validarComposerMP(
         errores.confirmaciones = 'Acepta las reglas de publicación.';
     }
 
-    // ── OPCIONALES (validan solo límites máximos si hay contenido) ──
     const descLen = d.descripcion.trim().length;
-    if (descLen > DESC_MAX) {
+    if (descLen < DESC_MIN) {
+        errores.descripcion =
+            descLen === 0
+                ? 'Escribe una descripción.'
+                : `Faltan ${DESC_MIN - descLen} caracteres en la descripción.`;
+    } else if (descLen > DESC_MAX) {
         errores.descripcion = `La descripción no debe pasar de ${DESC_MAX} caracteres.`;
     }
+
+    // ── OPCIONALES (validan solo límites máximos si hay contenido) ──
 
     if (d.unidadVenta.trim().length > UNIDAD_MAX) {
         errores.unidadVenta = `La unidad no debe pasar de ${UNIDAD_MAX} caracteres.`;
