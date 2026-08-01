@@ -82,7 +82,7 @@ function InputTelefono({ value, onChange, prefijo = 'contacto' }: { value: strin
           value={numero}
           onChange={(e) => {
             const n = e.target.value.replace(/[^0-9]/g, '');
-            onChange(n ? `${lada} ${n}` : lada);
+            onChange(n ? `${lada} ${n}` : '');
           }}
           placeholder="6381234567"
           maxLength={10}

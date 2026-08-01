@@ -230,7 +230,7 @@ export const ModalImagenes = ({
           <img
             src={images[indiceActual]}
             alt={`Imagen ${indiceActual + 1} de ${images.length}`}
-            className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[50vw] lg:max-h-[45vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
+            className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[75vw] lg:max-h-[75vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
             draggable={false}
           />
 
