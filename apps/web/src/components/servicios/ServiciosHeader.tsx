@@ -246,52 +246,56 @@ export function ServiciosHeader({
                             {/* Subtítulo decorativo — contenido contextual.
                                 Colapsa al hacer scroll (variante='feed'). */}
                             {(esFeed || subtituloMobile) && (
+                                // `grid-template-rows: 0fr↔1fr` (no `max-height` con un
+                                // alto adivinado) para animar al alto REAL del contenido.
                                 <div
-                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                                        headerColapsado ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
+                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                                        headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
                                     }`}
                                 >
-                                    <div className="pb-2 flex items-center justify-center gap-2.5">
-                                        <div
-                                            className="h-0.5 w-14 rounded-full"
-                                            style={{
-                                                background:
-                                                    'linear-gradient(90deg, transparent, rgba(2,132,199,0.7))',
-                                            }}
-                                        />
-                                        <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
-                                            {esFeed ? (
-                                                ciudad ? (
-                                                    <>
-                                                        En{' '}
-                                                        <span className="font-bold text-white">
-                                                            {ciudad}
+                                    <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                                        <div className="pb-2 flex items-center justify-center gap-2.5">
+                                            <div
+                                                className="h-0.5 w-14 rounded-full"
+                                                style={{
+                                                    background:
+                                                        'linear-gradient(90deg, transparent, rgba(2,132,199,0.7))',
+                                                }}
+                                            />
+                                            <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                                                {esFeed ? (
+                                                    ciudad ? (
+                                                        <>
+                                                            En{' '}
+                                                            <span className="font-bold text-white">
+                                                                {ciudad}
+                                                            </span>
+                                                            {totalPublicaciones !== null && (
+                                                                <>
+                                                                    {' '}· {totalPublicaciones}{' '}
+                                                                    {totalPublicaciones === 1
+                                                                        ? 'publicación'
+                                                                        : 'publicaciones'}
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
+                                                            Servicios e intangibles
                                                         </span>
-                                                        {totalPublicaciones !== null && (
-                                                            <>
-                                                                {' '}· {totalPublicaciones}{' '}
-                                                                {totalPublicaciones === 1
-                                                                    ? 'publicación'
-                                                                    : 'publicaciones'}
-                                                            </>
-                                                        )}
-                                                    </>
+                                                    )
                                                 ) : (
-                                                    <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
-                                                        Servicios e intangibles
-                                                    </span>
-                                                )
-                                            ) : (
-                                                subtituloMobile
-                                            )}
-                                        </span>
-                                        <div
-                                            className="h-0.5 w-14 rounded-full"
-                                            style={{
-                                                background:
-                                                    'linear-gradient(90deg, rgba(2,132,199,0.7), transparent)',
-                                            }}
-                                        />
+                                                    subtituloMobile
+                                                )}
+                                            </span>
+                                            <div
+                                                className="h-0.5 w-14 rounded-full"
+                                                style={{
+                                                    background:
+                                                        'linear-gradient(90deg, rgba(2,132,199,0.7), transparent)',
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -301,17 +305,19 @@ export function ServiciosHeader({
                                 al hacer scroll, igual que el subtítulo. */}
                             {esFeed && tabActiva && onTabChange && (
                                 <div
-                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                                        headerColapsado ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                                        headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
                                     }`}
                                 >
-                                    <div className="pl-3 pb-3">
-                                        <TabsServicios
-                                            activa={tabActiva}
-                                            onChange={onTabChange}
-                                            conteos={conteosPorTab}
-                                            variant="dark"
-                                        />
+                                    <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                                        <div className="pl-3 pb-3">
+                                            <TabsServicios
+                                                activa={tabActiva}
+                                                onChange={onTabChange}
+                                                conteos={conteosPorTab}
+                                                variant="dark"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}

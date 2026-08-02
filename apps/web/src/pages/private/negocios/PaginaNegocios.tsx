@@ -1178,24 +1178,31 @@ export function PaginaNegocios() {
                           </button>
                         </div>
                       </div>
-                      {/* Subtítulo móvil decorativo — colapsa al hacer scroll. */}
+                      {/* Subtítulo móvil decorativo — colapsa al hacer scroll.
+                          `grid-template-rows: 0fr↔1fr` (no `max-height` con un
+                          alto adivinado) para que la animación siga el alto
+                          REAL del contenido — sin esto, un `max-h-*` fijo que
+                          no coincide exacto con el contenido se ve como un
+                          salto en vez de una transición suave. */}
                       <div
-                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                          headerColapsado ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100'
+                        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                          headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
                         }`}
                       >
-                        <div className="pb-2 flex items-center justify-center gap-2.5">
-                          <div
-                            className="h-0.5 w-14 rounded-full"
-                            style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
-                          />
-                          <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
-                            En <span className="font-bold text-white">{nombreCiudad}</span> · {negocios.length} negocios
-                          </span>
-                          <div
-                            className="h-0.5 w-14 rounded-full"
-                            style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
-                          />
+                        <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                          <div className="pb-2 flex items-center justify-center gap-2.5">
+                            <div
+                              className="h-0.5 w-14 rounded-full"
+                              style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
+                            />
+                            <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                              En <span className="font-bold text-white">{nombreCiudad}</span> · {negocios.length} negocios
+                            </span>
+                            <div
+                              className="h-0.5 w-14 rounded-full"
+                              style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </>
@@ -1301,13 +1308,15 @@ export function PaginaNegocios() {
                        búsqueda" se eliminó: los chips son inline ahora.
                        Colapsa al hacer scroll, igual que el subtítulo. ── */}
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out lg:hidden ${
-                    headerColapsado ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+                  className={`grid transition-[grid-template-rows] duration-300 ease-in-out lg:hidden ${
+                    headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
                   }`}
                 >
-                  <div className="px-3 pb-3">
-                    <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                      <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
+                  <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                    <div className="px-3 pb-3">
+                      <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
+                      </div>
                     </div>
                   </div>
                 </div>
