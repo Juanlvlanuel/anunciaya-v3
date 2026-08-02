@@ -40,6 +40,7 @@ import {
     MoreVertical,
     PauseCircle,
     Pencil,
+    Play,
     PlayCircle,
     Trash2,
     type LucideIcon,
@@ -48,6 +49,7 @@ import {
     formatearPrecioServicio,
     formatearPresupuesto,
     obtenerFotoPortada,
+    fuenteThumbnail,
     parsearFechaPostgres,
 } from '../../utils/servicios';
 import Tooltip from '../ui/Tooltip';
@@ -169,12 +171,20 @@ export function CardServicioMio({
             {/* ── Foto portada (aspect 4:3 fullbleed) ───────────────────────── */}
             <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-t-xl bg-slate-200">
                 {foto ? (
-                    <img
-                        src={foto}
-                        alt={publicacion.titulo}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                    />
+                    <>
+                        <img
+                            src={fuenteThumbnail(foto)}
+                            alt={publicacion.titulo}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                        />
+                        {foto.tipo === 'video' && (
+                            <Play
+                                className="pointer-events-none absolute inset-0 z-[1] m-auto h-8 w-8 text-white drop-shadow-md"
+                                fill="white"
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-500">
                         <ImageOff className="h-8 w-8" strokeWidth={2} />

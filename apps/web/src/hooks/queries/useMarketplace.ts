@@ -36,6 +36,7 @@ import type {
     ModoArticulo,
     CategoriaMarketplace,
 } from '../../types/marketplace';
+import type { ArchivoFoto } from '../../types/archivoFoto';
 
 // =============================================================================
 // FEED DEL MARKETPLACE (recientes + cercanos)
@@ -404,7 +405,7 @@ export interface CrearArticuloPayload {
               seguro: boolean;
               version: string;
           };
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
     latitud: number;
     longitud: number;
@@ -546,7 +547,7 @@ export function useUploadFotoMarketplace() {
     return useMutation({
         mutationFn: async (vars: {
             nombreArchivo: string;
-            contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+            contentType: 'image/jpeg' | 'image/png' | 'image/webp' | 'video/mp4' | 'video/webm';
         }) => {
             const response = await api.post<{
                 success: boolean;

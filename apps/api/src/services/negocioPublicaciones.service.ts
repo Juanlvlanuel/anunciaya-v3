@@ -32,6 +32,7 @@ import { negocioPublicaciones } from '../db/schemas/schema.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
+import { MIME_FOTO_O_VIDEO } from '../validations/archivoFoto.schema.js';
 import type {
     CrearPublicacionInput,
     ActualizarPublicacionInput,
@@ -632,7 +633,7 @@ export async function generarUrlUploadImagenNegocioPublicacion(
     nombreArchivo: string,
     contentType: string
 ) {
-    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+    const TIPOS_PERMITIDOS = [...MIME_FOTO_O_VIDEO];
     return generarPresignedUrl('negocio-publicaciones', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
 }
 
@@ -655,7 +656,11 @@ export async function eliminarFotoNegocioPublicacionSiHuerfana(
             .select({ total: sql<number>`COUNT(*)::int` })
             .from(negocioPublicaciones)
             .where(
-                sql`${url} = ANY(ARRAY(SELECT jsonb_array_elements_text(fotos))) ${filtroExcluir}`
+                sql`EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(fotos) elem
+                    WHERE COALESCE(elem->>'url', elem#>>'{}') = ${url}
+                       OR elem->>'posterUrl' = ${url}
+                ) ${filtroExcluir}`
             );
 
         if (total > 0) {

@@ -29,6 +29,7 @@ import { redis } from '../db/redis.js';
 import { articulosMarketplace } from '../db/schemas/schema.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
+import { MIME_FOTO_O_VIDEO, type ArchivoFotoInput } from '../validations/archivoFoto.schema.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import type { ResultadoValidacion } from './marketplace/filtros.js';
 import type {
@@ -154,7 +155,11 @@ export async function eliminarFotoMarketplaceSiHuerfana(
             .select({ total: sql<number>`COUNT(*)::int` })
             .from(articulosMarketplace)
             .where(
-                sql`${url} = ANY(ARRAY(SELECT jsonb_array_elements_text(fotos))) ${filtroExcluir}`
+                sql`EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(fotos) elem
+                    WHERE COALESCE(elem->>'url', elem#>>'{}') = ${url}
+                       OR elem->>'posterUrl' = ${url}
+                ) ${filtroExcluir}`
             );
 
         if (total > 0) {
@@ -1052,7 +1057,7 @@ export async function actualizarArticulo(
             usuario_id: string;
             modo: string;
             estado: string;
-            fotos: string[];
+            fotos: ArchivoFotoInput[];
         };
 
         if (actual.usuario_id !== usuarioId) {
@@ -1147,11 +1152,18 @@ export async function actualizarArticulo(
 
         // 3) Limpieza de fotos removidas (best-effort, fire-and-forget)
         if (datos.fotos !== undefined) {
-            const fotosRemovidas = actual.fotos.filter((url) => !datos.fotos!.includes(url));
-            for (const url of fotosRemovidas) {
-                eliminarFotoMarketplaceSiHuerfana(url, articuloId).catch((err) => {
+            const urlsNuevas = new Set(datos.fotos.map((f) => f.url));
+            const fotosRemovidas = actual.fotos.filter((foto) => !urlsNuevas.has(foto.url));
+            for (const foto of fotosRemovidas) {
+                eliminarFotoMarketplaceSiHuerfana(foto.url, articuloId).catch((err) => {
                     console.error('Error procesando foto removida:', err);
                 });
+                // El poster de un video removido también se libera (2 URLs por elemento).
+                if (foto.tipo === 'video' && foto.posterUrl) {
+                    eliminarFotoMarketplaceSiHuerfana(foto.posterUrl, articuloId).catch((err) => {
+                        console.error('Error procesando poster removido:', err);
+                    });
+                }
             }
         }
 
@@ -1346,7 +1358,7 @@ export async function generarUrlUploadImagenMarketplace(
     nombreArchivo: string,
     contentType: string
 ) {
-    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+    const TIPOS_PERMITIDOS = [...MIME_FOTO_O_VIDEO];
     return generarPresignedUrl('marketplace', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
 }
 

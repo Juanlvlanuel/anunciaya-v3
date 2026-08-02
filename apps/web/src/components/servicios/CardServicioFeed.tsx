@@ -32,15 +32,24 @@ import {
     ChevronRight,
     ImageOff,
     Pencil,
+    Play,
     Search,
     Store,
     Wrench,
 } from 'lucide-react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useEnViewport } from '../../hooks/useEnViewport';
 import { truncarTexto } from '../../utils/truncarTexto';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import { ModalVideoFeed } from '../ui/ModalVideoFeed';
+import { ControlesVideo } from '../ui/ControlesVideo';
 import { ModalComentariosServicio } from './ModalComentariosServicio';
+import { ListaComentariosServicio } from './ListaComentariosServicio';
+import { InputComentarioServicio } from './InputComentarioServicio';
+import { HeaderPublicacionServicio } from './HeaderPublicacionServicio';
+import { usePublicacionServicio } from '../../hooks/queries/useServicios';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import {
     formatearPrecioServicio,
     formatearPresupuesto,
@@ -48,6 +57,7 @@ import {
     formatearDistancia,
     modalidadLabel,
     labelCategoria,
+    fuenteThumbnail,
 } from '../../utils/servicios';
 import type { PublicacionFeed, TipoEmpleo } from '../../types/servicios';
 
@@ -88,12 +98,25 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
     const [avatarAbierto, setAvatarAbierto] = useState(false);
     const [comentariosAbierto, setComentariosAbierto] = useState(false);
 
+    // ─── Video: autoplay muted en viewport + fullscreen al hacer click ───────
+    const [galeriaRef, galeriaEnViewport] = useEnViewport<HTMLDivElement>();
+    const [videoFullscreenAbierto, setVideoFullscreenAbierto] = useState(false);
+    const videoPreviewRef = useRef<HTMLVideoElement>(null);
+    const { esEscritorio } = useBreakpoint();
+    // Detalle completo solo para el header del sidebar de comentarios del visor de
+    // video — se pide nada más cuando el visor está abierto (id undefined = enabled:false).
+    const { data: publicacionDetalleVideo } = usePublicacionServicio(videoFullscreenAbierto ? publicacion.id : undefined);
+
     // Galería: fotos propias; si es vacante sin fotos, cae a la portada de
     // la sucursal (mismo fallback que CardServicio/CardHorizontal).
     const fotos = publicacion.fotos.length > 0
         ? publicacion.fotos
-        : (esVacante && publicacion.sucursalPortada ? [publicacion.sucursalPortada] : []);
+        : (esVacante && publicacion.sucursalPortada
+            ? [{ url: publicacion.sucursalPortada, tipo: 'imagen' as const }]
+            : []);
     const tieneMultiples = fotos.length > 1;
+    const fotoActual = fotos[indiceFoto];
+    const esVideoActual = fotoActual?.tipo === 'video';
 
     const tiempo = formatearTiempoRelativo(publicacion.createdAt);
     const distancia = formatearDistancia(publicacion.distanciaMetros);
@@ -239,8 +262,12 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
             swipeOcurrioRef.current = false;
             return;
         }
+        if (esVideoActual) {
+            setVideoFullscreenAbierto(true);
+            return;
+        }
         irAlDetalle();
-    }, [irAlDetalle]);
+    }, [irAlDetalle, esVideoActual]);
 
     return (
         <article
@@ -384,7 +411,8 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
                 CardPublicacionNegocioFeed.tsx. ───────────────────────── */}
             {fotos.length > 0 ? (
                 <div
-                    className="group relative aspect-[4/3] lg:aspect-[2/1] w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y"
+                    ref={galeriaRef}
+                    className={`group relative ${esVideoActual ? 'aspect-[4/5] lg:aspect-[3/4]' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -404,20 +432,56 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
                         const esCurr = rol === 'curr';
 
                         return (
-                            <img
+                            <div
                                 key={i}
-                                src={foto}
-                                alt={esCurr ? `${publicacion.titulo} — foto ${i + 1}` : ''}
-                                aria-hidden={esCurr ? undefined : true}
-                                draggable={false}
-                                decoding="async"
-                                className={`absolute inset-0 h-full w-full select-none object-cover ${esCurr ? '' : 'pointer-events-none'}`}
+                                className={`absolute inset-0 h-full w-full ${esCurr ? '' : 'pointer-events-none'}`}
                                 style={{
                                     transform: `translateX(calc(${baseTransform} + ${offsetPx}px))`,
                                     transition: enTransicion ? 'transform 220ms ease-out' : 'none',
                                     willChange: 'transform',
                                 }}
-                            />
+                            >
+                                {foto.tipo === 'video' && esCurr && galeriaEnViewport ? (
+                                    <>
+                                        <video
+                                            key={foto.url}
+                                            ref={videoPreviewRef}
+                                            src={foto.url}
+                                            poster={foto.posterUrl}
+                                            muted
+                                            controls={!esEscritorio}
+                                            autoPlay
+                                            loop
+                                            playsInline
+                                            className="h-full w-full select-none object-cover"
+                                        />
+                                        {esEscritorio && (
+                                            <ControlesVideo
+                                                videoRef={videoPreviewRef}
+                                                contenedorRef={galeriaRef}
+                                                onExpandir={() => setVideoFullscreenAbierto(true)}
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <img
+                                            src={fuenteThumbnail(foto)}
+                                            alt={esCurr ? `${publicacion.titulo} — foto ${i + 1}` : ''}
+                                            aria-hidden={esCurr ? undefined : true}
+                                            draggable={false}
+                                            decoding="async"
+                                            className="h-full w-full select-none object-cover"
+                                        />
+                                        {foto.tipo === 'video' && (
+                                            <Play
+                                                className="pointer-events-none absolute inset-0 m-auto h-10 w-10 text-white drop-shadow-md"
+                                                fill="white"
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         );
                     })}
 
@@ -483,6 +547,30 @@ export function CardServicioFeed({ publicacion }: CardServicioFeedProps) {
                     {publicacion.totalVistas}
                 </span>
             </div>
+
+            {videoFullscreenAbierto && fotoActual?.tipo === 'video' && (
+                <ModalVideoFeed
+                    isOpen={videoFullscreenAbierto}
+                    onClose={() => setVideoFullscreenAbierto(false)}
+                    videoUrl={fotoActual.url}
+                    posterUrl={fotoActual.posterUrl}
+                >
+                    {publicacionDetalleVideo && (
+                        <div className="mb-3 shrink-0 border-b border-slate-200 pb-3">
+                            <HeaderPublicacionServicio publicacion={publicacionDetalleVideo} />
+                        </div>
+                    )}
+                    <div className="flex h-full min-h-0 flex-1 flex-col" data-testid="seccion-comentarios-servicio-video">
+                        <div className="flex-1 min-h-0 overflow-y-auto">
+                            <ListaComentariosServicio
+                                publicacionId={publicacion.id}
+                                duenoId={publicacion.oferenteResumen?.id ?? ''}
+                            />
+                        </div>
+                        <InputComentarioServicio publicacionId={publicacion.id} className="shrink-0 pt-3" />
+                    </div>
+                </ModalVideoFeed>
+            )}
 
             {avatarAbierto && avatarHeader && (
                 <ModalImagenes

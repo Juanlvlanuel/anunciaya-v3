@@ -29,6 +29,7 @@ export {
     formatearUltimaConexion,
     obtenerFotoPortada,
     obtenerNombreCorto,
+    fuenteThumbnail,
 } from './marketplace';
 
 import { parsearFechaPostgres } from './marketplace';

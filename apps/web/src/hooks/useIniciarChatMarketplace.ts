@@ -29,7 +29,7 @@ import { useChatYAStore } from '../stores/useChatYAStore';
 import { useUiStore } from '../stores/useUiStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { notificar } from '../utils/notificaciones';
-import { formatearPresupuesto } from '../utils/marketplace';
+import { formatearPresupuesto, fuenteThumbnail } from '../utils/marketplace';
 import type { ArticuloMarketplaceDetalle } from '../types/marketplace';
 
 export function useIniciarChatMarketplace() {
@@ -65,7 +65,8 @@ export function useIniciarChatMarketplace() {
             0,
             Math.min(fotoPortadaIndex ?? 0, (fotos?.length ?? 0) - 1),
         );
-        const fotoUrl = fotos?.[idxPortada] ?? fotos?.[0] ?? null;
+        const fotoPortada = fotos?.[idxPortada] ?? fotos?.[0] ?? null;
+        const fotoUrl = fotoPortada ? fuenteThumbnail(fotoPortada) : null;
 
         // Datos para crear la conversación + insertar card en backend.
         // MP es siempre P2P en modo personal — sin sucursal.

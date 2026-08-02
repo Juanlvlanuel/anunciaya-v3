@@ -72,6 +72,7 @@ import {
     formatearTiempoRelativo,
     modalidadLabel,
     obtenerFotoPortada,
+    fuenteThumbnail,
     etiquetaTipoEmpleo,
 } from '../../utils/servicios';
 import type { PublicacionDetalle } from '../../types/servicios';
@@ -91,10 +92,13 @@ export function PaginaServicioPublico() {
 
     // ─── OG tags ──────────────────────────────────────────────────────────────
     const esVacante = publicacion?.tipo === 'vacante-empresa';
-    const fotoPortadaUrl = publicacion
+    const fotoPortada = publicacion
         ? obtenerFotoPortada(publicacion.fotos, publicacion.fotoPortadaIndex) ??
-          (esVacante ? publicacion.sucursalPortada ?? undefined : undefined)
-        : undefined;
+          (esVacante && publicacion.sucursalPortada
+              ? { url: publicacion.sucursalPortada, tipo: 'imagen' as const }
+              : null)
+        : null;
+    const fotoPortadaUrl = fotoPortada ? fuenteThumbnail(fotoPortada) : undefined;
     const urlActual =
         typeof window !== 'undefined'
             ? `${window.location.origin}/p/servicio/${publicacionId}`

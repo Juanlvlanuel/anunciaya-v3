@@ -26,6 +26,7 @@ import type {
     PublicacionNegocioDetalle,
     RespuestaFeedPublicacionesNegocio,
 } from '../../types/negocioPublicaciones';
+import type { ArchivoFoto } from '../../types/archivoFoto';
 
 // =============================================================================
 // FEED INFINITO
@@ -191,7 +192,7 @@ export function useRegistrarVistaPublicacionNegocio(
 export interface CrearPublicacionNegocioPayload {
     texto: string;
     precio?: number | null;
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex?: number;
 }
 
@@ -273,7 +274,7 @@ export function useUploadFotoNegocioPublicacion() {
     return useMutation({
         mutationFn: async (vars: {
             nombreArchivo: string;
-            contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+            contentType: 'image/jpeg' | 'image/png' | 'image/webp' | 'video/mp4' | 'video/webm';
         }) => {
             const response = await api.post<{
                 success: boolean;

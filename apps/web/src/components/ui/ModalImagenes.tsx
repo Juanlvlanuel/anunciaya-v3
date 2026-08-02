@@ -2,10 +2,17 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalTarget } from '../../hooks/usePortalTarget';
 import { useBackNativo } from '../../hooks/useBackNativo';
+import type { ArchivoFoto } from '../../types/archivoFoto';
+
+/** Normaliza un elemento del array a `ArchivoFoto` — un `string` suelto (la
+ *  inmensa mayoría de los callers, ajenos a video) se trata como imagen. */
+function normalizarItem(item: string | ArchivoFoto): ArchivoFoto {
+  return typeof item === 'string' ? { url: item, tipo: 'imagen' } : item;
+}
 
 interface ModalImagenesProps {
-  /** Array de URLs de imágenes */
-  images: string[];
+  /** Array de imágenes (string suelto) o de fotos/videos (`ArchivoFoto`). */
+  images: (string | ArchivoFoto)[];
   /** Índice inicial de la imagen a mostrar (0-based) */
   initialIndex?: number;
   /** Controla si el modal está abierto */
@@ -171,7 +178,7 @@ export const ModalImagenes = ({
     if (descargando) return;
     setDescargando(true);
     try {
-      const url = images[indiceActual];
+      const url = normalizarItem(images[indiceActual]).url;
       const response = await fetch(url);
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -185,7 +192,7 @@ export const ModalImagenes = ({
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(images[indiceActual], '_blank');
+      window.open(normalizarItem(images[indiceActual]).url, '_blank');
     } finally {
       setDescargando(false);
     }
@@ -194,6 +201,7 @@ export const ModalImagenes = ({
   if (!isOpen) return null;
 
   const hayMultiplesImagenes = images.length > 1;
+  const itemActual = normalizarItem(images[indiceActual]);
 
   // En modo contenido (preview/ChatYA), el modal se posiciona `absolute` relativo al
   // contenedor del portal. En modo normal (fullscreen del viewport), usa `fixed`.
@@ -227,12 +235,22 @@ export const ModalImagenes = ({
               En modo contenido (preview/ChatYA) usamos max-w/max-h-full respecto al wrapper del modal,
               para que la imagen se ajuste al panel sin desbordar. En modo normal (fullscreen) mantenemos
               los viewport-based vw/vh. */}
-          <img
-            src={images[indiceActual]}
-            alt={`Imagen ${indiceActual + 1} de ${images.length}`}
-            className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[75vw] lg:max-h-[75vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
-            draggable={false}
-          />
+          {itemActual.tipo === 'video' ? (
+            <video
+              src={itemActual.url}
+              poster={itemActual.posterUrl}
+              controls
+              playsInline
+              className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[75vw] lg:max-h-[75vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
+            />
+          ) : (
+            <img
+              src={itemActual.url}
+              alt={`Imagen ${indiceActual + 1} de ${images.length}`}
+              className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[75vw] lg:max-h-[75vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
+              draggable={false}
+            />
+          )}
 
           {/* Botón X */}
           <button

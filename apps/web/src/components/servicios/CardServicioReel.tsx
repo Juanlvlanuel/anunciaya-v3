@@ -23,7 +23,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Briefcase, ChevronRight, ImageOff, Pencil, Search, Wrench } from 'lucide-react';
+import { Briefcase, ChevronRight, ImageOff, Pencil, Play, Search, Wrench } from 'lucide-react';
 import { Icon, ICONOS } from '@/config/iconos';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useIniciarChatServicio } from '../../hooks/useIniciarChatServicio';
@@ -36,6 +36,7 @@ import {
     formatearPrecioServicio,
     formatearPresupuesto,
     obtenerFotoPortada,
+    fuenteThumbnail,
 } from '../../utils/servicios';
 import type { PublicacionFeed, PublicacionDetalle } from '../../types/servicios';
 
@@ -53,7 +54,9 @@ export function CardServicioReel({ publicacion, variant = 'compacta' }: CardServ
     const esOfrece = publicacion.modo === 'ofrezco';
 
     const fotoPortada = obtenerFotoPortada(publicacion.fotos, publicacion.fotoPortadaIndex)
-        ?? (esVacante ? publicacion.sucursalPortada ?? null : null);
+        ?? (esVacante && publicacion.sucursalPortada
+            ? { url: publicacion.sucursalPortada, tipo: 'imagen' as const }
+            : null);
 
     const precioMostrar = (esVacante || esOfrece)
         ? formatearPrecioServicio(publicacion.precio, { esVacante })
@@ -154,12 +157,20 @@ export function CardServicioReel({ publicacion, variant = 'compacta' }: CardServ
             >
                 <div className="absolute inset-0 bg-slate-200">
                     {fotoPortada ? (
-                        <img
-                            src={fotoPortada}
-                            alt={publicacion.titulo}
-                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                        />
+                        <>
+                            <img
+                                src={fuenteThumbnail(fotoPortada)}
+                                alt={publicacion.titulo}
+                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                loading="lazy"
+                            />
+                            {fotoPortada.tipo === 'video' && (
+                                <Play
+                                    className="pointer-events-none absolute inset-0 z-[1] m-auto h-10 w-10 text-white drop-shadow-md"
+                                    fill="white"
+                                />
+                            )}
+                        </>
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-slate-400">
                             <ImageOff className="h-10 w-10" strokeWidth={1.5} />
@@ -286,12 +297,20 @@ export function CardServicioReel({ publicacion, variant = 'compacta' }: CardServ
             {/* Foto */}
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-200">
                 {fotoPortada ? (
-                    <img
-                        src={fotoPortada}
-                        alt={publicacion.titulo}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                    />
+                    <>
+                        <img
+                            src={fuenteThumbnail(fotoPortada)}
+                            alt={publicacion.titulo}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                        />
+                        {fotoPortada.tipo === 'video' && (
+                            <Play
+                                className="pointer-events-none absolute inset-0 m-auto h-7 w-7 text-white drop-shadow-md"
+                                fill="white"
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-400">
                         <badgeTipo.Icono className="h-8 w-8" strokeWidth={1.5} />

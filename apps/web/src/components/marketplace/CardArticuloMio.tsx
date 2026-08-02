@@ -36,6 +36,7 @@ import {
     Pencil,
     PauseCircle,
     PlayCircle,
+    Play,
     CheckCircle,
     Trash2,
     ImageOff,
@@ -55,6 +56,7 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import {
     formatearPrecio,
     obtenerFotoPortada,
+    fuenteThumbnail,
     parsearFechaPostgres,
 } from '../../utils/marketplace';
 import type {
@@ -173,12 +175,20 @@ export function CardArticuloMio({
             ────────────────────────────────────────────────────────────────── */}
             <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-t-xl bg-slate-200">
                 {foto ? (
-                    <img
-                        src={foto}
-                        alt={articulo.titulo}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                    />
+                    <>
+                        <img
+                            src={fuenteThumbnail(foto)}
+                            alt={articulo.titulo}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                        />
+                        {foto.tipo === 'video' && (
+                            <Play
+                                className="pointer-events-none absolute inset-0 z-[1] m-auto h-8 w-8 text-white drop-shadow-md"
+                                fill="white"
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-500">
                         <ImageOff className="h-8 w-8" strokeWidth={2} />

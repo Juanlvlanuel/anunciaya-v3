@@ -24,7 +24,7 @@
  * Ubicación: apps/web/src/components/servicios/CardServicio.tsx
  */
 
-import { Briefcase, MapPin, Search, Store, Wrench } from 'lucide-react';
+import { Briefcase, MapPin, Play, Search, Store, Wrench } from 'lucide-react';
 import type {
     PublicacionServicio,
     TipoEmpleo,
@@ -35,6 +35,7 @@ import {
     formatearTiempoRelativo,
     formatearDistancia,
     obtenerFotoPortada,
+    fuenteThumbnail,
     modalidadLabel,
 } from '../../utils/servicios';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -94,10 +95,12 @@ export function CardServicio({
     // Foto principal: para vacantes usamos `sucursalPortada` como
     // fallback cuando no hay foto propia (da contexto visual del local).
     // Para servicios-persona y solicitos-persona, solo el array `fotos`.
-    const fotoUrl = obtenerFotoPortada(
+    const fotoPortada = obtenerFotoPortada(
         publicacion.fotos,
         publicacion.fotoPortadaIndex,
-    ) ?? (esVacante ? publicacion.sucursalPortada ?? null : null);
+    ) ?? (esVacante && publicacion.sucursalPortada
+        ? { url: publicacion.sucursalPortada, tipo: 'imagen' as const }
+        : null);
 
     // Logo del negocio — solo para vacantes con logo.
     const logoNegocio = esVacante ? publicacion.negocioLogo ?? null : null;
@@ -237,13 +240,21 @@ export function CardServicio({
         >
             {/* ── Foto (aspect 4:3 igual que CardHorizontal) ──────────── */}
             <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-                {fotoUrl ? (
-                    <img
-                        src={fotoUrl}
-                        alt={publicacion.titulo}
-                        loading="lazy"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
+                {fotoPortada ? (
+                    <>
+                        <img
+                            src={fuenteThumbnail(fotoPortada)}
+                            alt={publicacion.titulo}
+                            loading="lazy"
+                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {fotoPortada.tipo === 'video' && (
+                            <Play
+                                className="pointer-events-none absolute inset-0 z-[1] m-auto h-9 w-9 text-white drop-shadow-md"
+                                fill="white"
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="absolute inset-0 grid place-items-center bg-linear-to-br from-slate-100 via-slate-200 to-slate-300">
                         {/* Icono según tipo para distinguir el placeholder

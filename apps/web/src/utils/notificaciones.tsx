@@ -17,11 +17,19 @@ import { useBackNativo } from '../hooks/useBackNativo';
 
 type TipoNotificacion = 'exito' | 'error' | 'advertencia' | 'info';
 
+/** Acción opcional del toast (ej. "Reintentar" en errores de carga). Si está presente,
+ *  el toast NO se auto-cierra — se queda hasta que el usuario la use o lo cierre a mano. */
+interface AccionNotificacion {
+  etiqueta: string;
+  onClick: () => void;
+}
+
 interface Notificacion {
   id: string;
   tipo: TipoNotificacion;
   mensaje: string;
   titulo?: string;
+  accion?: AccionNotificacion;
 }
 
 interface ConfirmacionState {
@@ -32,7 +40,7 @@ interface ConfirmacionState {
 }
 
 interface NotificacionesContextType {
-  agregar: (tipo: TipoNotificacion, mensaje: string, titulo?: string) => void;
+  agregar: (tipo: TipoNotificacion, mensaje: string, titulo?: string, accion?: AccionNotificacion) => void;
   remover: (id: string) => void;
   mostrarConfirmacion: (state: ConfirmacionState) => void;
   ocultarConfirmacion: () => void;
@@ -155,11 +163,14 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
 
   useEffect(() => {
     const enterTimeout = setTimeout(() => setEstado('visible'), 20);
-    iniciarTimer();
+    // Con acción (ej. "Reintentar"), no se auto-cierra: 2.5s no alcanza para que el
+    // usuario la note y la use — se queda hasta que la use o lo cierre a mano.
+    if (!notificacion.accion) iniciarTimer();
     return () => {
       clearTimeout(enterTimeout);
       if (timerRef.current) clearInterval(timerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cerrar = useCallback(() => {
@@ -218,6 +229,20 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
             </p>
           </div>
 
+          {/* Acción opcional (ej. "Reintentar") — antes de la X */}
+          {notificacion.accion && (
+            <button
+              onClick={() => {
+                notificacion.accion!.onClick();
+                cerrar();
+              }}
+              className="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-bold text-white transition-colors lg:cursor-pointer"
+              style={{ background: config.color }}
+            >
+              {notificacion.accion.etiqueta}
+            </button>
+          )}
+
           {/* Cerrar — círculo gris discreto */}
           <button
             onClick={cerrar}
@@ -229,7 +254,9 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
         </div>
 
         {/* Barra de progreso — fina, en la base. Recortada por el rounded-full
-            en los extremos pero visible en el centro: sutil y elegante. */}
+            en los extremos pero visible en el centro: sutil y elegante.
+            Oculta cuando hay acción (el toast no se auto-cierra, no aplica). */}
+        {!notificacion.accion && (
         <div
           className="absolute bottom-0 left-0 h-[3px] w-full"
           style={{ background: `${config.color}10` }}
@@ -245,6 +272,7 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
             }}
           />
         </div>
+        )}
       </div>
     </div>
   );
@@ -606,7 +634,7 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [confirmacion, setConfirmacion] = useState<ConfirmacionState | null>(null);
 
-  const agregar = useCallback((tipo: TipoNotificacion, mensaje: string, titulo?: string) => {
+  const agregar = useCallback((tipo: TipoNotificacion, mensaje: string, titulo?: string, accion?: AccionNotificacion) => {
     // Si hay un rate limit activo (429), suprimir toasts de error
     if (tipo === 'error') {
       const hasta = localStorage.getItem('ay_rate_limit_hasta');
@@ -619,6 +647,7 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
       tipo,
       mensaje,
       titulo,
+      accion,
     };
     setNotificaciones((prev) => [...prev, nuevaNotificacion]);
   }, []);
@@ -715,12 +744,12 @@ export const notificar = {
     notificacionesContext.agregar('exito', mensaje, titulo);
   },
 
-  error: (mensaje: string, titulo?: string): void => {
+  error: (mensaje: string, titulo?: string, accion?: AccionNotificacion): void => {
     if (!notificacionesContext) {
       console.warn('NotificacionesProvider no está inicializado');
       return;
     }
-    notificacionesContext.agregar('error', mensaje, titulo);
+    notificacionesContext.agregar('error', mensaje, titulo, accion);
   },
 
   advertencia: (mensaje: string, titulo?: string): void => {

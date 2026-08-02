@@ -9,6 +9,8 @@
  * Ubicación: apps/web/src/types/negocioPublicaciones.ts
  */
 
+import type { ArchivoFoto } from './archivoFoto';
+
 /** Item del feed — datos de la sucursal embebidos para evitar requests extra. */
 export interface PublicacionNegocioFeedItem {
     id: string;
@@ -19,7 +21,7 @@ export interface PublicacionNegocioFeedItem {
     ciudadNombre: string | null;
     texto: string;
     precio: string | null;
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
     totalVistas: number;
     createdAt: string;

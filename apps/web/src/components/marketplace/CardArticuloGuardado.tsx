@@ -29,7 +29,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { useIniciarChatMarketplace } from '../../hooks/useIniciarChatMarketplace';
 import { queryKeys } from '../../config/queryKeys';
 import { notificar } from '../../utils/notificaciones';
-import { formatearPrecio } from '../../utils/marketplace';
+import { formatearPrecio, fuenteThumbnail } from '../../utils/marketplace';
 import type {
     ArticuloFeed,
     ArticuloMarketplaceDetalle,
@@ -70,7 +70,8 @@ export function CardArticuloGuardado({
         0,
         Math.min(articulo.fotoPortadaIndex ?? 0, fotos.length - 1),
     );
-    const fotoUrl = fotos[idxPortada] ?? fotos[0] ?? null;
+    const fotoPortada = fotos[idxPortada] ?? fotos[0] ?? null;
+    const fotoUrl = fotoPortada ? fuenteThumbnail(fotoPortada) : null;
     const condicionLabel = articulo.condicion
         ? ETIQUETA_CONDICION[articulo.condicion]
         : 'ARTÍCULO';

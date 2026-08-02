@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X, Camera, Loader2, Image as ImageIcon, Tag, Copy, Trash2, Check } from 'lucide-react';
+import { X, Camera, Loader2, Image as ImageIcon, Tag, Copy, Trash2, Check, Play, Video } from 'lucide-react';
 import { Store } from 'lucide-react';
 import { ModalAdaptativo } from '../../../ui/ModalAdaptativo';
 import { ModalImagenes } from '../../../ui/ModalImagenes';
@@ -41,6 +41,7 @@ import {
     useEliminarFotoNegocioPublicacionHuerfana,
 } from '../../../../hooks/queries/useNegocioPublicaciones';
 import { notificar } from '../../../../utils/notificaciones';
+import { fuenteThumbnail } from '../../../../utils/marketplace';
 
 interface ComposerPublicacionNegocioProps {
     modo: 'crear' | 'editar';
@@ -108,6 +109,26 @@ export function ComposerPublicacionNegocio({
 
     // ─── Ver foto completa (mismo ModalImagenes de la Galería de Mi Perfil) ─
     const [indiceImagenAbierta, setIndiceImagenAbierta] = useState<number | null>(null);
+
+    // ─── Popup "Tomar foto" / "Grabar video" sobre el chip Cámara ──────────
+    // El input con capture="environment" solo puede abrir la cámara nativa
+    // en UN modo (foto o video) según su `accept` — por eso son 2 inputs
+    // ocultos distintos (`inputCamaraProps` / `inputCamaraVideoProps`) y el
+    // chip decide cuál disparar mediante este popup.
+    const [menuCamaraAbierto, setMenuCamaraAbierto] = useState(false);
+    const menuCamaraRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!menuCamaraAbierto) return;
+        const handler = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-menu-toggle-camara-negocio]')) return;
+            if (menuCamaraRef.current && !menuCamaraRef.current.contains(target)) {
+                setMenuCamaraAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [menuCamaraAbierto]);
 
     // ─── Confirmación al cerrar con cambios sin guardar ────────────────────
     const [confirmarSalirAbierto, setConfirmarSalirAbierto] = useState(false);
@@ -294,14 +315,20 @@ export function ComposerPublicacionNegocio({
                         {/* Fotos — grid de 3 por fila, sin límite de producto. */}
                         {(draft.fotos.length > 0 || fotosUploader.previews.length > 0) && (
                             <div className="mt-3 grid grid-cols-3 lg:grid-cols-5 gap-2">
-                                {draft.fotos.map((url, i) => (
-                                    <div key={url} className="relative aspect-square rounded-xl overflow-hidden group">
+                                {draft.fotos.map((foto, i) => (
+                                    <div key={foto.url} className="relative aspect-square rounded-xl overflow-hidden group">
                                         <img
-                                            src={url}
+                                            src={fuenteThumbnail(foto)}
                                             alt=""
                                             onClick={() => setIndiceImagenAbierta(i)}
                                             className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110 lg:cursor-pointer"
                                         />
+                                        {foto.tipo === 'video' && (
+                                            <Play
+                                                className="pointer-events-none absolute inset-0 m-auto h-8 w-8 text-white drop-shadow-md"
+                                                fill="white"
+                                            />
+                                        )}
                                         <div
                                             className="absolute bottom-0 inset-x-0 flex items-center justify-end py-1.5 px-1.5"
                                             style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)' }}
@@ -319,7 +346,16 @@ export function ComposerPublicacionNegocio({
                                 ))}
                                 {fotosUploader.previews.map((p) => (
                                     <div key={p.tempId} className="relative aspect-square rounded-xl overflow-hidden">
-                                        <img src={p.url} alt="" className="h-full w-full object-cover opacity-60" />
+                                        {p.tipo === 'video' ? (
+                                            <video
+                                                src={p.url}
+                                                muted
+                                                playsInline
+                                                className="h-full w-full object-cover opacity-60"
+                                            />
+                                        ) : (
+                                            <img src={p.url} alt="" className="h-full w-full object-cover opacity-60" />
+                                        )}
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                                             <Loader2 className="h-6 w-6 text-white animate-spin" />
                                         </div>
@@ -329,6 +365,7 @@ export function ComposerPublicacionNegocio({
                         )}
                         <input {...fotosUploader.inputGaleriaProps} />
                         <input {...fotosUploader.inputCamaraProps} />
+                        <input {...fotosUploader.inputCamaraVideoProps} />
                     </div>
 
                     {/* ── Chips anclados abajo: Galería + Precio (equivalente
@@ -338,15 +375,45 @@ export function ComposerPublicacionNegocio({
                         con su "X" de limpiar por dentro. ── */}
                     <div className="shrink-0 px-4 py-3 border-t-2 border-slate-200">
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                data-testid="composer-negocio-chip-camara"
-                                onClick={fotosUploader.abrirCamara}
-                                className="lg:hidden flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700"
-                            >
-                                <Camera className="h-4 w-4" strokeWidth={2} />
-                                Cámara
-                            </button>
+                            <div className="relative lg:hidden">
+                                <button
+                                    type="button"
+                                    data-testid="composer-negocio-chip-camara"
+                                    data-menu-toggle-camara-negocio
+                                    onClick={() => setMenuCamaraAbierto((v) => !v)}
+                                    aria-expanded={menuCamaraAbierto}
+                                    className="flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700"
+                                >
+                                    <Camera className="h-4 w-4" strokeWidth={2} />
+                                    Cámara
+                                </button>
+                                {menuCamaraAbierto && (
+                                    <div
+                                        ref={menuCamaraRef}
+                                        className="absolute bottom-full left-0 z-20 mb-2 w-44 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150"
+                                        role="menu"
+                                    >
+                                        <button
+                                            type="button"
+                                            data-testid="composer-negocio-camara-foto"
+                                            onClick={() => { setMenuCamaraAbierto(false); fotosUploader.abrirCamara(); }}
+                                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-semibold text-slate-700"
+                                        >
+                                            <Camera className="h-4 w-4 shrink-0" strokeWidth={2} />
+                                            Tomar foto
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-testid="composer-negocio-camara-video"
+                                            onClick={() => { setMenuCamaraAbierto(false); fotosUploader.abrirCamaraVideo(); }}
+                                            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-semibold text-slate-700"
+                                        >
+                                            <Video className="h-4 w-4 shrink-0" strokeWidth={2} />
+                                            Grabar video
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
 
                             <button
                                 type="button"

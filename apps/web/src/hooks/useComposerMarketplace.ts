@@ -22,6 +22,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CondicionArticulo, ModoArticulo } from '../types/marketplace';
+import type { ArchivoFoto } from '../types/archivoFoto';
 
 // =============================================================================
 // CONSTANTES
@@ -68,8 +69,8 @@ export interface ComposerMarketplaceDraft {
     /** Pin al top del feed de búsquedas — solo modo='busco'. */
     urgente: boolean;
 
-    // Fotos (URLs públicas R2 ya subidas, vía presigned URL).
-    fotos: string[];
+    // Fotos/videos (URLs públicas R2 ya subidas, vía presigned URL).
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
 
     // Detalles (acordeón colapsable en la UI). Solo aplican a modo='vendo'.

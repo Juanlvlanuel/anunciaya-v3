@@ -22,7 +22,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ImageOff, Users, ChevronRight, Pencil } from 'lucide-react';
+import { ImageOff, Users, ChevronRight, Pencil, Play } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
@@ -44,6 +44,7 @@ import {
     formatearTiempoRelativo,
     esArticuloNuevo,
     obtenerFotoPortada,
+    fuenteThumbnail,
     formatearPrecio,
 } from '../../utils/marketplace';
 import type { ArticuloFeed, ArticuloMarketplaceDetalle } from '../../types/marketplace';
@@ -210,12 +211,20 @@ export function CardArticulo({
                 >
                     <div className="absolute inset-0 bg-slate-200">
                         {fotoPortada ? (
-                            <img
-                                src={fotoPortada}
-                                alt={articulo.titulo}
-                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                loading="lazy"
-                            />
+                            <>
+                                <img
+                                    src={fuenteThumbnail(fotoPortada)}
+                                    alt={articulo.titulo}
+                                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    loading="lazy"
+                                />
+                                {fotoPortada.tipo === 'video' && (
+                                    <Play
+                                        className="pointer-events-none absolute inset-0 z-[1] m-auto h-10 w-10 text-white drop-shadow-md"
+                                        fill="white"
+                                    />
+                                )}
+                            </>
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-slate-400">
                                 <ImageOff className="h-10 w-10" strokeWidth={1.5} />
@@ -376,16 +385,24 @@ export function CardArticulo({
                 }`}
             >
                 {fotoPortada ? (
-                    <img
-                        src={fotoPortada}
-                        alt={articulo.titulo}
-                        className={`absolute inset-0 h-full w-full object-cover ${
-                            acentoHover === 'rose'
-                                ? 'transition-transform duration-300 group-hover:scale-105'
-                                : ''
-                        }`}
-                        loading="lazy"
-                    />
+                    <>
+                        <img
+                            src={fuenteThumbnail(fotoPortada)}
+                            alt={articulo.titulo}
+                            className={`absolute inset-0 h-full w-full object-cover ${
+                                acentoHover === 'rose'
+                                    ? 'transition-transform duration-300 group-hover:scale-105'
+                                    : ''
+                            }`}
+                            loading="lazy"
+                        />
+                        {fotoPortada.tipo === 'video' && (
+                            <Play
+                                className="pointer-events-none absolute inset-0 z-[1] m-auto h-9 w-9 text-white drop-shadow-md"
+                                fill="white"
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-slate-400">
                         <ImageOff className="h-10 w-10" strokeWidth={1.5} />

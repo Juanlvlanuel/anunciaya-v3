@@ -9,7 +9,7 @@
 
 import { ExternalLink, MessageCircle, Pencil, Archive, Newspaper } from 'lucide-react';
 import Tooltip from '../../../../../components/ui/Tooltip';
-import { formatearTiempoRelativo } from '../../../../../utils/marketplace';
+import { formatearTiempoRelativo, fuenteThumbnail } from '../../../../../utils/marketplace';
 import { PillEstadoPublicacion } from './PublicacionAtoms';
 import type { PublicacionNegocioBSRow } from '../../../../../types/negocioPublicaciones';
 
@@ -138,7 +138,7 @@ function FilaPublicacion({
             <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-14 h-14 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded-lg bg-sky-100 text-sky-700 grid place-items-center shrink-0 overflow-hidden">
                     {fotoPortada ? (
-                        <img src={fotoPortada} alt="" className="w-full h-full object-cover" />
+                        <img src={fuenteThumbnail(fotoPortada)} alt="" className="w-full h-full object-cover" />
                     ) : (
                         <Newspaper
                             className="w-5 h-5 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5"

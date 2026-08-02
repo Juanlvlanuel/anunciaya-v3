@@ -14,6 +14,7 @@
  */
 
 import type { Comentario } from './comentarios';
+import type { ArchivoFoto } from './archivoFoto';
 
 export type CondicionArticulo = 'nuevo' | 'seminuevo' | 'usado' | 'para_reparar';
 
@@ -89,7 +90,7 @@ export interface ArticuloMarketplace {
      * muestran "$15 c/u" en lugar de solo "$15".
      */
     unidadVenta: string | null;
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
     ubicacionAproximada: { lat: number; lng: number };
     ciudad: string;

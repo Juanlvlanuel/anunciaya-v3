@@ -155,18 +155,22 @@ export async function verificarSesion(
 ): Promise<DatosSesion | null> {
   // Obtener todos los sessionIds del usuario
   const sessionIds = await redis.smembers(claveUserSessions(usuarioId));
+  if (sessionIds.length === 0) return null;
 
-  // Buscar en cada sesión si el token coincide
-  for (const sessionId of sessionIds) {
-    const datosRaw = await redis.get(claveSession(usuarioId, sessionId));
+  // Traer TODAS las sesiones en paralelo (no secuencial) — con varias sesiones
+  // activas (ej. desktop + celular con la PWA, común en desarrollo/testing) un
+  // for..of con `await` adentro hace 1 round-trip a Redis POR sesión, en serie.
+  // Con Redis en otra región (Upstash) cada round-trip son decenas/cientos de ms
+  // reales — esto podía empujar /auth/refresh por encima del timeout del cliente
+  // (ver LECCIONES_TECNICAS.md: "sesión que se expira y no renueva").
+  const registros = await Promise.all(
+    sessionIds.map((sessionId) => redis.get(claveSession(usuarioId, sessionId)))
+  );
 
-    if (datosRaw) {
-      const datos: DatosSesion = JSON.parse(datosRaw);
-
-      if (datos.refreshToken === refreshToken) {
-        return datos;
-      }
-    }
+  for (const datosRaw of registros) {
+    if (!datosRaw) continue;
+    const datos: DatosSesion = JSON.parse(datosRaw);
+    if (datos.refreshToken === refreshToken) return datos;
   }
 
   return null;

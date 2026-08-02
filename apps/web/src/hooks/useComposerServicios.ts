@@ -33,6 +33,7 @@ import type {
     SubtipoPublicacion,
     TipoPublicacion,
 } from '../types/servicios';
+import type { ArchivoFoto } from '../types/archivoFoto';
 
 // =============================================================================
 // CONSTANTES
@@ -67,8 +68,8 @@ export interface ComposerServiciosDraft {
     descripcion: string;
     urgente: boolean;
 
-    // Fotos (URLs públicas R2 ya subidas, vía presigned URL).
-    fotos: string[];
+    // Fotos/videos (URLs públicas R2 ya subidas, vía presigned URL).
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
 
     // Detalles (acordeón colapsable en la UI).

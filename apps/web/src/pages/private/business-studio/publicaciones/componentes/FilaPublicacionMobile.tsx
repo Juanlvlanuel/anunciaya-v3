@@ -17,7 +17,7 @@
  */
 
 import { Archive, Eye, ExternalLink, MessageCircle, Newspaper } from 'lucide-react';
-import { formatearTiempoRelativo } from '../../../../../utils/marketplace';
+import { formatearTiempoRelativo, fuenteThumbnail } from '../../../../../utils/marketplace';
 import { PillEstadoPublicacion } from './PublicacionAtoms';
 import type { PublicacionNegocioBSRow } from '../../../../../types/negocioPublicaciones';
 
@@ -50,7 +50,7 @@ export function FilaPublicacionMobile({
             {/* Imagen */}
             <div className="w-[76px] h-[76px] rounded-lg bg-sky-100 text-sky-700 grid place-items-center shrink-0 overflow-hidden">
                 {fotoPortada ? (
-                    <img src={fotoPortada} alt="" className="w-full h-full object-cover" />
+                    <img src={fuenteThumbnail(fotoPortada)} alt="" className="w-full h-full object-cover" />
                 ) : (
                     <Newspaper className="w-8 h-8" strokeWidth={1.75} />
                 )}

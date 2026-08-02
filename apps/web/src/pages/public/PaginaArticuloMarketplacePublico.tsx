@@ -64,6 +64,7 @@ import {
     etiquetaPrecioArticulo,
     formatearTiempoRelativo,
     obtenerFotoPortada,
+    fuenteThumbnail,
 } from '../../utils/marketplace';
 import type { CondicionArticulo } from '../../types/marketplace';
 
@@ -87,9 +88,10 @@ export function PaginaArticuloMarketplacePublico() {
     const [modalAuthAbierto, setModalAuthAbierto] = useState(false);
 
     // ─── OG tags ──────────────────────────────────────────────────────────────
-    const fotoPortadaUrl = articulo
-        ? obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex) ?? undefined
-        : undefined;
+    const fotoPortada = articulo
+        ? obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex)
+        : null;
+    const fotoPortadaUrl = fotoPortada ? fuenteThumbnail(fotoPortada) : undefined;
     const urlActual =
         typeof window !== 'undefined'
             ? `${window.location.origin}/p/articulo-marketplace/${articuloId}`

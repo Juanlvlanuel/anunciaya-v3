@@ -21,6 +21,7 @@
  */
 
 import { z } from 'zod';
+import { archivoFotoSchema, MIME_FOTO_O_VIDEO } from './archivoFoto.schema.js';
 
 // =============================================================================
 // CAMPOS REUTILIZABLES
@@ -250,7 +251,7 @@ export type ConfirmacionesInput = z.infer<typeof campoConfirmaciones>;
 // =============================================================================
 
 const campoFotos = z
-    .array(z.string().url('Cada foto debe ser una URL válida'))
+    .array(archivoFotoSchema)
     .max(12, 'No puedes incluir más de 12 fotos')
     .default([]);
 
@@ -736,8 +737,8 @@ export const uploadImagenSchema = z.object({
         .trim()
         .min(1, 'El nombre del archivo es obligatorio')
         .max(255, 'El nombre del archivo no puede exceder 255 caracteres'),
-    contentType: z.enum(['image/jpeg', 'image/png', 'image/webp'], {
-        message: 'El tipo de archivo debe ser image/jpeg, image/png o image/webp',
+    contentType: z.enum(MIME_FOTO_O_VIDEO, {
+        message: 'El tipo de archivo debe ser image/jpeg, image/png, image/webp, video/mp4 o video/webm',
     }),
 });
 

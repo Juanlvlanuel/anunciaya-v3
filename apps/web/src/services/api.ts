@@ -36,9 +36,16 @@ import { performanceMonitor } from '../utils/performanceMonitor';
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
- * Timeout para peticiones (10 segundos)
+ * Timeout para peticiones (15 segundos).
+ *
+ * Antes eran 10s, por debajo del `connectionTimeoutMillis: 20_000` que el pool de
+ * Postgres del backend usa para esperar una conexión libre bajo saturación
+ * (`apps/api/src/db/index.ts`). Con esa diferencia, el frontend se rendía antes de que
+ * el backend siquiera terminara de intentar — timeouts "falsos" en toda la app durante
+ * picos de contención, sin relación con la sesión del usuario. 15s le da margen real sin
+ * dejar al usuario esperando una eternidad en un error genuino.
  */
-const TIMEOUT = 10000;
+const TIMEOUT = 15000;
 
 /**
  * Rutas que NO deben llevar sucursalId automático
@@ -421,19 +428,22 @@ api.interceptors.response.use(
           throw new Error('No hay refresh token');
         }
 
-        // Llamar al endpoint de refresh con 1 reintento ante errores de red
+        // Llamar al endpoint de refresh con 1 reintento ante errores de red.
+        // timeout explícito: axios "crudo" no hereda el TIMEOUT de la instancia `api`, y sin
+        // límite una petición colgada (red inestable justo al reactivar el celular) deja el
+        // flag `isRefreshing` trabado, bloqueando toda la cola de peticiones indefinidamente.
         let response;
         try {
-          response = await axios.post(refreshEndpoint, { refreshToken });
+          response = await axios.post(refreshEndpoint, { refreshToken }, { timeout: TIMEOUT });
         } catch (primerIntento) {
           // Si fue error de red (timeout, conexión), reintentar UNA vez
-          const esErrorRed = primerIntento instanceof AxiosError && 
+          const esErrorRed = primerIntento instanceof AxiosError &&
             (!primerIntento.response || primerIntento.code === 'ECONNABORTED' || primerIntento.code === 'ERR_NETWORK');
-          
+
           if (esErrorRed) {
             // Esperar 1 segundo antes de reintentar
             await new Promise(r => setTimeout(r, 1000));
-            response = await axios.post(refreshEndpoint, { refreshToken });
+            response = await axios.post(refreshEndpoint, { refreshToken }, { timeout: TIMEOUT });
           } else {
             throw primerIntento;
           }

@@ -14,6 +14,7 @@
  */
 
 import type { Comentario } from './comentarios';
+import type { ArchivoFoto } from './archivoFoto';
 
 /** Comentario de una publicación de servicio (alias del genérico compartido). */
 export type ComentarioServicio = Comentario;
@@ -137,7 +138,7 @@ export interface PublicacionServicio {
     subtipo: SubtipoPublicacion | null;
     titulo: string;
     descripcion: string;
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
     precio: PrecioServicio;
     modalidad: ModalidadServicio;
@@ -323,7 +324,7 @@ export interface FiltrosBusquedaServicios {
 export interface SugerenciaServicio {
     publicacionId: string;
     titulo: string;
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
     precio: PrecioServicio;
     modalidad: ModalidadServicio;

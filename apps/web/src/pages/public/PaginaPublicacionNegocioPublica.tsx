@@ -24,6 +24,7 @@ import { DetallePublicacionNegocioContenido } from '../../components/negocios/pu
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
 import { Spinner } from '../../components/ui/Spinner';
+import { fuenteThumbnail } from '../../utils/marketplace';
 
 export function PaginaPublicacionNegocioPublica() {
     const { publicacionId } = useParams<{ publicacionId: string }>();
@@ -42,7 +43,10 @@ export function PaginaPublicacionNegocioPublica() {
         description: publicacion
             ? publicacion.texto.slice(0, 155)
             : 'Descubre negocios locales cerca de ti.',
-        image: publicacion?.fotos?.[publicacion.fotoPortadaIndex] ?? publicacion?.fotos?.[0],
+        image: (() => {
+            const foto = publicacion?.fotos?.[publicacion.fotoPortadaIndex] ?? publicacion?.fotos?.[0];
+            return foto ? fuenteThumbnail(foto) : undefined;
+        })(),
         url: urlActual,
         type: 'article',
     });

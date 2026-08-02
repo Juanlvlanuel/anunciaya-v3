@@ -48,11 +48,13 @@ import {
 } from './queries/useServicios';
 import { notificar } from '../utils/notificaciones';
 import { optimizarImagen } from '../utils/optimizarImagen';
+import { procesarVideo, MAX_VIDEO_BYTES } from '../utils/procesarVideo';
+import type { ArchivoFoto } from '../types/archivoFoto';
 
 export const MAX_FOTOS_COMPOSER = 12;
 const MAX_BYTES = 5 * 1024 * 1024;
 
-const TIPOS_PERMITIDOS: Record<
+const TIPOS_IMAGEN_PERMITIDOS: Record<
     string,
     'image/jpeg' | 'image/png' | 'image/webp'
 > = {
@@ -62,19 +64,22 @@ const TIPOS_PERMITIDOS: Record<
     'image/webp': 'image/webp',
 };
 
+const TIPOS_VIDEO_PERMITIDOS = new Set(['video/mp4', 'video/webm']);
+
 /**
- * Preview local de una foto en curso de subida. La `url` es un
+ * Preview local de una foto/video en curso de subida. La `url` es un
  * `blob:` URL generada con `URL.createObjectURL` — el caller la usa
- * como `src` de la `<img>` para mostrar la imagen al instante.
+ * como `src` de la `<img>`/`<video>` para mostrar el archivo al instante.
  */
 export interface FotoPreviewLocal {
     tempId: string;
     url: string;
+    tipo: 'imagen' | 'video';
 }
 
 interface UseFotosUploaderOpts {
-    fotos: string[];
-    onCambioFotos: (fotos: string[]) => void;
+    fotos: ArchivoFoto[];
+    onCambioFotos: (fotos: ArchivoFoto[]) => void;
     /** Ref que rastrea las URLs subidas en esta sesión del composer
      *  (para limpiarlas si se descarta el borrador). */
     urlsSubidasEnSesion: MutableRefObject<Set<string>>;
@@ -87,6 +92,7 @@ export function useFotosUploaderServicios({
 }: UseFotosUploaderOpts) {
     const inputGaleriaRef = useRef<HTMLInputElement>(null);
     const inputCamaraRef = useRef<HTMLInputElement>(null);
+    const inputCamaraVideoRef = useRef<HTMLInputElement>(null);
     const [previews, setPreviews] = useState<FotoPreviewLocal[]>([]);
     const uploadMutation = useUploadFotoServicio();
     const eliminarHuerfanaMutation = useEliminarFotoServicioHuerfana();
@@ -107,18 +113,7 @@ export function useFotosUploaderServicios({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    /**
-     * Sube UN archivo a R2 con todo su pipeline (validación + optimización +
-     * presigned + PUT). Devuelve la URL pública o lanza error con el mensaje
-     * a notificar.
-     */
-    async function subirUno(archivo: File): Promise<string> {
-        if (!TIPOS_PERMITIDOS[archivo.type.toLowerCase()]) {
-            throw new Error(`${archivo.name}: tipo no permitido (JPG, PNG o WebP).`);
-        }
-        if (archivo.size > MAX_BYTES) {
-            throw new Error(`${archivo.name}: pesa más de 5 MB.`);
-        }
+    async function subirImagen(archivo: File): Promise<ArchivoFoto> {
         let blob: Blob;
         try {
             blob = await optimizarImagen(archivo, {
@@ -142,7 +137,73 @@ export function useFotosUploaderServicios({
         } catch {
             throw new Error(`Falló la subida de ${archivo.name}. Intenta de nuevo.`);
         }
-        return res.data.publicUrl;
+        return { url: res.data.publicUrl, tipo: 'imagen' };
+    }
+
+    async function subirVideo(archivo: File): Promise<ArchivoFoto> {
+        let procesado: Awaited<ReturnType<typeof procesarVideo>>;
+        try {
+            procesado = await procesarVideo(archivo);
+        } catch (err) {
+            throw new Error(
+                err instanceof Error ? err.message : `${archivo.name}: no se pudo procesar el video.`,
+            );
+        }
+
+        const resPoster = await uploadMutation.mutateAsync({
+            nombreArchivo: archivo.name.replace(/\.[^.]+$/, '-poster.webp'),
+            contentType: 'image/webp',
+        });
+        if (!resPoster.success || !resPoster.data) {
+            throw new Error(`No se pudo preparar el poster de ${archivo.name}.`);
+        }
+        try {
+            await axios.put(resPoster.data.uploadUrl, procesado.poster, {
+                headers: { 'Content-Type': 'image/webp' },
+            });
+        } catch {
+            throw new Error(`Falló la subida del poster de ${archivo.name}. Intenta de nuevo.`);
+        }
+
+        const contentType = archivo.type.toLowerCase() as 'video/mp4' | 'video/webm';
+        const resVideo = await uploadMutation.mutateAsync({
+            nombreArchivo: archivo.name,
+            contentType,
+        });
+        if (!resVideo.success || !resVideo.data) {
+            throw new Error(`No se pudo preparar la subida de ${archivo.name}.`);
+        }
+        try {
+            await axios.put(resVideo.data.uploadUrl, archivo, {
+                headers: { 'Content-Type': contentType },
+            });
+        } catch {
+            throw new Error(`Falló la subida de ${archivo.name}. Intenta de nuevo.`);
+        }
+
+        return { url: resVideo.data.publicUrl, tipo: 'video', posterUrl: resPoster.data.publicUrl };
+    }
+
+    /**
+     * Sube UN archivo a R2 con todo su pipeline (validación + optimización +
+     * presigned + PUT). Devuelve el `ArchivoFoto` o lanza error con el
+     * mensaje a notificar.
+     */
+    async function subirUno(archivo: File): Promise<ArchivoFoto> {
+        const tipo = archivo.type.toLowerCase();
+        if (TIPOS_VIDEO_PERMITIDOS.has(tipo)) {
+            if (archivo.size > MAX_VIDEO_BYTES) {
+                throw new Error(`${archivo.name}: pesa más de 50 MB.`);
+            }
+            return subirVideo(archivo);
+        }
+        if (!TIPOS_IMAGEN_PERMITIDOS[tipo]) {
+            throw new Error(`${archivo.name}: tipo no permitido (JPG, PNG, WebP, MP4 o WebM).`);
+        }
+        if (archivo.size > MAX_BYTES) {
+            throw new Error(`${archivo.name}: pesa más de 5 MB.`);
+        }
+        return subirImagen(archivo);
     }
 
     async function manejarArchivos(files: FileList | null) {
@@ -164,11 +225,14 @@ export function useFotosUploaderServicios({
         const items = archivos.map((archivo) => ({
             tempId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
             url: URL.createObjectURL(archivo),
+            tipo: (TIPOS_VIDEO_PERMITIDOS.has(archivo.type.toLowerCase()) ? 'video' : 'imagen') as
+                | 'imagen'
+                | 'video',
             archivo,
         }));
         setPreviews((prev) => [
             ...prev,
-            ...items.map(({ tempId, url }) => ({ tempId, url })),
+            ...items.map(({ tempId, url, tipo }) => ({ tempId, url, tipo })),
         ]);
 
         // Reset inputs para que el usuario pueda volver a elegir el mismo
@@ -176,22 +240,26 @@ export function useFotosUploaderServicios({
         // archivo dos veces seguidas).
         if (inputGaleriaRef.current) inputGaleriaRef.current.value = '';
         if (inputCamaraRef.current) inputCamaraRef.current.value = '';
+        if (inputCamaraVideoRef.current) inputCamaraVideoRef.current.value = '';
 
         // 2) Subir todas en paralelo. Promise.allSettled garantiza que
         //    una falla no aborta el resto.
         const resultados = await Promise.allSettled(
             items.map(async (item) => {
-                const publicUrl = await subirUno(item.archivo);
-                return { tempId: item.tempId, publicUrl };
+                const archivoFoto = await subirUno(item.archivo);
+                return { tempId: item.tempId, archivoFoto };
             }),
         );
 
         // 3) Procesar resultados: éxitos van al draft, errores se notifican.
-        const exitosas: string[] = [];
+        const exitosas: ArchivoFoto[] = [];
         resultados.forEach((r, i) => {
             if (r.status === 'fulfilled') {
-                exitosas.push(r.value.publicUrl);
-                urlsSubidasEnSesion.current.add(r.value.publicUrl);
+                exitosas.push(r.value.archivoFoto);
+                urlsSubidasEnSesion.current.add(r.value.archivoFoto.url);
+                if (r.value.archivoFoto.posterUrl) {
+                    urlsSubidasEnSesion.current.add(r.value.archivoFoto.posterUrl);
+                }
             } else {
                 const msg = r.reason instanceof Error
                     ? r.reason.message
@@ -222,12 +290,16 @@ export function useFotosUploaderServicios({
     }
 
     function eliminar(idx: number) {
-        const url = fotos[idx];
+        const foto = fotos[idx];
         const nuevas = fotos.filter((_, i) => i !== idx);
         onCambioFotos(nuevas);
-        if (url) {
-            urlsSubidasEnSesion.current.delete(url);
-            eliminarHuerfanaMutation.mutate(url);
+        if (foto) {
+            urlsSubidasEnSesion.current.delete(foto.url);
+            eliminarHuerfanaMutation.mutate(foto.url);
+            if (foto.tipo === 'video' && foto.posterUrl) {
+                urlsSubidasEnSesion.current.delete(foto.posterUrl);
+                eliminarHuerfanaMutation.mutate(foto.posterUrl);
+            }
         }
     }
 
@@ -252,6 +324,11 @@ export function useFotosUploaderServicios({
         inputCamaraRef.current?.click();
     }
 
+    function abrirCamaraVideo() {
+        if (!puedeAgregar()) return;
+        inputCamaraVideoRef.current?.click();
+    }
+
     return {
         // `subiendo` es true mientras haya AL MENOS un preview pendiente.
         // El consumidor lo usa para mostrar spinners globales o
@@ -261,10 +338,11 @@ export function useFotosUploaderServicios({
         eliminar,
         abrirGaleria,
         abrirCamara,
+        abrirCamaraVideo,
         inputGaleriaProps: {
             ref: inputGaleriaRef,
             type: 'file' as const,
-            accept: 'image/jpeg,image/png,image/webp',
+            accept: 'image/jpeg,image/png,image/webp,video/mp4,video/webm',
             multiple: true,
             hidden: true,
             onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -273,7 +351,21 @@ export function useFotosUploaderServicios({
         inputCamaraProps: {
             ref: inputCamaraRef,
             type: 'file' as const,
+            // Solo imagen: mezclar image/*+video/* en accept rompe el salto
+            // directo a la cámara nativa (capture) en Android/Chrome — el
+            // navegador cae al selector genérico. El consumidor decide entre
+            // este input (foto) y `inputCamaraVideoProps` (video) vía un
+            // popup "Tomar foto" / "Grabar video" sobre el chip Cámara.
             accept: 'image/jpeg,image/png,image/webp',
+            capture: 'environment' as const,
+            hidden: true,
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+                manejarArchivos(e.target.files),
+        },
+        inputCamaraVideoProps: {
+            ref: inputCamaraVideoRef,
+            type: 'file' as const,
+            accept: 'video/mp4,video/webm',
             capture: 'environment' as const,
             hidden: true,
             onChange: (e: React.ChangeEvent<HTMLInputElement>) =>

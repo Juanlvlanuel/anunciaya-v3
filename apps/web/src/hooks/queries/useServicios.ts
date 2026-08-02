@@ -582,7 +582,7 @@ export function useUploadFotoServicio() {
     return useMutation({
         mutationFn: async (vars: {
             nombreArchivo: string;
-            contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+            contentType: 'image/jpeg' | 'image/png' | 'image/webp' | 'video/mp4' | 'video/webm';
         }) => {
             const response = await api.post<{
                 success: boolean;

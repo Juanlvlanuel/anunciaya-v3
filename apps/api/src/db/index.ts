@@ -1,17 +1,23 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import * as Sentry from '@sentry/node';
 import { getDatabaseUrl } from '../config/env.js';
 import * as schema from './schemas/schema.js';
 
 const { Pool } = pg;
 
 // Pool de conexiones a PostgreSQL — vía transaction pooler de Supabase (puerto 6543).
-// Límites conservadores para no saturar el pooler: pocas conexiones por proceso +
-// liberación de las inactivas. Así los reinicios del watcher (tsx) en dev no acumulan
-// conexiones zombi.
+//
+// `max` se subió de 5 a 10 el 1-ago-2026: con 5, una sola página que dispara varias
+// queries en paralelo (dashboard, notificaciones, chat, sucursales…) ya podía saturar
+// el pool con un solo usuario navegando — sin contar múltiples pestañas/dispositivos.
+// Cuando el pool se saturaba, las peticiones en cola esperaban hasta `connectionTimeoutMillis`
+// (20s) por una conexión libre, pero el frontend (`api.ts`) solo esperaba 10s — timeouts
+// "falsos" en TODA la app (cualquier endpoint que tocara BD), sin relación con la sesión del
+// usuario. Ver docs/estandares/LECCIONES_TECNICAS.md.
 const pool = new Pool({
   connectionString: getDatabaseUrl(),
-  max: 5,                          // máx. conexiones por proceso (el default de pg es 10)
+  max: 10,                          // máx. conexiones por proceso
   idleTimeoutMillis: 30_000,       // cierra conexiones inactivas a los 30 s (evita reabrir
                                     // conexión nueva cada vez que varios crons disparan casi
                                     // juntos tras un rato de inactividad)
@@ -33,6 +39,40 @@ pool.on('connect', () => {
 pool.on('error', (err) => {
   console.error('❌ Error en pool de PostgreSQL:', err);
 });
+
+// ============================================================================
+// DIAGNÓSTICO DE SATURACIÓN DEL POOL
+// ============================================================================
+// Antes de esto no había NINGUNA visibilidad de cuántas conexiones estaban
+// ocupadas/en espera — un incidente de saturación solo se veía por sus síntomas
+// (timeouts en el frontend, sin evidencia del lado del servidor). Este chequeo
+// deja rastro real: si hay queries esperando una conexión libre, se loguea (y en
+// producción se manda a Sentry) con el estado del pool en ese momento.
+let ultimaAlertaSaturacion = 0;
+const INTERVALO_CHEQUEO_MS = 5_000;
+const COOLDOWN_ALERTA_MS = 60_000; // no más de 1 alerta a Sentry por minuto
+
+setInterval(() => {
+  if (pool.waitingCount === 0) return;
+
+  const estado = {
+    total: pool.totalCount,
+    libres: pool.idleCount,
+    enEspera: pool.waitingCount,
+    max: 10,
+  };
+  console.warn('⚠️  Pool de PostgreSQL saturado — peticiones esperando conexión libre:', estado);
+
+  const ahora = Date.now();
+  if (ahora - ultimaAlertaSaturacion > COOLDOWN_ALERTA_MS) {
+    ultimaAlertaSaturacion = ahora;
+    // No-op si Sentry no está inicializado (dev/sin DSN) — seguro llamarlo siempre.
+    Sentry.captureMessage('Pool de PostgreSQL saturado', {
+      level: 'warning',
+      extra: estado,
+    });
+  }
+}, INTERVALO_CHEQUEO_MS);
 
 // Instancia de Drizzle con todos los schemas
 export const db = drizzle(pool, { 

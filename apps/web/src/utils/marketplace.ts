@@ -9,6 +9,8 @@
  * Ubicación: apps/web/src/utils/marketplace.ts
  */
 
+import type { ArchivoFoto } from '../types/archivoFoto';
+
 // =============================================================================
 // PARSEO DE FECHA POSTGRES
 // =============================================================================
@@ -187,14 +189,23 @@ export function esArticuloNuevo(createdAt: string): boolean {
  * fotos, devuelve null.
  */
 export function obtenerFotoPortada(
-    fotos: string[],
+    fotos: ArchivoFoto[],
     fotoPortadaIndex: number
-): string | null {
+): ArchivoFoto | null {
     if (fotos.length === 0) return null;
     if (fotoPortadaIndex >= 0 && fotoPortadaIndex < fotos.length) {
         return fotos[fotoPortadaIndex];
     }
     return fotos[0];
+}
+
+/**
+ * URL a mostrar en una miniatura/thumbnail: el poster si es video, la URL
+ * tal cual si es imagen. Usado por todos los carruseles/cards que renderizan
+ * `fotos` como `<img>` (el `<video>` solo vive en `ModalImagenes`).
+ */
+export function fuenteThumbnail(foto: ArchivoFoto): string {
+    return foto.tipo === 'video' && foto.posterUrl ? foto.posterUrl : foto.url;
 }
 
 // =============================================================================

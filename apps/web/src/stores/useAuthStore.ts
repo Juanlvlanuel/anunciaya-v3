@@ -43,6 +43,18 @@ const TIEMPO_AVISO_ANTES = 5 * 60 * 1000;         // 5 minutos antes
 const TIEMPO_HASTA_AVISO = TIEMPO_INACTIVIDAD_TOTAL - TIEMPO_AVISO_ANTES; // 55 minutos
 const STORAGE_KEY_ULTIMA_ACTIVIDAD = `${STORAGE_PREFIX}ultima_actividad`;
 
+// Timeout de red para el refresh de tokens durante la hidratación. Sin esto, axios no tiene
+// límite de tiempo y una petición colgada (típico al reactivar el celular tras estar en
+// background: la conexión sigue "reconectándose") deja `cargando` en true para siempre — el
+// usuario queda atrapado en "Verificando sesión…" sin forma de refrescar dentro de la PWA.
+// Mismo valor que TIMEOUT en api.ts (15s) — le da margen al pool de Postgres del backend,
+// que puede esperar hasta 20s por una conexión libre bajo saturación.
+const TIMEOUT_RED_HIDRATACION = 15000; // 15s
+// Tope absoluto para toda la hidratación (red + imports dinámicos + socket): garantiza que
+// `cargando` se apague sí o sí, aunque algún paso se cuelgue sin lanzar error. Mayor que
+// TIMEOUT_RED_HIDRATACION para dejarle margen real a ese timeout antes de forzar el corte.
+const TIEMPO_MAXIMO_HIDRATACION = 20000; // 20s
+
 // =============================================================================
 // TIPOS
 // =============================================================================
@@ -741,161 +753,183 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ cargando: true });
 
-    try {
-      // Paso 1: Obtener tokens de localStorage
-      let accessToken = obtenerDeStorage(STORAGE_KEYS.accessToken);
-      let refreshToken = obtenerDeStorage(STORAGE_KEYS.refreshToken);
-      const usuarioStr = obtenerDeStorage(STORAGE_KEYS.usuario);
+    const ejecutarHidratacion = async (): Promise<void> => {
+      try {
+        // Paso 1: Obtener tokens de localStorage
+        let accessToken = obtenerDeStorage(STORAGE_KEYS.accessToken);
+        let refreshToken = obtenerDeStorage(STORAGE_KEYS.refreshToken);
+        const usuarioStr = obtenerDeStorage(STORAGE_KEYS.usuario);
 
-      // Si no hay tokens, no hay sesión
-      if (!accessToken || !refreshToken) {
+        // Si no hay tokens, no hay sesión
+        if (!accessToken || !refreshToken) {
+          set({ cargando: false, hidratado: true });
+          return;
+        }
+
+        // Paso 2: Cargar usuario de localStorage YA, antes de cualquier llamada de red.
+        // Así, si el watchdog de abajo corta la hidratación porque la red se colgó (ej. el
+        // celular acaba de despertar de background y la conexión sigue reconectándose), el
+        // store ya tiene la sesión local utilizable en vez de quedar con usuario: null.
+        let usuarioLocal: Usuario | null = null;
+        if (usuarioStr) {
+          try {
+            usuarioLocal = JSON.parse(usuarioStr);
+          } catch {
+            usuarioLocal = null;
+          }
+        }
+        set({ accessToken, refreshToken, usuario: usuarioLocal });
+
+        // ✅ SOLO el refresh token (7 días) decide si la sesión sigue viva.
+        // El access token expira cada 15 min por diseño: pasa en CUALQUIER
+        // recarga de la app que ocurra 15+ min después del último login/refresh,
+        // que es lo normal navegando. Antes esto se revisaba con un OR y mataba
+        // la sesión aunque el refresh token siguiera vigente por días — el usuario
+        // veía la sesión "vencida por inactividad" sin haber estado inactivo.
+        if (esTokenExpirado(refreshToken)) {
+          await notificar.sesionExpirada();
+          limpiarStorageAuth();
+          // Marcar como logout reciente → RutaPrivada NO guarda la ruta actual
+          // como pendiente, al re-loguear siempre irá a /inicio
+          sessionStorage.setItem('ay_logout_reciente', 'true');
+          set({
+            cargando: false,
+            hidratado: true,
+            accessToken: null,
+            refreshToken: null,
+            usuario: null
+          });
+          return;
+        }
+
+        // Si solo el access token expiró (caso normal), renovarlo aquí antes de
+        // seguir hidratando. Usa axios "crudo" (no la instancia `api`) para no
+        // disparar sus interceptores mientras la app todavía está hidratando.
+        if (esTokenExpirado(accessToken)) {
+          try {
+            const respuestaRefresh = await axios.post(
+              `${API_BASE_URL}/auth/refresh`,
+              { refreshToken },
+              { timeout: TIMEOUT_RED_HIDRATACION }
+            );
+            if (respuestaRefresh.data?.success && respuestaRefresh.data?.data) {
+              accessToken = respuestaRefresh.data.data.accessToken;
+              refreshToken = respuestaRefresh.data.data.refreshToken;
+              guardarEnStorage(STORAGE_KEYS.accessToken, accessToken!);
+              guardarEnStorage(STORAGE_KEYS.refreshToken, refreshToken!);
+              set({ accessToken, refreshToken });
+            } else {
+              throw new Error('Respuesta de refresh inválida');
+            }
+          } catch (errorRefresh) {
+            // Solo un 401 CONFIRMADO significa refresh token muerto de verdad (revocado,
+            // sesión cerrada desde otro dispositivo). Cualquier otra falla (timeout, red,
+            // 500, pooler saturado) es transitoria: NO cerrar sesión, seguir hidratando
+            // con el access token vencido tal cual — la próxima petición real la maneja
+            // el interceptor de api.ts, que ya tiene su propio reintento.
+            const esInvalidoDeVerdad = axios.isAxiosError(errorRefresh) && errorRefresh.response?.status === 401;
+            if (esInvalidoDeVerdad) {
+              await notificar.sesionExpirada();
+              limpiarStorageAuth();
+              sessionStorage.setItem('ay_logout_reciente', 'true');
+              set({
+                cargando: false,
+                hidratado: true,
+                accessToken: null,
+                refreshToken: null,
+                usuario: null
+              });
+              return;
+            }
+          }
+        }
+
+        // Paso 3: Obtener datos frescos del servidor
+        try {
+          const response = await api.get('/auth/yo');
+
+          if (response.data.success && response.data.data) {
+            const usuarioActualizado = response.data.data;
+
+            // Actualizar en localStorage
+            guardarEnStorage(STORAGE_KEYS.usuario, JSON.stringify(usuarioActualizado));
+
+            // Actualizar en estado
+            set({ usuario: usuarioActualizado });
+
+          }
+        } catch (error) {
+          console.warn('⚠️ No se pudo actualizar usuario desde servidor, usando datos locales:', error);
+          // Continuar con datos locales si falla
+        }
+
+        // Iniciar timer de inactividad
+        get()._iniciarTimerInactividad();
+
+        // Conectar Socket.io
+        conectarSocket();
+
+        // Cargar notificaciones
+        const usuarioHidratado = get().usuario;
+        if (usuarioHidratado) {
+          const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+          cargarNotificaciones(usuarioHidratado.modoActivo);
+          const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
+          registrarListenerNotificaciones();
+
+          // Cargar badge de ChatYA (mensajes no leídos) y borradores del usuario
+          const chatYAMod = await import('./useChatYAStore');
+          const { cargarNoLeidos: cargarNoLeidosChat, cargarBorradores: cargarBorradoresChat } = chatYAMod.useChatYAStore.getState();
+          cargarNoLeidosChat(usuarioHidratado.modoActivo as 'personal' | 'comercial');
+          cargarBorradoresChat();
+
+          // Cargar total de sucursales (modo comercial)
+          if (usuarioHidratado.modoActivo === 'comercial' && usuarioHidratado.negocioId) {
+            (async () => {
+              try {
+                const { obtenerSucursalesNegocio } = await import('../services/negociosService');
+                const respuesta = await obtenerSucursalesNegocio(usuarioHidratado.negocioId!);
+                if (respuesta.success && respuesta.data) {
+                  get().setTotalSucursales(respuesta.data.length);
+                }
+              } catch (error) {
+                console.error('❌ Error cargando total sucursales:', error);
+              }
+            })();
+          }
+        }
+
         set({ cargando: false, hidratado: true });
-        return;
-      }
-
-      // ✅ SOLO el refresh token (7 días) decide si la sesión sigue viva.
-      // El access token expira cada 15 min por diseño: pasa en CUALQUIER
-      // recarga de la app que ocurra 15+ min después del último login/refresh,
-      // que es lo normal navegando. Antes esto se revisaba con un OR y mataba
-      // la sesión aunque el refresh token siguiera vigente por días — el usuario
-      // veía la sesión "vencida por inactividad" sin haber estado inactivo.
-      if (esTokenExpirado(refreshToken)) {
-        await notificar.sesionExpirada();
+      } catch (error) {
+        console.error('Error hidratando auth:', error);
+        // En caso de error, limpiar todo
         limpiarStorageAuth();
-        // Marcar como logout reciente → RutaPrivada NO guarda la ruta actual
-        // como pendiente, al re-loguear siempre irá a /inicio
-        sessionStorage.setItem('ay_logout_reciente', 'true');
         set({
-          cargando: false,
-          hidratado: true,
+          usuario: null,
           accessToken: null,
           refreshToken: null,
-          usuario: null
+          cargando: false,
+          hidratado: true,
         });
-        return;
       }
+    };
 
-      // Si solo el access token expiró (caso normal), renovarlo aquí antes de
-      // seguir hidratando. Usa axios "crudo" (no la instancia `api`) para no
-      // disparar sus interceptores mientras la app todavía está hidratando.
-      if (esTokenExpirado(accessToken)) {
-        try {
-          const respuestaRefresh = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-          if (respuestaRefresh.data?.success && respuestaRefresh.data?.data) {
-            accessToken = respuestaRefresh.data.data.accessToken;
-            refreshToken = respuestaRefresh.data.data.refreshToken;
-            guardarEnStorage(STORAGE_KEYS.accessToken, accessToken!);
-            guardarEnStorage(STORAGE_KEYS.refreshToken, refreshToken!);
-          } else {
-            throw new Error('Respuesta de refresh inválida');
-          }
-        } catch (errorRefresh) {
-          // Solo un 401 CONFIRMADO significa refresh token muerto de verdad (revocado,
-          // sesión cerrada desde otro dispositivo). Cualquier otra falla (timeout, red,
-          // 500, pooler saturado) es transitoria: NO cerrar sesión, seguir hidratando
-          // con el access token vencido tal cual — la próxima petición real la maneja
-          // el interceptor de api.ts, que ya tiene su propio reintento.
-          const esInvalidoDeVerdad = axios.isAxiosError(errorRefresh) && errorRefresh.response?.status === 401;
-          if (esInvalidoDeVerdad) {
-            await notificar.sesionExpirada();
-            limpiarStorageAuth();
-            sessionStorage.setItem('ay_logout_reciente', 'true');
-            set({
-              cargando: false,
-              hidratado: true,
-              accessToken: null,
-              refreshToken: null,
-              usuario: null
-            });
-            return;
-          }
-        }
-      }
+    // Watchdog: garantiza que `cargando` se apague sí o sí, aunque algún paso de la
+    // hidratación se cuelgue sin lanzar error (ej. red inestable justo al reactivar el
+    // celular). En la PWA el usuario no tiene forma de "refrescar" — sin este tope se queda
+    // atrapado para siempre en la pantalla de "Verificando sesión…".
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
+    const esperaMaxima = new Promise<void>((resolve) => {
+      watchdog = setTimeout(resolve, TIEMPO_MAXIMO_HIDRATACION);
+    });
 
-      // Paso 2: Cargar usuario de localStorage temporalmente
-      let usuarioLocal: Usuario | null = null;
-      if (usuarioStr) {
-        try {
-          usuarioLocal = JSON.parse(usuarioStr);
-        } catch {
-          usuarioLocal = null;
-        }
-      }
+    await Promise.race([ejecutarHidratacion(), esperaMaxima]);
 
-      // Actualizar estado con datos locales (para UI rápida)
-      set({
-        accessToken,
-        refreshToken,
-        usuario: usuarioLocal,
-      });
+    if (watchdog) clearTimeout(watchdog);
 
-      // Paso 3: Obtener datos frescos del servidor
-      try {
-        const response = await api.get('/auth/yo');
-
-        if (response.data.success && response.data.data) {
-          const usuarioActualizado = response.data.data;
-
-          // Actualizar en localStorage
-          guardarEnStorage(STORAGE_KEYS.usuario, JSON.stringify(usuarioActualizado));
-
-          // Actualizar en estado
-          set({ usuario: usuarioActualizado });
-
-        }
-      } catch (error) {
-        console.warn('⚠️ No se pudo actualizar usuario desde servidor, usando datos locales:', error);
-        // Continuar con datos locales si falla
-      }
-
-      // Iniciar timer de inactividad
-      get()._iniciarTimerInactividad();
-
-      // Conectar Socket.io
-      conectarSocket();
-
-      // Cargar notificaciones
-      const usuarioHidratado = get().usuario;
-      if (usuarioHidratado) {
-        const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
-        cargarNotificaciones(usuarioHidratado.modoActivo);
-        const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
-        registrarListenerNotificaciones();
-
-        // Cargar badge de ChatYA (mensajes no leídos) y borradores del usuario
-        const chatYAMod = await import('./useChatYAStore');
-        const { cargarNoLeidos: cargarNoLeidosChat, cargarBorradores: cargarBorradoresChat } = chatYAMod.useChatYAStore.getState();
-        cargarNoLeidosChat(usuarioHidratado.modoActivo as 'personal' | 'comercial');
-        cargarBorradoresChat();
-
-        // Cargar total de sucursales (modo comercial)
-        if (usuarioHidratado.modoActivo === 'comercial' && usuarioHidratado.negocioId) {
-          (async () => {
-            try {
-              const { obtenerSucursalesNegocio } = await import('../services/negociosService');
-              const respuesta = await obtenerSucursalesNegocio(usuarioHidratado.negocioId!);
-              if (respuesta.success && respuesta.data) {
-                get().setTotalSucursales(respuesta.data.length);
-              }
-            } catch (error) {
-              console.error('❌ Error cargando total sucursales:', error);
-            }
-          })();
-        }
-      }
-
+    if (get().cargando) {
+      console.warn('⚠️ hidratarAuth: tiempo límite alcanzado, se continúa con la sesión local mientras la red responde en segundo plano');
       set({ cargando: false, hidratado: true });
-    } catch (error) {
-      console.error('Error hidratando auth:', error);
-      // En caso de error, limpiar todo
-      limpiarStorageAuth();
-      set({
-        usuario: null,
-        accessToken: null,
-        refreshToken: null,
-        cargando: false,
-        hidratado: true,
-      });
     }
   },
 

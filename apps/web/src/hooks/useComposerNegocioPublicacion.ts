@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ArchivoFoto } from '../types/archivoFoto';
 
 const NAMESPACE_DEFAULT = 'v1';
 
@@ -29,7 +30,7 @@ export interface ComposerNegocioPublicacionDraft {
     texto: string;
     /** String para permitir input vacío; se convierte a number al publicar. */
     precio: string;
-    fotos: string[];
+    fotos: ArchivoFoto[];
     fotoPortadaIndex: number;
 }
 

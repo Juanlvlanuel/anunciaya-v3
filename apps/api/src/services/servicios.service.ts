@@ -43,6 +43,7 @@ import type {
     PrecioInput,
 } from '../validations/servicios.schema.js';
 import { CATEGORIAS_CLASIFICADO } from '../validations/servicios.schema.js';
+import { MIME_FOTO_O_VIDEO, type ArchivoFotoInput } from '../validations/archivoFoto.schema.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -284,7 +285,11 @@ export async function eliminarFotoServicioSiHuerfana(
             .select({ total: sql<number>`COUNT(*)::int` })
             .from(serviciosPublicaciones)
             .where(
-                sql`${url} = ANY(ARRAY(SELECT jsonb_array_elements_text(fotos))) ${filtroExcluir}`
+                sql`EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(fotos) elem
+                    WHERE COALESCE(elem->>'url', elem#>>'{}') = ${url}
+                       OR elem->>'posterUrl' = ${url}
+                ) ${filtroExcluir}`
             );
 
         if (total > 0) {
@@ -1219,7 +1224,7 @@ export async function actualizarPublicacion(
             : sql`usuario_id = ${usuarioId}`;
 
         // 1. Validar que la publicación existe y es accesible.
-        const existeRes = await db.execute<{ fotos: string[]; estado: string }>(sql`
+        const existeRes = await db.execute<{ fotos: ArchivoFotoInput[]; estado: string }>(sql`
             SELECT fotos, estado
             FROM servicios_publicaciones
             WHERE id = ${publicacionId}
@@ -1234,7 +1239,7 @@ export async function actualizarPublicacion(
                 message: 'No encontramos esta publicación o no es tuya.',
             };
         }
-        const fotosAnteriores = (existeRes.rows[0] as { fotos: string[] }).fotos ?? [];
+        const fotosAnteriores = (existeRes.rows[0] as { fotos: ArchivoFotoInput[] }).fotos ?? [];
 
         // 2. Construir SET dinámico con SQL crudo.
         //    Drizzle no es flexible con SETs condicionales mezclando JSONB +
@@ -1313,9 +1318,17 @@ export async function actualizarPublicacion(
 
         // 3. Limpieza R2: fotos removidas → eliminar si están huérfanas.
         if (datos.fotos !== undefined) {
-            const removidas = fotosAnteriores.filter((u) => !datos.fotos!.includes(u));
+            const urlsNuevas = new Set(datos.fotos.map((f) => f.url));
+            const removidas = fotosAnteriores.filter((foto) => !urlsNuevas.has(foto.url));
             await Promise.all(
-                removidas.map((url) => eliminarFotoServicioSiHuerfana(url, publicacionId))
+                removidas.flatMap((foto) => {
+                    const tareas = [eliminarFotoServicioSiHuerfana(foto.url, publicacionId)];
+                    // El poster de un video removido también se libera (2 URLs por elemento).
+                    if (foto.tipo === 'video' && foto.posterUrl) {
+                        tareas.push(eliminarFotoServicioSiHuerfana(foto.posterUrl, publicacionId));
+                    }
+                    return tareas;
+                })
             );
         }
 
@@ -1535,7 +1548,7 @@ export async function registrarVista(publicacionId: string) {
 export async function generarUrlUploadImagen(
     usuarioId: string,
     nombreArchivo: string,
-    contentType: 'image/jpeg' | 'image/png' | 'image/webp'
+    contentType: (typeof MIME_FOTO_O_VIDEO)[number]
 ) {
     try {
         const carpeta = `servicios/${usuarioId}`;
@@ -1544,7 +1557,7 @@ export async function generarUrlUploadImagen(
             nombreArchivo,
             contentType,
             300,
-            ['image/jpeg', 'image/png', 'image/webp']
+            [...MIME_FOTO_O_VIDEO]
         );
 
         if (!resultado.success) {

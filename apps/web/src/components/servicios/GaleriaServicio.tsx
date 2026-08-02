@@ -25,9 +25,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShieldCheck, Play } from 'lucide-react';
 import type { PublicacionDetalle } from '../../types/servicios';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import { fuenteThumbnail } from '../../utils/servicios';
 
 interface GaleriaServicioProps {
     publicacion: PublicacionDetalle;
@@ -242,7 +243,7 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                 >
                     {fotos.map((foto, idx) => (
                         <button
-                            key={`${foto}-${idx}`}
+                            key={`${foto.url}-${idx}`}
                             type="button"
                             data-testid={`galeria-foto-${idx}`}
                             onClick={() => {
@@ -253,12 +254,18 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                             aria-label={`Ver foto ${idx + 1} de ${fotos.length}`}
                         >
                             <img
-                                src={foto}
+                                src={fuenteThumbnail(foto)}
                                 alt={`${publicacion.titulo} — foto ${idx + 1}`}
                                 className="absolute inset-0 w-full h-full object-cover"
                                 loading={idx === 0 ? 'eager' : 'lazy'}
                                 draggable={false}
                             />
+                            {foto.tipo === 'video' && (
+                                <Play
+                                    className="pointer-events-none absolute inset-0 m-auto h-9 w-9 text-white drop-shadow-md"
+                                    fill="white"
+                                />
+                            )}
                         </button>
                     ))}
                 </div>
@@ -319,7 +326,7 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                         const esActiva = indiceActivo === idx;
                         return (
                             <button
-                                key={`thumb-${foto}-${idx}`}
+                                key={`thumb-${foto.url}-${idx}`}
                                 data-testid={`galeria-servicio-thumb-${idx}`}
                                 type="button"
                                 onClick={() => irA(idx)}
@@ -332,11 +339,17 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                                 }`}
                             >
                                 <img
-                                    src={foto}
+                                    src={fuenteThumbnail(foto)}
                                     alt={`Miniatura ${idx + 1}`}
                                     className="h-full w-full object-cover"
                                     loading="lazy"
                                 />
+                                {foto.tipo === 'video' && (
+                                    <Play
+                                        className="pointer-events-none absolute inset-0 m-auto h-4 w-4 text-white drop-shadow"
+                                        fill="white"
+                                    />
+                                )}
                             </button>
                         );
                     })}

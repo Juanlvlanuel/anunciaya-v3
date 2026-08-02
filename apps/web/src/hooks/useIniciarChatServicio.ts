@@ -38,6 +38,7 @@ import {
     formatearPrecioServicio,
     modalidadLabel,
     obtenerFotoPortada,
+    fuenteThumbnail,
 } from '../utils/servicios';
 import type { PublicacionDetalle } from '../types/servicios';
 
@@ -81,10 +82,11 @@ export function useIniciarChatServicio() {
         const participante2SucursalId = esVacanteEmpresa ? sucursalId : null;
 
         // Foto de portada para el preview.
-        const fotoUrl = obtenerFotoPortada(
+        const fotoPortada = obtenerFotoPortada(
             publicacion.fotos,
             publicacion.fotoPortadaIndex,
         );
+        const fotoUrl = fotoPortada ? fuenteThumbnail(fotoPortada) : null;
 
         // Datos para crear la conversación + insertar card en backend.
         const datosCreacion = {

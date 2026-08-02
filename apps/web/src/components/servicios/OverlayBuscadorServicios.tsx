@@ -25,7 +25,7 @@
 
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Search, Wrench, X } from 'lucide-react';
+import { ArrowUpRight, Play, Search, Wrench, X } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -41,6 +41,7 @@ import {
     formatearPrecioServicio,
     modalidadLabel,
     obtenerFotoPortada,
+    fuenteThumbnail,
 } from '../../utils/servicios';
 import { OverlayBuscadorContainer } from '../ui/OverlayBuscadorContainer';
 
@@ -173,7 +174,7 @@ export function OverlayBuscadorServicios() {
                         ) : (
                             <ul className="flex flex-col gap-1">
                                 {sugerencias.map((sug, idx) => {
-                                    const fotoUrl = obtenerFotoPortada(
+                                    const fotoPortada = obtenerFotoPortada(
                                         sug.fotos,
                                         sug.fotoPortadaIndex,
                                     );
@@ -188,14 +189,22 @@ export function OverlayBuscadorServicios() {
                                                 }
                                                 className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-slate-100"
                                             >
-                                                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                                                    {fotoUrl ? (
-                                                        <img
-                                                            src={fotoUrl}
-                                                            alt={sug.titulo}
-                                                            className="h-full w-full object-cover"
-                                                            loading="lazy"
-                                                        />
+                                                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                                    {fotoPortada ? (
+                                                        <>
+                                                            <img
+                                                                src={fuenteThumbnail(fotoPortada)}
+                                                                alt={sug.titulo}
+                                                                className="h-full w-full object-cover"
+                                                                loading="lazy"
+                                                            />
+                                                            {fotoPortada.tipo === 'video' && (
+                                                                <Play
+                                                                    className="pointer-events-none absolute inset-0 m-auto h-4 w-4 text-white drop-shadow"
+                                                                    fill="white"
+                                                                />
+                                                            )}
+                                                        </>
                                                     ) : (
                                                         <div className="flex h-full w-full items-center justify-center text-sky-500">
                                                             <Wrench

@@ -17,13 +17,13 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ImageOff } from 'lucide-react';
+import { ImageOff, Play } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useIniciarChatMarketplace } from '../../hooks/useIniciarChatMarketplace';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
 import { notificar } from '../../utils/notificaciones';
-import { formatearPrecio, obtenerFotoPortada } from '../../utils/marketplace';
+import { formatearPrecio, obtenerFotoPortada, fuenteThumbnail } from '../../utils/marketplace';
 import type { ArticuloFeedInfinito, ArticuloMarketplaceDetalle } from '../../types/marketplace';
 
 interface CardArticuloReelProps {
@@ -76,14 +76,22 @@ export function CardArticuloReel({ articulo }: CardArticuloReelProps) {
             className="group w-44 shrink-0 cursor-pointer snap-start overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm transition-transform hover:scale-[1.02] lg:w-52 lg:cursor-pointer"
         >
             {/* Foto */}
-            <div className="aspect-[4/3] w-full overflow-hidden bg-slate-200">
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-200">
                 {fotoPortada ? (
-                    <img
-                        src={fotoPortada}
-                        alt={articulo.titulo}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                    />
+                    <>
+                        <img
+                            src={fuenteThumbnail(fotoPortada)}
+                            alt={articulo.titulo}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                        />
+                        {fotoPortada.tipo === 'video' && (
+                            <Play
+                                className="pointer-events-none absolute inset-0 m-auto h-7 w-7 text-white drop-shadow-md"
+                                fill="white"
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-400">
                         <ImageOff className="h-8 w-8" strokeWidth={1.5} />

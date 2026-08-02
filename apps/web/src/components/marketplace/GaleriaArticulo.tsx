@@ -25,11 +25,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff, Play } from 'lucide-react';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import type { ArchivoFoto } from '../../types/archivoFoto';
+import { fuenteThumbnail } from '../../utils/marketplace';
 
 interface GaleriaArticuloProps {
-    fotos: string[];
+    fotos: ArchivoFoto[];
     titulo: string;
     /** Índice de portada (foto que se muestra primero) */
     fotoPortadaIndex?: number;
@@ -155,17 +157,23 @@ export function GaleriaArticulo({
                 >
                     {fotosOrdenadas.map((foto, idx) => (
                         <button
-                            key={`${foto}-${idx}`}
+                            key={`${foto.url}-${idx}`}
                             data-testid={`slide-${idx}`}
                             onClick={() => abrirLightbox(idx)}
-                            className="aspect-square w-full shrink-0 snap-center cursor-pointer"
+                            className="relative aspect-square w-full shrink-0 snap-center cursor-pointer"
                         >
                             <img
-                                src={foto}
+                                src={fuenteThumbnail(foto)}
                                 alt={`${titulo} — foto ${idx + 1}`}
                                 className="h-full w-full object-cover"
                                 loading={idx === 0 ? 'eager' : 'lazy'}
                             />
+                            {foto.tipo === 'video' && (
+                                <Play
+                                    className="pointer-events-none absolute inset-0 m-auto h-8 w-8 text-white drop-shadow-md"
+                                    fill="white"
+                                />
+                            )}
                         </button>
                     ))}
                 </div>
@@ -197,10 +205,16 @@ export function GaleriaArticulo({
                     className="group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-slate-100"
                 >
                     <img
-                        src={fotosOrdenadas[indiceActual]}
+                        src={fuenteThumbnail(fotosOrdenadas[indiceActual])}
                         alt={`${titulo} — foto ${indiceActual + 1}`}
                         className="h-full max-h-[480px] w-full object-contain transition-transform group-hover:scale-[1.02] 2xl:max-h-[560px]"
                     />
+                    {fotosOrdenadas[indiceActual].tipo === 'video' && (
+                        <Play
+                            className="pointer-events-none absolute inset-0 m-auto h-8 w-8 text-white drop-shadow-md lg:h-10 lg:w-10"
+                            fill="white"
+                        />
+                    )}
                     {total > 1 && (
                         <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
                             {indiceActual + 1}/{total}
@@ -251,7 +265,7 @@ export function GaleriaArticulo({
                         const esActiva = indiceActual === idx;
                         return (
                             <button
-                                key={`thumb-${foto}-${idx}`}
+                                key={`thumb-${foto.url}-${idx}`}
                                 data-testid={`thumb-${idx}`}
                                 type="button"
                                 onClick={() => seleccionarThumbnail(idx)}
@@ -264,11 +278,17 @@ export function GaleriaArticulo({
                                 }`}
                             >
                                 <img
-                                    src={foto}
+                                    src={fuenteThumbnail(foto)}
                                     alt={`Miniatura ${idx + 1}`}
                                     className="h-full w-full object-cover"
                                     loading="lazy"
                                 />
+                                {foto.tipo === 'video' && (
+                                    <Play
+                                        className="pointer-events-none absolute inset-0 m-auto h-4 w-4 text-white drop-shadow"
+                                        fill="white"
+                                    />
+                                )}
                             </button>
                         );
                     })}

@@ -13,13 +13,20 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Store, ImageOff, MessageCircle, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Store, ImageOff, MessageCircle, Pencil, Play } from 'lucide-react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
-import { formatearTiempoRelativo, formatearPrecio } from '../../../utils/marketplace';
+import { formatearTiempoRelativo, formatearPrecio, fuenteThumbnail } from '../../../utils/marketplace';
 import { truncarTexto } from '../../../utils/truncarTexto';
+import { useEnViewport } from '../../../hooks/useEnViewport';
 import { ModalImagenes } from '../../ui/ModalImagenes';
+import { ModalVideoFeed } from '../../ui/ModalVideoFeed';
+import { ControlesVideo } from '../../ui/ControlesVideo';
 import { ModalComentariosPublicacionNegocio } from './ModalComentariosPublicacionNegocio';
+import { SeccionComentariosPublicacionNegocio } from './SeccionComentariosPublicacionNegocio';
+import { HeaderPublicacionNegocio } from './HeaderPublicacionNegocio';
+import { usePublicacionNegocio } from '../../../hooks/queries/useNegocioPublicaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import type { PublicacionNegocioFeedItemConComentarios } from '../../../types/negocioPublicaciones';
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -53,8 +60,19 @@ export function CardPublicacionNegocioFeed({
     const [logoAbierto, setLogoAbierto] = useState(false);
     const [comentariosAbierto, setComentariosAbierto] = useState(false);
 
+    // ─── Video: autoplay muted en viewport + fullscreen al hacer click ───────
+    const [galeriaRef, galeriaEnViewport] = useEnViewport<HTMLDivElement>();
+    const [videoFullscreenAbierto, setVideoFullscreenAbierto] = useState(false);
+    const videoPreviewRef = useRef<HTMLVideoElement>(null);
+    const { esEscritorio } = useBreakpoint();
+    // Detalle completo solo para el header del sidebar de comentarios del visor de
+    // video — se pide nada más cuando el visor está abierto (id undefined = enabled:false).
+    const { data: publicacionDetalleVideo } = usePublicacionNegocio(videoFullscreenAbierto ? publicacion.id : undefined);
+
     const fotos = publicacion.fotos ?? [];
     const tieneMultiples = fotos.length > 1;
+    const fotoActual = fotos[indiceFoto];
+    const esVideoActual = fotoActual?.tipo === 'video';
     const tiempo = formatearTiempoRelativo(publicacion.createdAt);
     const textoCorto = truncarTexto(publicacion.texto, TEXTO_MAX_CHARS);
     const textoRecortado = textoCorto.length < publicacion.texto.length;
@@ -149,8 +167,12 @@ export function CardPublicacionNegocioFeed({
             swipeOcurrioRef.current = false;
             return;
         }
+        if (esVideoActual) {
+            setVideoFullscreenAbierto(true);
+            return;
+        }
         setLightboxAbierto(true);
-    }, []);
+    }, [esVideoActual]);
 
     return (
         <article
@@ -259,7 +281,8 @@ export function CardPublicacionNegocioFeed({
                 asomando en el borde durante el arrastre que en MP. ── */}
             {fotos.length > 0 && (
                 <div
-                    className="group relative aspect-[4/3] lg:aspect-[2/1] w-full overflow-hidden bg-slate-100 touch-pan-y lg:cursor-zoom-in"
+                    ref={galeriaRef}
+                    className={`group relative ${esVideoActual ? 'aspect-[4/5] lg:aspect-[3/4]' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 touch-pan-y lg:cursor-pointer`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -282,20 +305,56 @@ export function CardPublicacionNegocioFeed({
                         const esCurr = rol === 'curr';
 
                         return (
-                            <img
+                            <div
                                 key={i}
-                                src={foto}
-                                alt=""
-                                aria-hidden={esCurr ? undefined : true}
-                                draggable={false}
-                                decoding="async"
-                                className={`absolute inset-0 h-full w-full select-none object-cover ${esCurr ? '' : 'pointer-events-none'}`}
+                                className={`absolute inset-0 h-full w-full ${esCurr ? '' : 'pointer-events-none'}`}
                                 style={{
                                     transform: `translateX(calc(${baseTransform} + ${offsetPx}px))`,
                                     transition: enTransicion ? 'transform 220ms ease-out' : 'none',
                                     willChange: 'transform',
                                 }}
-                            />
+                            >
+                                {foto.tipo === 'video' && esCurr && galeriaEnViewport ? (
+                                    <>
+                                        <video
+                                            key={foto.url}
+                                            ref={videoPreviewRef}
+                                            src={foto.url}
+                                            poster={foto.posterUrl}
+                                            muted
+                                            controls={!esEscritorio}
+                                            autoPlay
+                                            loop
+                                            playsInline
+                                            className="h-full w-full select-none object-cover"
+                                        />
+                                        {esEscritorio && (
+                                            <ControlesVideo
+                                                videoRef={videoPreviewRef}
+                                                contenedorRef={galeriaRef}
+                                                onExpandir={() => setVideoFullscreenAbierto(true)}
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <img
+                                            src={fuenteThumbnail(foto)}
+                                            alt=""
+                                            aria-hidden={esCurr ? undefined : true}
+                                            draggable={false}
+                                            decoding="async"
+                                            className="h-full w-full select-none object-cover"
+                                        />
+                                        {foto.tipo === 'video' && (
+                                            <Play
+                                                className="pointer-events-none absolute inset-0 m-auto h-10 w-10 text-white drop-shadow-md"
+                                                fill="white"
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         );
                     })}
 
@@ -358,6 +417,27 @@ export function CardPublicacionNegocioFeed({
                     {publicacion.totalVistas}
                 </span>
             </div>
+
+            {videoFullscreenAbierto && fotoActual?.tipo === 'video' && (
+                <ModalVideoFeed
+                    isOpen={videoFullscreenAbierto}
+                    onClose={() => setVideoFullscreenAbierto(false)}
+                    videoUrl={fotoActual.url}
+                    posterUrl={fotoActual.posterUrl}
+                >
+                    {publicacionDetalleVideo && (
+                        <div className="mb-3 shrink-0 border-b border-slate-200 pb-3">
+                            <HeaderPublicacionNegocio publicacion={publicacionDetalleVideo} />
+                        </div>
+                    )}
+                    <div className="min-h-0 flex-1">
+                        <SeccionComentariosPublicacionNegocio
+                            publicacionId={publicacion.id}
+                            negocioId={publicacion.negocioId}
+                        />
+                    </div>
+                </ModalVideoFeed>
+            )}
 
             {lightboxAbierto && (
                 <ModalImagenes

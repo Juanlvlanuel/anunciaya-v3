@@ -98,6 +98,7 @@ import type {
 import {
   guardarSesion,
   verificarSesion,
+  eliminarSesion,
   eliminarSesionPorToken,
   eliminarTodasLasSesiones,
   obtenerSesionesActivas,
@@ -1090,12 +1091,7 @@ export async function refrescarToken(
     }
 
     // -------------------------------------------------------------------------
-    // Paso 4: Eliminar la sesión vieja de Redis
-    // -------------------------------------------------------------------------
-    await eliminarSesionPorToken(usuario.id, datos.refreshToken);
-
-    // -------------------------------------------------------------------------
-    // Paso 5: Generar AMBOS tokens nuevos
+    // Paso 4: Generar AMBOS tokens nuevos
     // -------------------------------------------------------------------------
     const payload: PayloadToken = {
       usuarioId: usuario.id,
@@ -1115,14 +1111,39 @@ export async function refrescarToken(
     const nuevosTokens = generarTokens(payload);
 
     // -------------------------------------------------------------------------
-    // Paso 6: Guardar la nueva sesión en Redis (con TTL fresco de 7 días)
+    // Paso 5: Guardar la NUEVA sesión en Redis PRIMERO (con TTL fresco de 7 días).
     // -------------------------------------------------------------------------
+    // CRÍTICO — orden invertido respecto a la versión anterior (que borraba la
+    // sesión vieja ANTES de guardar la nueva): si `guardarSesion` fallaba o el
+    // proceso se interrumpía justo entre borrar y guardar (timeout de Redis,
+    // restart del watcher en dev, lo que sea), la sesión vieja ya no existía Y
+    // la nueva nunca se guardó — el usuario se quedaba con un refresh token que
+    // YA NO SIRVE PARA NADA, sin forma de renovar (el próximo /auth/refresh
+    // devuelve "Sesión expirada o cerrada" aunque el usuario esté activo). Eso
+    // es exactamente el síntoma "trabajando activamente y aun así se expira y
+    // no renueva" — no era lentitud, era una sesión huérfana e irrecuperable.
+    // Con el orden nuevo, si algo falla aquí el catch de abajo responde error
+    // pero la sesión VIEJA sigue viva en Redis — el usuario puede reintentar
+    // con el mismo refresh token en vez de quedar bloqueado.
     await guardarSesion(
       usuario.id,
       nuevosTokens.refreshToken,
       ip || sesionActual.ip,           // Mantener IP anterior si no hay nueva
       userAgent || sesionActual.dispositivo  // Mantener dispositivo anterior
     );
+
+    // -------------------------------------------------------------------------
+    // Paso 6: Eliminar la sesión vieja — best-effort, DESPUÉS de que la nueva ya
+    // está guardada. Si esto falla, no bloquea la respuesta (el usuario ya tiene
+    // tokens válidos); nada más queda una sesión vieja huérfana en Redis hasta
+    // que expire sola por TTL (7 días) — inofensivo comparado con dejarlo sin
+    // poder renovar. Se usa el `sessionId` que ya trae `sesionActual` (Paso 2)
+    // en vez de `eliminarSesionPorToken`, que repetiría el escaneo completo de
+    // sesiones del usuario para volver a encontrarlo.
+    // -------------------------------------------------------------------------
+    eliminarSesion(usuario.id, sesionActual.sessionId).catch((err) => {
+      console.error('No se pudo eliminar la sesión vieja tras refrescar token:', err);
+    });
 
     // -------------------------------------------------------------------------
     // Paso 7: Devolver AMBOS tokens

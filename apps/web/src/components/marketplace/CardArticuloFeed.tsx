@@ -25,10 +25,12 @@ import {
     ChevronRight,
     ImageOff,
     Pencil,
+    Play,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useEnViewport } from '../../hooks/useEnViewport';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -39,11 +41,17 @@ import {
     formatearDistancia,
     formatearTiempoRelativo,
     etiquetaPrecioArticulo,
+    fuenteThumbnail,
 } from '../../utils/marketplace';
 import { truncarTexto } from '../../utils/truncarTexto';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import { ModalVideoFeed } from '../ui/ModalVideoFeed';
+import { ControlesVideo } from '../ui/ControlesVideo';
 import { SeccionComentariosMarketplace } from './SeccionComentariosMarketplace';
+import { HeaderArticuloMarketplace } from './HeaderArticuloMarketplace';
 import { ModalComentariosMarketplace } from './ModalComentariosMarketplace';
+import { useArticuloMarketplace } from '../../hooks/queries/useMarketplace';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { ArticuloFeedInfinito } from '../../types/marketplace';
 
 // =============================================================================
@@ -146,9 +154,20 @@ export function CardArticuloFeed({
     const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
     const [comentariosAbierto, setComentariosAbierto] = useState(false);
 
+    // ─── Video: autoplay muted en viewport + fullscreen al hacer click ───────
+    const [galeriaRef, galeriaEnViewport] = useEnViewport<HTMLDivElement>();
+    const [videoFullscreenAbierto, setVideoFullscreenAbierto] = useState(false);
+    const videoPreviewRef = useRef<HTMLVideoElement>(null);
+    const { esEscritorio } = useBreakpoint();
+    // Detalle completo solo para el header del sidebar de comentarios del visor de
+    // video — se pide nada más cuando el visor está abierto (id undefined = enabled:false).
+    const { data: articuloDetalleVideo } = useArticuloMarketplace(videoFullscreenAbierto ? articulo.id : undefined);
+
     // ─── Derivados ───────────────────────────────────────────────────────────
     const fotos = articulo.fotos ?? [];
     const tieneMultiples = fotos.length > 1;
+    const fotoActual = fotos[indiceFoto];
+    const esVideoActual = fotoActual?.tipo === 'video';
     const distancia = formatearDistancia(articulo.distanciaMetros);
     const tiempo = formatearTiempoRelativo(articulo.createdAt);
     // `condicion` es opcional desde 2026-05-13. Si es null, no mostramos chip.
@@ -283,8 +302,12 @@ export function CardArticuloFeed({
             swipeOcurrioRef.current = false;
             return;
         }
+        if (esVideoActual) {
+            setVideoFullscreenAbierto(true);
+            return;
+        }
         irAlDetalle();
-    }, [irAlDetalle]);
+    }, [irAlDetalle, esVideoActual]);
 
     const handleAvatarClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -478,7 +501,8 @@ export function CardArticuloFeed({
                 CardPublicacionNegocioFeed.tsx. ───────────────────────── */}
             {fotos.length > 0 ? (
                 <div
-                    className={`group relative ${modoModal ? 'h-56 lg:h-64' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
+                    ref={galeriaRef}
+                    className={`group relative ${modoModal ? 'h-56 lg:h-64' : esVideoActual ? 'aspect-[4/5] lg:aspect-[3/4]' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -510,22 +534,56 @@ export function CardArticuloFeed({
                         const esCurr = rol === 'curr';
 
                         return (
-                            <img
+                            <div
                                 key={i}
-                                src={foto}
-                                alt={esCurr ? `${articulo.titulo} — foto ${i + 1}` : ''}
-                                aria-hidden={esCurr ? undefined : true}
-                                draggable={false}
-                                decoding="async"
-                                className={`absolute inset-0 h-full w-full select-none object-cover ${
-                                    esCurr ? '' : 'pointer-events-none'
-                                }`}
+                                className={`absolute inset-0 h-full w-full ${esCurr ? '' : 'pointer-events-none'}`}
                                 style={{
                                     transform: `translateX(calc(${baseTransform} + ${offsetPx}px))`,
                                     transition: enTransicion ? 'transform 220ms ease-out' : 'none',
                                     willChange: 'transform',
                                 }}
-                            />
+                            >
+                                {foto.tipo === 'video' && esCurr && galeriaEnViewport ? (
+                                    <>
+                                        <video
+                                            key={foto.url}
+                                            ref={videoPreviewRef}
+                                            src={foto.url}
+                                            poster={foto.posterUrl}
+                                            muted
+                                            controls={!esEscritorio}
+                                            autoPlay
+                                            loop
+                                            playsInline
+                                            className="h-full w-full select-none object-cover"
+                                        />
+                                        {esEscritorio && (
+                                            <ControlesVideo
+                                                videoRef={videoPreviewRef}
+                                                contenedorRef={galeriaRef}
+                                                onExpandir={() => setVideoFullscreenAbierto(true)}
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <img
+                                            src={fuenteThumbnail(foto)}
+                                            alt={esCurr ? `${articulo.titulo} — foto ${i + 1}` : ''}
+                                            aria-hidden={esCurr ? undefined : true}
+                                            draggable={false}
+                                            decoding="async"
+                                            className="h-full w-full select-none object-cover"
+                                        />
+                                        {foto.tipo === 'video' && (
+                                            <Play
+                                                className="pointer-events-none absolute inset-0 m-auto h-10 w-10 text-white drop-shadow-md"
+                                                fill="white"
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         );
                     })}
 
@@ -613,6 +671,28 @@ export function CardArticuloFeed({
                         vendedorId={articulo.vendedor.id}
                     />
                 </div>
+            )}
+
+            {/* ─── VIDEO EN PANTALLA COMPLETA — estilo Facebook ────────────── */}
+            {videoFullscreenAbierto && fotoActual?.tipo === 'video' && (
+                <ModalVideoFeed
+                    isOpen={videoFullscreenAbierto}
+                    onClose={() => setVideoFullscreenAbierto(false)}
+                    videoUrl={fotoActual.url}
+                    posterUrl={fotoActual.posterUrl}
+                >
+                    {articuloDetalleVideo && (
+                        <div className="mb-3 shrink-0 border-b border-slate-200 pb-3">
+                            <HeaderArticuloMarketplace articulo={articuloDetalleVideo} />
+                        </div>
+                    )}
+                    <div className="min-h-0 flex-1">
+                        <SeccionComentariosMarketplace
+                            articuloId={articulo.id}
+                            vendedorId={articulo.vendedor.id}
+                        />
+                    </div>
+                </ModalVideoFeed>
             )}
 
             {/* ─── MODAL AVATAR ───────────────────────────────────────────── */}
