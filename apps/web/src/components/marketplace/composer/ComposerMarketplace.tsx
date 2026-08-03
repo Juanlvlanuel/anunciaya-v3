@@ -42,6 +42,7 @@ import {
     Copy,
     DollarSign,
     Image as ImageIcon,
+    Info,
     Loader2,
     MapPin,
     MoreHorizontal,
@@ -89,6 +90,7 @@ import { ComposerHintModeracion } from './ComposerHintModeracion';
 import { notificar } from '../../../utils/notificaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { useBloqueoAutoReloadStore } from '../../../stores/useBloqueoAutoReloadStore';
 import { Spinner } from '../../ui/Spinner';
 import type {
     ArticuloMarketplaceDetalle,
@@ -177,6 +179,16 @@ export function ComposerMarketplace({
         estaIntacto,
         sembrarUbicacion,
     } = useComposerMarketplace({ storageNamespace });
+
+    // Bloquea el auto-reload de la PWA (ver useBloqueoAutoReloadStore) mientras
+    // haya cambios sin guardar — evita perder el draft si el Service Worker se
+    // actualiza mientras el usuario está escribiendo o subiendo fotos/video.
+    useEffect(() => {
+        const { bloquear, desbloquear } = useBloqueoAutoReloadStore.getState();
+        if (!estaIntacto) bloquear('composer-marketplace');
+        else desbloquear('composer-marketplace');
+        return () => desbloquear('composer-marketplace');
+    }, [estaIntacto]);
 
     // ─── GPS auto-siembra ────────────────────────────────────────────
     const ciudadGps = useGpsStore((s) => s.ciudad?.nombre ?? null);
@@ -825,9 +837,18 @@ export function ComposerMarketplace({
                         {menuCamaraAbierto && (
                             <div
                                 ref={menuCamaraRef}
-                                className="absolute bottom-full left-4 z-20 mb-2 w-44 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150 lg:hidden"
+                                className="absolute bottom-full left-4 z-20 mb-2 w-60 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150 lg:hidden"
                                 role="menu"
                             >
+                                {/* Aviso de límites de video — visible ANTES de elegir "Grabar
+                                    video", para que el usuario no se lleve la sorpresa después
+                                    de grabar (rechazo silencioso y frustrante si ya se pasó). */}
+                                <div className="flex items-start gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2.5">
+                                    <Info className="h-4 w-4 shrink-0 text-slate-500" strokeWidth={2} />
+                                    <p className="text-xs font-semibold leading-snug text-slate-600">
+                                        Videos: máx. 60 segundos y 50 MB
+                                    </p>
+                                </div>
                                 <button
                                     type="button"
                                     data-testid="composer-mp-camara-foto"

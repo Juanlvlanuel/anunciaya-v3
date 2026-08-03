@@ -179,7 +179,7 @@ export function useFotosUploaderMarketplace({
         const tipo = archivo.type.toLowerCase();
         if (TIPOS_VIDEO_PERMITIDOS.has(tipo)) {
             if (archivo.size > MAX_VIDEO_BYTES) {
-                throw new Error(`${archivo.name}: pesa más de 50 MB.`);
+                throw new Error(`${archivo.name} pesa más de 50 MB. Graba un clip más corto o baja la calidad de tu cámara.`);
             }
             return subirVideo(archivo);
         }

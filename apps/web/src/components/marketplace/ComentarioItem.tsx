@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, AlertCircle, Send, Loader2, CornerDownRight, Reply, Pencil, MoreVertical, ChevronDown } from 'lucide-react';
 import { BotonComentarista } from './BotonComentarista';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
 import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
@@ -219,6 +220,7 @@ function ComentarioFila({
     const [posMenu, setPosMenu] = useState<{ top: number; left: number } | null>(null);
     const btnMenuRef = useRef<HTMLButtonElement>(null);
     const panelMenuRef = useRef<HTMLDivElement>(null);
+    const portalTarget = usePortalTarget();
     const iniciarChatPersona = useIniciarChatDirectoPersona();
     const iniciarChatNegocio = useIniciarChatNegocio();
 
@@ -251,7 +253,7 @@ function ComentarioFila({
               }));
 
     // Cerrar el menú ⋮ al hacer click fuera (botón o panel — el panel vive
-    // en un PORTAL a document.body, ya no es descendiente del botón).
+    // en un PORTAL, ya no es descendiente del botón).
     useEffect(() => {
         if (!menuAbierto) return;
         const onFuera = (e: MouseEvent) => {
@@ -325,10 +327,17 @@ function ComentarioFila({
                 >
                     {/* Menú ⋮ — SOLO móvil. Agrupa Contactar/Editar/Eliminar
                         (Responder queda visible fuera, en la fila de acciones).
-                        El panel va en un PORTAL a document.body (posición
-                        `fixed` calculada del botón) porque el contenedor de
-                        comentarios tiene `overflow-y-auto` y recortaba el
-                        menú si vivía `absolute` dentro de la burbuja. */}
+                        El panel va en un PORTAL (posición `fixed` calculada
+                        del botón) porque el contenedor de comentarios tiene
+                        `overflow-y-auto` y recortaba el menú si vivía
+                        `absolute` dentro de la burbuja. Usa `usePortalTarget()`
+                        en vez de `document.body` fijo: dentro del sidebar de
+                        comentarios de `ModalVideoFeed` en escritorio, el video
+                        está en Fullscreen API nativo y cualquier portal directo
+                        a `document.body` queda invisible (el navegador solo
+                        pinta el elemento fullscreened y sus descendientes) —
+                        mismo bug ya resuelto para el botón de cerrar de ese
+                        modal, 2-ago-2026. */}
                     {tieneAccionesMenu && !editando && (
                         <div className="absolute right-1 top-1">
                             <button
@@ -395,7 +404,7 @@ function ComentarioFila({
                                         </button>
                                     )}
                                 </div>,
-                                document.body
+                                portalTarget
                             )}
                         </div>
                     )}

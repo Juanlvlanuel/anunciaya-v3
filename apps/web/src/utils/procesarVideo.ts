@@ -66,7 +66,7 @@ export async function procesarVideo(
                 limpiar();
                 reject(
                     new Error(
-                        `El video no puede durar más de ${MAX_VIDEO_DURACION_SEG} segundos`
+                        `El video dura más de ${MAX_VIDEO_DURACION_SEG} segundos. Recorta el clip o graba uno más corto.`
                     )
                 );
                 return;

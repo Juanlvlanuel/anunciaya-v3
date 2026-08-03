@@ -26,7 +26,6 @@ import { SeccionComentariosPublicacionNegocio } from './SeccionComentariosPublic
 import { HeaderPublicacionNegocio } from './HeaderPublicacionNegocio';
 import { usePublicacionNegocio } from '../../../hooks/queries/useNegocioPublicaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
-import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import type { PublicacionNegocioFeedItemConComentarios } from '../../../types/negocioPublicaciones';
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -64,7 +63,6 @@ export function CardPublicacionNegocioFeed({
     const [galeriaRef, galeriaEnViewport] = useEnViewport<HTMLDivElement>();
     const [videoFullscreenAbierto, setVideoFullscreenAbierto] = useState(false);
     const videoPreviewRef = useRef<HTMLVideoElement>(null);
-    const { esEscritorio } = useBreakpoint();
     // Detalle completo solo para el header del sidebar de comentarios del visor de
     // video — se pide nada más cuando el visor está abierto (id undefined = enabled:false).
     const { data: publicacionDetalleVideo } = usePublicacionNegocio(videoFullscreenAbierto ? publicacion.id : undefined);
@@ -282,7 +280,7 @@ export function CardPublicacionNegocioFeed({
             {fotos.length > 0 && (
                 <div
                     ref={galeriaRef}
-                    className={`group relative ${esVideoActual ? 'aspect-[4/5] lg:aspect-[3/4]' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 touch-pan-y lg:cursor-pointer`}
+                    className={`group relative ${esVideoActual ? 'aspect-[4/5]' : 'aspect-[4/3]'} lg:aspect-[5/4] w-full overflow-hidden bg-slate-100 touch-pan-y lg:cursor-pointer`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -322,19 +320,19 @@ export function CardPublicacionNegocioFeed({
                                             src={foto.url}
                                             poster={foto.posterUrl}
                                             muted
-                                            controls={!esEscritorio}
                                             autoPlay
                                             loop
                                             playsInline
+                                            disablePictureInPicture
+                                            disableRemotePlayback
                                             className="h-full w-full select-none object-cover"
                                         />
-                                        {esEscritorio && (
-                                            <ControlesVideo
-                                                videoRef={videoPreviewRef}
-                                                contenedorRef={galeriaRef}
-                                                onExpandir={() => setVideoFullscreenAbierto(true)}
-                                            />
-                                        )}
+                                        <ControlesVideo
+                                            videoRef={videoPreviewRef}
+                                            contenedorRef={galeriaRef}
+                                            onExpandir={() => setVideoFullscreenAbierto(true)}
+                                            soloVolumen
+                                        />
                                     </>
                                 ) : (
                                     <>
@@ -346,7 +344,7 @@ export function CardPublicacionNegocioFeed({
                                             decoding="async"
                                             className="h-full w-full select-none object-cover"
                                         />
-                                        {foto.tipo === 'video' && (
+                                        {foto.tipo === 'video' && !esCurr && (
                                             <Play
                                                 className="pointer-events-none absolute inset-0 m-auto h-10 w-10 text-white drop-shadow-md"
                                                 fill="white"

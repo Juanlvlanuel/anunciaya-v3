@@ -9,6 +9,35 @@ import { iniciarSincronizacionTokens } from './stores/useAuthStore'; // ← AGRE
 import { inicializarPWAInstall } from './stores/usePWAInstallStore';
 import { esHostScanYA } from './config/scanya';
 import { inicializarSentryWeb } from './config/sentry';
+import { useBloqueoAutoReloadStore } from './stores/useBloqueoAutoReloadStore';
+
+// Tope máximo de espera antes de forzar el reload del Service Worker aunque
+// un composer siga con cambios sin guardar (ver useBloqueoAutoReloadStore) —
+// evita que un composer abandonado bloquee las actualizaciones de la pestaña
+// para siempre.
+const TOPE_ESPERA_RELOAD_MS = 5 * 60 * 1000;
+
+/** Recarga de inmediato si no hay bloqueo activo; si lo hay, espera a que se
+ *  libere (o al tope máximo) antes de recargar — así no se pierde un draft
+ *  sin guardar por una actualización silenciosa del Service Worker. */
+function recargarCuandoSeaSeguro() {
+  if (!useBloqueoAutoReloadStore.getState().bloqueado) {
+    window.location.reload();
+    return;
+  }
+  let yaRecargo = false;
+  const recargar = () => {
+    if (yaRecargo) return;
+    yaRecargo = true;
+    clearTimeout(timeoutId);
+    unsub();
+    window.location.reload();
+  };
+  const unsub = useBloqueoAutoReloadStore.subscribe((state) => {
+    if (!state.bloqueado) recargar();
+  });
+  const timeoutId = setTimeout(recargar, TOPE_ESPERA_RELOAD_MS);
+}
 
 // Error tracking (solo en producción; inerte en dev). Lo antes posible.
 inicializarSentryWeb();
@@ -52,7 +81,7 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (recargando) return;
         recargando = true;
-        window.location.reload();
+        recargarCuandoSeaSeguro();
       });
     }
 

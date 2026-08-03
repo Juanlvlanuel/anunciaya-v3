@@ -51,7 +51,6 @@ import { SeccionComentariosMarketplace } from './SeccionComentariosMarketplace';
 import { HeaderArticuloMarketplace } from './HeaderArticuloMarketplace';
 import { ModalComentariosMarketplace } from './ModalComentariosMarketplace';
 import { useArticuloMarketplace } from '../../hooks/queries/useMarketplace';
-import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { ArticuloFeedInfinito } from '../../types/marketplace';
 
 // =============================================================================
@@ -158,7 +157,6 @@ export function CardArticuloFeed({
     const [galeriaRef, galeriaEnViewport] = useEnViewport<HTMLDivElement>();
     const [videoFullscreenAbierto, setVideoFullscreenAbierto] = useState(false);
     const videoPreviewRef = useRef<HTMLVideoElement>(null);
-    const { esEscritorio } = useBreakpoint();
     // Detalle completo solo para el header del sidebar de comentarios del visor de
     // video — se pide nada más cuando el visor está abierto (id undefined = enabled:false).
     const { data: articuloDetalleVideo } = useArticuloMarketplace(videoFullscreenAbierto ? articulo.id : undefined);
@@ -502,7 +500,7 @@ export function CardArticuloFeed({
             {fotos.length > 0 ? (
                 <div
                     ref={galeriaRef}
-                    className={`group relative ${modoModal ? 'h-56 lg:h-64' : esVideoActual ? 'aspect-[4/5] lg:aspect-[3/4]' : 'aspect-[4/3] lg:aspect-[2/1]'} w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
+                    className={`group relative ${modoModal ? 'h-56 lg:h-64' : esVideoActual ? 'aspect-[4/5] lg:aspect-[5/4]' : 'aspect-[4/3] lg:aspect-[5/4]'} w-full overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -551,19 +549,19 @@ export function CardArticuloFeed({
                                             src={foto.url}
                                             poster={foto.posterUrl}
                                             muted
-                                            controls={!esEscritorio}
                                             autoPlay
                                             loop
                                             playsInline
+                                            disablePictureInPicture
+                                            disableRemotePlayback
                                             className="h-full w-full select-none object-cover"
                                         />
-                                        {esEscritorio && (
-                                            <ControlesVideo
-                                                videoRef={videoPreviewRef}
-                                                contenedorRef={galeriaRef}
-                                                onExpandir={() => setVideoFullscreenAbierto(true)}
-                                            />
-                                        )}
+                                        <ControlesVideo
+                                            videoRef={videoPreviewRef}
+                                            contenedorRef={galeriaRef}
+                                            onExpandir={() => setVideoFullscreenAbierto(true)}
+                                            soloVolumen
+                                        />
                                     </>
                                 ) : (
                                     <>
@@ -575,7 +573,7 @@ export function CardArticuloFeed({
                                             decoding="async"
                                             className="h-full w-full select-none object-cover"
                                         />
-                                        {foto.tipo === 'video' && (
+                                        {foto.tipo === 'video' && !esCurr && (
                                             <Play
                                                 className="pointer-events-none absolute inset-0 m-auto h-10 w-10 text-white drop-shadow-md"
                                                 fill="white"

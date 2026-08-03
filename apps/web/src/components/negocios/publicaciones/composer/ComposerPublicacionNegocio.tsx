@@ -23,11 +23,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X, Camera, Loader2, Image as ImageIcon, Tag, Copy, Trash2, Check, Play, Video } from 'lucide-react';
+import { X, Camera, Info, Loader2, Image as ImageIcon, Tag, Copy, Trash2, Check, Play, Video } from 'lucide-react';
 import { Store } from 'lucide-react';
 import { ModalAdaptativo } from '../../../ui/ModalAdaptativo';
 import { ModalImagenes } from '../../../ui/ModalImagenes';
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useBloqueoAutoReloadStore } from '../../../../stores/useBloqueoAutoReloadStore';
 import { useNegocioPerfil } from '../../../../hooks/queries/useNegocios';
 import {
     useComposerNegocioPublicacion,
@@ -74,6 +75,16 @@ export function ComposerPublicacionNegocio({
         useComposerNegocioPublicacion({
             storageNamespace: esEdicion && publicacionId ? `edit-${publicacionId}` : 'v1',
         });
+
+    // Bloquea el auto-reload de la PWA (ver useBloqueoAutoReloadStore) mientras
+    // haya cambios sin guardar — evita perder el draft si el Service Worker se
+    // actualiza mientras el usuario está escribiendo o subiendo fotos/video.
+    useEffect(() => {
+        const { bloquear, desbloquear } = useBloqueoAutoReloadStore.getState();
+        if (!estaIntacto) bloquear('composer-negocio-publicacion');
+        else desbloquear('composer-negocio-publicacion');
+        return () => desbloquear('composer-negocio-publicacion');
+    }, [estaIntacto]);
 
     // Edición: hidratar el draft UNA SOLA VEZ cuando la publicación carga.
     const publicacionQuery = usePublicacionNegocio(esEdicion ? publicacionId ?? undefined : undefined);
@@ -390,9 +401,19 @@ export function ComposerPublicacionNegocio({
                                 {menuCamaraAbierto && (
                                     <div
                                         ref={menuCamaraRef}
-                                        className="absolute bottom-full left-0 z-20 mb-2 w-44 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150"
+                                        className="absolute bottom-full left-0 z-20 mb-2 w-60 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150"
                                         role="menu"
                                     >
+                                        {/* Aviso de límites de video — visible ANTES de elegir
+                                            "Grabar video", para que el usuario no se lleve la
+                                            sorpresa después de grabar (rechazo silencioso y
+                                            frustrante si ya se pasó). */}
+                                        <div className="flex items-start gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2.5">
+                                            <Info className="h-4 w-4 shrink-0 text-slate-500" strokeWidth={2} />
+                                            <p className="text-xs font-semibold leading-snug text-slate-600">
+                                                Videos: máx. 60 segundos y 50 MB
+                                            </p>
+                                        </div>
                                         <button
                                             type="button"
                                             data-testid="composer-negocio-camara-foto"

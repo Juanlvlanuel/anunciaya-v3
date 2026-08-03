@@ -2,39 +2,55 @@
  * ControlesVideo.tsx
  * ===================
  * Barra de controles personalizada para `<video>` — estilo Facebook: play/
- * pausa, línea de tiempo, ajustes (velocidad), volumen con slider vertical al
- * hover, y expandir. Reemplaza los controles nativos del navegador, que no se
- * pueden personalizar así (ni la barra de volumen vertical).
+ * pausa, línea de tiempo arrastrable, ajustes (velocidad), volumen con slider
+ * vertical al hover (solo escritorio), y expandir. Reemplaza los controles
+ * nativos del navegador, que no se pueden personalizar así.
  *
- * Solo se usa en escritorio (`lg:`) — los call-sites deciden cuándo montarla;
- * en móvil se sigue usando el atributo `controls` nativo del `<video>` (drag
- * táctil de un slider vertical no es una interacción móvil estándar).
+ * Se monta en escritorio Y en móvil (los call-sites deciden cuándo). En
+ * móvil se simplifica: sin slider de volumen (solo mute/unmute — iOS Safari
+ * ignora cambios programáticos de `video.volume`, los botones físicos son
+ * la única forma real de subir/bajar volumen ahí), sin botón de comentarios
+ * ni de expandir (no aplican fuera del modal fullscreen de escritorio).
  *
  * Se posiciona `absolute` dentro de un contenedor `relative`/`absolute` que
- * envuelve al `<video>`. Aparece con el mouse en movimiento sobre
- * `contenedorRef` y se oculta tras `TIEMPO_INACTIVIDAD_MS` sin movimiento
- * (salvo con el video en pausa, o mientras el usuario interactúa con algún
- * control — ajustes/volumen abiertos).
+ * envuelve al `<video>`. Aparece/oculta según el breakpoint:
+ * - Escritorio: con el mouse en movimiento sobre `contenedorRef`, se oculta
+ *   tras `TIEMPO_INACTIVIDAD_MS` sin movimiento.
+ * - Móvil, si `mostrarPorTap` (default true): un tap en `contenedorRef`
+ *   alterna mostrar/ocultar (usado en el modal fullscreen, donde no compite
+ *   con ningún otro gesto).
+ * - Móvil, si `mostrarPorTap={false}` (usado en las cards del feed, donde el
+ *   tap en el video ya abre el modal fullscreen): la barra simplemente
+ *   empieza visible y se autoculta por tiempo mientras reproduce, sin
+ *   depender de ningún gesto adicional.
+ * En los tres casos, con el video en pausa o mientras el usuario interactúa
+ * con algún control (ajustes/volumen abiertos, arrastrando timeline) se
+ * queda visible.
  *
  * Ubicación: apps/web/src/components/ui/ControlesVideo.tsx
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Maximize2, MessageCircle, Pause, Play, Settings, Volume1, Volume2, VolumeX } from 'lucide-react';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 const TIEMPO_INACTIVIDAD_MS = 2500;
 const VELOCIDADES = [0.5, 1, 1.25, 1.5, 2] as const;
 
 interface ControlesVideoProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
-    /** Contenedor sobre el que se detecta movimiento de mouse para mostrar/ocultar la barra. */
+    /** Contenedor sobre el que se detecta movimiento/tap para mostrar/ocultar la barra. */
     contenedorRef: React.RefObject<HTMLElement | null>;
-    /** Acción del ícono "expandir" — abre el modal fullscreen (en cards) o pide Fullscreen API (en el modal). */
+    /** Acción del ícono "expandir" — solo aparece en escritorio (abre el modal fullscreen desde las cards, o pide Fullscreen API dentro del modal). */
     onExpandir: () => void;
-    /** Si se pasa, muestra el ícono de comentarios (estilo Facebook) — abre/cierra el sidebar del caller. */
+    /** Si se pasa, muestra el ícono de comentarios en escritorio (estilo Facebook) — abre/cierra el sidebar del caller. */
     onToggleComentarios?: () => void;
     /** Si el sidebar de comentarios del caller está abierto — resalta el ícono en azul. */
     comentariosAbiertos?: boolean;
+    /** Móvil: si un tap en `contenedorRef` debe alternar mostrar/ocultar la barra. Default true (modal fullscreen); pasar `false` en las cards del feed, donde el tap ya abre el fullscreen. */
+    mostrarPorTap?: boolean;
+    /** Preview de card del feed: en vez de la barra completa, solo un botón de mute/unmute flotante en la esquina — sin timeline, play/pausa, ajustes ni expandir. */
+    soloVolumen?: boolean;
 }
 
 function formatearTiempo(segundos: number): string {
@@ -44,7 +60,8 @@ function formatearTiempo(segundos: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleComentarios, comentariosAbiertos }: ControlesVideoProps) {
+export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleComentarios, comentariosAbiertos, mostrarPorTap = true, soloVolumen = false }: ControlesVideoProps) {
+    const { esEscritorio } = useBreakpoint();
     const [reproduciendo, setReproduciendo] = useState(false);
     const [tiempoActual, setTiempoActual] = useState(0);
     const [duracion, setDuracion] = useState(0);
@@ -55,10 +72,12 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
     const [ajustesAbiertos, setAjustesAbiertos] = useState(false);
     const [volumenAbierto, setVolumenAbierto] = useState(false);
     const [arrastrandoVolumen, setArrastrandoVolumen] = useState(false);
+    const [arrastrandoTiempo, setArrastrandoTiempo] = useState(false);
     const interactuandoRef = useRef(false);
     const ocultarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pillVolumenRef = useRef<HTMLDivElement>(null);
     const wrapperVolumenRef = useRef<HTMLDivElement>(null);
+    const barraTiempoRef = useRef<HTMLDivElement>(null);
 
     // Sincronizar estado con el elemento <video> real.
     useEffect(() => {
@@ -90,40 +109,80 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
         };
     }, [videoRef]);
 
-    // Mostrar/ocultar por inactividad del mouse sobre el contenedor.
+    const programarOcultar = useCallback(() => {
+        if (ocultarTimeoutRef.current) clearTimeout(ocultarTimeoutRef.current);
+        ocultarTimeoutRef.current = setTimeout(() => {
+            if (!interactuandoRef.current && reproduciendo) setVisible(false);
+        }, TIEMPO_INACTIVIDAD_MS);
+    }, [reproduciendo]);
+
+    // Mostrar/ocultar — escritorio: por movimiento de mouse. Móvil: por tap
+    // (si `mostrarPorTap`) o solo autoculta por tiempo, sin gesto para volver
+    // a mostrarla (cards del feed, donde el tap ya abre el fullscreen).
     useEffect(() => {
         const contenedor = contenedorRef.current;
         if (!contenedor) return;
 
-        const programarOcultar = () => {
-            if (ocultarTimeoutRef.current) clearTimeout(ocultarTimeoutRef.current);
-            ocultarTimeoutRef.current = setTimeout(() => {
+        if (esEscritorio) {
+            const alMoverMouse = () => {
+                setVisible(true);
+                programarOcultar();
+            };
+            const alSalirMouse = () => {
                 if (!interactuandoRef.current && reproduciendo) setVisible(false);
-            }, TIEMPO_INACTIVIDAD_MS);
-        };
-        const alMoverMouse = () => {
-            setVisible(true);
+            };
+            contenedor.addEventListener('mousemove', alMoverMouse);
+            contenedor.addEventListener('mouseleave', alSalirMouse);
             programarOcultar();
-        };
-        const alSalirMouse = () => {
-            if (!interactuandoRef.current && reproduciendo) setVisible(false);
-        };
+            return () => {
+                contenedor.removeEventListener('mousemove', alMoverMouse);
+                contenedor.removeEventListener('mouseleave', alSalirMouse);
+                if (ocultarTimeoutRef.current) clearTimeout(ocultarTimeoutRef.current);
+            };
+        }
 
-        contenedor.addEventListener('mousemove', alMoverMouse);
-        contenedor.addEventListener('mouseleave', alSalirMouse);
+        if (mostrarPorTap) {
+            const alTap = () => {
+                setVisible((v) => {
+                    const nuevoVisible = !v;
+                    if (nuevoVisible) programarOcultar();
+                    return nuevoVisible;
+                });
+            };
+            contenedor.addEventListener('click', alTap);
+            programarOcultar();
+            return () => {
+                contenedor.removeEventListener('click', alTap);
+                if (ocultarTimeoutRef.current) clearTimeout(ocultarTimeoutRef.current);
+            };
+        }
+
         programarOcultar();
-
         return () => {
-            contenedor.removeEventListener('mousemove', alMoverMouse);
-            contenedor.removeEventListener('mouseleave', alSalirMouse);
             if (ocultarTimeoutRef.current) clearTimeout(ocultarTimeoutRef.current);
         };
-    }, [contenedorRef, reproduciendo]);
+    }, [contenedorRef, esEscritorio, mostrarPorTap, programarOcultar]);
 
     // Video en pausa → la barra se queda visible (no tiene sentido ocultarla).
     useEffect(() => {
         if (!reproduciendo) setVisible(true);
     }, [reproduciendo]);
+
+    // Menú de ajustes (velocidad) abierto → marca "interactuando" y cancela el
+    // auto-hide mientras esté abierto. En desktop esto ya lo cubre el hover del
+    // wrapper (ver más abajo), pero en MÓVIL no hay hover: sin esto, el
+    // temporizador de inactividad apagaba la barra completa —y el menú con
+    // ella— justo al abrirlo con un tap.
+    useEffect(() => {
+        if (!ajustesAbiertos) return;
+        interactuandoRef.current = true;
+        setVisible(true);
+        if (ocultarTimeoutRef.current) clearTimeout(ocultarTimeoutRef.current);
+        return () => {
+            interactuandoRef.current = false;
+            programarOcultar();
+        };
+    }, [ajustesAbiertos, programarOcultar]);
 
     const alternarPlay = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -132,14 +191,39 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
         if (video.paused) video.play(); else video.pause();
     }, [videoRef]);
 
-    const buscar = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-        e.stopPropagation();
+    const aplicarTiempoDesdeX = useCallback((clientX: number) => {
         const video = videoRef.current;
-        if (!video || !duracion) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const fraccion = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        const barra = barraTiempoRef.current;
+        if (!video || !barra || !duracion) return;
+        const rect = barra.getBoundingClientRect();
+        const fraccion = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
         video.currentTime = fraccion * duracion;
     }, [videoRef, duracion]);
+
+    // Pointerdown en la línea de tiempo (mouse Y dedo): fija el tiempo a esa
+    // posición y arranca el arrastre — pointermove/pointerup en window para que
+    // el drag siga funcionando aunque el cursor/dedo se salga de la barra delgada.
+    const iniciarArrastreTiempo = useCallback((e: React.PointerEvent) => {
+        e.stopPropagation();
+        interactuandoRef.current = true;
+        setArrastrandoTiempo(true);
+        aplicarTiempoDesdeX(e.clientX);
+    }, [aplicarTiempoDesdeX]);
+
+    useEffect(() => {
+        if (!arrastrandoTiempo) return;
+        const alMover = (e: PointerEvent) => aplicarTiempoDesdeX(e.clientX);
+        const alSoltar = () => {
+            setArrastrandoTiempo(false);
+            interactuandoRef.current = false;
+        };
+        window.addEventListener('pointermove', alMover);
+        window.addEventListener('pointerup', alSoltar);
+        return () => {
+            window.removeEventListener('pointermove', alMover);
+            window.removeEventListener('pointerup', alSoltar);
+        };
+    }, [arrastrandoTiempo, aplicarTiempoDesdeX]);
 
     const alternarSilencio = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -200,23 +284,46 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
     const progresoPct = duracion > 0 ? (tiempoActual / duracion) * 100 : 0;
     const IconoVolumen = silenciado || volumen === 0 ? VolumeX : volumen < 0.5 ? Volume1 : Volume2;
 
+    // Preview de card: solo el botón de mute/unmute, flotante, sin el resto de la barra.
+    if (soloVolumen) {
+        return (
+            <button
+                type="button"
+                onClick={alternarSilencio}
+                aria-label={silenciado ? 'Activar sonido' : 'Silenciar'}
+                className="absolute bottom-3 right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white lg:cursor-pointer lg:hover:bg-black/70"
+            >
+                <IconoVolumen className="h-5.5 w-5.5" />
+            </button>
+        );
+    }
+
+    // El menú de ajustes abierto fuerza la barra visible sin depender del timer
+    // ni de `interactuandoRef` — red de seguridad contra condiciones de carrera
+    // entre el auto-hide y el estado del menú (ej. en móvil, donde no hay hover).
+    const mostrarBarra = visible || ajustesAbiertos;
+
     return (
         <div
             onClick={(e) => e.stopPropagation()}
-            className={`absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1.5 bg-linear-to-t from-black/80 via-black/40 to-transparent px-3 pb-2 pt-8 transition-opacity duration-200 ${visible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+            className={`absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1.5 bg-linear-to-t from-black/80 via-black/40 to-transparent px-5 pb-6 pt-8 lg:px-3 lg:pb-2 transition-opacity duration-200 ${mostrarBarra ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         >
-            {/* Línea de tiempo */}
-            <div onClick={buscar} className="group/seek relative mx-1 h-1 lg:cursor-pointer rounded-full bg-white/30">
+            {/* Línea de tiempo — arrastrable con mouse o dedo (pointerdown + drag, no solo click). */}
+            <div
+                ref={barraTiempoRef}
+                onPointerDown={iniciarArrastreTiempo}
+                className="group/seek relative mx-1 h-1 touch-none lg:cursor-pointer rounded-full bg-white/30"
+            >
                 <div className="absolute inset-y-0 left-0 rounded-full bg-blue-500" style={{ width: `${progresoPct}%` }} />
                 <div
-                    className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 opacity-0 transition-opacity group-hover/seek:opacity-100"
+                    className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 transition-opacity group-hover/seek:opacity-100 ${arrastrandoTiempo ? 'opacity-100' : 'opacity-0'}`}
                     style={{ left: `${progresoPct}%` }}
                 />
             </div>
 
-            <div className="flex items-center gap-3 text-white">
+            <div className="flex items-center gap-4 lg:gap-3 text-white">
                 <button type="button" onClick={alternarPlay} aria-label={reproduciendo ? 'Pausar' : 'Reproducir'} className="lg:cursor-pointer">
-                    {reproduciendo ? <Pause className="h-4.5 w-4.5" fill="currentColor" /> : <Play className="h-4.5 w-4.5" fill="currentColor" />}
+                    {reproduciendo ? <Pause className="h-6 w-6 lg:h-4.5 lg:w-4.5" fill="currentColor" /> : <Play className="h-6 w-6 lg:h-4.5 lg:w-4.5" fill="currentColor" />}
                 </button>
 
                 <span className="text-xs font-medium tabular-nums">
@@ -225,14 +332,14 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
 
                 <div className="flex-1" />
 
-                {/* Comentarios — abre/cierra el sidebar del caller (estilo Facebook) */}
-                {onToggleComentarios && (
+                {/* Comentarios — abre/cierra el sidebar del caller (estilo Facebook), solo escritorio */}
+                {esEscritorio && onToggleComentarios && (
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onToggleComentarios(); }}
                         aria-label={comentariosAbiertos ? 'Ocultar comentarios' : 'Mostrar comentarios'}
                         aria-pressed={comentariosAbiertos}
-                        className={`lg:cursor-pointer ${comentariosAbiertos ? 'text-blue-400' : 'text-white'}`}
+                        className="text-white lg:cursor-pointer"
                     >
                         <MessageCircle className="h-4.5 w-4.5" fill={comentariosAbiertos ? 'currentColor' : 'none'} />
                     </button>
@@ -250,16 +357,16 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
                         aria-label="Ajustes de reproducción"
                         className="lg:cursor-pointer"
                     >
-                        <Settings className="h-4.5 w-4.5" />
+                        <Settings className="h-6 w-6 lg:h-4.5 lg:w-4.5" />
                     </button>
                     {ajustesAbiertos && (
-                        <div className="absolute bottom-7 right-0 min-w-[84px] overflow-hidden rounded-lg bg-black/90 py-1 text-xs shadow-lg">
+                        <div className="absolute bottom-9 right-0 min-w-[140px] overflow-hidden rounded-lg bg-black/90 py-1.5 text-sm shadow-lg">
                             {VELOCIDADES.map((v) => (
                                 <button
                                     key={v}
                                     type="button"
                                     onClick={(e) => cambiarVelocidad(v, e)}
-                                    className={`block w-full px-3 py-1.5 text-left lg:cursor-pointer lg:hover:bg-white/10 ${v === velocidad ? 'font-bold text-blue-400' : 'text-white'}`}
+                                    className={`block w-full px-4 py-2.5 text-left lg:cursor-pointer lg:hover:bg-white/10 ${v === velocidad ? 'font-bold text-blue-400' : 'text-white'}`}
                                 >
                                     {v === 1 ? 'Normal' : `${v}x`}
                                 </button>
@@ -268,18 +375,20 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
                     )}
                 </div>
 
-                {/* Volumen — slider vertical al hover, con bolita arrastrable */}
+                {/* Volumen — slider vertical al hover en escritorio (bolita arrastrable);
+                    en móvil solo queda el botón de mute/unmute, iOS ignora `video.volume`
+                    programático y ahí el volumen real lo controlan los botones físicos. */}
                 <div
                     ref={wrapperVolumenRef}
                     className="relative"
-                    onMouseEnter={() => { setVolumenAbierto(true); interactuandoRef.current = true; }}
+                    onMouseEnter={() => { if (esEscritorio) { setVolumenAbierto(true); interactuandoRef.current = true; } }}
                     onMouseLeave={() => {
                         if (arrastrandoVolumen) return; // se cierra al soltar (ver iniciarArrastreVolumen)
                         setVolumenAbierto(false);
                         interactuandoRef.current = false;
                     }}
                 >
-                    {volumenAbierto && (
+                    {esEscritorio && volumenAbierto && (
                         // El wrapper toca el botón sin hueco (`bottom-full`, gap 0) para que el
                         // mouse no pase por encima de "nada" al subir del ícono a la barra — ese
                         // hueco era lo que disparaba mouseleave y escondía la barra a medio camino.
@@ -306,13 +415,15 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
                         </div>
                     )}
                     <button type="button" onClick={alternarSilencio} aria-label={silenciado ? 'Activar sonido' : 'Silenciar'} className="lg:cursor-pointer">
-                        <IconoVolumen className="h-4.5 w-4.5" />
+                        <IconoVolumen className="h-6 w-6 lg:h-4.5 lg:w-4.5" />
                     </button>
                 </div>
 
-                <button type="button" onClick={(e) => { e.stopPropagation(); onExpandir(); }} aria-label="Expandir" className="lg:cursor-pointer">
-                    <Maximize2 className="h-4.5 w-4.5" />
-                </button>
+                {esEscritorio && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onExpandir(); }} aria-label="Expandir" className="lg:cursor-pointer">
+                        <Maximize2 className="h-4.5 w-4.5" />
+                    </button>
+                )}
             </div>
         </div>
     );

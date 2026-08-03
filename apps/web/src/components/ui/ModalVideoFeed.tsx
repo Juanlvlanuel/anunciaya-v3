@@ -17,25 +17,29 @@
  * en Servicios `ListaComentariosServicio`+`InputComentarioServicio`) — no hay
  * lista/input propios acá. Al igual que el botón de cerrar, el sidebar vive
  * DENTRO del wrapper que se fullscreenea (si no, desaparecería en fullscreen
- * nativo por la misma razón que el botón de cerrar). En móvil no se ofrece
- * (no hay `ControlesVideo` que lo abra) — comentar ahí sigue siendo desde el
- * modal de comentarios normal del módulo.
+ * nativo por la misma razón que el botón de cerrar). En móvil el ícono de
+ * comentarios de `ControlesVideo` no aparece (ver ese componente) — comentar
+ * ahí sigue siendo desde el modal de comentarios normal del módulo.
  *
- * Ocupa toda la pantalla en cualquier breakpoint (móvil y escritorio). En
- * escritorio usa `ControlesVideo` (barra propia estilo Facebook: play/pausa,
- * línea de tiempo, ajustes, volumen con slider vertical, expandir, comentarios)
- * en vez de los controles nativos, y al abrirse pide automáticamente la
- * pantalla completa NATIVA del navegador (Fullscreen API) sobre el WRAPPER
- * que contiene video + controles + botón de cerrar + sidebar. En móvil se
- * mantiene el `controls` nativo simple y NO se pide fullscreen nativo:
- * `playsInline` mantiene el video dentro de nuestra propia UI; pedir
- * fullscreen ahí tomaría el reproductor del sistema operativo y taparía
- * nuestra UI.
+ * Ocupa toda la pantalla en cualquier breakpoint (móvil y escritorio). Usa
+ * `ControlesVideo` (barra propia estilo Facebook: play/pausa, línea de tiempo
+ * arrastrable, ajustes) en vez de los controles nativos del navegador, en
+ * AMBOS breakpoints — en escritorio con volumen/expandir/comentarios
+ * completos, en móvil simplificada (ver docstring de `ControlesVideo`) y con
+ * la barra mostrándose/ocultándose con un tap en cualquier parte del video
+ * (`mostrarPorTap`, default true). Solo en escritorio, al abrirse pide
+ * automáticamente la pantalla completa NATIVA del navegador (Fullscreen API)
+ * sobre el WRAPPER que contiene video + controles + botón de cerrar +
+ * sidebar. En móvil NO se pide fullscreen nativo: `playsInline` mantiene el
+ * video dentro de nuestra propia UI; pedir fullscreen ahí tomaría el
+ * reproductor del sistema operativo y taparía nuestra UI.
  *
  * Click directo sobre el video (solo escritorio, cursor `pointer`): 1 click
  * = play/pausa, 2 clicks rápidos = minimizar (cerrar). Se distingue con un
  * timeout de 250ms en vez de `onClick`+`onDoubleClick` directos, porque un
- * doble click real dispara igual 2 eventos "click" antes del "dblclick".
+ * doble click real dispara igual 2 eventos "click" antes del "dblclick". En
+ * móvil este gesto no aplica — el tap ahí lo captura `ControlesVideo`
+ * (mostrar/ocultar barra) y el play/pausa vive como botón dentro de ella.
  *
  * Reusa `usePortalTarget` + `useBackNativo` — mismo patrón que `ModalImagenes.tsx`.
  *
@@ -45,7 +49,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { usePortalTarget } from '../../hooks/usePortalTarget';
+import { usePortalTarget, PortalTargetProvider } from '../../hooks/usePortalTarget';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { ControlesVideo } from './ControlesVideo';
@@ -63,6 +67,13 @@ export function ModalVideoFeed({ isOpen, onClose, videoUrl, posterUrl, children 
     const portalTarget = usePortalTarget();
     const videoRef = useRef<HTMLVideoElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
+    // Estado espejo del wrapper (además del ref) para poder pasarlo como target
+    // reactivo a PortalTargetProvider — ver por qué más abajo, junto al sidebar.
+    const [wrapperElement, setWrapperElement] = useState<HTMLDivElement | null>(null);
+    const asignarWrapperRef = (el: HTMLDivElement | null) => {
+        wrapperRef.current = el;
+        setWrapperElement(el);
+    };
     const { esEscritorio } = useBreakpoint();
     const [comentariosAbiertos, setComentariosAbiertos] = useState(false);
 
@@ -176,46 +187,56 @@ export function ModalVideoFeed({ isOpen, onClose, videoUrl, posterUrl, children 
                 y sus hijos — y en el caso del botón de cerrar, el navegador terminaba
                 metiendo su propio control genérico encima, que no podemos ni estilizar
                 ni quitar. */}
-            <div ref={wrapperRef} className="flex h-full w-full bg-black">
+            <div ref={asignarWrapperRef} className="flex h-full w-full bg-black">
                 {/* Video */}
-                <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
+                <div
+                    className={`relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black ${esEscritorio ? 'lg:cursor-pointer' : ''}`}
+                    onClick={esEscritorio ? manejarClickVideo : undefined}
+                >
                     {/* Cerrar — X gris a la izquierda (reemplaza la flecha de regreso: en
                         escritorio, con fullscreen nativo activo, es lo único visible para salir). */}
                     <button
                         type="button"
-                        onClick={cerrar}
+                        onClick={(e) => { e.stopPropagation(); cerrar(); }}
                         aria-label="Cerrar"
                         data-testid="modal-video-feed-regresar"
-                        className="absolute left-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-700/80 text-white lg:cursor-pointer lg:hover:bg-slate-600"
+                        className="absolute left-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-slate-600/60 text-white lg:cursor-pointer lg:hover:bg-slate-500/70"
                     >
-                        <X className="h-5 w-5" strokeWidth={2.5} />
+                        <X className="h-6 w-6" strokeWidth={2.5} />
                     </button>
 
                     <video
                         ref={videoRef}
                         src={videoUrl}
                         poster={posterUrl}
-                        controls={!esEscritorio}
-                        onClick={esEscritorio ? manejarClickVideo : undefined}
                         autoPlay
                         playsInline
-                        className={`max-h-full max-w-full ${esEscritorio ? 'lg:cursor-pointer' : ''}`}
+                        disablePictureInPicture
+                        disableRemotePlayback
+                        className="max-h-full max-w-full"
                     />
-                    {esEscritorio && (
-                        <ControlesVideo
-                            videoRef={videoRef}
-                            contenedorRef={wrapperRef}
-                            onExpandir={alternarFullscreenNativo}
-                            onToggleComentarios={children ? () => setComentariosAbiertos((v) => !v) : undefined}
-                            comentariosAbiertos={comentariosAbiertos}
-                        />
-                    )}
+                    <ControlesVideo
+                        videoRef={videoRef}
+                        contenedorRef={wrapperRef}
+                        onExpandir={alternarFullscreenNativo}
+                        onToggleComentarios={children ? () => setComentariosAbiertos((v) => !v) : undefined}
+                        comentariosAbiertos={comentariosAbiertos}
+                    />
                 </div>
 
-                {/* Comentarios — sidebar blanco a la derecha, estilo Facebook. */}
+                {/* Comentarios — sidebar blanco a la derecha, estilo Facebook.
+                    Envuelto en PortalTargetProvider apuntando al wrapper (no a
+                    document.body): dentro de él viven menús propios que hacen
+                    su propio createPortal (ej. el ⋮ de cada comentario, ver
+                    ComentarioItem.tsx) — sin esto, esos portales caerían fuera
+                    del elemento en Fullscreen API nativo y quedarían invisibles
+                    (bug real encontrado 2-ago-2026, mismo motivo que el botón
+                    de cerrar de este modal). */}
                 {mostrarSidebar && (
-                    <div className="flex h-full w-[360px] shrink-0 flex-col overflow-hidden bg-white p-4">
-                        {children}
+                    <div className="flex h-full w-[420px] shrink-0 flex-col overflow-hidden bg-white p-4">
+                        <PortalTargetProvider target={wrapperElement}>
+                            {children}
+                        </PortalTargetProvider>
                     </div>
                 )}
             </div>
