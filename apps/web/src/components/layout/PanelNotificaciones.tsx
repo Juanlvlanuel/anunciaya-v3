@@ -759,7 +759,7 @@ const panelNotifCss = `
     z-index: 40;
     animation: pn-slide 380ms cubic-bezier(.2,.7,.35,1) both;
     display: flex; flex-direction: column;
-    padding-top: 20px;
+    padding-top: max(20px, env(safe-area-inset-top));
     box-sizing: border-box;
     cursor: default;
   }

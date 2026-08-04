@@ -916,7 +916,10 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
         <div ref={setTargetPerfilChatYA} className={`@container perfil-contenedor flex-1 flex flex-col relative ${vistaPerfilAbierta ? '' : 'hidden'}`} style={{ minHeight: 0 }}>
           <PortalTargetProvider target={targetPerfilChatYA}>
           {/* Header con flecha atrás — siempre estilo mobile azul */}
-          <div className="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-white/10 bg-[#0B358F]">
+          <div
+            className="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-white/10 bg-[#0B358F]"
+            style={esMobile ? { paddingTop: 'max(0.75rem, env(safe-area-inset-top))' } : undefined}
+          >
             <button
               onClick={cerrarVistaPerfil}
               className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 hover:bg-white/10 text-white/80 cursor-pointer"
