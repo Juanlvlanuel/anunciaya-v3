@@ -71,7 +71,7 @@ export function FabPublicar({
                 transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1), bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
             }}
             className={`fixed ${claseRight} z-30 flex cursor-pointer flex-col items-center gap-1 ${
-                esEscritorio ? '' : bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                esEscritorio ? '' : bottomNavVisible ? 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]' : 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]'
             }`}
         >
             <span className={`flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform hover:scale-105 lg:h-12 lg:w-12 2xl:h-14 2xl:w-14 ${claseColor}`}>

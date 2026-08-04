@@ -291,7 +291,7 @@ const ContenedorNotificaciones: React.FC<ContenedorNotificacionesProps> = ({ not
   if (notificaciones.length === 0) return null;
 
   return (
-    <div className="fixed top-3 lg:top-4 left-1/2 -translate-x-1/2 z-9999 flex flex-col items-center pointer-events-none">
+    <div className="fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] lg:top-[calc(env(safe-area-inset-top,0px)+1rem)] left-1/2 -translate-x-1/2 z-9999 flex flex-col items-center pointer-events-none">
       <div className="pointer-events-auto flex flex-col items-center">
         {notificaciones.map((notificacion) => (
           <NotificacionToast key={notificacion.id} notificacion={notificacion} onClose={onClose} />

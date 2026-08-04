@@ -162,7 +162,7 @@ export function BotonIrArriba({
       aria-label="Ir arriba"
       data-testid={testId}
       style={{
-        bottom: `${bottomRem}rem`,
+        bottom: `calc(${bottomRem}rem + env(safe-area-inset-bottom, 0px))`,
         ...(leftAncla !== null ? { left: `${leftAncla}px` } : {}),
         transition: 'bottom 300ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease-out',
       }}
