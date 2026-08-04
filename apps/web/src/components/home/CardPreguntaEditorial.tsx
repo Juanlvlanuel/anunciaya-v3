@@ -32,6 +32,8 @@ import {
     RefreshCcw,
     Loader2,
     MoreVertical,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
 import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
@@ -194,6 +196,25 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
     const estadoCoyo: EstadoCoyo = sondeo.data?.estadoCoyo ?? pregunta.estadoCoyo;
     const respuestaCoyo = sondeo.data?.respuestaCoyo ?? pregunta.respuestaCoyo;
     const resultadosCoyo = sondeo.data?.resultadosCoyo ?? pregunta.resultadosCoyo;
+    const items = itemsPlanosCoyo(resultadosCoyo);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const desplazarResultados = (direccion: 1 | -1) => {
+        scrollRef.current?.scrollBy({ left: direccion * scrollRef.current.clientWidth * 0.9, behavior: 'smooth' });
+    };
+    // Las flechas solo tienen sentido si el carrusel de verdad desborda —
+    // con pocas cards que ya caben completas en el ancho visible, no hay
+    // nada que desplazar. Se re-evalúa con ResizeObserver porque el mismo
+    // set de cards puede desbordar o no según el breakpoint (lg/2xl).
+    const [desbordaCarrusel, setDesbordaCarrusel] = useState(false);
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const evaluar = () => setDesbordaCarrusel(el.scrollWidth > el.clientWidth + 1);
+        evaluar();
+        const observador = new ResizeObserver(evaluar);
+        observador.observe(el);
+        return () => observador.disconnect();
+    }, [items.length]);
 
     const usuarioId = useAuthStore((s) => s.usuario?.id);
     const esAutor = !!usuarioId && usuarioId === pregunta.autorId;
@@ -229,7 +250,6 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
     }
 
     // listo
-    const items = itemsPlanosCoyo(resultadosCoyo);
     const encabezado = items.length > 0 ? 'Coyo encontró esto' : 'Coyo dice';
 
     return (
@@ -250,10 +270,39 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                 <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
             )}
             {items.length > 0 && (
-                <div className="-mx-1 px-1 flex gap-2.5 overflow-x-auto pb-2 coyo-scroll">
-                    {items.map((it) => (
-                        <CardItemCoyo key={`${it.tipo}-${it.id}`} item={it} />
-                    ))}
+                <div className="group relative -mx-1">
+                    <div ref={scrollRef} className="flex gap-2.5 overflow-x-auto px-1 pb-2 coyo-scroll">
+                        {items.map((it) => (
+                            <CardItemCoyo key={`${it.tipo}-${it.id}`} item={it} />
+                        ))}
+                    </div>
+                    {/* Flechas de navegación — mismo estilo que la galería de fotos
+                        de MP/Negocios (círculo bg-black/50, aparece al hover).
+                        Solo si el carrusel de verdad desborda (si no, no hay
+                        nada que desplazar) y solo desktop — en móvil el swipe
+                        nativo ya cubre el caso. */}
+                    {desbordaCarrusel && (
+                        <>
+                            <button
+                                type="button"
+                                data-testid="coyo-resultados-anterior"
+                                onClick={() => desplazarResultados(-1)}
+                                aria-label="Ver resultados anteriores"
+                                className="absolute left-0 top-1/2 hidden h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 lg:flex"
+                            >
+                                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                            </button>
+                            <button
+                                type="button"
+                                data-testid="coyo-resultados-siguiente"
+                                onClick={() => desplazarResultados(1)}
+                                aria-label="Ver más resultados"
+                                className="absolute right-0 top-1/2 hidden h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 lg:flex"
+                            >
+                                <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
         </div>
