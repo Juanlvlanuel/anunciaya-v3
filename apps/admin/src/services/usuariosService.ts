@@ -214,3 +214,25 @@ export async function suspenderUsuario(id: string, motivo: string): Promise<void
 export async function reactivarUsuario(id: string, motivo?: string): Promise<void> {
   await api.post(`/admin/usuarios/${id}/reactivar`, { motivo });
 }
+
+// =============================================================================
+// ALTA MANUAL — crea una cuenta en Modo Personal (sin negocio). Super + gerente.
+// =============================================================================
+
+export interface DatosAltaManualUsuario {
+  nombre: string;
+  ciudadId: string;
+  apellidos: string;
+  correo: string;
+  /** Se captura dos veces; el backend revalida la igualdad. */
+  confirmarCorreo: string;
+  telefono?: string; // +52XXXXXXXXXX
+  /** Opcional: si se define, la cuenta nace con acceso (sin correo de bienvenida). */
+  contrasena?: string;
+}
+
+export async function altaManualUsuario(datos: DatosAltaManualUsuario): Promise<{ usuarioId: string }> {
+  const { data } = await api.post<RespuestaAPI<{ usuarioId: string }>>('/admin/usuarios/alta-manual', datos);
+  if (!data.data) throw new Error(data.message || 'No se pudo registrar el usuario');
+  return data.data;
+}

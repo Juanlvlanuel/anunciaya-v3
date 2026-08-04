@@ -72,6 +72,7 @@ export const ACCION_LABEL: Record<string, string> = {
   negocio_marcar_fundador: 'Marcó un negocio como Fundador',
   negocio_quitar_fundador: 'Quitó el Fundador de un negocio',
   // Usuarios
+  usuario_alta_manual: 'Registró un usuario',
   usuario_desbloquear_intentos: 'Desbloqueó intentos de acceso',
   usuario_generar_codigo_acceso: 'Generó un código de acceso',
   usuario_enviar_acceso: 'Envió el acceso por correo',

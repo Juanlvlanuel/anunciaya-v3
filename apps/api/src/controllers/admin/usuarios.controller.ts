@@ -31,6 +31,8 @@ import {
     suspenderUsuario,
     reactivarUsuario,
 } from '../../services/admin/usuarios-acciones.service.js';
+import { altaManualUsuario } from '../../services/admin/altaManualUsuario.service.js';
+import { altaManualUsuarioSchema, formatearErroresZod } from '../../validations/admin/altaManualUsuario.schema.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -146,6 +148,42 @@ export async function usuariosPorCiudadController(req: Request, res: Response): 
     } catch (error) {
         console.error('Error en usuariosPorCiudadController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener usuarios por ciudad' });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/usuarios/alta-manual   (super + gerente)
+// Crea una cuenta en Modo Personal (sin negocio). Contraseña opcional (modelo C si se omite).
+// =============================================================================
+
+export async function altaManualUsuarioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+
+        const validacion = altaManualUsuarioSchema.safeParse(req.body);
+        if (!validacion.success) {
+            res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+            return;
+        }
+
+        const r = await altaManualUsuario(panel, validacion.data);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+
+        res.status(201).json({ success: true, message: 'Usuario dado de alta', data: { usuarioId: r.usuarioId } });
+    } catch (error) {
+        console.error('Error en altaManualUsuarioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al dar de alta el usuario',
+            error: error instanceof Error ? error.message : String(error),
+        });
     }
 }
 

@@ -84,6 +84,22 @@ export function usePrefetchUsuario() {
 }
 
 // =============================================================================
+// ALTA MANUAL — crea una cuenta en Modo Personal (sin negocio). Super + gerente.
+// =============================================================================
+
+export function useAltaManualUsuario() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (datos: usuariosService.DatosAltaManualUsuario) => usuariosService.altaManualUsuario(datos),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: queryKeys.usuarios.all() });
+            toast.exito('Usuario registrado');
+        },
+        onError: (e) => toast.error(mensajeError(e, 'No se pudo registrar el usuario')),
+    });
+}
+
+// =============================================================================
 // MUTACIONES (Fase 2) — refrescan lista + expediente e informan por toast
 // =============================================================================
 

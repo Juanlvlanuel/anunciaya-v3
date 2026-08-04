@@ -10,7 +10,7 @@
 > La segunda (el **Apéndice técnico** al final) es la referencia para quien va a tocar el
 > código: archivos, endpoints, permisos y detalles internos.
 >
-> **Estado:** desplegado y en uso. Última actualización: 11 Junio 2026.
+> **Estado:** desplegado y en uso. Última actualización: 4 Agosto 2026.
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) describe el Panel **completo** (login,
 > roles, regiones, las demás secciones). Este documento es solo de **Usuarios**.
@@ -25,11 +25,14 @@ En AnunciaYA hay dos grandes cosas que administrar: los **negocios** (que pagan 
 las **personas** (que usan la app). El módulo Negocios cubre lo primero; **este módulo cubre
 lo segundo.**
 
-Las personas se registran **solas** en la app — aquí **no se dan de alta cuentas**. Lo que el
-equipo hace en este módulo es:
+Las personas se registran **solas** en la app; este módulo también permite **registrar una
+cuenta manualmente** (Modo Personal, sin negocio) para casos de soporte donde la persona no
+puede o no quiere autoregistrarse. Lo que el equipo hace en este módulo es:
 
 - **Buscar a cualquier persona** y abrir su **expediente** (quién es, qué cuentas/roles tiene,
   si puede entrar o no).
+- **Registrar una cuenta** (alta manual, soporte — no es una venta): nombre, correo, ciudad y,
+  opcionalmente, contraseña. Sin contraseña, se le manda el código para crearla (modelo C).
 - **Dar soporte de acceso:** cuando alguien dice *"no puedo entrar"*, aquí se diagnostica por
   qué y se le resuelve (desbloquearlo, darle un código para crear/restablecer su contraseña,
   corregirle un correo mal escrito).
@@ -209,6 +212,7 @@ nunca otros gerentes ni el superadmin.
 |---|:---:|:---:|:---:|
 | Ver la lista + expediente 360 | Todos | Su alcance | — *(no ve el módulo)* |
 | Filtrar por Rol | Sí (incl. "Gerente regional") | Sí (sin "Gerente regional") | — |
+| **Registrar usuario** (alta manual) | Sí | Su región | — |
 | **Desbloquear intentos** | Sí | Su alcance | — |
 | **Generar código de acceso** | Sí | Su alcance | — |
 | **Corregir el correo** | Sí | Su alcance | — |
@@ -224,8 +228,19 @@ superadmin. **Todo queda registrado** en una bitácora interna (§Apéndice F).
 
 ## 8. Las acciones, una por una
 
-Todas viven como **íconos en el encabezado** del expediente (con tooltip). El gerente solo puede actuar dentro de su alcance (un
-dueño/encargado/vendedor de otra región, o una cuenta de equipo, le devuelven 403).
+Todas viven como **íconos en el encabezado** del expediente (con tooltip), salvo "Registrar
+usuario" (botón en la barra de filtros — no es una acción sobre una cuenta existente). El
+gerente solo puede actuar dentro de su alcance (un dueño/encargado/vendedor de otra región, o
+una cuenta de equipo, le devuelven 403).
+
+### Registrar usuario *(alta manual — no es una venta)*
+**Para qué:** crear una cuenta en Modo Personal (sin negocio) cuando la persona no puede o no
+quiere autoregistrarse (soporte telefónico, caso especial). Pide nombre, apellidos, correo
+(×2), teléfono opcional, ciudad y una **contraseña opcional**: si se define, la cuenta nace con
+acceso (correo dado por verificado, sin correo de bienvenida); si se deja vacía, se le manda el
+código para crearla (modelo C, igual que "Código de acceso"). El gerente solo puede elegir una
+ciudad de **su región**. **Sin vendedor**: a diferencia del alta manual de Negocios, esto no es
+una venta, así que el vendedor no la tiene.
 
 ### Desbloquear intentos *(soporte)*
 **Para qué:** cuando una cuenta se bloqueó por meter mal la contraseña varias veces. Limpia el
@@ -362,21 +377,27 @@ nada). Así el desglose "por ciudad" se va llenando con el uso.
 | `middleware/panel.middleware.ts` | `requierePanel`: autoriza el rol + resuelve la región (revalida en BD) |
 | `controllers/admin/usuarios.controller.ts` | Lee query/params/body, valida, llama al service; `regionDeConsulta(req)` |
 | `services/admin/usuarios.service.ts` | **Lecturas** (lista + conteo + expediente) + `condicionVisibilidad` |
-| `services/admin/usuarios-acciones.service.ts` | **Escrituras** (desbloquear / código / correo / suspender / reactivar) + `fueraDeAlcance` |
+| `services/admin/usuarios-acciones.service.ts` | **Escrituras** (desbloquear / código / correo / suspender / reactivar) + `fueraDeAlcance`; exporta `prepararCodigoAcceso` (reusado por el alta manual) |
+| `services/admin/altaManualUsuario.service.ts` | Alta manual (Modo Personal, sin negocio); reusa `listarCatalogoCiudades`/`existeCorreo` de `altaManualNegocio.service.ts` |
+| `validations/admin/altaManualUsuario.schema.ts` | Zod del alta manual (calcado del bloque "Dueño" de `altaManualNegocio.schema.ts`) |
 | `controllers/admin/sesion.controller.ts` | `GET /admin/yo`: además registra `ultimo_acceso_panel` (fire-and-forget) |
 | `services/admin/auditoria.service.ts` | `registrarAuditoria` → tabla `admin_auditoria` |
 
 **Frontend** (`apps/admin/src/components/usuarios/`): `SeccionUsuarios.tsx` (tabla/cards +
-filtros + paginación + `rolPrincipal()` + filtro de rol acoplado al rol), `FichaUsuario.tsx`
+filtros + paginación + `rolPrincipal()` + filtro de rol acoplado al rol + botón "Registrar
+usuario"), `DialogoRegistrarUsuario.tsx` (alta manual, un solo formulario), `FichaUsuario.tsx`
 (expediente + footer por rol + `DatoCopiable`), `DialogoCodigoAcceso.tsx` (muestra el código
 para dictar), `estadoUsuario.tsx` (`BadgeEstadoUsuario` + `metaEstadoUsuario`),
 `avataresUsuario.tsx`. Reusa `ui/ModalAdaptativo`, `ui/VisorImagen`, `ui/DialogoConfirmar`,
-`negocios/DialogoEditarCorreo`, `negocios/MenuFiltro`, y los helpers `Seccion`/`Dato`/`fecha`
-de `FichaNegocio`. Datos del servidor en React Query (`hooks/queries/useUsuariosAdmin.ts`); el
-badge del menú vía `stores/useContadorPanel.ts`; la lente de región vía `stores/useFiltroRegion.ts`
-(invalida `queryKeys.usuarios.all()` al cambiar de ámbito). El interceptor de `services/api.ts`
-ya adjunta `?regionId` para el superadmin. La ficha abre instantánea con un placeholder de la
-fila + prefetch en hover/touch.
+`ui/SelectorBuscable`, `negocios/DialogoEditarCorreo`, `negocios/MenuFiltro`, y — para el alta
+manual — `hooks/queries/useNegociosAdmin.ts` (`useCatalogoCiudades`) y `services/negociosService.ts`
+(`existeCorreo`, mismo catálogo/chequeo que el alta de negocio), y los helpers
+`Seccion`/`Dato`/`fecha` de `FichaNegocio`. Datos del servidor en React Query
+(`hooks/queries/useUsuariosAdmin.ts`, incl. `useAltaManualUsuario`); el badge del menú vía
+`stores/useContadorPanel.ts`; la lente de región vía `stores/useFiltroRegion.ts` (invalida
+`queryKeys.usuarios.all()` al cambiar de ámbito). El interceptor de `services/api.ts` ya
+adjunta `?regionId` para el superadmin. La ficha abre instantánea con un placeholder de la fila
++ prefetch en hover/touch.
 
 ## B. Endpoints y permisos
 
@@ -391,6 +412,7 @@ en todas** (y el ítem "Usuarios" no aparece en su menú — `data/menuPanel.ts`
 | `/usuarios/conteo` | GET | super · gerente | total del alcance (badge del menú) |
 | `/usuarios/por-ciudad` | GET | super · gerente | desglose `[{ciudadId, ciudad, estado, total}]` (respeta visibilidad); métrica + opciones del filtro; incluye grupo "Sin ciudad" |
 | `/usuarios/:id` | GET | super · gerente | expediente 360; fuera de alcance → 404 |
+| `/usuarios/alta-manual` | POST | super · gerente | alta manual (Modo Personal, sin negocio); gerente acotado a ciudades de su región; contraseña opcional |
 | `/usuarios/:id/desbloquear` | POST | super · gerente | soporte; 409 si no está bloqueada |
 | `/usuarios/:id/codigo-acceso` | POST | super · gerente | genera + **devuelve** el código (para dictarlo) |
 | `/usuarios/:id/correo` | PATCH | super · gerente | corrige el correo + reenvía el código; unicidad → 409 |

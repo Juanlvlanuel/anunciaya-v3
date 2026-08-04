@@ -8,13 +8,14 @@
  *   - Móvil: buscador, chips de estado (carrusel), filtro de tipo y tarjetas.
  *
  * La acota el backend (super + gerente ven todos; vendedor recibe 403 y no la ve en el menú).
- * No hay alta de usuarios (se registran solos). Las acciones (soporte + moderación) son Fase 2.
+ * Alta manual (Modo Personal, sin negocio) vía DialogoRegistrarUsuario — soporte/mesa de ayuda,
+ * no es una venta. Las demás acciones (soporte + moderación) son Fase 2.
  *
  * Ubicación: apps/admin/src/components/usuarios/SeccionUsuarios.tsx
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Users, SlidersHorizontal, ArrowUpDown, MapPin } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Users, SlidersHorizontal, ArrowUpDown, MapPin, UserPlus } from 'lucide-react';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useContadorPanel } from '../../stores/useContadorPanel';
@@ -26,7 +27,9 @@ import { metaEstadoUsuario, BadgeEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { FichaUsuario } from './FichaUsuario';
+import { DialogoRegistrarUsuario } from './DialogoRegistrarUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 
 const POR_PAGINA = 20;
 
@@ -85,6 +88,7 @@ export function SeccionUsuarios() {
   const [orden, setOrden] = useState<OrdenUsuarios>('nombre_az');
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<UsuarioFila | null>(null);
+  const [mostrarAlta, setMostrarAlta] = useState(false);
   const prefetchUsuario = usePrefetchUsuario();
 
   // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
@@ -117,7 +121,7 @@ export function SeccionUsuarios() {
     [busquedaDeb, estado, tipo, ciudad, orden, pagina],
   );
 
-  const { data, isLoading, isError } = useUsuariosLista(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = useUsuariosLista(filtros);
   const { data: porCiudad } = useUsuariosPorCiudad();
 
   // Publica el total YA FILTRADO para el badge del menú; al salir, se limpia para que el badge
@@ -241,6 +245,9 @@ export function SeccionUsuarios() {
   const ficha = seleccionado ? (
     <FichaUsuario previo={seleccionado} onCerrar={() => setSeleccionado(null)} />
   ) : null;
+  const dialogoAlta = mostrarAlta ? (
+    <DialogoRegistrarUsuario abierto onCerrar={() => setMostrarAlta(false)} />
+  ) : null;
 
   // ── Vista MÓVIL ─────────────────────────────────────────────────────────────
   if (!esEscritorio) {
@@ -268,6 +275,16 @@ export function SeccionUsuarios() {
             soloIcono
             alineacion="derecha"
           />
+          <button
+            type="button"
+            data-testid="usuarios-registrar"
+            onClick={() => setMostrarAlta(true)}
+            aria-label="Registrar usuario"
+            title="Registrar usuario"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste transition active:opacity-90"
+          >
+            <UserPlus size={18} />
+          </button>
         </div>
 
         <div className="mb-2 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -330,6 +347,7 @@ export function SeccionUsuarios() {
 
         {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
         {ficha}
+        {dialogoAlta}
       </div>
     );
   }
@@ -339,8 +357,18 @@ export function SeccionUsuarios() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* Buscador */}
-      <div className="mb-3 max-w-[380px] shrink-0">{buscador}</div>
+      {/* Buscador (izq) + acción primaria (der) */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="min-w-[220px] max-w-[380px] flex-1">{buscador}</div>
+        <button
+          type="button"
+          data-testid="usuarios-registrar"
+          onClick={() => setMostrarAlta(true)}
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+        >
+          <UserPlus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar usuario
+        </button>
+      </div>
 
       {/* Subhead: chips de estado (izq) + total y ordenar (der) */}
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
@@ -395,6 +423,7 @@ export function SeccionUsuarios() {
             anchoMenu={210}
             tam="chip"
           />
+          <BotonRefrescar testid="usuarios-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
       </div>
 
@@ -443,6 +472,7 @@ export function SeccionUsuarios() {
 
       {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
       {ficha}
+      {dialogoAlta}
     </div>
   );
 }

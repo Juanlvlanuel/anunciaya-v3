@@ -128,7 +128,7 @@ function fueraDeAlcance(
  * dicte al usuario cuando el correo no llega) y si el envío salió. `codigo=null` si no se pudo guardar.
  * 'crear' = cuenta sin contraseña (modelo C) · 'restablecer' = cuenta con contraseña. No lanza.
  */
-async function prepararCodigoAcceso(
+export async function prepararCodigoAcceso(
     correo: string,
     nombre: string,
     tipo: 'crear' | 'restablecer',

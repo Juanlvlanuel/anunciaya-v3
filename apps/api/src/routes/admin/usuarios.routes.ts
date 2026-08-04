@@ -24,6 +24,7 @@ import {
     obtenerExpedienteController,
     contarUsuariosController,
     usuariosPorCiudadController,
+    altaManualUsuarioController,
     desbloquearIntentosController,
     codigoAccesoController,
     cambiarCorreoController,
@@ -35,9 +36,11 @@ const router: Router = Router();
 
 // ─── Lectura ─────────────────────────────────────────────────────────────────
 router.get('/', requierePanel(['superadmin', 'gerente']), listarUsuariosController);
-// /conteo y /por-ciudad antes de /:id para que no caigan en el comodín del id.
+// /conteo, /por-ciudad y /alta-manual antes de /:id para que no caigan en el comodín del id.
 router.get('/conteo', requierePanel(['superadmin', 'gerente']), contarUsuariosController);
 router.get('/por-ciudad', requierePanel(['superadmin', 'gerente']), usuariosPorCiudadController);
+// Alta manual (Modo Personal, sin negocio) — soporte/mesa de ayuda, no es una venta: sin vendedor.
+router.post('/alta-manual', requierePanel(['superadmin', 'gerente']), altaManualUsuarioController);
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerExpedienteController);
 
 // ─── Soporte (rescates de acceso) — superadmin + gerente ─────────────────────────
