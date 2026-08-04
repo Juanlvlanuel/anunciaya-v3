@@ -467,7 +467,7 @@ export function MainLayout() {
                scroll como HERMANOS. Al estar el header fuera del scroll,
                arrastrarlo mueve el documento (oculta la barra del navegador) y el
                scroll del contenido es interno (la barra ya no reaparece). */
-            <div className="fixed inset-0 flex flex-col z-0">
+            <div className="fixed inset-0 flex flex-col z-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
               <Outlet />
             </div>
           ) : esPaginaConHeaderPropio ? (
@@ -476,7 +476,7 @@ export function MainLayout() {
               <Outlet />
             </main>
           ) : (
-            <div className="fixed inset-0 flex flex-col z-0">
+            <div className="fixed inset-0 flex flex-col z-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
               {/* MobileHeader — altura variable (con/sin BS sub-bar) */}
               <div className="shrink-0 z-50 mobile-header-landscape-hide">
                 <MobileHeader />
