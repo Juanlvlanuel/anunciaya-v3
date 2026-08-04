@@ -47,6 +47,7 @@ import {
     deleteArticulo,
     getMisArticulos,
     postUploadImagen,
+    postSugerirArticuloIA,
     deleteFotoMarketplaceHuerfana,
     getVendedorMarketplace,
     getPublicacionesDeVendedor,
@@ -159,6 +160,19 @@ router.post(
     verificarToken,
     requiereModoPersonal,
     postUploadImagen
+);
+
+/**
+ * POST /api/marketplace/sugerir-articulo-ia
+ * Body: { imagenUrl }. El usuario lo dispara con un botón explícito tras
+ * subir una foto — Gemini sugiere título/descripción/condición a partir de
+ * la imagen. Ver coyoIA.service.ts (sugerirDatosArticulo).
+ */
+router.post(
+    '/sugerir-articulo-ia',
+    verificarToken,
+    requiereModoPersonal,
+    postSugerirArticuloIA
 );
 
 /**

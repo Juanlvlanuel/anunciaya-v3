@@ -672,6 +672,113 @@ RESPONDE SOLO con el texto de Coyo, SIN comillas envolventes, SIN bloques markdo
 }
 
 // =============================================================================
+// FUNCIÓN 3 — sugerirDatosArticulo (MarketPlace)
+// =============================================================================
+//
+// Analiza la foto de un artículo de MarketPlace y sugiere título, descripción
+// y condición basándose SOLO en lo visible en la imagen. Disparado por un
+// botón EXPLÍCITO del usuario en el composer — nunca automático — así que no
+// hay guard de cancelación por desmontaje ni riesgo de pisar texto: el
+// caller decide si aplica el resultado.
+
+/**
+ * Condición sugerida — mismos 4 valores que `campoCondicion` del schema de
+ * MarketPlace, o `null` cuando el desgaste no se distingue con confianza en
+ * la foto.
+ */
+export type CondicionSugerida = 'nuevo' | 'seminuevo' | 'usado' | 'para_reparar' | null;
+
+export interface ArticuloSugerido {
+    titulo: string;
+    descripcion: string;
+    condicion: CondicionSugerida;
+}
+
+const PROMPT_SUGERIR_ARTICULO = `Estás viendo la foto de un artículo que un vecino quiere vender en AnunciaYA, una app de comercio local. Genera un título y una descripción breves basados ÚNICAMENTE en lo que se ve en la imagen.
+
+ESCRIBE EN ESPAÑOL DE MÉXICO, tono natural y directo — como un vecino describiendo lo que vende, NO como un catálogo o anuncio publicitario. NUNCA uses adjetivos vendedores ni de relleno ("excelente", "hermoso", "increíble", "de gran calidad", "imperdible"). Describe lo que se ve, sin vender.
+
+PROHIBIDO INVENTAR — si algo no se distingue con claridad en la foto, OMÍTELO, no lo adivines:
+- NO infieras marca ni modelo si no hay logo o etiqueta visible y legible.
+- NO inventes medidas, capacidad, año ni talla si no están indicados visualmente (ej. una etiqueta legible).
+- NO afirmes que algo "funciona bien" ni describas su estado FUNCIONAL — eso no se puede saber de una foto.
+- Describe solo lo observable: tipo de objeto, color, material aparente, cantidad, características visuales evidentes.
+
+TÍTULO: mínimo 10 y máximo 80 caracteres. Directo, ej. "Bicicleta de montaña rodada 26" — sin precio, sin emojis, sin signos de exclamación.
+
+DESCRIPCIÓN: mínimo 20 y máximo 500 caracteres, SIN emojis. Estructura obligatoria en 2 partes, separadas por un salto de línea (\\n):
+1. Introducción: 1 o 2 líneas describiendo el artículo en general.
+2. Viñetas: 3 a 4 líneas, cada una empezando con "- ", listando características visibles. Una característica concreta por viñeta (ej. "- Color negro mate", "- Marco de aluminio"), corta y directa — NO frases largas ni varias características juntas en una viñeta.
+Si la foto no da suficiente detalle para 3-4 viñetas, incluye solo las que puedas sustentar en lo visible (mínimo 2) — nunca rellenes con generalidades vacías ni inventes para completar el conteo. El campo "descripcion" del JSON debe llevar los saltos de línea reales (\\n) entre la introducción y las viñetas, y entre cada viñeta.
+
+CONDICIÓN: elige UNA de estas 4 opciones basándote SOLO en el desgaste FÍSICO VISIBLE en la foto (nunca en si funciona o no): "nuevo" (se ve sin uso, con empaque o etiquetas), "seminuevo" (uso mínimo, sin desgaste visible notorio), "usado" (desgaste visible normal), "para_reparar" (daño o rotura visible). Si la foto no permite distinguir el desgaste con confianza, responde null — mejor omitir que adivinar.
+
+RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
+{"titulo": "...", "descripcion": "...", "condicion": "nuevo"|"seminuevo"|"usado"|"para_reparar"|null}`;
+
+/**
+ * Analiza la foto de un artículo (ya subida a R2, URL pública) y sugiere
+ * título, descripción y condición. Disparado por un botón explícito del
+ * usuario en el composer de MarketPlace — ver `ComposerMarketplace.tsx`.
+ *
+ * @example
+ *   const r = await sugerirDatosArticulo('https://...r2.../marketplace/foo.webp');
+ *   if (r.disponible) console.log(r.data.titulo, r.data.descripcion, r.data.condicion);
+ */
+export async function sugerirDatosArticulo(
+    imagenUrl: string,
+): Promise<RespuestaIA<ArticuloSugerido>> {
+    const cliente = obtenerCliente();
+    if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
+
+    const imagen = await descargarImagenComoBase64(imagenUrl);
+    if (imagen === null) {
+        console.warn(
+            'Coyo IA — sugerirDatosArticulo: no se pudo descargar la imagen',
+            imagenUrl,
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    const contents: ContenidoGemini = [
+        {
+            role: 'user',
+            parts: [
+                { text: PROMPT_SUGERIR_ARTICULO },
+                { inlineData: { mimeType: imagen.mimeType, data: imagen.data } },
+            ],
+        },
+    ];
+
+    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — sugerirDatosArticulo agotó reintentos y fallback de Gemini',
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    try {
+        const limpio = limpiarJsonDeGemini(respuesta.texto);
+        const parseado: unknown = JSON.parse(limpio);
+        if (esArticuloSugerido(parseado)) {
+            return { disponible: true, data: parseado };
+        }
+        console.warn(
+            'Coyo IA — sugerirDatosArticulo: JSON con shape inválido',
+            respuesta.texto,
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    } catch (error) {
+        console.warn(
+            'Coyo IA — sugerirDatosArticulo: respuesta no es JSON parseable',
+            { texto: respuesta.texto, error },
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    }
+}
+
+// =============================================================================
 // HELPERS INTERNOS
 // =============================================================================
 
@@ -709,6 +816,33 @@ function esPreguntaInterpretada(
         typeof obj.terminos === 'string' &&
         typeof obj.mensajeReformular === 'string'
     );
+}
+
+const CONDICIONES_SUGERIDAS_VALIDAS = new Set([
+    'nuevo',
+    'seminuevo',
+    'usado',
+    'para_reparar',
+]);
+
+/**
+ * Type guard defensivo para la respuesta de `sugerirDatosArticulo` — protege
+ * contra Gemini devolviendo un JSON con otro shape o una `condicion` fuera
+ * del enum esperado.
+ */
+function esArticuloSugerido(v: unknown): v is ArticuloSugerido {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    if (typeof obj.titulo !== 'string' || typeof obj.descripcion !== 'string') {
+        return false;
+    }
+    if (
+        obj.condicion !== null &&
+        !(typeof obj.condicion === 'string' && CONDICIONES_SUGERIDAS_VALIDAS.has(obj.condicion))
+    ) {
+        return false;
+    }
+    return true;
 }
 
 /**

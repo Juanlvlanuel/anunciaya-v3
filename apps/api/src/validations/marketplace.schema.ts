@@ -511,6 +511,20 @@ export const uploadImagenSchema = z.object({
 export type UploadImagenInput = z.infer<typeof uploadImagenSchema>;
 
 // =============================================================================
+// SCHEMA 7: SUGERIR ARTÍCULO CON IA (Gemini analiza la foto)
+// =============================================================================
+// POST /api/marketplace/sugerir-articulo-ia
+//
+// El usuario dispara esto con un botón explícito en el composer tras subir
+// una foto — nunca automático. `imagenUrl` es la URL pública de R2 ya subida.
+
+export const sugerirArticuloIASchema = z.object({
+    imagenUrl: z.string().trim().url('imagenUrl debe ser una URL válida'),
+});
+
+export type SugerirArticuloIAInput = z.infer<typeof sugerirArticuloIASchema>;
+
+// =============================================================================
 // HELPER: Formatear errores de Zod v4
 // =============================================================================
 
@@ -562,6 +576,7 @@ export default {
     feedInfinitoQuerySchema,
     misArticulosQuerySchema,
     uploadImagenSchema,
+    sugerirArticuloIASchema,
     formatearErroresZod,
     campoUUID,
     crearComentarioSchema,

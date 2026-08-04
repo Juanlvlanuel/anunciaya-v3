@@ -29,6 +29,7 @@ import {
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,
     eliminarFotoMarketplaceSiHuerfana,
+    sugerirArticuloConIA,
 } from '../services/marketplace.service.js';
 import {
     obtenerSugerencias,
@@ -45,6 +46,7 @@ import {
     feedInfinitoQuerySchema,
     misArticulosQuerySchema,
     uploadImagenSchema,
+    sugerirArticuloIASchema,
     sugerenciasQuerySchema,
     popularesQuerySchema,
     buscarQuerySchema,
@@ -436,6 +438,35 @@ export async function postUploadImagen(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al generar URL de subida',
+        });
+    }
+}
+
+/**
+ * POST /api/marketplace/sugerir-articulo-ia
+ * Body: { imagenUrl }. El usuario dispara esto con un botón explícito en el
+ * composer tras subir una foto — Gemini analiza la imagen y sugiere título,
+ * descripción y condición. Nunca falla "duro" por ausencia de IA: si Gemini
+ * no está disponible, `sugerirArticuloConIA` responde `success:false` con
+ * código 200 y el composer hace fallback silencioso (sin toast de error).
+ */
+export async function postSugerirArticuloIA(req: Request, res: Response) {
+    try {
+        const validacion = sugerirArticuloIASchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const resultado = await sugerirArticuloConIA(validacion.data.imagenUrl);
+        return res.status(resultado.code).json(resultado);
+    } catch (error) {
+        console.error('Error en postSugerirArticuloIA:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar la sugerencia',
         });
     }
 }

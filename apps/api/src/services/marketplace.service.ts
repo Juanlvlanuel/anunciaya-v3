@@ -30,6 +30,7 @@ import { articulosMarketplace } from '../db/schemas/schema.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { MIME_FOTO_O_VIDEO, type ArchivoFotoInput } from '../validations/archivoFoto.schema.js';
+import { sugerirDatosArticulo } from './coyo/coyoIA.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import type { ResultadoValidacion } from './marketplace/filtros.js';
 import type {
@@ -1360,6 +1361,27 @@ export async function generarUrlUploadImagenMarketplace(
 ) {
     const TIPOS_PERMITIDOS = [...MIME_FOTO_O_VIDEO];
     return generarPresignedUrl('marketplace', nombreArchivo, contentType, 300, TIPOS_PERMITIDOS);
+}
+
+// =============================================================================
+// SUGERIR DATOS DE ARTÍCULO CON IA (Gemini analiza la foto)
+// =============================================================================
+
+/**
+ * Le pide a Gemini (vía `coyoIA.service.ts`) que sugiera título, descripción
+ * y condición a partir de una foto ya subida a R2. El usuario lo dispara con
+ * un botón explícito del composer — nunca automático.
+ *
+ * Siempre responde `code: 200`, incluso cuando la IA no está disponible
+ * (`success: false`) — no es un error de request, es una función opcional
+ * del composer. El frontend hace fallback silencioso sin mostrar toast.
+ */
+export async function sugerirArticuloConIA(imagenUrl: string) {
+    const resultado = await sugerirDatosArticulo(imagenUrl);
+    if (!resultado.disponible) {
+        return { success: false as const, code: 200, razon: resultado.razon };
+    }
+    return { success: true as const, code: 200, data: resultado.data };
 }
 
 // =============================================================================

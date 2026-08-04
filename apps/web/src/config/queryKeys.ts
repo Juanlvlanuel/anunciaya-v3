@@ -280,6 +280,13 @@ export const queryKeys = {
       ['marketplace', 'comentarios', articuloId] as const,
   },
 
+  // ─── Dinámicas (sub-sección dentro de MarketPlace) ─────────────────────────
+  dinamicas: {
+    all: () => ['dinamicas'] as const,
+    dinamica: (dinamicaId: string) => ['dinamicas', 'dinamica', dinamicaId] as const,
+    mias: () => ['dinamicas', 'mias'] as const,
+  },
+
   // ─── Sección pública — Servicios ──────────────────────────────────────────
   // Sprint 1 backend + Sprint 2 frontend (May 2026). Mismo patrón que
   // `marketplace`. El feed sirve `{ recientes, cercanos }` desde un único

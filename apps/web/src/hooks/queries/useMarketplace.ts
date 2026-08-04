@@ -583,6 +583,33 @@ export function useEliminarFotoMarketplaceHuerfana() {
     });
 }
 
+/** Resultado de `POST /marketplace/sugerir-articulo-ia`. */
+export interface SugerenciaArticuloIA {
+    titulo: string;
+    descripcion: string;
+    condicion: CondicionArticulo | null;
+}
+
+/**
+ * `POST /api/marketplace/sugerir-articulo-ia` — el usuario dispara esto con
+ * un botón explícito en el composer (tras subir una foto) para que Gemini
+ * sugiera título, descripción y condición basándose en la imagen. Nunca
+ * lanza como error "duro" cuando la IA no está disponible: el backend
+ * responde `success:false` con 200 y el composer hace fallback silencioso
+ * (sin toast de error).
+ */
+export function useSugerirArticuloIA() {
+    return useMutation({
+        mutationFn: async (imagenUrl: string) => {
+            const response = await api.post<
+                | { success: true; data: SugerenciaArticuloIA }
+                | { success: false; razon: string }
+            >('/marketplace/sugerir-articulo-ia', { imagenUrl });
+            return response.data;
+        },
+    });
+}
+
 // =============================================================================
 // PERFIL DEL VENDEDOR (Sprint 5)
 // =============================================================================

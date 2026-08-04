@@ -1,8 +1,8 @@
 # Video en Publicaciones (Negocios, MarketPlace, Servicios)
 
-> ✅ **Estado: Código implementado (1-ago-2026)** — backend + frontend de las 3 secciones (MarketPlace, Servicios, Publicaciones de Negocio) construidos siguiendo este plan, `tsc` limpio en `apps/api` y `apps/web`. **Pendiente:**
-> 1. Juan corre `docs/migraciones/2026-08-01-video-en-fotos-jsonb.sql` en dev (y luego en prod).
-> 2. QA E2E manual en navegador siguiendo la sección "Verificación end-to-end sugerida" de este doc — no se hizo verificación visual automatizada en esta sesión.
+> ✅ **Estado: Código implementado (1-ago-2026)** — backend + frontend de las 3 secciones (MarketPlace, Servicios, Publicaciones de Negocio) construidos siguiendo este plan, `tsc` limpio en `apps/api` y `apps/web`. Migración `docs/migraciones/2026-08-01-video-en-fotos-jsonb.sql` corrida en dev y prod (2-ago-2026). UX de controles de video pulida (timeline arrastrable, ajustes móvil, fix del menú de comentarios en fullscreen, aviso de límites antes de grabar, auto-reload de PWA pospuesto durante subidas) — commit `82c42ee`. **Pendiente:**
+> 1. QA E2E manual en navegador siguiendo la sección "Verificación end-to-end sugerida" de este doc — no se hizo verificación visual automatizada en esta sesión.
+> 2. Evaluar subir `MAX_VIDEO_BYTES` (hoy 50MB) — 1080p@30fps, resolución por defecto en la mayoría de celulares actuales, genera videos de ~75-127MB en 60s y hoy se rechazan. Ver análisis de bitrates en la conversación del 2-ago-2026; valor propuesto sin decidir aún: 80-100MB.
 
 ## Contexto
 

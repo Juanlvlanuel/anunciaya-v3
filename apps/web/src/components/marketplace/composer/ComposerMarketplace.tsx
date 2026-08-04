@@ -49,6 +49,7 @@ import {
     Package,
     Play,
     Search,
+    Sparkles,
     Tag,
     Tags,
     Trash2,
@@ -78,6 +79,7 @@ import {
     useActualizarArticulo,
     useCategoriasMarketplace,
     useEliminarFotoMarketplaceHuerfana,
+    useSugerirArticuloIA,
     type CrearArticuloPayload,
     type RespuestaModeracion,
 } from '../../../hooks/queries/useMarketplace';
@@ -356,6 +358,37 @@ export function ComposerMarketplace({
     const actualizarMutation = useActualizarArticulo();
     const enviando = crearMutation.isPending || actualizarMutation.isPending;
 
+    // ─── Generar con IA (botón explícito, pegado al grid de fotos) ────
+    // Solo disponible en modo='vendo' (en 'busco' las fotos no son
+    // obligatorias) y con al menos 1 foto de tipo imagen ya subida (URL
+    // pública real, no un preview en curso). Aplica igual en crear y editar.
+    const primeraFotoImagenParaIA = draft.fotos.find((f) => f.tipo === 'imagen') ?? null;
+    const sugerirIAMutation = useSugerirArticuloIA();
+    const [confirmarReemplazoIAAbierto, setConfirmarReemplazoIAAbierto] = useState(false);
+
+    async function aplicarSugerenciaIA() {
+        if (!primeraFotoImagenParaIA) return;
+        const res = await sugerirIAMutation.mutateAsync(primeraFotoImagenParaIA.url);
+        // Fallo silencioso si la IA no está disponible: el botón vuelve a su
+        // estado normal (isPending → false) sin toast de error.
+        if (res.success) {
+            actualizar({
+                titulo: res.data.titulo.slice(0, TITULO_MAX),
+                descripcion: res.data.descripcion.slice(0, DESC_MAX),
+                condicion: res.data.condicion,
+            });
+        }
+    }
+
+    function handleClickGenerarIA() {
+        if (sugerirIAMutation.isPending || !primeraFotoImagenParaIA) return;
+        if (draft.titulo.trim() !== '' || draft.descripcion.trim() !== '') {
+            setConfirmarReemplazoIAAbierto(true);
+            return;
+        }
+        aplicarSugerenciaIA();
+    }
+
     async function publicar(confirmadoPorUsuario = false) {
         if (!valido || enviando) {
             // Toast + abre el panel del primer campo faltante (si aplica).
@@ -549,6 +582,38 @@ export function ComposerMarketplace({
                     {/* Título fijo (no scrollea) + zona con UN solo scroll
                         unificado para descripción + fotos + paneles. */}
                     <div className="flex-1 min-h-0 flex flex-col px-4">
+                        {/* Generar con IA — botón explícito, nunca automático. Arriba del
+                            título (zona fija, no scrollea) para que nunca se salga del
+                            viewport aunque subir fotos genere scroll más abajo.
+                            Deshabilitado (no oculto) sin fotos, para que el usuario
+                            descubra la función aunque no haya subido nada todavía.
+                            Oculto solo en modo='busco'. Aplica igual en crear y editar. */}
+                        {draft.modo === 'vendo' && (
+                            <div className="shrink-0 pt-1">
+                                <button
+                                    type="button"
+                                    data-testid="composer-mp-generar-ia"
+                                    onClick={handleClickGenerarIA}
+                                    disabled={!primeraFotoImagenParaIA || sugerirIAMutation.isPending}
+                                    title={!primeraFotoImagenParaIA ? 'Sube una foto primero' : undefined}
+                                    className={
+                                        'inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-[13px] font-semibold ' +
+                                        (!primeraFotoImagenParaIA
+                                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            : sugerirIAMutation.isPending
+                                                ? 'cursor-not-allowed border-teal-300 bg-teal-50 text-teal-800 opacity-70'
+                                                : 'border-teal-300 bg-teal-50 text-teal-800 lg:cursor-pointer lg:hover:bg-teal-100')
+                                    }
+                                >
+                                    {sugerirIAMutation.isPending ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.25} />
+                                    ) : (
+                                        <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                    )}
+                                    Generar título y descripción con IA
+                                </button>
+                            </div>
+                        )}
                         <input
                             type="text"
                             data-testid="composer-mp-titulo"
@@ -603,6 +668,7 @@ export function ComposerMarketplace({
                             >
                                 {draft.descripcion.trim().length}/{DESC_MAX} · mínimo {DESC_MIN} caracteres
                             </p>
+
                             <ComposerHintModeracion
                                 texto={`${draft.titulo} ${draft.descripcion}`}
                                 modo={draft.modo}
@@ -677,6 +743,7 @@ export function ComposerMarketplace({
                                     ))}
                                 </div>
                             )}
+
                             <input {...fotosUploader.inputGaleriaProps} />
                             <input {...fotosUploader.inputCamaraProps} />
                             <input {...fotosUploader.inputCamaraVideoProps} />
@@ -930,7 +997,7 @@ export function ComposerMarketplace({
                         onClick={handleGuardarBorrador}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
                             <Copy className="h-5 w-5" strokeWidth={2} />
                         </span>
                         <span className="text-[15px] font-semibold text-slate-900">Guardar como borrador</span>
@@ -941,7 +1008,7 @@ export function ComposerMarketplace({
                         onClick={handleDescartarPublicacion}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                             <Trash2 className="h-5 w-5" strokeWidth={2} />
                         </span>
                         <span className="text-[15px] font-semibold text-slate-900">Descartar publicación</span>
@@ -952,10 +1019,56 @@ export function ComposerMarketplace({
                         onClick={handleSeguirEditando}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-5 w-5" strokeWidth={2.5} />
                         </span>
                         <span className="text-[15px] font-semibold text-slate-900">Seguir editando</span>
+                    </button>
+                </div>
+            </ModalAdaptativo>
+
+            {/* ── Confirmación al reemplazar título/descripción con la sugerencia de IA ── */}
+            <ModalAdaptativo
+                abierto={confirmarReemplazoIAAbierto}
+                onCerrar={() => setConfirmarReemplazoIAAbierto(false)}
+                mostrarHeader={false}
+                ancho="sm"
+                alturaMaxima="sm"
+                paddingContenido="none"
+                zIndice="z-90"
+                discriminador="_composerMPConfirmarIA"
+            >
+                <div className="py-2">
+                    <p className="px-4 pb-1 pt-4 text-[16px] font-bold text-slate-900">
+                        ¿Reemplazar el título y la descripción?
+                    </p>
+                    <p className="px-4 pb-3 text-[13px] font-medium text-slate-500">
+                        Ya tienes texto escrito — la sugerencia de IA lo sobreescribe.
+                    </p>
+                    <button
+                        type="button"
+                        data-testid="composer-mp-ia-confirmar"
+                        onClick={() => {
+                            setConfirmarReemplazoIAAbierto(false);
+                            aplicarSugerenciaIA();
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
+                    >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                            <Sparkles className="h-5 w-5" strokeWidth={2} />
+                        </span>
+                        <span className="text-[15px] font-semibold text-slate-900">Reemplazar</span>
+                    </button>
+                    <button
+                        type="button"
+                        data-testid="composer-mp-ia-cancelar"
+                        onClick={() => setConfirmarReemplazoIAAbierto(false)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
+                    >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                            <X className="h-5 w-5" strokeWidth={2.5} />
+                        </span>
+                        <span className="text-[15px] font-semibold text-slate-900">Cancelar</span>
                     </button>
                 </div>
             </ModalAdaptativo>
