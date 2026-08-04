@@ -10,7 +10,8 @@
  * - Se agregaron rutas de votos: /api/votos ← NUEVO (Fase 5.3)
  * - Se agregaron rutas de guardados: /api/guardados ← NUEVO (Fase 5.6)
  * - Se agregaron rutas de métricas: /api/metricas ← NUEVO (Fase 5.3)
- * 
+ * - Se agregaron rutas de Dinámicas: /api/dinamicas ← NUEVO (Fase 1, ago 2026)
+ *
  * Ubicación: apps/api/src/routes/index.ts
  */
 
@@ -50,6 +51,7 @@ import ciudadesPublicaRoutes from './ciudadesPublica.routes';
 import publicidadPublicaRoutes from './publicidadPublica.routes';
 import adminRoutes from './admin/index.js';
 import ayudaRoutes from './ayuda.routes';
+import dinamicasRoutes from './dinamicas.routes';
 
 const router: Router = Router();
 
@@ -172,5 +174,8 @@ router.use('/preguntas-comunidad', preguntasComunidadRoutes);
 
 // Rutas del asistente Coyo (Home — buscador unificado en las 4 áreas)
 router.use('/coyo', coyoRoutes);
+
+// Rutas de Dinámicas (rifas P2P dentro de MarketPlace — Fase 1, sin UI todavía)
+router.use('/dinamicas', dinamicasRoutes);
 
 export default router;

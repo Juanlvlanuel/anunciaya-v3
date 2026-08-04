@@ -827,7 +827,7 @@ export function ComposerServicios({
                         onClick={handleGuardarBorrador}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
                             <Copy className="h-5 w-5" strokeWidth={2} />
                         </span>
                         <span className="text-[15px] font-semibold text-slate-900">Guardar como borrador</span>
@@ -838,7 +838,7 @@ export function ComposerServicios({
                         onClick={handleDescartarPublicacion}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                             <Trash2 className="h-5 w-5" strokeWidth={2} />
                         </span>
                         <span className="text-[15px] font-semibold text-slate-900">Descartar publicación</span>
@@ -849,7 +849,7 @@ export function ComposerServicios({
                         onClick={handleSeguirEditando}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left lg:cursor-pointer lg:hover:bg-slate-100"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-5 w-5" strokeWidth={2.5} />
                         </span>
                         <span className="text-[15px] font-semibold text-slate-900">Seguir editando</span>

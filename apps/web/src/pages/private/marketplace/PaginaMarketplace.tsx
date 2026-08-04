@@ -47,6 +47,7 @@ import { CardArticulo } from '../../../components/marketplace/CardArticulo';
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
+import { ComposerSectionDinamicas } from '../../../components/dinamicas/composer/ComposerSectionDinamicas';
 import { ModalComentariosMarketplace } from '../../../components/marketplace/ModalComentariosMarketplace';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
 import { IndicadorRefrescoFeed } from '../../../components/ui/IndicadorRefrescoFeed';
@@ -785,6 +786,12 @@ export function PaginaMarketplace() {
                         <ComposerSection />
                     </div>
                 )}
+
+                {/* Composer de Dinámicas (Fase 2) — se activa solo por query param
+                    (?crearDinamica=1 / ?editarDinamica=<id>) mientras no existe el
+                    switch/pill visual real que lo revela (Fase 5). Mismo criterio de
+                    "solo modo personal" que el composer de artículos. */}
+                {esModoPersonal && <ComposerSectionDinamicas />}
 
                 {/* Estado: sin ciudad seleccionada. En móvil (sin Navbar global)
                     el botón abre el ModalUbicacion para que el usuario pueda

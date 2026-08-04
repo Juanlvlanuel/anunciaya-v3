@@ -75,9 +75,14 @@ export type TipoNotificacion =
   | 'negocio_publicacion_nuevo_comentario'
   /** Comentarios de Negocios (publicaciones libres, hilos): al autor cuando
    *  responden su comentario. */
-  | 'negocio_publicacion_respuesta_comentario';
+  | 'negocio_publicacion_respuesta_comentario'
+  // ── Dinámicas (Fase 1, agosto 2026) ──────────────────────────────────
+  /** Al organizador y a los participantes cuando se pospone la fecha límite. */
+  | 'dinamica_pospuesta'
+  /** A los participantes cuando se anuncia el resultado del sorteo. */
+  | 'dinamica_resultado';
 
-// Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
+// Idem ReferenciaTipo: 'dinamica' reincorporado en Fase 1 (agosto 2026).
 export type ReferenciaTipo =
   | 'transaccion'
   | 'voucher'
@@ -90,6 +95,8 @@ export type ReferenciaTipo =
   | 'alerta'
   // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
   | 'pregunta_comunidad'
+  /** Apunta a `dinamicas.id`. */
+  | 'dinamica'
   // ── Comentarios de Negocios (publicaciones libres) ──────────────────────
   | 'negocio_publicacion';
 

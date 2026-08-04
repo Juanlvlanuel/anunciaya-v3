@@ -1848,8 +1848,13 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying, 'negocio_publicacion_nuevo_comentario'::character varying, 'negocio_publicacion_respuesta_comentario'::character varying])::text[])`),
-	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying, 'negocio_publicacion'::character varying])::text[]))`),
+	// NOTA: lista sincronizada con la BD real (partiendo de la migración
+	// 2026-07-19-notificaciones-comentarios-negocio-y-comentario-id.sql, que
+	// dejó 39 valores incl. pago_rechazado/pago_aprobado/pago_anulado —
+	// `schema.ts` estaba desfasado y no los tenía) + 'dinamica_pospuesta' y
+	// 'dinamica_resultado' agregados en la migración 2026-08-03-notificaciones-dinamicas.sql.
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying, 'pago_rechazado'::character varying, 'pago_aprobado'::character varying, 'pago_anulado'::character varying, 'negocio_publicacion_nuevo_comentario'::character varying, 'negocio_publicacion_respuesta_comentario'::character varying, 'dinamica_pospuesta'::character varying, 'dinamica_resultado'::character varying])::text[])`),
+	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying, 'negocio_publicacion'::character varying, 'dinamica'::character varying])::text[]))`),
 ]);
 
 
@@ -2793,4 +2798,119 @@ export const pushSuscripciones = pgTable("push_suscripciones", {
 }, (table) => [
 	unique("push_suscripciones_endpoint_key").on(table.endpoint),
 	index("idx_push_suscripciones_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+]);
+
+// ============================================================================
+// Dinámicas — rifas/concursos P2P dentro de MarketPlace (Fase 1, agosto 2026)
+// Pago de boletos y entrega de premio 100% fuera de la plataforma; AnunciaYA
+// solo organiza el registro de participantes y determina/anuncia al ganador.
+// Ver docs/kit-dinamicas/Contexto_Dinamicas.md.
+// ============================================================================
+
+export const dinamicas = pgTable("dinamicas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	organizadorUsuarioId: uuid("organizador_usuario_id").notNull(),
+	titulo: varchar({ length: 80 }).notNull(),
+	// El resto de estos campos (hasta fechaLimiteInscripcion) son NULLABLE a
+	// propósito: un 'borrador' solo exige título+ciudad — se vuelven
+	// obligatorios recién al PUBLICAR (validado en el service, no aquí, un
+	// CHECK no puede condicionar "obligatorio salvo en borrador").
+	descripcion: text(),
+	// Mismo shape que `fotos` de articulos_marketplace (array JSONB de URLs/objetos).
+	fotosPremio: jsonb("fotos_premio").default([]).notNull(),
+	tipoPremio: varchar("tipo_premio", { length: 20 }),                     // fisico | efectivo (informativo)
+	metodoSorteo: varchar("metodo_sorteo", { length: 20 }),                 // tombola | carta_unica | tabla_completa
+	numeroTotalBoletos: integer("numero_total_boletos"),
+	precioBoleto: numeric("precio_boleto", { precision: 10, scale: 2 }),
+	// Ciudad del organizador — filtra el feed por ciudad (patrón hiperlocal,
+	// igual que articulos_marketplace/servicios_publicaciones). Resuelta en
+	// el backend desde el texto de ciudad del composer, nunca del cliente.
+	ciudadId: uuid("ciudad_id"),
+	fechaLimiteInscripcion: timestamp("fecha_limite_inscripcion", { withTimezone: true, mode: 'string' }),
+	// Solo aplica si metodoSorteo = 'tabla_completa' (donde sí puede haber empates).
+	reglaDesempate: varchar("regla_desempate", { length: 30 }),
+	estado: varchar({ length: 20 }).default('borrador').notNull(),         // borrador|activa|pospuesta|en_sorteo|cerrada|cancelada
+	// Checklist legal (Fase 2) — snapshot inmutable, igual que
+	// articulos_marketplace.confirmaciones. Se llena al PUBLICAR (no al crear
+	// el borrador); nullable mientras la Dinámica sigue en borrador.
+	confirmaciones: jsonb(),
+	// Motor de sorteo auditable — se llenan al sortear (Fase 4).
+	semillaAleatoria: varchar("semilla_aleatoria", { length: 128 }),
+	timestampSorteo: timestamp("timestamp_sorteo", { withTimezone: true, mode: 'string' }),
+	hashVerificacion: varchar("hash_verificacion", { length: 128 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_dinamicas_organizador").using("btree", table.organizadorUsuarioId.asc().nullsLast()),
+	index("idx_dinamicas_estado").using("btree", table.estado.asc().nullsLast()),
+	index("idx_dinamicas_ciudad").using("btree", table.ciudadId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.organizadorUsuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_dinamicas_organizador"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.ciudadId],
+		foreignColumns: [ciudades.id],
+		name: "fk_dinamicas_ciudad"
+	}).onDelete("set null"),
+	check("dinamicas_tipo_premio_check", sql`tipo_premio IN ('fisico', 'efectivo')`),
+	check("dinamicas_metodo_sorteo_check", sql`metodo_sorteo IN ('tombola', 'carta_unica', 'tabla_completa')`),
+	check("dinamicas_numero_total_boletos_check", sql`numero_total_boletos > 0`),
+	check("dinamicas_precio_boleto_check", sql`precio_boleto > 0`),
+	check("dinamicas_regla_desempate_check", sql`regla_desempate IS NULL OR regla_desempate IN ('sorteo_instantaneo', 'repartir_premio', 'ronda_extra', 'orden_inscripcion')`),
+	check("dinamicas_regla_desempate_metodo_check", sql`regla_desempate IS NULL OR metodo_sorteo = 'tabla_completa'`),
+	check("dinamicas_estado_check", sql`estado IN ('borrador', 'activa', 'pospuesta', 'en_sorteo', 'cerrada', 'cancelada')`),
+]);
+
+export const dinamicaBoletos = pgTable("dinamica_boletos", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	dinamicaId: uuid("dinamica_id").notNull(),
+	numeroBoleto: integer("numero_boleto").notNull(),
+	// null = participante "Sin cuenta AY" (registrado manualmente por el organizador).
+	usuarioId: uuid("usuario_id"),
+	nombreManual: varchar("nombre_manual", { length: 100 }),
+	telefonoManual: varchar("telefono_manual", { length: 20 }),
+	estado: varchar({ length: 20 }).default('reservado').notNull(),  // reservado | pagado
+	reservadoEn: timestamp("reservado_en", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// reservadoEn + 24h — libera el número automáticamente si nunca se confirma el pago.
+	reservadoExpiraEn: timestamp("reservado_expira_en", { withTimezone: true, mode: 'string' }).notNull(),
+	pagadoEn: timestamp("pagado_en", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_dinamica_boletos_dinamica_estado").using("btree", table.dinamicaId.asc().nullsLast(), table.estado.asc().nullsLast()),
+	index("idx_dinamica_boletos_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	unique("dinamica_boletos_dinamica_numero_key").on(table.dinamicaId, table.numeroBoleto),
+	foreignKey({
+		columns: [table.dinamicaId],
+		foreignColumns: [dinamicas.id],
+		name: "fk_dinamica_boletos_dinamica"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_dinamica_boletos_usuario"
+	}).onDelete("cascade"),
+	check("dinamica_boletos_estado_check", sql`estado IN ('reservado', 'pagado')`),
+	check("dinamica_boletos_participante_check", sql`usuario_id IS NOT NULL OR (nombre_manual IS NOT NULL AND telefono_manual IS NOT NULL)`),
+]);
+
+export const dinamicaGanadores = pgTable("dinamica_ganadores", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	dinamicaId: uuid("dinamica_id").notNull(),
+	boletoId: uuid("boleto_id").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_dinamica_ganadores_dinamica").using("btree", table.dinamicaId.asc().nullsLast()),
+	unique("dinamica_ganadores_dinamica_boleto_key").on(table.dinamicaId, table.boletoId),
+	foreignKey({
+		columns: [table.dinamicaId],
+		foreignColumns: [dinamicas.id],
+		name: "fk_dinamica_ganadores_dinamica"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.boletoId],
+		foreignColumns: [dinamicaBoletos.id],
+		name: "fk_dinamica_ganadores_boleto"
+	}).onDelete("cascade"),
 ]);

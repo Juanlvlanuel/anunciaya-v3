@@ -78,7 +78,10 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // ─── Recompensas (CardYA) ───
     { tabla: 'recompensas', columna: 'imagen_url', tipo: 'url', descripcion: 'Imagen de recompensa' },
 
-    // (Dinámicas removidas en Fase D del cleanup — visión v3, abril 2026)
+    // ─── Dinámicas ───
+    // Tabla `dinamicas` (Fase 1, agosto 2026). Campo `fotos_premio` es JSONB
+    // array de URLs en R2 — mismo patrón que `articulos_marketplace.fotos`.
+    { tabla: 'dinamicas', columna: 'fotos_premio', tipo: 'text-scan-urls', descripcion: 'Fotos/video de evidencia del premio de la Dinámica (JSONB array de URLs)' },
 
     // ─── Empleados (ScanYA) ───
     { tabla: 'empleados', columna: 'foto_url', tipo: 'url', descripcion: 'Avatar del empleado' },
