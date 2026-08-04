@@ -401,7 +401,7 @@ export function PaginaServicioPublico() {
             </main>
 
             {!noActiva && (
-                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white p-3 lg:hidden">
+                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:hidden">
                     <BotonContactoPublico onClick={handleEnviarMensaje} tipo={publicacion.tipo} />
                 </div>
             )}

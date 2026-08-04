@@ -887,7 +887,10 @@ export default function PaginaLanding() {
     return (
         <div
             className="fixed inset-0 flex flex-col"
-            style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
+            style={{
+                background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)',
+                paddingTop: 'env(safe-area-inset-top)',
+            }}
         >
             {/* Header FUERA del scroll (shrink-0): arrastrarlo oculta la barra del navegador y,
                 como el contenido va DEBAJO (no llena el viewport), el navegador no lo trata como

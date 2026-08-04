@@ -832,7 +832,10 @@ export function SlideoverNuevaVacante({
                     es más bajo que el ícono 44×44 y se veía descentrado arriba.
                     Con items-center el título, el ícono y el botón X se
                     alinean verticalmente al centro del header. */}
-                <header className="flex items-center gap-3.5 px-5 lg:px-7 py-5 border-b border-slate-300 shrink-0">
+                <header
+                    className="flex items-center gap-3.5 px-5 lg:px-7 pb-5 border-b border-slate-300 shrink-0"
+                    style={{ paddingTop: 'max(1.25rem, env(safe-area-inset-top))' }}
+                >
                     <div
                         className="w-11 h-11 rounded-xl text-white grid place-items-center shrink-0"
                         style={{

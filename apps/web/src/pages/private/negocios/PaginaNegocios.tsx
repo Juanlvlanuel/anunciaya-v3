@@ -1189,7 +1189,7 @@ export function PaginaNegocios() {
                           headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
                         }`}
                       >
-                        <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
                           <div className="pb-2 flex items-center justify-center gap-2.5">
                             <div
                               className="h-0.5 w-14 rounded-full"
@@ -1312,7 +1312,7 @@ export function PaginaNegocios() {
                     headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
                   }`}
                 >
-                  <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
                     <div className="px-3 pb-3">
                       <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
@@ -1340,7 +1340,7 @@ export function PaginaNegocios() {
         {/* del overlay y se ve oscurecido — solo el input queda visible.    */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {buscadorMovilAbierto && createPortal(
-          <div className="fixed top-0 left-0 right-0 z-[60] bg-black px-3 pt-4 pb-2.5 lg:hidden">
+          <div className="fixed top-0 left-0 right-0 z-[60] bg-black px-3 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-2.5 lg:hidden">
             <div className="flex items-center gap-2.5">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-white/40 pointer-events-none" />

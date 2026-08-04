@@ -326,7 +326,7 @@ export function MenuContextualMensaje({
           </div>
 
           {/* Opciones (sin emojis, van en el header del chat) */}
-          <div className="py-1 pb-safe">
+          <div className="pt-1 pb-[calc(0.25rem+env(safe-area-inset-bottom,0px))]">
             {opciones.map((opcion) => (
               <button
                 key={opcion.label}

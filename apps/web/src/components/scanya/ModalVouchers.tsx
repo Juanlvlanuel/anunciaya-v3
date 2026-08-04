@@ -761,7 +761,7 @@ export function ModalVouchers({
                     style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #001020 100%)', boxShadow: '-4px 0 30px rgba(0,0,0,0.5)' }}
                 >
                     {/* Header */}
-                    <header className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 border-b border-white/10 shrink-0">
+                    <header className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 pb-3 lg:pb-2 2xl:pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] lg:pt-2 2xl:pt-3 border-b border-white/10 shrink-0">
                         <button onClick={() => history.back()} className="p-1.5 lg:p-1 2xl:p-1.5 rounded-lg hover:bg-white/10 cursor-pointer">
                             <ArrowLeft className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                         </button>
@@ -946,7 +946,8 @@ export function ModalVouchers({
                     className="
             relative
             flex items-center gap-3 lg:gap-2 2xl:gap-1.5
-            px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3
+            px-4 lg:px-3 2xl:px-4 pb-3 lg:pb-2 2xl:pb-3
+            pt-[calc(0.75rem+env(safe-area-inset-top,0px))] lg:pt-2 2xl:pt-3
             border-b border-white/10
           "
                 >

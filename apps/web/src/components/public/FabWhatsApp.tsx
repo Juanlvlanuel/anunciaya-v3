@@ -42,7 +42,7 @@ export function FabWhatsApp() {
       onClick={abrir}
       aria-label="Contactar por WhatsApp"
       data-testid="landing-fab-whatsapp"
-      className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25A924] text-white shadow-lg transition-transform active:scale-95 lg:cursor-pointer lg:hover:scale-105"
+      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-4 lg:bottom-6 lg:right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25A924] text-white shadow-lg transition-transform active:scale-95 lg:cursor-pointer lg:hover:scale-105"
     >
       <Icon icon={ICONOS_REMOTOS.whatsapp} className="h-8 w-8" aria-hidden="true" />
     </button>,

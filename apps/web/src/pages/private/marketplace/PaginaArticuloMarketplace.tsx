@@ -536,7 +536,7 @@ export function PaginaArticuloMarketplace() {
                     <div
                         className="fixed inset-x-0 z-50 shadow-[0_-2px_8px_rgba(0,0,0,0.25)] transition-[bottom] duration-300 ease-out lg:hidden"
                         style={{
-                            bottom: bottomNavVisible ? 'calc(var(--altura-bottomnav, 68px) - 1px)' : '0px',
+                            bottom: bottomNavVisible ? 'calc(var(--altura-bottomnav, 68px) - 1px)' : 'env(safe-area-inset-bottom, 0px)',
                             background: '#000000',
                         }}
                     >

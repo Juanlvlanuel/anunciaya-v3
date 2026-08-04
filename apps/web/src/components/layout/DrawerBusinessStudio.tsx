@@ -161,7 +161,7 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                 style={{ zIndex: 1002, background: 'linear-gradient(to bottom, #0B358F, #000000)' }}
             >
                 {/* Header del drawer — ícono + Business Studio */}
-                <div className="relative px-4 py-4">
+                <div className="relative px-4 pb-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
                             <div

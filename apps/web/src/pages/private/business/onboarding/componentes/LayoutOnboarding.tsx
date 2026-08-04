@@ -220,7 +220,7 @@ export function LayoutOnboarding({
         </main>
 
         {/* Footer Fijo */}
-        <footer className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-300 p-4 pb-safe shadow-lg">
+        <footer className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-300 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] shadow-lg">
           <BotonesNavegacion />
         </footer>
       </div>

@@ -1271,7 +1271,10 @@ function VentanaChatInner() {
         {/* Textura doodle de fondo */}
         <TexturaDoodle oscuro={esMobile} />
         {/* ═══ Header del chat ═══ */}
-        <div className={`px-4 ${mostrarAccionesEnHeader ? 'py-1' : 'py-2.5'} flex items-center gap-3 shrink-0 border-b border-white/10 bg-[#0a1628] lg:border-slate-300 lg:bg-slate-100`}>
+        <div
+          className={`px-4 ${mostrarAccionesEnHeader ? 'pb-1' : 'pb-2.5'} flex items-center gap-3 shrink-0 border-b border-white/10 bg-[#0a1628] lg:border-slate-300 lg:bg-slate-100`}
+          style={{ paddingTop: `max(${mostrarAccionesEnHeader ? '0.25rem' : '0.625rem'}, env(safe-area-inset-top))` }}
+        >
 
           {/* ── Zona izquierda: Avatar+Info  ó  Input búsqueda  ó  Acciones mensaje (móvil) ── */}
           {mostrarAccionesEnHeader ? (

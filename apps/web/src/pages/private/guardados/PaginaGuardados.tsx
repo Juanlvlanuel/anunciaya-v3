@@ -774,7 +774,7 @@ export function PaginaGuardados() {
 
                     {/* Barra flotante de selección */}
                     {modoSeleccion && idsSeleccionados.size > 0 && (
-                <div className="fixed bottom-20 lg:bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom duration-200">
+                <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom duration-200">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-linear-to-r from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
                             <Check className="w-4 h-4 text-white" />

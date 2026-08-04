@@ -103,7 +103,8 @@ export default function HeaderScanYA({ className = '', onCambioSucursal, onAbrir
   return (
     <header
       className={`
-        p-4 lg:p-3 2xl:p-4
+        px-4 pb-4 lg:px-3 lg:pb-3 2xl:px-4 2xl:pb-4
+        pt-[calc(1rem+env(safe-area-inset-top,0px))] lg:pt-3 2xl:pt-4
         sticky top-0 z-50
         ${className}
       `}

@@ -336,7 +336,7 @@ export default function PaginaPerfil() {
           baja al borde cuando el BottomNav se oculta (scroll down) y sube
           de nuevo cuando reaparece. */}
       {hayCambios && createPortal(
-        <div className={`fixed ${bottomNavVisible ? 'bottom-20' : 'bottom-4'} right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-all duration-300 ${previewNegocioAbierto
+        <div className={`fixed ${bottomNavVisible ? 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]' : 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]'} right-4 lg:bottom-6 lg:right-6 2xl:right-1/2 2xl:bottom-8 z-50 transition-all duration-300 ${previewNegocioAbierto
           ? 'lg:right-[375px] 2xl:translate-x-[510px]'
           : 'lg:right-[45px] 2xl:translate-x-[895px]'
           }`}>

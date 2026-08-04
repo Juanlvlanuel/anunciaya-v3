@@ -232,7 +232,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
 
     if (esMobile) {
       return (
-        <div className="fixed inset-0 z-60 bg-white">
+        <div className="fixed inset-0 z-60 bg-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           {renderHeader()}
           <div className="h-[calc(100vh-100px)]">{contenido}</div>
         </div>
@@ -258,7 +258,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
 
     if (esMobile) {
       return (
-        <div className="fixed inset-0 z-60 bg-white">
+        <div className="fixed inset-0 z-60 bg-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           {renderHeader()}
           <div className="h-[calc(100vh-100px)]">{contenido}</div>
         </div>
@@ -330,7 +330,7 @@ export function PanelPreviewNegocio({ esMobile = false }: PanelPreviewNegocioPro
   // Render principal
   if (esMobile) {
     return (
-      <div className="fixed inset-0 z-60 bg-white flex flex-col">
+      <div className="fixed inset-0 z-60 bg-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {renderHeader()}
         {renderContenido()}
       </div>
