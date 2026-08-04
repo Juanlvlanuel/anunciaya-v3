@@ -27,6 +27,7 @@ import type { OrdenNegocios, NegocioFila, SucursalFila, ConteosEstado } from '..
 import { metaEstado, BadgeEstadoPago, estadoEfectivo } from './estadoPago';
 import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
 import { MenuFiltro, type OpcionMenu } from './MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { FichaNegocio } from './FichaNegocio';
 import { FichaSucursal } from './FichaSucursal';
 import { DialogoRegistrarNegocio } from './DialogoRegistrarNegocio';
@@ -172,7 +173,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
     [busquedaDeb, estadoPago, vendedorId, ciudad, orden, pagina],
   );
 
-  const { data, isLoading, isError } = useNegociosLista(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = useNegociosLista(filtros);
   const { data: vendedores } = useVendedoresFiltro(mostrarVendedor);
   const { data: ciudades } = useCiudadesFiltro();
 
@@ -492,6 +493,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
             anchoMenu={200}
             tam="chip"
           />
+          <BotonRefrescar testid="negocios-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
       </div>
 

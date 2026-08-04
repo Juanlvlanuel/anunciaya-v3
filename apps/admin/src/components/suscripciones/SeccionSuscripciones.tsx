@@ -23,6 +23,7 @@ import { useBitacora, usePrefetchEvento, useSolicitudesPendientes } from '../../
 import type { OrdenEvento, EventoFila, ConteosEventos } from '../../services/suscripcionesService';
 import { metaTipoEvento, BadgeTipoEvento, TIPOS_EVENTO_FILTRO } from './estadoEvento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { TabsSegmento } from '../ui/TabsSegmento';
 import { AvatarNegocio } from '../negocios/avatares';
 import { FichaEvento } from './FichaEvento';
@@ -161,7 +162,7 @@ function PestanaBitacora({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: T
     [busquedaDeb, tipo, origen, periodo, orden, pagina],
   );
 
-  const { data, isLoading, isError } = useBitacora(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = useBitacora(filtros);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -388,6 +389,7 @@ function PestanaBitacora({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: T
             anchoMenu={210}
             tam="chip"
           />
+          <BotonRefrescar testid="suscripciones-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
       </div>
 

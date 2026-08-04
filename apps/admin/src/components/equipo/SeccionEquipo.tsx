@@ -23,6 +23,7 @@ import type { OrdenEquipo, MiembroEquipoFila, ConteosRol } from '../../services/
 import { BadgeAcceso, rolLabel } from './estadoAcceso';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { MenuFiltro } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { FichaMiembro } from './FichaMiembro';
 import { DialogoAltaVendedor } from './DialogoAltaVendedor';
 import { DialogoAltaGerente } from './DialogoAltaGerente';
@@ -110,7 +111,7 @@ export function SeccionEquipo() {
     [busquedaDeb, rol, orden, pagina],
   );
 
-  const { data, isLoading, isError } = useEquipoLista(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = useEquipoLista(filtros);
 
   // Publica el total YA FILTRADO para el badge del menú; al salir, se limpia.
   const setContadorEquipo = useContadorPanel((s) => s.setEquipo);
@@ -343,6 +344,7 @@ export function SeccionEquipo() {
         {chipsRol}
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {ordenar}
+          <BotonRefrescar testid="equipo-refrescar" onClick={() => refetch()} cargando={isFetching} />
           {botonAlta}
         </div>
       </div>

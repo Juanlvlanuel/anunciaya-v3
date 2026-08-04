@@ -14,6 +14,7 @@ import { Plus, Pencil, Power, Search, X, MapPin, Tag } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import {
   useCatalogoMarketplace,
   useMarketplacePorCiudad,
@@ -47,7 +48,7 @@ function Kpi({ valor, etiqueta, testid }: { valor: number; etiqueta: string; tes
 export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRefObject<(() => void) | null> }) {
   // Filtro por ciudad (analítica): '' = todas.
   const [ciudadSel, setCiudadSel] = useState('');
-  const { data: catalogo = [], isLoading, isError, isFetching } = useCatalogoMarketplace(
+  const { data: catalogo = [], isLoading, isError, isFetching, refetch } = useCatalogoMarketplace(
     ciudadSel || undefined,
   );
   const { data: ciudades = [] } = useCiudadesLista({ activa: 'activas' });
@@ -204,6 +205,9 @@ export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRe
         </div>
 
         {isFetching && !isLoading && <span className="hidden text-[12px] text-texto-4 lg:inline">actualizando…</span>}
+        <div className="hidden lg:block">
+          <BotonRefrescar testid="categorias-mp-refrescar" onClick={() => refetch()} cargando={isFetching} />
+        </div>
         {!isLoading && !isError && (
           <div className="-mx-1 flex shrink-0 items-stretch overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:ml-auto lg:overflow-visible lg:px-0">
             <Kpi valor={kpisPub.total} etiqueta="Publicaciones" testid="kpi-mp-total" />

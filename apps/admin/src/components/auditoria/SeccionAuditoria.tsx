@@ -22,6 +22,7 @@ import { useAuditoria, useActoresAuditoria, usePrefetchAuditoria, useEliminarAud
 import type { OrdenAuditoria, AuditoriaFila } from '../../services/auditoriaService';
 import { etiquetaAccion, BadgeModulo, OPCIONES_ACCION, etiquetaEntidad } from './accionesAuditoria';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { Tooltip } from '../ui/Tooltip';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { FichaAuditoria } from './FichaAuditoria';
@@ -109,7 +110,7 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
     [accion, actorId, periodo, orden, pagina],
   );
 
-  const { data, isLoading, isError, isFetching } = useAuditoria(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = useAuditoria(filtros);
   const { data: actores } = useActoresAuditoria();
 
   const items = data?.items ?? [];
@@ -345,6 +346,7 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
             anchoMenu={210}
             tam="chip"
           />
+          <BotonRefrescar testid="auditoria-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
       </div>
 

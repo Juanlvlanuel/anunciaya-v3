@@ -31,6 +31,7 @@ import {
 import { REGION_SIN, type CiudadCatalogo, type FiltroActiva, type RegionConConteo } from '../../services/ciudadesService';
 import { claveCruceCiudad } from '../../utils/texto';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { MenuAcciones } from './MenuAcciones';
 import type { FeatureCiudad } from './MapaCiudades';
@@ -89,7 +90,7 @@ export function SeccionCiudades() {
     [busquedaDeb, region],
   );
 
-  const { data: ciudades, isLoading, isError } = useCiudadesLista(filtros);
+  const { data: ciudades, isLoading, isError, isFetching, refetch } = useCiudadesLista(filtros);
   const { data: regiones } = useRegionesCatalogo();
   // Catálogo completo (sin filtros) para el cruce del mapa: qué ciudades ya están.
   const { data: todasCatalogo } = useCiudadesLista({});
@@ -434,6 +435,9 @@ export function SeccionCiudades() {
             <div className="order-1 flex items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:order-2 lg:ml-auto lg:overflow-visible lg:pb-0">
               {chipsActividad}
               <div className="shrink-0">{filtroRegion}</div>
+              <div className="hidden shrink-0 lg:block">
+                <BotonRefrescar testid="ciudades-refrescar" onClick={() => refetch()} cargando={isFetching} />
+              </div>
             </div>
             <div className="order-2 w-full lg:order-1 lg:max-w-[380px]">{buscador}</div>
           </div>

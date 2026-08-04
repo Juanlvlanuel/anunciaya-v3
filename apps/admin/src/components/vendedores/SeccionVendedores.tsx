@@ -20,6 +20,7 @@ import { useVendedoresLista, usePrefetchVendedor, useVendedor } from '../../hook
 import type { OrdenVendedores, VendedorFila, ConteosEstado } from '../../services/vendedoresService';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { MenuFiltro } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { DetalleVendedor, CuerpoCartera, type TabVendedor } from './DetalleVendedor';
 import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
@@ -199,7 +200,7 @@ function ListaVendedores() {
     [busquedaDeb, estado, orden, pagina],
   );
 
-  const { data, isLoading, isError } = useVendedoresLista(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = useVendedoresLista(filtros);
 
   // Master-detail: al abrir un vendedor, su detalle reemplaza la lista (full-width).
   if (vendedorAbierto) {
@@ -366,6 +367,7 @@ function ListaVendedores() {
         {chipsEstado}
         <div className="flex shrink-0 items-center gap-3">
           {ordenar}
+          <BotonRefrescar testid="vendedores-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
       </div>
 

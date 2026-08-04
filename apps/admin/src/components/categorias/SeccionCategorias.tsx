@@ -54,6 +54,7 @@ import { SeccionCategoriasMarketplace } from './SeccionCategoriasMarketplace';
 import { useCatalogoMarketplace } from '../../hooks/queries/useCategoriasMPAdmin';
 import { TabsSegmento } from '../ui/TabsSegmento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { useCiudadesLista } from '../../hooks/queries/useCiudadesAdmin';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -185,7 +186,7 @@ function HandleArrastrar({
 function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<(() => void) | null> }) {
   // Filtro por ciudad (analítica de negocios por plaza): '' = todas.
   const [ciudadSel, setCiudadSel] = useState('');
-  const { data, isLoading, isError, isFetching } = useCatalogo(ciudadSel || undefined);
+  const { data, isLoading, isError, isFetching, refetch } = useCatalogo(ciudadSel || undefined);
   const totalNegocios = data?.totalNegocios ?? 0;
 
   // Orden LOCAL (optimista) de categorías y de las subcategorías de cada una — el
@@ -448,6 +449,10 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
           </span>
         )}
         {isFetching && !isLoading && <span className="hidden text-[12px] text-texto-4 lg:inline">actualizando…</span>}
+
+        <div className="hidden lg:block">
+          <BotonRefrescar testid="categorias-refrescar" onClick={() => refetch()} cargando={isFetching} />
+        </div>
 
         {!isLoading && !isError && (
           <div className="-mx-1 flex shrink-0 items-stretch overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:ml-auto lg:overflow-visible lg:px-0">

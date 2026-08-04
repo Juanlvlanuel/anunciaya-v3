@@ -21,6 +21,7 @@ import type { ReciboFila, OrigenRecibo } from '../../services/recibosService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { Tooltip } from '../ui/Tooltip';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { AvatarNegocio } from '../negocios/avatares';
 
 const POR_PAGINA = 20;
@@ -184,7 +185,7 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
     return () => clearTimeout(t);
   }, [busqueda]);
 
-  const { data, isLoading, isError } = useRecibos({
+  const { data, isLoading, isError, isFetching, refetch } = useRecibos({
     busqueda: busquedaAplicada || undefined,
     origen: origen || undefined,
     orden: 'folio_desc',
@@ -265,6 +266,9 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
                 </button>
               );
             })}
+            <div className="hidden shrink-0 lg:block">
+              <BotonRefrescar testid="recibos-refrescar" onClick={() => refetch()} cargando={isFetching} />
+            </div>
           </div>
         </div>
 

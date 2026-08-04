@@ -21,6 +21,7 @@ import { useScrollPanel } from '../../stores/useScrollPanel';
 import { usePublicidad, usePrefetchPublicidad, useKpisPublicidad } from '../../hooks/queries/usePublicidadAdmin';
 import type { OrdenPublicidad, PublicidadFila, EstadoPublicidad, FiltroTamano, OrigenPublicidad } from '../../services/publicidadService';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { BotonRefrescar } from '../ui/BotonRefrescar';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { FichaPublicidad } from './FichaPublicidad';
@@ -101,7 +102,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
     [estado, carrusel, origen, orden, pagina],
   );
 
-  const { data, isLoading, isError } = usePublicidad(filtros);
+  const { data, isLoading, isError, isFetching, refetch } = usePublicidad(filtros);
   const { data: kpis } = useKpisPublicidad();
 
   const items = data?.items ?? [];
@@ -324,6 +325,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             anchoMenu={200}
             tam="chip"
           />
+          <BotonRefrescar testid="publicidad-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
         {/* KPIs + Registrar a la derecha */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3">
