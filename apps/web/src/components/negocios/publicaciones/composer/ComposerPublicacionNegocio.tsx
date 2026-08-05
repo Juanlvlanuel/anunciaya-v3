@@ -384,7 +384,7 @@ export function ComposerPublicacionNegocio({
                         Instagram — solo con funciones que sí tenemos). El
                         chip "Precio" se expande EN SU LUGAR a un input,
                         con su "X" de limpiar por dentro. ── */}
-                    <div className="shrink-0 px-4 py-3 border-t-2 border-slate-200">
+                    <div className="shrink-0 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t-2 border-slate-200">
                         <div className="flex items-center gap-2">
                             <div className="relative lg:hidden">
                                 <button

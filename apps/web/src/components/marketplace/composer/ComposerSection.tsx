@@ -144,6 +144,7 @@ export function ComposerSection() {
             <div
                 data-testid="composer-mp-fullscreen"
                 className={`${esContenido ? 'absolute' : 'fixed'} inset-0 z-52 flex flex-col bg-white`}
+                style={esContenido ? undefined : { paddingTop: 'env(safe-area-inset-top)' }}
             >
                 {composer}
             </div>,

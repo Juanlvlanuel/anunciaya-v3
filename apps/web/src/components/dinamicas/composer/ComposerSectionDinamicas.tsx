@@ -126,6 +126,7 @@ export function ComposerSectionDinamicas() {
             <div
                 data-testid="composer-dinamicas-fullscreen"
                 className={`${esContenido ? 'absolute' : 'fixed'} inset-0 z-52 flex flex-col bg-white`}
+                style={esContenido ? undefined : { paddingTop: 'env(safe-area-inset-top)' }}
             >
                 {composer}
             </div>,

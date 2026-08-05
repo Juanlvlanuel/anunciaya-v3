@@ -843,7 +843,7 @@ export function ComposerDinamicas({
             {/* ── Chip bar anclada: Cámara (solo móvil) + Galería + Tipo de
                 premio + Método de sorteo + Boletos + Fecha límite + Desempate
                 (condicional). ── */}
-            <div className="relative shrink-0 px-4 py-3 border-t-2 border-slate-200">
+            <div className="relative shrink-0 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t-2 border-slate-200">
                 <div className="flex items-center gap-2 lg:gap-1.5 overflow-x-auto lg:flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     <button
                         type="button"
@@ -963,7 +963,7 @@ export function ComposerDinamicas({
 
             {/* ── Checklist legal (footer) — se exige al PUBLICAR, no al
                 guardar borrador. ── */}
-            <div className="shrink-0 px-4 py-3 border-t-2 border-slate-200">
+            <div className="shrink-0 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t-2 border-slate-200">
                 <CheckboxLegal aceptado={confirmacionesCompletas} onCambio={setConfirmacionesUnificadas} />
             </div>
         </div>
