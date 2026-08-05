@@ -221,7 +221,7 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
               </p>
             )}
             <p
-              className={`text-[15px] leading-snug line-clamp-2 ${
+              className={`text-[15px] leading-snug ${
                 notificacion.titulo ? 'text-slate-600 font-medium mt-0.5' : 'text-slate-700 font-semibold'
               }`}
             >

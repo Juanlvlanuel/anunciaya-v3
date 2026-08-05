@@ -64,7 +64,7 @@ export const queryClient = new QueryClient({
       if (query.meta?.silenciarErrorGlobal) return;
       if (query.getObserversCount() === 0) return;
 
-      notificar.error(mensajeAmigable(error), 'No se pudo cargar', {
+      notificar.error(mensajeAmigable(error), undefined, {
         etiqueta: 'Reintentar',
         onClick: () => { void query.fetch(); },
       });
