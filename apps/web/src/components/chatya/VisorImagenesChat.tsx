@@ -400,7 +400,10 @@ export function VisorImagenesChat({
         } : undefined}
       >
       {/* ═══ HEADER ═══ */}
-      <div className="flex items-center justify-between px-2 py-2 bg-black/60 shrink-0">
+      <div
+        className="flex items-center justify-between px-2 pb-2 bg-black/60 shrink-0"
+        style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
+      >
         {/* Izquierda: ← + Avatar + Nombre/Fecha */}
         <div className="flex items-center gap-2 min-w-0">
           <button
@@ -624,7 +627,7 @@ export function VisorImagenesChat({
       )}
 
       {/* ═══ FOOTER ═══ */}
-      <div className="shrink-0 bg-black/60">
+      <div className="shrink-0 bg-black/60" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Reaccionar + Responder — solo en MÓVIL (en desktop están en el header) */}
         {!esMisNotas && (
           <div className="flex items-center justify-between px-4 pt-2 pb-1 lg:hidden">

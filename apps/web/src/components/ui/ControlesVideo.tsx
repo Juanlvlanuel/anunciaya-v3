@@ -306,7 +306,7 @@ export function ControlesVideo({ videoRef, contenedorRef, onExpandir, onToggleCo
     return (
         <div
             onClick={(e) => e.stopPropagation()}
-            className={`absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1.5 bg-linear-to-t from-black/80 via-black/40 to-transparent px-5 pb-6 pt-8 lg:px-3 lg:pb-2 transition-opacity duration-200 ${mostrarBarra ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+            className={`absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1.5 bg-linear-to-t from-black/80 via-black/40 to-transparent px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-8 lg:px-3 lg:pb-2 transition-opacity duration-200 ${mostrarBarra ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         >
             {/* Línea de tiempo — arrastrable con mouse o dedo (pointerdown + drag, no solo click). */}
             <div

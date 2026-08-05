@@ -1011,7 +1011,7 @@ export function InputMensaje({
   return (
     <div
       ref={inputBarRef}
-      className={`shrink-0 px-0.5 lg:px-3 pb-3 lg:pb-4 pt-1 bg-[#050d1a]/80 lg:bg-transparent relative ${dragActivo ? 'ring-2 ring-blue-400 ring-inset' : ''}`}
+      className={`shrink-0 px-0.5 lg:px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:pb-4 pt-1 bg-[#050d1a]/80 lg:bg-transparent relative ${dragActivo ? 'ring-2 ring-blue-400 ring-inset' : ''}`}
       style={esMobile ? {
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',

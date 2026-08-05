@@ -27,8 +27,8 @@ export function ModalCentroAyudaScanYA({ abierto, onClose }: ModalCentroAyudaSca
       >
         {/* Header oscuro estilo ScanYA */}
         <header
-          className="flex items-center gap-3 px-4 py-3 text-white shrink-0"
-          style={{ background: 'linear-gradient(135deg, #0f172a, #1e3a8a)' }}
+          className="flex items-center gap-3 px-4 pb-3 text-white shrink-0"
+          style={{ background: 'linear-gradient(135deg, #0f172a, #1e3a8a)', paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
         >
           <HelpCircle className="h-5 w-5 text-blue-300" strokeWidth={2.2} />
           <h2 className="flex-1 text-base font-bold">Ayuda y Tutoriales</h2>

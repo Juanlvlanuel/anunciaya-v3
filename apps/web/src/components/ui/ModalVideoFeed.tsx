@@ -200,7 +200,7 @@ export function ModalVideoFeed({ isOpen, onClose, videoUrl, posterUrl, children 
                         onClick={(e) => { e.stopPropagation(); cerrar(); }}
                         aria-label="Cerrar"
                         data-testid="modal-video-feed-regresar"
-                        className="absolute left-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-slate-600/60 text-white lg:cursor-pointer lg:hover:bg-slate-500/70"
+                        className="absolute left-4 top-[calc(1rem+env(safe-area-inset-top,0px))] z-20 flex h-11 w-11 items-center justify-center rounded-full bg-slate-600/60 text-white lg:cursor-pointer lg:hover:bg-slate-500/70"
                     >
                         <X className="h-6 w-6" strokeWidth={2.5} />
                     </button>

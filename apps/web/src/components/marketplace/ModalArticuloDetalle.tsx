@@ -99,7 +99,7 @@ export function ModalArticuloDetalle({ articulo, onClose }: ModalArticuloDetalle
                     onClick={handleCerrar}
                     aria-label="Cerrar"
                     data-testid="modal-articulo-cerrar"
-                    className="fixed top-3 right-3 z-[10002] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg lg:cursor-pointer lg:hover:bg-white lg:top-4 lg:right-4"
+                    className="fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-3 z-[10002] flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-lg lg:cursor-pointer lg:hover:bg-white lg:top-4 lg:right-4"
                 >
                     <X className="h-5 w-5" strokeWidth={2.5} />
                 </button>
