@@ -588,6 +588,8 @@ export interface SugerenciaArticuloIA {
     titulo: string;
     descripcion: string;
     condicion: CondicionArticulo | null;
+    /** `null` si la IA no distingue una categoría clara en la foto — no se aplica en ese caso. */
+    categoriaId: number | null;
 }
 
 /**

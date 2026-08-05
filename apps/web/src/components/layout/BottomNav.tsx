@@ -35,6 +35,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 import { useFiltrosNegociosStore } from '../../stores/useFiltrosNegociosStore';
+import { FILTRO_CONTORNO_COYO } from '../../config/estilosCoyo';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -108,6 +109,7 @@ export function BottomNav() {
   // ---------------------------------------------------------------------------
   const chatYAAbierto = useUiStore((state) => state.chatYAAbierto);
   const toggleChatYA = useUiStore((state) => state.toggleChatYA);
+  const toggleAsistenteCoyo = useUiStore((state) => state.toggleAsistenteCoyo);
 
   // Auth Store
   const usuario = useAuthStore((state) => state.usuario);
@@ -180,16 +182,7 @@ export function BottomNav() {
           {/* Contenido: iconos pegados al bottom - padding inferior mínimo */}
           <div className="relative px-1 pt-0 -mb-1">
             <div className="flex justify-around items-center">
-              {/* Items izquierda */}
-              {/* Todos los destinos del BottomNav son secciones top-level.
-                  Aplicamos `replace` cuando NO venimos de `/inicio` para que
-                  el back siempre regrese al inicio en lugar de ir saltando
-                  entre secciones hermanas. Ver `useNavegarASeccion`. */}
-              {(esComercial ? NAV_ITEMS_LEFT_COMERCIAL : NAV_ITEMS_LEFT_PERSONAL).map((item) => (
-                <NavButton key={item.to} item={item} replace={location.pathname !== '/inicio'} />
-              ))}
-
-              {/* Botón central: ChatYA (menos elevado para no cortarse) */}
+              {/* ChatYA — primer ícono de la fila (extremo izquierdo). */}
               <div className="relative -mt-8">
                 <button
                   onClick={toggleChatYA}
@@ -220,10 +213,43 @@ export function BottomNav() {
                 </button>
               </div>
 
-              {/* Items derecha — mismo patrón replace que items izquierda. */}
-              {(esComercial ? NAV_ITEMS_RIGHT_COMERCIAL : NAV_ITEMS_RIGHT_PERSONAL).map((item) => (
+              {/* Items izquierda */}
+              {/* Todos los destinos del BottomNav son secciones top-level.
+                  Aplicamos `replace` cuando NO venimos de `/inicio` para que
+                  el back siempre regrese al inicio en lugar de ir saltando
+                  entre secciones hermanas. Ver `useNavegarASeccion`. */}
+              {(esComercial ? NAV_ITEMS_LEFT_COMERCIAL : NAV_ITEMS_LEFT_PERSONAL).map((item) => (
                 <NavButton key={item.to} item={item} replace={location.pathname !== '/inicio'} />
               ))}
+
+              {/* Items derecha — un poco más grandes que los de la izquierda
+                  (junto con Coyo, son "los 3 de la derecha"). Mismo patrón
+                  replace que items izquierda. */}
+              {(esComercial ? NAV_ITEMS_RIGHT_COMERCIAL : NAV_ITEMS_RIGHT_PERSONAL).map((item) => (
+                <NavButton key={item.to} item={item} replace={location.pathname !== '/inicio'} grande />
+              ))}
+
+              {/* Asistente Coyo — mismo trato de elevación que ChatYA (sale
+                  un poco del bottom nav), pero sin círculo de fondo: el
+                  "contorno blanco" va sobre la SILUETA de la cabeza
+                  (drop-shadow fino, sigue el canal alfa del PNG/WebP) para
+                  que no se pierda sobre el fondo negro. Acción (no navega). */}
+              <div className="relative -mt-8">
+                <button
+                  type="button"
+                  data-testid="bottomnav-asistente-coyo"
+                  aria-label="Abrir asistente Coyo"
+                  onClick={toggleAsistenteCoyo}
+                  className="relative flex items-center justify-center px-1 rounded-lg transition-all duration-200 active:scale-90 hover:bg-white/5"
+                >
+                  <img
+                    src="/cabeza-coyo.webp"
+                    alt="Coyo"
+                    className="h-16 w-16 object-contain"
+                    style={{ filter: FILTRO_CONTORNO_COYO }}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -242,15 +268,18 @@ interface NavButtonProps {
    *  acumular historial entre secciones top-level (todas hermanas en
    *  jerarquía conceptual). Calculado por el padre según `pathname`. */
   replace?: boolean;
+  /** Ítems de la derecha (Marketplace/Servicios), junto con Coyo, un poco
+   *  más grandes que los de la izquierda. */
+  grande?: boolean;
 }
 
-function NavButton({ item, replace = false }: NavButtonProps) {
+function NavButton({ item, replace = false, grande = false }: NavButtonProps) {
   return (
     <NavLink
       to={item.to}
       replace={replace}
       className={({ isActive }: { isActive: boolean }) =>
-        `relative flex flex-col items-center gap-0 px-3 py-1.5 rounded-lg transition-all duration-200 active:scale-90 ${isActive
+        `relative flex flex-col items-center gap-0 px-1 py-1.5 rounded-lg transition-all duration-200 active:scale-90 ${isActive
           ? 'text-white'
           : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
         }`
@@ -258,9 +287,8 @@ function NavButton({ item, replace = false }: NavButtonProps) {
     >
       {({ isActive }: { isActive: boolean }) => (
         <>
-          {/* Icono más compacto: 20px (antes 24px) */}
           <item.icon
-            className={`w-6 h-6 transition-all duration-200 ${isActive ? 'scale-110' : ''
+            className={`${grande ? 'w-7 h-7' : 'w-6 h-6'} transition-all duration-200 ${isActive ? 'scale-110' : ''
               }`}
             strokeWidth={isActive ? 2.5 : 2}
           />

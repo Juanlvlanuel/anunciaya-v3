@@ -50,6 +50,9 @@ interface UiState {
   // Estado - Menu Drawer (móvil)
   menuDrawerAbierto: boolean;
 
+  // Estado - Asistente Coyo (FAB global)
+  asistenteCoyoAbierto: boolean;
+
   // Estado - ChatYA Overlay
   chatYAAbierto: boolean;
   chatYAMinimizado: boolean;
@@ -107,6 +110,11 @@ interface UiState {
   cerrarMenuDrawer: () => void;
   toggleMenuDrawer: () => void;
 
+  // Acciones - Asistente Coyo
+  abrirAsistenteCoyo: () => void;
+  cerrarAsistenteCoyo: () => void;
+  toggleAsistenteCoyo: () => void;
+
   // Acciones - ChatYA
   abrirChatYA: () => void;
   cerrarChatYA: () => void;
@@ -142,6 +150,7 @@ export const useUiStore = create<UiState>((set) => ({
   datos2FA: null,
   modalUbicacionAbierto: false,
   menuDrawerAbierto: false,
+  asistenteCoyoAbierto: false,
   chatYAAbierto: false,
   chatYAMinimizado: false,
   chatAbiertoDesdeModal: false,
@@ -272,6 +281,10 @@ export const useUiStore = create<UiState>((set) => ({
    * que el usuario consume con un back extra al regresar — trade-off
    * aceptable para mantener la jerarquía intacta.
    */
+  abrirAsistenteCoyo: () => set({ asistenteCoyoAbierto: true }),
+  cerrarAsistenteCoyo: () => set({ asistenteCoyoAbierto: false }),
+  toggleAsistenteCoyo: () => set((state) => ({ asistenteCoyoAbierto: !state.asistenteCoyoAbierto })),
+
   abrirChatYA: () => {
     let cuentaMarcas = 0;
     if (typeof window !== 'undefined') {
@@ -434,6 +447,7 @@ export const useUiStore = create<UiState>((set) => ({
       modalLoginAbierto: false,
       modalUbicacionAbierto: false,
       menuDrawerAbierto: false,
+      asistenteCoyoAbierto: false,
       chatYAAbierto: false,
       chatYAMinimizado: false,
       // No reseteamos `chatAbiertoDesdeModal` aquí — ver comentario en

@@ -107,8 +107,14 @@ export default function PaginaPerfilPersonal() {
     const { data, isPending, isError, refetch } = useMiMembresia();
     const [searchParams, setSearchParams] = useSearchParams();
     // Permite aterrizar directo en una pestaña vía ?tab= (p. ej. al volver de Stripe tras pagar/renovar
-    // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad").
-    const [tabActivo, setTabActivo] = useState<TabPerfil>(() => (searchParams.get('tab') === 'pagos' ? 'membresia' : 'datos'));
+    // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad"; ?tab=seguridad
+    // lo usa el Asistente Coyo para llevar directo a cambiar contraseña / 2FA).
+    const [tabActivo, setTabActivo] = useState<TabPerfil>(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'pagos') return 'membresia';
+        if (tab === 'seguridad') return 'seguridad';
+        return 'datos';
+    });
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
     // Sub-navegación interna del tab cuando hay negocio + publicidad: separa "Membresía" de "Publicidad".
     // Al volver de Stripe tras pagar/renovar un anuncio (?publicidad=), arranca en "Publicidad".

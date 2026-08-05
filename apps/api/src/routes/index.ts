@@ -52,6 +52,7 @@ import publicidadPublicaRoutes from './publicidadPublica.routes';
 import adminRoutes from './admin/index.js';
 import ayudaRoutes from './ayuda.routes';
 import dinamicasRoutes from './dinamicas.routes';
+import asistenteRoutes from './asistente.routes';
 
 const router: Router = Router();
 
@@ -177,5 +178,8 @@ router.use('/coyo', coyoRoutes);
 
 // Rutas de Dinámicas (rifas P2P dentro de MarketPlace — Fase 1, sin UI todavía)
 router.use('/dinamicas', dinamicasRoutes);
+
+// Rutas del Asistente Coyo (FAB global — Fase 1, MarketPlace)
+router.use('/asistente', asistenteRoutes);
 
 export default router;

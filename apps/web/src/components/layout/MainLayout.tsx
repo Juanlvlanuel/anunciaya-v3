@@ -34,6 +34,7 @@ import { BottomNav } from './BottomNav';
 import { MenuDrawer } from './MenuDrawer';
 import { ModalUbicacion } from './ModalUbicacion';
 import { ChatOverlay } from './ChatOverlay';
+import { PanelAsistenteCoyo } from '../asistente/PanelAsistenteCoyo';
 import { BannerActivarPush } from './BannerActivarPush';
 import { ColumnaIzquierda } from './ColumnaIzquierda';
 import { ColumnaDerecha } from './ColumnaDerecha';
@@ -511,6 +512,7 @@ export function MainLayout() {
           )}
 
           <ChatOverlay />
+          <PanelAsistenteCoyo />
           <PanelNotificaciones />
           <ModalPagoPublicidad />
           <BannerActivarPush />

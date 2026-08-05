@@ -38,6 +38,7 @@ const Wrench = ({ className = '', ...p }: IconoWrapperProps) => (
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useSearchStore, detectarSeccion, placeholderSeccion } from '../../stores/useSearchStore';
 import { useUiStore } from '../../stores/useUiStore';
+import { FILTRO_CONTORNO_COYO } from '../../config/estilosCoyo';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -218,6 +219,7 @@ export const Navbar = () => {
 
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
   const toggleChatYA = useUiStore((state) => state.toggleChatYA);
+  const toggleAsistenteCoyo = useUiStore((state) => state.toggleAsistenteCoyo);
   // GPS Store
   const ciudad = useGpsStore((state) => state.ciudad);
   const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);
@@ -646,6 +648,33 @@ export const Navbar = () => {
 
             {/* ===== ACCIONES ===== */}
             <div className="flex items-center gap-2 lg:gap-2 2xl:gap-4 shrink-0 lg:mr-4 2xl:mr-0">
+
+              {/* Asistente Coyo */}
+              <button
+                type="button"
+                data-testid="nav-asistente-coyo"
+                data-asistente-coyo-boton="true"
+                aria-label="Abrir asistente Coyo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  toggleAsistenteCoyo();
+                }}
+                className="
+                  relative
+                  flex items-center justify-center
+                  transition-transform
+                  hover:scale-110
+                  cursor-pointer
+                "
+              >
+                <img
+                  src="/cabeza-coyo.webp"
+                  alt="Coyo"
+                  className="w-7 h-7 lg:w-9 lg:h-9 2xl:w-9 2xl:h-9 object-contain"
+                  style={{ filter: FILTRO_CONTORNO_COYO }}
+                />
+              </button>
 
               {/* ChatYA */}
               <button

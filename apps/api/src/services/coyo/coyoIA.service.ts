@@ -23,7 +23,7 @@
  * Ubicación: apps/api/src/services/coyo/coyoIA.service.ts
  */
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, FunctionCallingConfigMode, type FunctionDeclaration, type FunctionCall, type Part } from '@google/genai';
 import { env } from '../../config/env.js';
 import {
     obtenerCatalogoCategorias,
@@ -31,6 +31,8 @@ import {
     obtenerCatalogoMarketplace,
     formatearCatalogoMarketplaceParaPrompt,
 } from './categoriasCatalogo.service.js';
+import { obtenerCategoriasMarketplace } from '../marketplace/categorias.js';
+import { CAPACIDADES_ASISTENTE, type Capacidad } from '../asistente/capacidades.js';
 
 // =============================================================================
 // PERSONALIDAD DE COYO — EDITABLE
@@ -152,12 +154,20 @@ function esErrorTransitorio(error: unknown): boolean {
 type ContenidoGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['contents'];
 
 /**
+ * Config opcional que aceptan algunas llamadas (ej. `tools` de function
+ * calling para `interpretarPeticionAsistente`). La mayoría de las funciones
+ * de esta cajita no la usan — queda `undefined` y `generateContent` se llama
+ * sin `config`, igual que antes.
+ */
+type ConfigGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['config'];
+
+/**
  * Llama a Gemini con resiliencia: reintenta el modelo principal hasta 3
  * veces con backoff (0s → 1s → 3s), y si todos los reintentos fallan
  * con errores transitorios, intenta con el modelo de respaldo.
  *
- * Devuelve `{ texto, modelo }` si alguna llamada funcionó, o `null` si
- * fallaron todas las combinaciones (modelo principal × 3 intentos +
+ * Devuelve `{ texto, modelo, functionCalls }` si alguna llamada funcionó, o
+ * `null` si fallaron todas las combinaciones (modelo principal × 3 intentos +
  * modelo fallback × 3 intentos = 6 intentos antes de rendirse).
  *
  * Los errores permanentes (4xx excepto 408/429) NO se reintentan y
@@ -166,7 +176,8 @@ type ContenidoGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['
 async function llamarGeminiConReintento(
     cliente: GoogleGenAI,
     contents: ContenidoGemini,
-): Promise<{ texto: string; modelo: string } | null> {
+    config?: ConfigGemini,
+): Promise<{ texto: string; modelo: string; functionCalls?: FunctionCall[] } | null> {
     const modelos = [MODELO_GEMINI_PRINCIPAL, MODELO_GEMINI_FALLBACK];
 
     for (const modelo of modelos) {
@@ -179,6 +190,7 @@ async function llamarGeminiConReintento(
                 const r = await cliente.models.generateContent({
                     model: modelo,
                     contents,
+                    ...(config ? { config } : {}),
                 });
                 if (intento > 0 || modelo !== MODELO_GEMINI_PRINCIPAL) {
                     // Solo loguear cuando hubo recuperación (no en el path feliz)
@@ -186,7 +198,7 @@ async function llamarGeminiConReintento(
                         `Coyo IA — recuperado con ${modelo} en intento ${intento + 1}`,
                     );
                 }
-                return { texto: r.text ?? '', modelo };
+                return { texto: r.text ?? '', modelo, functionCalls: r.functionCalls };
             } catch (error) {
                 const transitorio = esErrorTransitorio(error);
                 if (!transitorio) {
@@ -672,7 +684,147 @@ RESPONDE SOLO con el texto de Coyo, SIN comillas envolventes, SIN bloques markdo
 }
 
 // =============================================================================
-// FUNCIÓN 3 — sugerirDatosArticulo (MarketPlace)
+// FUNCIÓN 3 — interpretarPeticionAsistente (FAB global — Fase 1)
+// =============================================================================
+//
+// A diferencia de interpretarPregunta (solo lectura, siempre busca), esta
+// función decide entre EJECUTAR una capacidad del catálogo (function calling
+// de Gemini) o hacer una PREGUNTA DE ACLARACIÓN en texto plano cuando falta
+// un dato obligatorio. Nunca inventa parámetros que el usuario no dio.
+
+/** Un turno de la conversación ya mostrado en el panel — se manda como contexto para que Gemini recuerde datos de turnos anteriores (ej. "vendo mi bici" → "800 pesos"). */
+export interface TurnoChatAsistente {
+    rol: 'usuario' | 'coyo';
+    texto: string;
+}
+
+export interface ContextoAppAsistente {
+    /** Ruta actual del usuario en la app (ej. "/marketplace"). */
+    rutaActual: string;
+    /** true si el usuario está navegando en modo comercial (Business Studio). */
+    modoComercial?: boolean;
+}
+
+/** Resultado de interpretar una petición: o Gemini decide EJECUTAR una capacidad, o hace una PREGUNTA porque falta un dato obligatorio. */
+export type ResultadoAsistente =
+    | { tipo: 'accion'; capacidad: string; parametros: Record<string, unknown> }
+    | { tipo: 'pregunta'; texto: string };
+
+const PROMPT_ASISTENTE_ACCIONES = `Además de responder, ahora también puedes EJECUTAR acciones dentro de la app llamando a una de las funciones disponibles.
+
+REGLA MÁS IMPORTANTE: solo llama una función cuando tengas TODOS sus datos obligatorios. Si al usuario le falta dar un dato obligatorio (ej. no dijo qué quiere vender, o pidió crear una publicación sin decir el modo), NO llames ninguna función — responde en texto plano, breve y cálido, preguntando JUSTO el dato que falta. Nunca inventes ni asumas un valor que el usuario no dio.
+
+Usa la conversación reciente como contexto: si en un turno anterior el usuario ya dio un dato (ej. "vendo mi bicicleta") y en el turno actual solo completa lo que faltaba (ej. "800 pesos"), combina ambos turnos para decidir si ya puedes ejecutar la función.
+
+Si el usuario pide algo que no corresponde a ninguna función disponible y tampoco es una pregunta de información, dile con calidez que todavía no sabes ayudar con eso.`;
+
+/**
+ * Convierte el catálogo de capacidades (`services/asistente/capacidades.ts`,
+ * agnóstico de proveedor de IA) al shape `FunctionDeclaration` que espera
+ * `@google/genai`. Esta es la ÚNICA función que traduce entre ambos — el
+ * catálogo en sí no conoce el SDK de Gemini.
+ */
+function capacidadesComoFunctionDeclarations(
+    capacidades: Capacidad[],
+): FunctionDeclaration[] {
+    return capacidades.map((cap) => ({
+        name: cap.nombre,
+        description: cap.descripcion,
+        parametersJsonSchema: {
+            type: 'object',
+            properties: Object.fromEntries(
+                cap.parametros.map((p) => [
+                    p.nombre,
+                    {
+                        type: p.tipo,
+                        description: p.descripcion,
+                        ...(p.enumValues ? { enum: p.enumValues } : {}),
+                    },
+                ]),
+            ),
+            required: cap.parametros.filter((p) => p.obligatorio).map((p) => p.nombre),
+        },
+    }));
+}
+
+/**
+ * Interpreta un turno del Asistente Coyo (FAB global): texto y/o audio, con
+ * el historial reciente del chat como contexto. Devuelve o una acción a
+ * ejecutar (capacidad + parámetros) o una pregunta de aclaración en texto.
+ *
+ * @example
+ *   const r = await interpretarPeticionAsistente(
+ *     { texto: 'quiero vender mi bicicleta en 800' },
+ *     [],
+ *     { rutaActual: '/marketplace' },
+ *   );
+ *   if (r.disponible && r.data.tipo === 'accion') { ... }
+ */
+export async function interpretarPeticionAsistente(
+    turnoActual: { texto?: string; audioBase64?: string; audioMimeType?: string },
+    historialReciente: TurnoChatAsistente[],
+    contextoApp: ContextoAppAsistente,
+): Promise<RespuestaIA<ResultadoAsistente>> {
+    const cliente = obtenerCliente();
+    if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
+
+    let promptTexto = `${PERSONALIDAD_COYO}\n\n${PROMPT_ASISTENTE_ACCIONES}\n\nContexto: el usuario está en la ruta "${contextoApp.rutaActual}"${contextoApp.modoComercial ? ', en modo comercial (Business Studio)' : ''}.`;
+
+    if (historialReciente.length > 0) {
+        const historialTexto = historialReciente
+            .map((t) => `${t.rol === 'usuario' ? 'Usuario' : 'Coyo'}: ${t.texto}`)
+            .join('\n');
+        promptTexto += `\n\nConversación reciente:\n${historialTexto}`;
+    }
+
+    if (turnoActual.texto) {
+        promptTexto += `\n\nUsuario: ${turnoActual.texto}`;
+    } else if (turnoActual.audioBase64) {
+        promptTexto += `\n\nEl usuario mandó un mensaje de VOZ (adjunto). Escúchalo y responde según su contenido.`;
+    }
+
+    const parts: Part[] = [{ text: promptTexto }];
+    if (turnoActual.audioBase64 && turnoActual.audioMimeType) {
+        parts.push({
+            inlineData: { mimeType: turnoActual.audioMimeType, data: turnoActual.audioBase64 },
+        });
+    }
+
+    const contents: ContenidoGemini = [{ role: 'user', parts }];
+
+    const respuesta = await llamarGeminiConReintento(cliente, contents, {
+        tools: [{ functionDeclarations: capacidadesComoFunctionDeclarations(CAPACIDADES_ASISTENTE) }],
+        toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
+    });
+
+    if (respuesta === null) {
+        console.warn('Coyo IA — interpretarPeticionAsistente agotó reintentos y fallback de Gemini');
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    const llamada = respuesta.functionCalls?.[0];
+    if (llamada && llamada.name) {
+        const capacidadValida = CAPACIDADES_ASISTENTE.some((c) => c.nombre === llamada.name);
+        if (!capacidadValida) {
+            console.warn('Coyo IA — interpretarPeticionAsistente: Gemini llamó una capacidad desconocida', llamada.name);
+            return { disponible: false, razon: 'error_parseo' };
+        }
+        return {
+            disponible: true,
+            data: { tipo: 'accion', capacidad: llamada.name, parametros: llamada.args ?? {} },
+        };
+    }
+
+    const texto = respuesta.texto.trim();
+    if (texto.length === 0) {
+        console.warn('Coyo IA — interpretarPeticionAsistente: Gemini no llamó función ni devolvió texto');
+        return { disponible: false, razon: 'error_parseo' };
+    }
+    return { disponible: true, data: { tipo: 'pregunta', texto } };
+}
+
+// =============================================================================
+// FUNCIÓN 4 — sugerirDatosArticulo (MarketPlace)
 // =============================================================================
 //
 // Analiza la foto de un artículo de MarketPlace y sugiere título, descripción
@@ -692,6 +844,8 @@ export interface ArticuloSugerido {
     titulo: string;
     descripcion: string;
     condicion: CondicionSugerida;
+    /** ID de `categorias_marketplace`, resuelto por nombre — `null` si Gemini no distingue una categoría clara en la foto. */
+    categoriaId: number | null;
 }
 
 const PROMPT_SUGERIR_ARTICULO = `Estás viendo la foto de un artículo que un vecino quiere vender en AnunciaYA, una app de comercio local. Genera un título y una descripción breves basados ÚNICAMENTE en lo que se ve en la imagen.
@@ -713,8 +867,10 @@ Si la foto no da suficiente detalle para 3-4 viñetas, incluye solo las que pued
 
 CONDICIÓN: elige UNA de estas 4 opciones basándote SOLO en el desgaste FÍSICO VISIBLE en la foto (nunca en si funciona o no): "nuevo" (se ve sin uso, con empaque o etiquetas), "seminuevo" (uso mínimo, sin desgaste visible notorio), "usado" (desgaste visible normal), "para_reparar" (daño o rotura visible). Si la foto no permite distinguir el desgaste con confianza, responde null — mejor omitir que adivinar.
 
+CATEGORÍA: elige la categoría que mejor describa el artículo, ÚNICAMENTE de la lista real que se te da más abajo en "CATEGORÍAS DISPONIBLES". Responde el nombre EXACTO tal cual aparece en la lista en el campo "categoriaNombre". Si ninguna categoría de la lista corresponde con confianza, responde null — nunca inventes una categoría que no esté en la lista.
+
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
-{"titulo": "...", "descripcion": "...", "condicion": "nuevo"|"seminuevo"|"usado"|"para_reparar"|null}`;
+{"titulo": "...", "descripcion": "...", "condicion": "nuevo"|"seminuevo"|"usado"|"para_reparar"|null, "categoriaNombre": "..."|null}`;
 
 /**
  * Analiza la foto de un artículo (ya subida a R2, URL pública) y sugiere
@@ -731,7 +887,10 @@ export async function sugerirDatosArticulo(
     const cliente = obtenerCliente();
     if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
 
-    const imagen = await descargarImagenComoBase64(imagenUrl);
+    const [imagen, categorias] = await Promise.all([
+        descargarImagenComoBase64(imagenUrl),
+        obtenerCategoriasMarketplace(),
+    ]);
     if (imagen === null) {
         console.warn(
             'Coyo IA — sugerirDatosArticulo: no se pudo descargar la imagen',
@@ -740,11 +899,16 @@ export async function sugerirDatosArticulo(
         return { disponible: false, razon: 'error_gemini' };
     }
 
+    let promptCompleto = PROMPT_SUGERIR_ARTICULO;
+    if (categorias.length > 0) {
+        promptCompleto += `\n\nCATEGORÍAS DISPONIBLES:\n${categorias.map((c) => `- ${c.nombre}`).join('\n')}`;
+    }
+
     const contents: ContenidoGemini = [
         {
             role: 'user',
             parts: [
-                { text: PROMPT_SUGERIR_ARTICULO },
+                { text: promptCompleto },
                 { inlineData: { mimeType: imagen.mimeType, data: imagen.data } },
             ],
         },
@@ -761,8 +925,19 @@ export async function sugerirDatosArticulo(
     try {
         const limpio = limpiarJsonDeGemini(respuesta.texto);
         const parseado: unknown = JSON.parse(limpio);
-        if (esArticuloSugerido(parseado)) {
-            return { disponible: true, data: parseado };
+        if (esArticuloSugeridoCrudo(parseado)) {
+            const categoriaEncontrada = categorias.find(
+                (c) => c.nombre === parseado.categoriaNombre,
+            );
+            return {
+                disponible: true,
+                data: {
+                    titulo: parseado.titulo,
+                    descripcion: parseado.descripcion,
+                    condicion: parseado.condicion,
+                    categoriaId: categoriaEncontrada?.id ?? null,
+                },
+            };
         }
         console.warn(
             'Coyo IA — sugerirDatosArticulo: JSON con shape inválido',
@@ -825,12 +1000,15 @@ const CONDICIONES_SUGERIDAS_VALIDAS = new Set([
     'para_reparar',
 ]);
 
+/** Shape crudo que devuelve Gemini para `sugerirDatosArticulo`, antes de resolver `categoriaNombre` → `categoriaId`. */
+type ArticuloSugeridoCrudo = Omit<ArticuloSugerido, 'categoriaId'> & { categoriaNombre: string | null };
+
 /**
  * Type guard defensivo para la respuesta de `sugerirDatosArticulo` — protege
  * contra Gemini devolviendo un JSON con otro shape o una `condicion` fuera
  * del enum esperado.
  */
-function esArticuloSugerido(v: unknown): v is ArticuloSugerido {
+function esArticuloSugeridoCrudo(v: unknown): v is ArticuloSugeridoCrudo {
     if (typeof v !== 'object' || v === null) return false;
     const obj = v as Record<string, unknown>;
     if (typeof obj.titulo !== 'string' || typeof obj.descripcion !== 'string') {
@@ -840,6 +1018,9 @@ function esArticuloSugerido(v: unknown): v is ArticuloSugerido {
         obj.condicion !== null &&
         !(typeof obj.condicion === 'string' && CONDICIONES_SUGERIDAS_VALIDAS.has(obj.condicion))
     ) {
+        return false;
+    }
+    if (obj.categoriaNombre !== null && typeof obj.categoriaNombre !== 'string') {
         return false;
     }
     return true;

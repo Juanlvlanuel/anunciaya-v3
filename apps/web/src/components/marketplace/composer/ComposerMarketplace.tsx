@@ -93,6 +93,7 @@ import { notificar } from '../../../utils/notificaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useBloqueoAutoReloadStore } from '../../../stores/useBloqueoAutoReloadStore';
+import { useComposerPrefillStore } from '../../../stores/composerPrefillStore';
 import { Spinner } from '../../ui/Spinner';
 import type {
     ArticuloMarketplaceDetalle,
@@ -353,6 +354,28 @@ export function ComposerMarketplace({
         actualizar({ modo: intencionInicial });
     }, [esEdicion, intencionInicial, actualizar]);
 
+    // ─── Prefill del Asistente Coyo (FAB global) ─────────────────────
+    // Se consume (lee + limpia) al montar, nunca en edición. `consumir` ya
+    // limpia el store al leer; el cleanup de abajo es una red de seguridad
+    // extra por si el componente se desmonta entre el set y el consumo
+    // (ej. HMR, back muy rápido) — nunca debe quedar un prefill viejo
+    // esperando la próxima vez que alguien abra el composer a mano.
+    useEffect(() => {
+        if (esEdicion) return;
+        const prefill = useComposerPrefillStore.getState().consumir();
+        if (prefill) {
+            actualizar({
+                ...(prefill.titulo ? { titulo: prefill.titulo.slice(0, TITULO_MAX) } : {}),
+                ...(prefill.descripcion ? { descripcion: prefill.descripcion.slice(0, DESC_MAX) } : {}),
+                ...(prefill.precio !== undefined ? { precio: String(prefill.precio) } : {}),
+                ...(prefill.categoriaId ? { categoriaId: prefill.categoriaId } : {}),
+            });
+        }
+        return () => {
+            useComposerPrefillStore.getState().consumir();
+        };
+    }, [esEdicion, actualizar]);
+
     // ─── Mutations ───────────────────────────────────────────────────
     const crearMutation = useCrearArticulo();
     const actualizarMutation = useActualizarArticulo();
@@ -376,6 +399,7 @@ export function ComposerMarketplace({
                 titulo: res.data.titulo.slice(0, TITULO_MAX),
                 descripcion: res.data.descripcion.slice(0, DESC_MAX),
                 condicion: res.data.condicion,
+                ...(res.data.categoriaId !== null ? { categoriaId: res.data.categoriaId } : {}),
             });
         }
     }

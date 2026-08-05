@@ -51,3 +51,17 @@ export const limitadorVerificacionCorreo = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Límite para el Asistente Coyo (FAB global): 300 dev, 20 prod por minuto.
+// Cada llamada dispara Gemini (texto/audio/imagen) — más estricto que el
+// general para acotar costo y abuso, sin bloquear una conversación normal.
+export const limitadorAsistente = rateLimit({
+  windowMs: 60 * 1000,
+  max: isDev ? 300 : 20,
+  message: {
+    success: false,
+    message: 'Demasiadas peticiones al asistente, espera un momento',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
