@@ -45,6 +45,16 @@ interface SeccionFeedArticulosProps {
     esModoPersonal: boolean;
     esEscritorio: boolean;
     cargandoGps: boolean;
+    /** Si esta sección está visible ahora mismo (el padre la alterna con
+     *  `hidden` en vez de desmontarla — ver `PaginaMarketplace.tsx`). Sirve
+     *  para re-medir la columna fija al volver a mostrarse: mientras estuvo
+     *  oculta pudo cambiar el ancho de scrollbar vertical de la página (la
+     *  otra sección puede tener más/menos contenido), lo que corre el
+     *  contenido centrado (`mx-auto`) unos px — un cambio de POSICIÓN, no de
+     *  tamaño del propio placeholder, así que el `ResizeObserver` de abajo no
+     *  lo detecta solo. Sin este re-medido se ve la columna "saltar" a su
+     *  posición correcta un instante después de volver a Artículos. */
+    visible: boolean;
     /** Borde inferior del header sticky (px) — ancla la columna fija "Recién publicado". */
     headerBottom: number;
     cuerpoRef: RefObject<HTMLDivElement | null>;
@@ -64,6 +74,7 @@ export function SeccionFeedArticulos({
     esModoPersonal,
     esEscritorio,
     cargandoGps,
+    visible,
     headerBottom,
     cuerpoRef,
     modoFeed,
@@ -131,9 +142,14 @@ export function SeccionFeedArticulos({
     // el primer render (sin `position: sticky`), con auto-scroll vertical y
     // pausa al hover. Como este componente ahora se queda MONTADO siempre
     // (solo se oculta con `hidden` al cambiar de contexto), el
-    // `ResizeObserver` se re-dispara solo al des-ocultarse (display:none→real
-    // cambia el tamaño observado) — no hace falta ningún dep extra para
-    // "recordar remedir" como sí hacía falta con el patrón de desmontaje. ──
+    // `ResizeObserver` NO alcanza solo: detecta que el propio placeholder
+    // cambia de TAMAÑO, pero mientras Artículos está oculto puede cambiar el
+    // scrollbar vertical de la página (Dinámicas tiene más/menos contenido) y
+    // eso corre el contenido centrado (`mx-auto`) unos px — un cambio de
+    // POSICIÓN del placeholder, no de su tamaño, que el observer no ve. Por
+    // eso `visible` (prop) entra en las deps de abajo: fuerza un re-medido
+    // apenas la sección se vuelve a mostrar, antes del paint (misma técnica
+    // que ya resolvía el caso de filtrar por categoría). ──────────────────
     const cardsScrollRef = useRef<HTMLDivElement>(null);
     const cardsPlaceholderRef = useRef<HTMLDivElement>(null);
     const [cardsLeft, setCardsLeft] = useState<number | null>(null);
@@ -154,7 +170,7 @@ export function SeccionFeedArticulos({
             observer.disconnect();
             window.removeEventListener('resize', medir);
         };
-    }, [hayColumnaCards, articulosFeedSinReel.length]);
+    }, [hayColumnaCards, articulosFeedSinReel.length, visible]);
 
     useLayoutEffect(() => {
         const el = cardsHeadingRef.current;
