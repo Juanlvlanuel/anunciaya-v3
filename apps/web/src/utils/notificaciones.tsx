@@ -201,56 +201,78 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
           width: 'min(440px, calc(100vw - 32px))',
         }}
       >
-        {/* Contenido — padding lateral generoso para respetar el rounded-full */}
-        <div className="flex items-center gap-3 px-5 py-3">
-          {/* Ícono blanco dentro de círculo sólido del color semántico
-              (estilo handoff design_handoff_menu_drawer). */}
-          <div
-            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full"
-            style={{ background: config.color }}
-            aria-hidden="true"
-          >
-            {config.icon}
-          </div>
-
-          {/* Texto — flex-1 para empujar la X al borde derecho */}
-          <div className="min-w-0 flex-1">
-            {notificacion.titulo && (
-              <p className="text-[15px] font-bold text-slate-800 leading-tight">
-                {notificacion.titulo}
-              </p>
-            )}
-            <p
-              className={`text-[15px] leading-snug ${
-                notificacion.titulo ? 'text-slate-600 font-medium mt-0.5' : 'text-slate-700 font-semibold'
-              }`}
-            >
-              {notificacion.mensaje}
-            </p>
-          </div>
-
-          {/* Acción opcional (ej. "Reintentar") — antes de la X */}
-          {notificacion.accion && (
-            <button
-              onClick={() => {
-                notificacion.accion!.onClick();
-                cerrar();
-              }}
-              className="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-bold text-white transition-colors lg:cursor-pointer"
+        {/* Contenido — padding lateral generoso para respetar el rounded-full.
+            En móvil, texto+ícono+X van en su fila y "Reintentar" baja a una fila
+            propia: si el botón compartiera la fila con el texto, este se quedaba
+            con muy poco ancho y el mensaje se partía en varias líneas cortas. */}
+        <div className="flex flex-col gap-2 px-5 py-3">
+          <div className="flex items-center gap-3">
+            {/* Ícono blanco dentro de círculo sólido del color semántico
+                (estilo handoff design_handoff_menu_drawer). */}
+            <div
+              className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full"
               style={{ background: config.color }}
+              aria-hidden="true"
             >
-              {notificacion.accion.etiqueta}
-            </button>
-          )}
+              {config.icon}
+            </div>
 
-          {/* Cerrar — círculo gris discreto */}
-          <button
-            onClick={cerrar}
-            aria-label="Cerrar notificación"
-            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-slate-200/70 text-slate-600 backdrop-blur-sm transition-colors lg:cursor-pointer lg:hover:bg-slate-300/80"
-          >
-            <X className="w-4 h-4" strokeWidth={2.5} />
-          </button>
+            {/* Texto — flex-1 para empujar la X al borde derecho */}
+            <div className="min-w-0 flex-1">
+              {notificacion.titulo && (
+                <p className="text-[15px] font-bold text-slate-800 leading-tight">
+                  {notificacion.titulo}
+                </p>
+              )}
+              <p
+                className={`text-[15px] leading-snug ${
+                  notificacion.titulo ? 'text-slate-600 font-medium mt-0.5' : 'text-slate-700 font-semibold'
+                }`}
+              >
+                {notificacion.mensaje}
+              </p>
+            </div>
+
+            {/* Acción opcional (ej. "Reintentar") — inline junto al texto solo en
+                desktop; en móvil se muestra debajo (ver fila siguiente). */}
+            {notificacion.accion && (
+              <button
+                onClick={() => {
+                  notificacion.accion!.onClick();
+                  cerrar();
+                }}
+                className="hidden lg:block shrink-0 rounded-full px-3 py-1.5 text-[13px] font-bold text-white transition-colors lg:cursor-pointer"
+                style={{ background: config.color }}
+              >
+                {notificacion.accion.etiqueta}
+              </button>
+            )}
+
+            {/* Cerrar — círculo gris discreto */}
+            <button
+              onClick={cerrar}
+              aria-label="Cerrar notificación"
+              className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-slate-200/70 text-slate-600 backdrop-blur-sm transition-colors lg:cursor-pointer lg:hover:bg-slate-300/80"
+            >
+              <X className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* Acción en móvil — fila propia, alineada a la derecha */}
+          {notificacion.accion && (
+            <div className="flex lg:hidden justify-end">
+              <button
+                onClick={() => {
+                  notificacion.accion!.onClick();
+                  cerrar();
+                }}
+                className="shrink-0 rounded-full px-4 py-1.5 text-[13px] font-bold text-white transition-colors"
+                style={{ background: config.color }}
+              >
+                {notificacion.accion.etiqueta}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Barra de progreso — fina, en la base. Recortada por el rounded-full
