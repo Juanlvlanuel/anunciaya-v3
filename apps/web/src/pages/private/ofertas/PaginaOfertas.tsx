@@ -118,6 +118,12 @@ export default function PaginaOfertas() {
     return () => el.removeEventListener('scroll', onScroll);
   }, [cuerpoRef]);
 
+  // Alto real del overlay de subtítulo+chips de `HeaderOfertas` (`position:
+  // absolute`, no reserva espacio por sí solo). Se usa para un espaciador
+  // que empuja el inicio del feed hacia abajo cuando el overlay está
+  // expandido — si no, el overlay queda tapando el primer bloque del feed.
+  const [alturaOverlayHeader, setAlturaOverlayHeader] = useState(0);
+
   // Cleanup al unmount: resetea filtros locales (chip) y limpia el buscador
   // GLOBAL del Navbar para no contaminar las otras secciones.
   useEffect(() => {
@@ -417,16 +423,19 @@ export default function PaginaOfertas() {
       {/* `lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8`.                        */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="shrink-0 z-30 lg:sticky lg:top-0">
-        <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
-          {/* Capa intermedia: aplica `lg:rounded-b-3xl overflow-hidden`   */}
-          {/* al header (que ya incluye los chips). Igual a PaginaNegocios. */}
-          <div className="overflow-hidden lg:rounded-b-3xl">
-            <HeaderOfertas
-              totalOfertas={ofertas.length}
-              ciudad={ciudadNombre}
-              headerColapsado={headerColapsado}
-            />
-          </div>
+        {/* `relative`: contexto de posicionamiento para el overlay de
+            subtítulo+chips (`position: absolute`) que arma `HeaderOfertas`
+            internamente — el redondeado `lg:rounded-b-3xl` y el
+            `overflow-hidden` ahora los aplica el propio panel dentro de
+            `HeaderOfertas` (igual que PaginaNegocios), no esta capa: si
+            quedara aquí, recortaría el overlay que sobresale por abajo. */}
+        <div className="relative lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
+          <HeaderOfertas
+            totalOfertas={ofertas.length}
+            ciudad={ciudadNombre}
+            headerColapsado={headerColapsado}
+            onAlturaOverlayCambio={setAlturaOverlayHeader}
+          />
         </div>
       </div>
 
@@ -440,6 +449,17 @@ export default function PaginaOfertas() {
       {/* secciones). El header sticky de arriba mantiene `max-w-7xl`.      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-6 pb-24 lg:flex-none lg:overflow-visible lg:px-6 lg:max-w-7xl lg:mx-auto lg:pt-8 lg:pb-0 2xl:px-4 2xl:max-w-[920px] 2xl:pb-0">
+        {/* Espaciador — el overlay de subtítulo+chips de `HeaderOfertas` no
+            reserva espacio real; cuando está expandido queda ENCIMA del
+            inicio del feed. Empuja el contenido hacia abajo esa misma
+            distancia, con la MISMA curva/duración del overlay. */}
+        <div
+          className="lg:hidden"
+          style={{
+            height: headerColapsado ? 0 : alturaOverlayHeader,
+            transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        />
         {/* Refresco tipo Facebook: ícono de Ofertas (Tag) con anillo
             giratorio amber — `absolute` relativo a este contenedor, así
             queda ENCIMA de todo el feed sin importar el orden del DOM. */}

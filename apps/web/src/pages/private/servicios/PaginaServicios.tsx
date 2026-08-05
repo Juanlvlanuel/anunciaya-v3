@@ -131,6 +131,12 @@ export function PaginaServicios() {
         return () => el.removeEventListener('scroll', onScroll);
     }, [cuerpoRef]);
 
+    // Alto real del overlay de subtítulo+tabs de `ServiciosHeader` (`position:
+    // absolute`, no reserva espacio por sí solo). Se usa para un espaciador
+    // que empuja el inicio del feed hacia abajo cuando el overlay está
+    // expandido — si no, el overlay queda tapando el primer bloque del feed.
+    const [alturaOverlayHeader, setAlturaOverlayHeader] = useState(0);
+
     // ─── Stores ────────────────────────────────────────────────────────────
     // CRÍTICO: la ciudad se lee del mismo store que usa el Navbar global
     // (`useGpsStore.ciudad.nombre`) para mantener consistencia con MarketPlace
@@ -664,10 +670,22 @@ export function PaginaServicios() {
                 onTabChange={setTabActiva}
                 conteosPorTab={conteosPorTab}
                 headerColapsado={headerColapsado}
+                onAlturaOverlayCambio={setAlturaOverlayHeader}
             />
 
             {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
             <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[1068px] 2xl:px-0 lg:py-6 2xl:py-8">
+                {/* Espaciador — el overlay de subtítulo+tabs de `ServiciosHeader`
+                    no reserva espacio real; cuando está expandido queda ENCIMA
+                    del inicio del feed. Empuja el contenido hacia abajo esa
+                    misma distancia, con la MISMA curva/duración del overlay. */}
+                <div
+                    className="lg:hidden"
+                    style={{
+                        height: headerColapsado ? 0 : alturaOverlayHeader,
+                        transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                />
                 {/* Refresco tipo Facebook: ícono de Servicios (Wrench) con
                     anillo giratorio sky — `absolute` relativo a `cuerpoRef`
                     (arriba), así queda ENCIMA del reel/composer sin importar

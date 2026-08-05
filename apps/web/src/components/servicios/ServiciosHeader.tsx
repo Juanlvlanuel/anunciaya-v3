@@ -73,6 +73,11 @@ interface ServiciosHeaderProps {
     /** Colapsa el subtítulo + tabs móviles al hacer scroll (solo variante='feed';
      *  ver PaginaServicios). */
     headerColapsado?: boolean;
+    /** Alto real (px) del overlay de subtítulo+tabs (solo variante='feed') —
+     *  el padre lo usa para empujar el inicio del feed hacia abajo esa misma
+     *  distancia cuando el overlay está expandido (el overlay es `position:
+     *  absolute`, no reserva espacio por sí solo). Ver PaginaServicios. */
+    onAlturaOverlayCambio?: (altura: number) => void;
 }
 
 export function ServiciosHeader({
@@ -89,9 +94,23 @@ export function ServiciosHeader({
     breadcrumb,
     subtituloMobile,
     headerColapsado = false,
+    onAlturaOverlayCambio,
 }: ServiciosHeaderProps) {
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
+
+    // Mide el alto real del overlay (natural, no afectado por `transform`) y
+    // se lo reporta al padre — ver `onAlturaOverlayCambio` en la interfaz.
+    const overlayRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = overlayRef.current;
+        if (!el || !onAlturaOverlayCambio) return;
+        const medir = () => onAlturaOverlayCambio(el.offsetHeight);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [onAlturaOverlayCambio]);
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
 
     // ─── Buscador móvil ─────────────────────────────────────────────────────
@@ -130,9 +149,11 @@ export function ServiciosHeader({
     return (
         <>
         <div ref={stickyRef} className={appShell ? 'shrink-0 z-20 lg:sticky lg:top-0' : 'sticky top-0 z-20'}>
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+            {/* `relative`: contexto de posicionamiento para el overlay de
+                subtítulo+tabs (`position: absolute`, solo variante='feed'). */}
+            <div className="relative lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                 <div
-                    className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                    className="relative z-20 overflow-hidden rounded-none lg:rounded-b-3xl"
                     style={{ background: '#000000' }}
                 >
                     {/* Glow sky arriba-derecha */}
@@ -157,11 +178,16 @@ export function ServiciosHeader({
                         className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
                         style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
                     />
-                    {/* Línea de acento inferior (sky) */}
-                    <div
-                        className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
-                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
-                    />
+                    {/* Línea de acento inferior (sky) — SOLO variante='pagina':
+                        ahí no hay overlay de abajo, así que este panel sigue
+                        siendo el único borde inferior. En variante='feed' la
+                        lleva el overlay (ver más abajo). */}
+                    {!esFeed && (
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                        />
+                    )}
 
                     <div className="relative z-10">
                         {/* ═══ MOBILE HEADER (<lg) ═══ */}
@@ -243,17 +269,27 @@ export function ServiciosHeader({
                                 null
                             )}
 
-                            {/* Subtítulo decorativo — contenido contextual.
-                                Colapsa al hacer scroll (variante='feed'). */}
-                            {(esFeed || subtituloMobile) && (
-                                // `grid-template-rows: 0fr↔1fr` (no `max-height` con un
-                                // alto adivinado) para animar al alto REAL del contenido.
+                            {/* Subtítulo decorativo — SOLO variante='pagina' con
+                                `subtituloMobile`. El de variante='feed' (el que
+                                de verdad colapsa al hacer scroll) vive en el
+                                overlay de abajo — 'pagina' no tiene ese scroll,
+                                así que se queda en flujo normal sin cambios. */}
+                            {!esFeed && subtituloMobile && (
                                 <div
-                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-                                        headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-                                    }`}
+                                    className="grid overflow-hidden"
+                                    style={{
+                                        gridTemplateRows: headerColapsado ? '0fr' : '1fr',
+                                        transition: 'grid-template-rows 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                                    }}
                                 >
-                                    <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
+                                    <div
+                                        className="overflow-hidden"
+                                        style={{
+                                            transform: headerColapsado ? 'translateY(-6px)' : 'translateY(0)',
+                                            opacity: headerColapsado ? 0 : 1,
+                                            transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                                        }}
+                                    >
                                         <div className="pb-2 flex items-center justify-center gap-2.5">
                                             <div
                                                 className="h-0.5 w-14 rounded-full"
@@ -263,30 +299,7 @@ export function ServiciosHeader({
                                                 }}
                                             />
                                             <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
-                                                {esFeed ? (
-                                                    ciudad ? (
-                                                        <>
-                                                            En{' '}
-                                                            <span className="font-bold text-white">
-                                                                {ciudad}
-                                                            </span>
-                                                            {totalPublicaciones !== null && (
-                                                                <>
-                                                                    {' '}· {totalPublicaciones}{' '}
-                                                                    {totalPublicaciones === 1
-                                                                        ? 'publicación'
-                                                                        : 'publicaciones'}
-                                                                </>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
-                                                            Servicios e intangibles
-                                                        </span>
-                                                    )
-                                                ) : (
-                                                    subtituloMobile
-                                                )}
+                                                {subtituloMobile}
                                             </span>
                                             <div
                                                 className="h-0.5 w-14 rounded-full"
@@ -294,28 +307,6 @@ export function ServiciosHeader({
                                                     background:
                                                         'linear-gradient(90deg, rgba(2,132,199,0.7), transparent)',
                                                 }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Tabs (Servicios / Solicitudes / Vacantes) — solo
-                                variante='feed' en mobile, estilo dark. Colapsa
-                                al hacer scroll, igual que el subtítulo. */}
-                            {esFeed && tabActiva && onTabChange && (
-                                <div
-                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-                                        headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-                                    }`}
-                                >
-                                    <div className={`overflow-hidden transition-opacity duration-200 ${headerColapsado ? 'opacity-0' : 'opacity-100'}`}>
-                                        <div className="pl-3 pb-3">
-                                            <TabsServicios
-                                                activa={tabActiva}
-                                                onChange={onTabChange}
-                                                conteos={conteosPorTab}
-                                                variant="dark"
                                             />
                                         </div>
                                     </div>
@@ -409,6 +400,107 @@ export function ServiciosHeader({
                         </div>
                     </div>
                 </div>
+
+                {/* ══ OVERLAY MÓVIL — subtítulo + tabs, SOLO variante='feed'
+                    (la única con scroll-collapse real). FUERA del flujo
+                    (`position: absolute`), se desliza con `transform` puro —
+                    igual que el BottomNav — sin recalcular layout cada
+                    frame. Panel propio (fondo + glow + patrón + línea
+                    inferior) para leerse como una sola pieza con el de
+                    arriba. ══ */}
+                {esFeed && (
+                    <div
+                        ref={overlayRef}
+                        className="pointer-events-none absolute left-0 right-0 top-full z-10 overflow-hidden rounded-none lg:hidden"
+                        style={{
+                            transform: headerColapsado ? 'translateY(-100%)' : 'translateY(0)',
+                            transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}
+                    >
+                        <div className="relative" style={{ background: '#000000' }}>
+                            {/* Glow sky (duplicado, mismo tratamiento que el panel de arriba) */}
+                            <div
+                                className="pointer-events-none absolute inset-0"
+                                style={{
+                                    background:
+                                        'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 55%)',
+                                }}
+                            />
+                            {/* Grid pattern (duplicado) */}
+                            <div
+                                className="pointer-events-none absolute inset-0"
+                                style={{
+                                    opacity: 0.08,
+                                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                      repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                                }}
+                            />
+                            {/* Línea de acento inferior (sky) — el borde real
+                                del panel cuando está expandido. */}
+                            <div
+                                className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                            />
+
+                            <div className="relative z-10">
+                                {/* Subtítulo */}
+                                <div className="pb-1.5 flex items-center justify-center gap-2.5">
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{
+                                            background:
+                                                'linear-gradient(90deg, transparent, rgba(2,132,199,0.7))',
+                                        }}
+                                    />
+                                    <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                                        {ciudad ? (
+                                            <>
+                                                En{' '}
+                                                <span className="font-bold text-white">
+                                                    {ciudad}
+                                                </span>
+                                                {totalPublicaciones !== null && (
+                                                    <>
+                                                        {' '}· {totalPublicaciones}{' '}
+                                                        {totalPublicaciones === 1
+                                                            ? 'publicación'
+                                                            : 'publicaciones'}
+                                                    </>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
+                                                Servicios e intangibles
+                                            </span>
+                                        )}
+                                    </span>
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{
+                                            background:
+                                                'linear-gradient(90deg, rgba(2,132,199,0.7), transparent)',
+                                        }}
+                                    />
+                                </div>
+                                {/* Tabs (Servicios / Solicitudes / Vacantes).
+                                    `pointer-events-auto`: el overlay entero es
+                                    `pointer-events-none` (para no robarle el
+                                    scroll al feed de abajo cuando queda
+                                    encima); esta fila sí necesita clicks. */}
+                                {tabActiva && onTabChange && (
+                                    <div className="pointer-events-auto pl-3 pb-3">
+                                        <TabsServicios
+                                            activa={tabActiva}
+                                            onChange={onTabChange}
+                                            conteos={conteosPorTab}
+                                            variant="dark"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
 

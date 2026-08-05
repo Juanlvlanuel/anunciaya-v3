@@ -922,21 +922,10 @@ export function PaginaNegocios() {
   // topPublicar arranca en 96 (guess) y se remide al alto real del header
   // (`headerRef.current.bottom + 8`) — mismo patrón que MP/Servicios. Como
   // FabPublicar ya trae `transition: top 300ms`, el salto de 96 → alto real
-  // produce el efecto de "entra desde arriba y baja" al montar.
+  // produce el efecto de "entra desde arriba y baja" al montar. El cálculo
+  // completo (que también suma el overlay de subtítulo+chips) vive más abajo,
+  // después de declarar `headerColapsado`.
   const [topPublicar, setTopPublicar] = useState(96);
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const medir = () => setTopPublicar(el.getBoundingClientRect().bottom + 8);
-    medir();
-    const observador = new ResizeObserver(medir);
-    observador.observe(el);
-    window.addEventListener('resize', medir);
-    return () => {
-      observador.disconnect();
-      window.removeEventListener('resize', medir);
-    };
-  }, []);
 
   // "Ver más" de una publicación del feed → página de detalle dedicada
   // (no modal, a diferencia de MarketPlace).
@@ -955,20 +944,6 @@ export function PaginaNegocios() {
   // (el header vive `position: fixed` — un `top` calculado solo con el alto
   // del header, sin ese offset, dejaba la columna metida por detrás).
   const [headerBottom, setHeaderBottom] = useState(150);
-
-  // ResizeObserver en el header: actualiza --negocios-header-h en tiempo real
-  // mientras dura la transición CSS (300ms), no solo al inicio.
-  // Necesario para que el contenedor mapa+cards crezca suavemente al comprimirse.
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      document.documentElement.style.setProperty('--negocios-header-h', `${el.offsetHeight}px`);
-      setHeaderBottom(el.getBoundingClientRect().bottom);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   // Posición combinada del indicador de refresco del feed de publicaciones:
   // `left` centrado en la página completa (medido arriba) + `top` justo
@@ -993,6 +968,48 @@ export function PaginaNegocios() {
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, [cuerpoRef]);
+
+  // Overlay móvil de subtítulo+chips — vive FUERA del flujo de `headerRef`
+  // (`position: absolute`, se desliza por `transform`, igual que el
+  // BottomNav) para que `headerRef` SIEMPRE mida solo la fila fija (flecha +
+  // título + iconos) y el feed/mapa de abajo gane el espacio real al
+  // colapsar, sin que la animación tenga que recalcular layout cada frame.
+  // Se mide su alto NATURAL (`offsetHeight`, no afectado por `transform`)
+  // para sumarlo a mano en `topPublicar`/`headerBottom`/`--negocios-header-h`
+  // — esos 3 consumidores ya tienen su propia transición CSS (`top`/`height`
+  // 300ms), así que el salto instantáneo del valor se ve suave igual.
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [overlayAltura, setOverlayAltura] = useState(0);
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const medir = () => setOverlayAltura(el.offsetHeight);
+    medir();
+    const observer = new ResizeObserver(medir);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [buscadorMovilAbierto]);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const overlayVisible = !buscadorMovilAbierto && !headerColapsado;
+    const extra = overlayVisible ? overlayAltura : 0;
+    const medir = () => {
+      const bottom = el.getBoundingClientRect().bottom + extra;
+      setTopPublicar(bottom + 8);
+      setHeaderBottom(bottom);
+      document.documentElement.style.setProperty('--negocios-header-h', `${el.offsetHeight + extra}px`);
+    };
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(el);
+    window.addEventListener('resize', medir);
+    return () => {
+      observador.disconnect();
+      window.removeEventListener('resize', medir);
+    };
+  }, [headerColapsado, buscadorMovilAbierto, overlayAltura]);
 
   // Sincronizar store al cambiar de tab. (react-map-gl reajusta el tamaño del
   // mapa con el contenedor vía ResizeObserver, así que ya no hace falta el
@@ -1083,9 +1100,9 @@ export function PaginaNegocios() {
         {/* HEADER STICKY — Patrón estándar con glow azul                   */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         <div ref={headerRef} className="shrink-0 z-20 lg:sticky lg:top-0">
-          <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
+          <div className="relative lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
             <div
-              className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+              className="relative z-20 overflow-hidden rounded-none lg:rounded-b-3xl"
               style={{ background: '#000000' }}
             >
               {/* Glow azul */}
@@ -1107,105 +1124,71 @@ export function PaginaNegocios() {
                 className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
                 style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
               />
-              {/* Línea de acento inferior (blue) */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
-                style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
-              />
 
               <div className="relative z-10">
 
-                {/* ══ MOBILE HEADER ══ */}
+                {/* ══ MOBILE HEADER — SOLO la fila fija (nunca colapsa; el
+                    subtítulo+chips vive en el overlay de abajo). ══ */}
                 <div className="lg:hidden">
                   {!buscadorMovilAbierto ? (
-                    <>
-                      {/* Fila principal: flecha, nombre, buscador, menú */}
-                      <div className="flex items-center justify-between gap-1 px-2 pt-4 pb-2.5">
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                          <button
-                            data-testid="btn-volver-negocios"
-                            onClick={handleVolver}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
-                          >
-                            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
-                          </button>
-                          <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
-                          >
-                            <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
-                          </div>
-                          <span className="flex flex-col leading-none min-w-0 ml-1.5">
-                            <span className="text-2xl font-extrabold text-white tracking-tight">
-                              Negocios
-                            </span>
-                            <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-400">
-                              Locales
-                            </span>
+                    <div className="flex items-center justify-between gap-1 px-2 pt-4 pb-2.5">
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        <button
+                          data-testid="btn-volver-negocios"
+                          onClick={handleVolver}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                        >
+                          <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                        </button>
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+                        >
+                          <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                        </div>
+                        <span className="flex flex-col leading-none min-w-0 ml-1.5">
+                          <span className="text-2xl font-extrabold text-white tracking-tight">
+                            Negocios
                           </span>
-                        </div>
-                        <div className="flex items-center gap-0 -mr-1 shrink-0">
-                          <button
-                            data-testid="btn-buscar-negocios"
-                            onClick={() => {
-                              setBuscadorMovilAbierto(true);
-                              abrirBuscador();
-                              setTimeout(() => inputBusquedaRef.current?.focus(), 100);
-                            }}
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
-                          >
-                            <Search className="w-6 h-6 animate-pulse" strokeWidth={2.5} />
-                          </button>
-                          <button
-                            data-testid="btn-notificaciones-negocios"
-                            onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
-                            aria-label="Notificaciones"
-                            className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
-                          >
-                            <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
-                            {cantidadNoLeidas > 0 && (
-                              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
-                                {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
-                              </span>
-                            )}
-                          </button>
-                          <button
-                            data-testid="btn-menu-negocios"
-                            onClick={abrirMenuDrawer}
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
-                          >
-                            <IconoMenuMorph />
-                          </button>
-                        </div>
+                          <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-400">
+                            Locales
+                          </span>
+                        </span>
                       </div>
-                      {/* Subtítulo móvil decorativo — colapsa al hacer scroll.
-                          `grid-template-rows: 0fr↔1fr` (no `max-height` con un
-                          alto adivinado) para que la animación siga el alto
-                          REAL del contenido — sin esto, un `max-h-*` fijo que
-                          no coincide exacto con el contenido se ve como un
-                          salto en vez de una transición suave. */}
-                      <div
-                        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-                          headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-                        }`}
-                      >
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
-                          <div className="pb-2 flex items-center justify-center gap-2.5">
-                            <div
-                              className="h-0.5 w-14 rounded-full"
-                              style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
-                            />
-                            <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
-                              En <span className="font-bold text-white">{nombreCiudad}</span> · {negocios.length} negocios
+                      <div className="flex items-center gap-0 -mr-1 shrink-0">
+                        <button
+                          data-testid="btn-buscar-negocios"
+                          onClick={() => {
+                            setBuscadorMovilAbierto(true);
+                            abrirBuscador();
+                            setTimeout(() => inputBusquedaRef.current?.focus(), 100);
+                          }}
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                        >
+                          <Search className="w-6 h-6 animate-pulse" strokeWidth={2.5} />
+                        </button>
+                        <button
+                          data-testid="btn-notificaciones-negocios"
+                          onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                          aria-label="Notificaciones"
+                          className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                        >
+                          <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
+                          {cantidadNoLeidas > 0 && (
+                            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                              {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
                             </span>
-                            <div
-                              className="h-0.5 w-14 rounded-full"
-                              style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
-                            />
-                          </div>
-                        </div>
+                          )}
+                        </button>
+                        <button
+                          data-testid="btn-menu-negocios"
+                          onClick={abrirMenuDrawer}
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                        >
+                          <IconoMenuMorph />
+                        </button>
                       </div>
-                    </>
+                    </div>
                   ) : (
                     <>
                       {/* Buscador activo — el input vive en un PORTAL FLOTANTE
@@ -1303,26 +1286,77 @@ export function PaginaNegocios() {
                        Ahora es un FAB flotante anclado al lado derecho
                        (ver bloque TOGGLE FLOTANTE más abajo). ── */}
 
-                {/* ── CHIPS FILTROS — solo móvil, scroll horizontal (mismo
-                       patrón que Ofertas y MarketPlace). El popup "Ajustar
-                       búsqueda" se eliminó: los chips son inline ahora.
-                       Colapsa al hacer scroll, igual que el subtítulo. ── */}
-                <div
-                  className={`grid transition-[grid-template-rows] duration-300 ease-in-out lg:hidden ${
-                    headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-                  }`}
-                >
-                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
-                    <div className="px-3 pb-3">
+              </div>
+            </div>
+
+            {/* ══ OVERLAY MÓVIL — subtítulo + chips, FUERA del flujo de
+                `headerRef` (`position: absolute`). Se desliza con `transform`
+                puro — igual que el BottomNav — sin recalcular layout cada
+                frame, así el feed/mapa de abajo siempre tiene el espacio real
+                (`headerRef` solo mide la fila fija de arriba). Panel propio
+                (fondo + glow + patrón + línea inferior) para leerse como una
+                sola pieza con el panel de arriba. Solo cuando NO se busca —
+                el buscador activo ya trae su propio subtítulo fijo en C1. ══ */}
+            {!buscadorMovilAbierto && (
+              <div
+                ref={overlayRef}
+                className="pointer-events-none absolute left-0 right-0 top-full z-10 overflow-hidden rounded-none lg:hidden"
+                style={{
+                  transform: headerColapsado ? 'translateY(-100%)' : 'translateY(0)',
+                  transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              >
+                <div className="relative" style={{ background: '#000000' }}>
+                  {/* Glow azul (duplicado, mismo tratamiento que el panel de arriba) */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(59,130,246,0.10) 0%, transparent 55%)' }}
+                  />
+                  {/* Grid pattern (duplicado) */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      opacity: 0.08,
+                      backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                       repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                    }}
+                  />
+                  {/* Línea de acento inferior (blue) — el borde real del panel
+                      cuando está expandido. */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                    style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
+                  />
+
+                  <div className="relative z-10">
+                    {/* Subtítulo */}
+                    <div className="pb-1.5 flex items-center justify-center gap-2.5">
+                      <div
+                        className="h-0.5 w-14 rounded-full"
+                        style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7))' }}
+                      />
+                      <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                        En <span className="font-bold text-white">{nombreCiudad}</span> · {negocios.length} negocios
+                      </span>
+                      <div
+                        className="h-0.5 w-14 rounded-full"
+                        style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.7), transparent)' }}
+                      />
+                    </div>
+                    {/* Chips de filtros — mismo patrón que Ofertas y MarketPlace.
+                        `pointer-events-auto`: el overlay entero es
+                        `pointer-events-none` (para no robarle el scroll al
+                        feed de abajo cuando queda encima); esta fila sí
+                        necesita recibir clicks. */}
+                    <div className="pointer-events-auto px-3 pb-3">
                       <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
                       </div>
                     </div>
                   </div>
                 </div>
-
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -1434,6 +1468,23 @@ export function PaginaNegocios() {
           tabActiva === 'mapa' ? 'lg:py-3 2xl:py-3' : 'lg:py-6 2xl:py-8'
         }`}>
 
+          {/* Espaciador — el overlay de subtítulo+chips (`position: absolute`)
+              no reserva espacio real; cuando está expandido queda ENCIMA del
+              inicio del feed, tapándolo. Este espaciador empuja el contenido
+              hacia abajo esa misma distancia (`overlayAltura`), con la MISMA
+              curva/duración del propio overlay para que se sienta como una
+              sola pieza deslizándose junto. Solo tab Feed — el tab Mapa ya
+              usa `--negocios-header-h` (fixed, no participa del flujo). */}
+          {tabActiva === 'feed' && (
+            <div
+              className="lg:hidden"
+              style={{
+                height: headerColapsado ? 0 : overlayAltura,
+                transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            />
+          )}
+
           {/* ── MOBILE: Tab Feed ── Reel de negocios arriba + feed de
               publicaciones debajo, en un solo scroll vertical normal (no
               fixed inset-0 como el tab Mapa). */}
@@ -1452,7 +1503,7 @@ export function PaginaNegocios() {
 
           {/* ── MOBILE: Tab Mapa ── */}
           {tabActiva === 'mapa' && (
-            <div className="lg:hidden -mx-1 -mt-4 -mb-4 fixed inset-0 z-0" data-testid="negocios-mapa-movil" style={{ top: 'var(--negocios-header-h, 150px)', bottom: '70px' }}>
+            <div className="lg:hidden -mx-1 -mt-4 -mb-4 fixed inset-0 z-0" data-testid="negocios-mapa-movil" style={{ top: 'var(--negocios-header-h, 150px)', bottom: '70px', transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1)' }}>
               <div className="relative w-full h-full">
                 <MapaNegocio {...mapaProps} />
                 {/* Viñeta */}
@@ -1551,7 +1602,7 @@ export function PaginaNegocios() {
                 del contenedor (compartido con Feed, igualado al header) sin
                 necesidad de un ancho fijo propio. 2xl sin tocar. */}
             {tabActiva === 'mapa' && (
-              <div className="flex gap-2 2xl:gap-6" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)' }}>
+              <div className="flex gap-2 2xl:gap-6" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)', transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)' }}>
                 {/* Cards scrollable izquierda */}
                 <div ref={cardsScrollRef} className="negocios-cards-scroll w-[320px] 2xl:w-[340px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
                   {loading && negocios.length === 0 ? (

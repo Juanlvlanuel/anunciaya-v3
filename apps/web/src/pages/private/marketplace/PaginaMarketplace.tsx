@@ -25,6 +25,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
@@ -40,6 +41,7 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useMarketplaceFeed, useCategoriasMarketplace } from '../../../hooks/queries/useMarketplace';
+import { useFeedInfinitoDinamicas } from '../../../hooks/queries/useDinamicas';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { SeccionFeedArticulos } from '../../../components/marketplace/SeccionFeedArticulos';
 import { SeccionFeedDinamicas } from '../../../components/dinamicas/SeccionFeedDinamicas';
@@ -226,6 +228,22 @@ export function PaginaMarketplace() {
         return () => el.removeEventListener('scroll', onScroll);
     }, [cuerpoRef]);
 
+    // Alto real del overlay de subtítulo+chips (`position: absolute`, no
+    // reserva espacio por sí solo). Se usa para un espaciador que empuja el
+    // inicio del feed hacia abajo cuando el overlay está expandido — si no,
+    // el overlay queda tapando el primer bloque del feed.
+    const overlayHeaderRef = useRef<HTMLDivElement>(null);
+    const [alturaOverlayHeader, setAlturaOverlayHeader] = useState(0);
+    useEffect(() => {
+        const el = overlayHeaderRef.current;
+        if (!el) return;
+        const medir = () => setAlturaOverlayHeader(el.offsetHeight);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
     const handlePublicar = () => {
         // Composer inline: scroll arriba + expandir vía query param, pasando el
         // modo del feed activo (`vendo`/`busco`) para preseleccionar el toggle
@@ -296,24 +314,49 @@ export function PaginaMarketplace() {
         return ids.size;
     }, [data, recientes, cercanos]);
 
+    // Mismo query que consume `SeccionFeedDinamicas` (misma queryKey → cache
+    // compartida, sin request duplicado) — solo para el conteo del header,
+    // que antes se quedaba mostrando siempre `totalArticulos` aunque el
+    // contexto activo fuera Dinámicas.
+    const { data: dataDinamicas } = useFeedInfinitoDinamicas({ ciudad });
+    const totalDinamicas = useMemo(
+        () => dataDinamicas?.pages.flatMap((p) => p.dinamicas).length ?? 0,
+        [dataDinamicas],
+    );
+
+    // Línea/glow de acento del header: teal para Artículos, ámbar para
+    // Dinámicas — mismos tonos que los badges del switch de contexto.
+    const colorAcento = contextoActivo === 'dinamicas'
+        ? {
+            linea: 'linear-gradient(90deg, transparent, #f59e0b 40%, #fbbf24 60%, transparent)',
+            glow: 'radial-gradient(ellipse at 85% 20%, rgba(245,158,11,0.10) 0%, transparent 55%)',
+            lineaIzq: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.7))',
+            lineaDer: 'linear-gradient(90deg, rgba(245,158,11,0.7), transparent)',
+        }
+        : {
+            linea: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)',
+            glow: 'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.10) 0%, transparent 55%)',
+            lineaIzq: 'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
+            lineaDer: 'linear-gradient(90deg, rgba(20,184,166,0.7), transparent)',
+        };
+
     return (
         <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
             {/* ════════════════════════════════════════════════════════════════
                 HEADER — móvil: bloque fijo (shrink-0) FUERA del scroll; desktop: sticky
             ════════════════════════════════════════════════════════════════ */}
             <div ref={headerRef} className="shrink-0 z-20 lg:sticky lg:top-0">
-                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                {/* `relative`: contexto de posicionamiento para el overlay de
+                    subtítulo+chips (`position: absolute`, ver más abajo). */}
+                <div className="relative lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
-                        className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                        className="relative z-20 overflow-hidden rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow teal arriba-derecha */}
+                        {/* Glow arriba-derecha — teal en Artículos, ámbar en Dinámicas */}
                         <div
                             className="pointer-events-none absolute inset-0"
-                            style={{
-                                background:
-                                    'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.10) 0%, transparent 55%)',
-                            }}
+                            style={{ background: colorAcento.glow }}
                         />
                         {/* Grid pattern sutil */}
                         <div
@@ -324,15 +367,10 @@ export function PaginaMarketplace() {
                                                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                             }}
                         />
-                        {/* Línea de acento superior (teal) */}
+                        {/* Línea de acento superior — teal/ámbar según contexto */}
                         <div
                             className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
-                        />
-                        {/* Línea de acento inferior (teal) */}
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                            style={{ background: colorAcento.linea }}
                         />
 
                         <div className="relative z-10">
@@ -363,54 +401,67 @@ export function PaginaMarketplace() {
                                                 aria-label={contextoActivo === 'articulos' ? 'Cambiar a Dinámicas' : 'Cambiar a Artículos'}
                                                 className="flex min-w-0 flex-1 cursor-pointer items-center gap-0 rounded-lg py-0.5 pl-0 pr-2 hover:bg-white/5"
                                             >
-                                            <div
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors"
-                                                style={{
-                                                    background:
-                                                        contextoActivo === 'dinamicas'
-                                                            ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                                                            : 'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                                                }}
-                                            >
-                                                {contextoActivo === 'dinamicas' ? (
-                                                    <Ticket
-                                                        className="h-4.5 w-4.5 text-white"
-                                                        strokeWidth={2.5}
-                                                    />
-                                                ) : (
-                                                    <ShoppingCart
-                                                        className="h-4.5 w-4.5 text-white"
-                                                        strokeWidth={2.5}
-                                                    />
-                                                )}
+                                            {/* Dos íconos FIJOS (MarketPlace y Dinámicas, nunca uno solo
+                                                que se transforma) + flecha de switch entre ambos. El activo
+                                                SIEMPRE queda pegado al título (order:2, junto al `<span>`
+                                                de abajo) — al tocar, `order` se invierte y `layout` de
+                                                framer-motion anima el intercambio de posición en vez de
+                                                saltar de golpe. El inactivo se achica/atenúa. Tamaños
+                                                reducidos vs el diseño anterior (de un solo ícono) para no
+                                                truncar "MarketPlace"/"Dinámicas" en pantallas angostas. */}
+                                            <div className="flex shrink-0 items-center gap-1">
+                                                <motion.div
+                                                    layout
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                                                    style={{
+                                                        order: contextoActivo === 'articulos' ? 2 : 0,
+                                                        background: 'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                                    }}
+                                                    className={`flex h-8 w-8 items-center justify-center rounded-lg transition-opacity ${
+                                                        contextoActivo === 'articulos' ? 'opacity-100' : 'opacity-40'
+                                                    }`}
+                                                >
+                                                    <ShoppingCart className="h-4 w-4 text-white" strokeWidth={2.5} />
+                                                </motion.div>
+                                                <ArrowLeftRight
+                                                    className="h-3.5 w-3.5 shrink-0 text-white/50"
+                                                    style={{ order: 1 }}
+                                                    strokeWidth={2.5}
+                                                />
+                                                <motion.div
+                                                    layout
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                                                    style={{
+                                                        order: contextoActivo === 'dinamicas' ? 2 : 0,
+                                                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                                    }}
+                                                    className={`flex h-8 w-8 items-center justify-center rounded-lg transition-opacity ${
+                                                        contextoActivo === 'dinamicas' ? 'opacity-100' : 'opacity-40'
+                                                    }`}
+                                                >
+                                                    <Ticket className="h-4 w-4 text-white" strokeWidth={2.5} />
+                                                </motion.div>
                                             </div>
-                                            {/* Alto fijo (= alto del título de 2 líneas de los otros) + centrado, para
-                                                igualar el alto del header y que "MarketPlace" quede centrado con el icono. */}
-                                            <span className="flex flex-col justify-center min-h-9 leading-none min-w-0 ml-1.5">
-                                                <span className="truncate text-2xl font-extrabold tracking-tight text-white">
-                                                    {contextoActivo === 'dinamicas' ? (
-                                                        <>Diná<span className="text-amber-400">micas</span></>
-                                                    ) : (
-                                                        <>Market<span className="text-teal-400">Place</span></>
-                                                    )}
-                                                </span>
-                                                {/* Segunda línea invisible: iguala el alto del header a los que sí llevan "Locales" debajo. */}
-                                                <span aria-hidden="true" className="text-xs font-bold uppercase tracking-[0.16em] text-transparent select-none hidden">{' '}</span>
+                                            <span className="truncate text-2xl font-extrabold tracking-tight text-white ml-1.5 min-w-0">
+                                                {contextoActivo === 'dinamicas' ? (
+                                                    <>Diná<span className="text-amber-400">micas</span></>
+                                                ) : (
+                                                    <>Market<span className="text-teal-400">Place</span></>
+                                                )}
                                             </span>
-                                            {/* Pista fija de que el título es un switch — el hover no es
-                                                descubrible en móvil (sin cursor) ni se ve en capturas. */}
-                                            <ArrowLeftRight className="h-5 w-5 shrink-0 text-white/70 ml-1" strokeWidth={2.5} />
                                             </button>
                                         </div>
                                         <div className="flex shrink-0 items-center gap-0 -mr-1">
-                                            <button
-                                                data-testid="btn-buscar-marketplace"
-                                                onClick={handleAbrirBuscadorMovil}
-                                                aria-label="Buscar en MarketPlace"
-                                                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
-                                            >
-                                                <Search className="h-6 w-6 animate-pulse" strokeWidth={2.5} />
-                                            </button>
+                                            {contextoActivo === 'articulos' && (
+                                                <button
+                                                    data-testid="btn-buscar-marketplace"
+                                                    onClick={handleAbrirBuscadorMovil}
+                                                    aria-label="Buscar en MarketPlace"
+                                                    className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                                >
+                                                    <Search className="h-6 w-6 animate-pulse" strokeWidth={2.5} />
+                                                </button>
+                                            )}
                                             <button
                                                 data-testid="btn-notificaciones-marketplace"
                                                 onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
@@ -442,81 +493,6 @@ export function PaginaMarketplace() {
                                     // del overlay. Ver bloque `createPortal` más abajo.
                                     null
                                 )}
-                                {/* Subtítulo decorativo — ciudad + total al estilo Ofertas.
-                                    Colapsa al hacer scroll (igual que Negocios).
-                                    `grid-template-rows: 0fr↔1fr` (no `max-height` con un
-                                    alto adivinado) para animar al alto REAL del contenido. */}
-                                <div
-                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-                                        headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-                                    }`}
-                                >
-                                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
-                                        <div className="pb-2 flex items-center justify-center gap-2.5">
-                                            <div
-                                                className="h-0.5 w-14 rounded-full"
-                                                style={{
-                                                    background:
-                                                        'linear-gradient(90deg, transparent, rgba(20,184,166,0.7))',
-                                                }}
-                                            />
-                                            <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
-                                                {ciudad ? (
-                                                    <>
-                                                        En{' '}
-                                                        <span className="font-bold text-white">
-                                                            {ciudad}
-                                                        </span>
-                                                        {data && (
-                                                            <> · {totalArticulos} publicaciones</>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
-                                                        Compra-Venta Local
-                                                    </span>
-                                                )}
-                                            </span>
-                                            <div
-                                                className="h-0.5 w-14 rounded-full"
-                                                style={{
-                                                    background:
-                                                        'linear-gradient(90deg, rgba(20,184,166,0.7), transparent)',
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Chips de filtros — dentro del header dark
-                                    (mismo patrón que Negocios y Ofertas en
-                                    móvil). Scroll horizontal sin scrollbar.
-                                    Colapsa al hacer scroll, igual que el subtítulo. */}
-                                <div
-                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-                                        headerColapsado ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-                                    }`}
-                                >
-                                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
-                                        <div className="px-3 pb-3">
-                                            <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                                {contextoActivo === 'articulos' && (
-                                                    <>
-                                                        <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
-                                                        {/* Chips de orden (Recientes/Más vistos) ocultos en
-                                                            móvil por espacio; el orden queda en "recientes".
-                                                            En desktop siguen visibles. */}
-                                                        <DropdownCategoriaFeed
-                                                            categorias={categoriasMP}
-                                                            valor={categoriaFeed}
-                                                            onCambio={setCategoriaFeed}
-                                                        />
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
 
                             {/* ═══ DESKTOP HEADER (>=lg) ═══
@@ -547,51 +523,51 @@ export function PaginaMarketplace() {
                                             aria-label={contextoActivo === 'articulos' ? 'Cambiar a Dinámicas' : 'Cambiar a Artículos'}
                                             className="flex cursor-pointer items-center gap-3 rounded-lg px-1.5 py-1 lg:hover:bg-white/5"
                                         >
-                                            <div
-                                                className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-10 2xl:w-10 transition-colors"
-                                                style={{
-                                                    background:
-                                                        contextoActivo === 'dinamicas'
-                                                            ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                                                            : 'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                                                }}
-                                            >
-                                                {contextoActivo === 'dinamicas' ? (
-                                                    <Ticket
-                                                        className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
-                                                        strokeWidth={2.5}
-                                                    />
-                                                ) : (
-                                                    <ShoppingCart
-                                                        className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
-                                                        strokeWidth={2.5}
-                                                    />
-                                                )}
+                                            {/* Dos íconos FIJOS (MarketPlace y Dinámicas) + flecha de
+                                                switch entre ambos — mismo criterio que el header móvil,
+                                                incluida la animación de reordenar (`layout` de
+                                                framer-motion) para que el activo siempre quede pegado al
+                                                título. */}
+                                            <div className="flex shrink-0 items-center gap-1.5">
+                                                <motion.div
+                                                    layout
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                                                    style={{
+                                                        order: contextoActivo === 'articulos' ? 2 : 0,
+                                                        background: 'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                                    }}
+                                                    className={`flex h-11 w-11 lg:h-9 lg:w-9 2xl:h-10 2xl:w-10 items-center justify-center rounded-lg transition-opacity ${
+                                                        contextoActivo === 'articulos' ? 'opacity-100' : 'opacity-40'
+                                                    }`}
+                                                >
+                                                    <ShoppingCart className="h-6 w-6 lg:h-[18px] lg:w-[18px] 2xl:h-5 2xl:w-5 text-white" strokeWidth={2.5} />
+                                                </motion.div>
+                                                <ArrowLeftRight
+                                                    className="h-4 w-4 shrink-0 text-white/50"
+                                                    style={{ order: 1 }}
+                                                    strokeWidth={2.5}
+                                                />
+                                                <motion.div
+                                                    layout
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                                                    style={{
+                                                        order: contextoActivo === 'dinamicas' ? 2 : 0,
+                                                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                                    }}
+                                                    className={`flex h-11 w-11 lg:h-9 lg:w-9 2xl:h-10 2xl:w-10 items-center justify-center rounded-lg transition-opacity ${
+                                                        contextoActivo === 'dinamicas' ? 'opacity-100' : 'opacity-40'
+                                                    }`}
+                                                >
+                                                    <Ticket className="h-6 w-6 lg:h-[18px] lg:w-[18px] 2xl:h-5 2xl:w-5 text-white" strokeWidth={2.5} />
+                                                </motion.div>
                                             </div>
-                                            <div className="flex items-baseline">
+                                            <span className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-white ml-2">
                                                 {contextoActivo === 'dinamicas' ? (
-                                                    <>
-                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
-                                                            Diná
-                                                        </span>
-                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-amber-400 2xl:text-2xl">
-                                                            micas
-                                                        </span>
-                                                    </>
+                                                    <>Diná<span className="text-amber-400">micas</span></>
                                                 ) : (
-                                                    <>
-                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
-                                                            Market
-                                                        </span>
-                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-teal-400 2xl:text-2xl">
-                                                            Place
-                                                        </span>
-                                                    </>
+                                                    <>Market<span className="text-teal-400">Place</span></>
                                                 )}
-                                            </div>
-                                            {/* Pista fija de que el título es un switch — el hover solo
-                                                se nota al pasar el mouse; esto es visible siempre. */}
-                                            <ArrowLeftRight className="h-5 w-5 shrink-0 text-white/70" strokeWidth={2.5} />
+                                            </span>
                                         </button>
                                     </div>
 
@@ -641,6 +617,99 @@ export function PaginaMarketplace() {
                             </div>
                         </div>
                     </div>
+
+                    {/* ══ OVERLAY MÓVIL — subtítulo + chips, FUERA del flujo
+                        (`position: absolute`). Se desliza con `transform`
+                        puro — igual que el BottomNav — sin recalcular layout
+                        cada frame. Panel propio (fondo + glow + patrón +
+                        línea inferior) para leerse como una sola pieza con
+                        el panel de arriba. ══ */}
+                    <div
+                        ref={overlayHeaderRef}
+                        className="pointer-events-none absolute left-0 right-0 top-full z-10 overflow-hidden rounded-none lg:hidden"
+                        style={{
+                            transform: headerColapsado ? 'translateY(-100%)' : 'translateY(0)',
+                            transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}
+                    >
+                        <div className="relative" style={{ background: '#000000' }}>
+                            {/* Glow (duplicado, mismo tratamiento que el panel de arriba) */}
+                            <div
+                                className="pointer-events-none absolute inset-0"
+                                style={{ background: colorAcento.glow }}
+                            />
+                            {/* Grid pattern (duplicado) */}
+                            <div
+                                className="pointer-events-none absolute inset-0"
+                                style={{
+                                    opacity: 0.08,
+                                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                      repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                                }}
+                            />
+                            {/* Línea de acento inferior — el borde real del
+                                panel cuando está expandido. */}
+                            <div
+                                className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                                style={{ background: colorAcento.linea }}
+                            />
+
+                            <div className="relative z-10">
+                                {/* Subtítulo */}
+                                <div className="pb-1.5 flex items-center justify-center gap-2.5">
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{ background: colorAcento.lineaIzq }}
+                                    />
+                                    <span className="text-base font-light text-white/70 tracking-wide whitespace-nowrap">
+                                        {ciudad ? (
+                                            <>
+                                                En{' '}
+                                                <span className="font-bold text-white">
+                                                    {ciudad}
+                                                </span>
+                                                {contextoActivo === 'dinamicas' ? (
+                                                    dataDinamicas && <> · {totalDinamicas} publicaciones</>
+                                                ) : (
+                                                    data && <> · {totalArticulos} publicaciones</>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="font-bold uppercase tracking-widest text-white/60 text-[11px]">
+                                                Compra-Venta Local
+                                            </span>
+                                        )}
+                                    </span>
+                                    <div
+                                        className="h-0.5 w-14 rounded-full"
+                                        style={{ background: colorAcento.lineaDer }}
+                                    />
+                                </div>
+                                {/* Chips de filtros — mismo patrón que Negocios y Ofertas.
+                                    `pointer-events-auto`: el overlay entero es
+                                    `pointer-events-none` (para no robarle el
+                                    scroll al feed de abajo cuando queda
+                                    encima); esta fila sí necesita clicks. */}
+                                <div className="pointer-events-auto px-3 pb-3">
+                                    <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                        {contextoActivo === 'articulos' && (
+                                            <>
+                                                <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
+                                                {/* Chips de orden (Recientes/Más vistos) ocultos en
+                                                    móvil por espacio; el orden queda en "recientes".
+                                                    En desktop siguen visibles. */}
+                                                <DropdownCategoriaFeed
+                                                    categorias={categoriasMP}
+                                                    valor={categoriaFeed}
+                                                    onCambio={setCategoriaFeed}
+                                                />
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -655,6 +724,17 @@ export function PaginaMarketplace() {
                 Reels, composer y feed heredan este ancho.
             ════════════════════════════════════════════════════════════════ */}
             <div ref={cuerpoRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 2xl:max-w-[1068px] 2xl:px-0 lg:py-6 2xl:py-8">
+                {/* Espaciador — el overlay de subtítulo+chips no reserva
+                    espacio real; cuando está expandido queda ENCIMA del
+                    inicio del feed. Empuja el contenido hacia abajo esa
+                    misma distancia, con la MISMA curva/duración del overlay. */}
+                <div
+                    className="lg:hidden"
+                    style={{
+                        height: headerColapsado ? 0 : alturaOverlayHeader,
+                        transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                />
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque
@@ -676,6 +756,7 @@ export function PaginaMarketplace() {
                         esModoPersonal={esModoPersonal}
                         esEscritorio={esEscritorio}
                         cargandoGps={cargandoGps}
+                        visible={contextoActivo === 'articulos'}
                         headerBottom={headerBottom}
                         cuerpoRef={cuerpoRef}
                         modoFeed={modoFeed}
