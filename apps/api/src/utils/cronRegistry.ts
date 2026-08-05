@@ -97,6 +97,13 @@ export const CATALOGO_CRONS: DefCron[] = [
         cadencia: 'Cada 12 h',
         cadenciaMs: 12 * HORA,
     },
+    {
+        id: 'dinamicas-expiracion',
+        nombre: 'Expiración de boletos de Dinámicas',
+        descripcion: 'Libera boletos reservados que nunca se confirmaron como pagados (24h).',
+        cadencia: 'Cada 30 min',
+        cadenciaMs: 30 * MIN,
+    },
 ];
 
 interface Telemetria {

@@ -23,36 +23,27 @@
  * Ubicación: apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
-import { ShoppingCart, Plus, AlertCircle, ChevronLeft, ChevronDown, Search, Tag, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
+import { ShoppingCart, ChevronLeft, ChevronDown, Search, Tag, Ticket, ArrowLeftRight, X } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
-const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
-import { useMarketplaceFeed, useFeedInfinitoMarketplace, useCategoriasMarketplace } from '../../../hooks/queries/useMarketplace';
-import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFeed';
-import { CardArticulo } from '../../../components/marketplace/CardArticulo';
-import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
+import { useMarketplaceFeed, useCategoriasMarketplace } from '../../../hooks/queries/useMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
-import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
-import { ComposerSectionDinamicas } from '../../../components/dinamicas/composer/ComposerSectionDinamicas';
-import { ModalComentariosMarketplace } from '../../../components/marketplace/ModalComentariosMarketplace';
+import { SeccionFeedArticulos } from '../../../components/marketplace/SeccionFeedArticulos';
+import { SeccionFeedDinamicas } from '../../../components/dinamicas/SeccionFeedDinamicas';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
-import { IndicadorRefrescoFeed } from '../../../components/ui/IndicadorRefrescoFeed';
-import { usePullToRefresh } from '../../../hooks/usePullToRefresh';
-import { useMinDuracionVisible } from '../../../hooks/useMinDuracionVisible';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito, CategoriaMarketplace } from '../../../types/marketplace';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
@@ -118,6 +109,38 @@ export function PaginaMarketplace() {
 
     // ─── React Query ───────────────────────────────────────────────────────────
 
+    // Switch de contexto Artículos↔Dinámicas (Fase 3/5) — cambia qué composer
+    // y qué feed se muestran debajo del header. Dinámicas vive como
+    // sub-sección de MarketPlace (ver Contexto_Dinamicas.md), no una ruta
+    // aparte. Query param `?dinamicas=1` para poder llegar directo con link.
+    const [contextoActivo, setContextoActivo] = useState<'articulos' | 'dinamicas'>(() =>
+        typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('dinamicas') === '1'
+            ? 'dinamicas'
+            : 'articulos',
+    );
+    // Montaje perezoso: Dinámicas solo se agrega al árbol la primera vez que
+    // se activa (evita pagar su query/DOM si el usuario nunca la toca) y
+    // luego se queda montada para siempre — de ahí en adelante el switch solo
+    // alterna `hidden`, sin volver a desmontar (evita reconstruir DOM/efectos
+    // en cada toggle y la clase de bugs de refs que no se re-sincronizan).
+    const [dinamicasMontada, setDinamicasMontada] = useState(contextoActivo === 'dinamicas');
+    useEffect(() => {
+        if (contextoActivo === 'dinamicas') setDinamicasMontada(true);
+    }, [contextoActivo]);
+
+    // Cambia de contexto Y sincroniza la URL (`?dinamicas=1` presente/ausente)
+    // con `replace` — no genera entradas de historial por cada toggle (mismo
+    // criterio que el resto de la página con query params de un solo uso),
+    // pero sí sobrevive un refresh y es shareable por link.
+    function cambiarContexto(nuevo: 'articulos' | 'dinamicas') {
+        setContextoActivo(nuevo);
+        const params = new URLSearchParams(window.location.search);
+        if (nuevo === 'dinamicas') params.set('dinamicas', '1');
+        else params.delete('dinamicas');
+        const qs = params.toString();
+        navigate(`${window.location.pathname}${qs ? `?${qs}` : ''}`, { replace: true });
+    }
+
     // Doble sentido: 'vendo' (ventas) | 'busco' (demandas). Feed por defecto =
     // ventas. Declarado arriba porque alimenta tanto el feed legacy (KPI) como
     // el feed infinito.
@@ -129,7 +152,7 @@ export function PaginaMarketplace() {
     // Feed v1.1 (legacy) — mantenido para el caso de fallback y la sección
     // antigua "Cercanos" mientras dura la migración. El feed nuevo (v1.2,
     // estilo Facebook) usa `useFeedInfinitoMarketplace` abajo.
-    const { data, isLoading: isLoadingLegacy, isError: isErrorLegacy, refetch } = useMarketplaceFeed({
+    const { data, refetch } = useMarketplaceFeed({
         ciudad,
         lat: latitud,
         lng: longitud,
@@ -140,176 +163,12 @@ export function PaginaMarketplace() {
     const recientes = data?.recientes ?? [];
     const cercanos = data?.cercanos ?? [];
 
-    // Feed v1.2 (estilo Facebook) — orden seleccionable + scroll infinito.
+    // Orden del feed (Recientes/Más vistos) — el chip vive en el header, el
+    // cuerpo del feed (que lo consume) vive en `SeccionFeedArticulos`.
     const [orden, setOrden] = useState<OrdenFeedInfinito>('recientes');
-
-    const {
-        data: dataFeedInfinito,
-        isLoading: isLoadingFeed,
-        isError: isErrorFeed,
-        isRefetching: isRefetchingFeed,
-        refetch: refetchFeed,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
-    } = useFeedInfinitoMarketplace({
-        ciudad,
-        lat: latitud,
-        lng: longitud,
-        orden,
-        modo: modoFeed,
-        categoriaId: categoriaFeed ?? undefined,
-        limite: 10,
-    });
-
-    const articulosFeed = useMemo(
-        () => dataFeedInfinito?.pages.flatMap((p) => p.articulos) ?? [],
-        [dataFeedInfinito]
-    );
-
-    // Reel "Recién publicado" — SIEMPRE visible sin importar el filtro de
-    // orden (Recientes/Más vistos) ni de categoría activos en el feed
-    // principal: usa su propia query fija (orden='recientes', sin categoría),
-    // independiente de `articulosFeed`. Cuando el filtro activo del usuario
-    // coincide con estos mismos parámetros, React Query comparte la
-    // queryKey y no dispara una request extra. Solo se oculta en modo
-    // "busco" — "recién publicado en venta" no aplica a solicitudes.
-    const { data: dataReel } = useFeedInfinitoMarketplace({
-        ciudad,
-        lat: latitud,
-        lng: longitud,
-        orden: 'recientes',
-        modo: 'vendo',
-        limite: 12,
-    });
-
-    const articulosReel = useMemo(
-        () => (modoFeed === 'vendo' ? (dataReel?.pages[0]?.articulos ?? []).slice(0, 12) : []),
-        [modoFeed, dataReel]
-    );
-
-    // El feed grande muestra TODOS los artículos, incluso los que están en el
-    // reel. El reel es un "highlight" rotativo de los más recientes (igual que
-    // Stories vs Feed en Instagram); no se considera duplicado — son contextos
-    // distintos. Sin esto, la mayoría del catálogo quedaba atrapado en el reel
-    // y el feed grande se sentía vacío después de pocas cards.
-    const articulosFeedSinReel = articulosFeed;
-
-    // ─── Columna de "Recién publicado" fija (escritorio) — mismo patrón que
-    // la columna de cards de PaginaNegocios.tsx: FIJA por JS desde el primer
-    // render (sin `position: sticky`, sin recorrido perceptible), con
-    // auto-scroll vertical y pausa al hover. Reemplaza el reel horizontal de
-    // arriba en escritorio (el reel sigue igual en móvil). ──────────────────
-    const cardsScrollRef = useRef<HTMLDivElement>(null);
-    const cardsPlaceholderRef = useRef<HTMLDivElement>(null);
-    const [cardsLeft, setCardsLeft] = useState<number | null>(null);
-    // Título "Recién publicado" — vive FUERA del contenedor con scroll (ver
-    // JSX) para que no se oculte al avanzar el auto-scroll/carrusel. Se mide
-    // su alto real para restarlo de la altura del área scrolleable de abajo.
-    const cardsHeadingRef = useRef<HTMLHeadingElement>(null);
-    const [cardsHeadingAlto, setCardsHeadingAlto] = useState(32);
-
-    // Depende de si la columna existe (`orden`/`articulosReel.length`): se
-    // monta/desmonta según el filtro activo, así que hay que re-medir cada
-    // vez que vuelve a existir — con deps `[]` solo mediría la primera vez.
-    const hayColumnaCards = articulosReel.length > 0;
-    // Re-medir también cuando cambia el largo del feed filtrado (no solo al
-    // montar/cambiar hayColumnaCards): filtrar por categoría puede achicar
-    // la lista lo suficiente para que desaparezca el scrollbar vertical de
-    // la página — eso corre el contenido centrado (`mx-auto`) unos px hacia
-    // la derecha, pero un `ResizeObserver` sobre el propio placeholder NO lo
-    // detecta (su ancho no cambia, solo su posición X). Sin este dep la
-    // columna se quedaba desplazada tras filtrar y no había ningún evento
-    // que la volviera a alinear.
-    useLayoutEffect(() => {
-        const el = cardsPlaceholderRef.current;
-        if (!el) return;
-        const medir = () => setCardsLeft(el.getBoundingClientRect().left);
-        medir();
-        const observer = new ResizeObserver(medir);
-        observer.observe(el);
-        window.addEventListener('resize', medir);
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', medir);
-        };
-    }, [hayColumnaCards, articulosFeedSinReel.length]);
-
-    useLayoutEffect(() => {
-        const el = cardsHeadingRef.current;
-        if (!el) return;
-        const medir = () => setCardsHeadingAlto(el.getBoundingClientRect().height);
-        medir();
-        const observer = new ResizeObserver(medir);
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, [hayColumnaCards]);
-
-    useEffect(() => {
-        const el = cardsScrollRef.current;
-        if (!el) return;
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-        let pausado = false;
-        const onEnter = () => { pausado = true; };
-        const onLeave = () => { pausado = false; };
-        el.addEventListener('mouseenter', onEnter);
-        el.addEventListener('mouseleave', onLeave);
-
-        const intervalo = window.setInterval(() => {
-            if (pausado) return;
-            const { scrollTop, scrollHeight, clientHeight } = el;
-            if (scrollHeight <= clientHeight) return;
-            if (scrollTop + clientHeight >= scrollHeight - 4) {
-                el.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-                el.scrollBy({ top: clientHeight * 0.5, behavior: 'smooth' });
-            }
-        }, 3500);
-
-        return () => {
-            window.clearInterval(intervalo);
-            el.removeEventListener('mouseenter', onEnter);
-            el.removeEventListener('mouseleave', onLeave);
-        };
-    }, [hayColumnaCards]);
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
-    const location = useLocation();
-
-    // ─── Deep-link desde notificación de comentario (?articuloId=&comentarioId=) ──
-    // Mismo patrón que `?resenaId=` en PaginaPerfilNegocio.tsx: estado
-    // perezoso desde la URL al montar + efecto keyed en `location.search`
-    // (para que funcione también si ya estás en /marketplace y llega OTRA
-    // notificación), con limpieza de la URL vía history replace. A
-    // diferencia del patrón de reseñas, no hace falta validar contra una
-    // lista ya cargada — el feed es infinito/paginado y el artículo puntual
-    // probablemente no esté en la página cargada; el modal resuelve su
-    // propio fetch por id y tolera estar `undefined` mientras carga.
-    const [articuloIdDestacado, setArticuloIdDestacado] = useState<string | null>(() => {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('articuloId') || null;
-    });
-    const [comentarioIdDestacado, setComentarioIdDestacado] = useState<string | null>(() => {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('comentarioId') || null;
-    });
-
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const nuevoArticuloId = params.get('articuloId');
-        if (nuevoArticuloId) {
-            setArticuloIdDestacado(nuevoArticuloId);
-            setComentarioIdDestacado(params.get('comentarioId'));
-            params.delete('articuloId');
-            params.delete('comentarioId');
-            const nuevaUrl = params.toString()
-                ? `${window.location.pathname}?${params.toString()}`
-                : window.location.pathname;
-            window.history.replaceState({}, '', nuevaUrl);
-        }
-    }, [location.search]);
 
     const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
     const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
@@ -377,6 +236,10 @@ export function PaginaMarketplace() {
         (mainScrollRef?.current ?? window).scrollTo({ top: 0, behavior: 'smooth' });
         navigate(`/marketplace?crear=${modoFeed}`, { replace: true });
     };
+    const handleOrganizarDinamica = () => {
+        (mainScrollRef?.current ?? window).scrollTo({ top: 0, behavior: 'smooth' });
+        navigate('/marketplace?crearDinamica=1', { replace: true });
+    };
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
     const handleAbrirBuscadorMovil = () => {
@@ -418,53 +281,9 @@ export function PaginaMarketplace() {
         return () => window.removeEventListener('focus', handler);
     }, [ciudad, latitud, longitud, refetch]);
 
-    // ─── Scroll infinito automático con IntersectionObserver ──────────────────
-    const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        const sentinel = sentinelRef.current;
-        if (!sentinel || !hasNextPage || isFetchingNextPage) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const [entrada] = entries;
-                if (entrada?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-                    fetchNextPage();
-                }
-            },
-            { rootMargin: '600px 0px' } // dispara antes de llegar al fondo
-        );
-
-        observer.observe(sentinel);
-        return () => observer.disconnect();
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
     // ─── Render ────────────────────────────────────────────────────────────────
 
     const sinGps = !latitud || !longitud;
-
-    // Estados unificados: el feed infinito es el principal a partir de v1.2.
-    // Mantengo isLoadingLegacy/isErrorLegacy para no romper el bloque legacy si
-    // se usa, pero la UI principal escucha al feed infinito.
-    const isLoading = isLoadingFeed;
-    const isError = isErrorFeed;
-    const isRefetching = isRefetchingFeed;
-
-    // Jalar para refrescar (móvil) — mismo hook que el Home y Negocios.
-    // `progreso` sigue el dedo mientras jalas; en cuanto arranca el refetch
-    // real (por el pull o por el auto-refresh de `refetchOnMount`/
-    // `refetchOnWindowFocus`), `refrescando` se enciende solo.
-    const pull = usePullToRefresh({
-        onRefresh: () => refetchFeed(),
-        scrollRef: cuerpoRef,
-        habilitado: !esEscritorio,
-    });
-    // `useMinDuracionVisible`: en escritorio el refetch a veces resuelve en
-    // 304 Not Modified (ETag) casi instantáneo — sin esto, el anillo prende
-    // y apaga entre renders y nunca alcanza a pintarse en pantalla.
-    const refrescandoFeedCrudo = isRefetching && !isFetchingNextPage;
-    const refrescandoFeed = useMinDuracionVisible(refrescandoFeedCrudo, 700);
-    const progresoRefresco = refrescandoFeed ? 1 : pull.progreso;
 
     // Total para el KPI del header (basado en el feed v1.1 que tiene los
     // arrays completos de recientes+cercanos por ciudad). Se mantiene.
@@ -476,10 +295,6 @@ export function PaginaMarketplace() {
         ]);
         return ids.size;
     }, [data, recientes, cercanos]);
-
-    // Para suprimir el warning de variables no usadas tras la migración v1.2.
-    void isLoadingLegacy;
-    void isErrorLegacy;
 
     return (
         <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
@@ -541,25 +356,51 @@ export function PaginaMarketplace() {
                                             >
                                                 <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                                             </button>
+                                            <button
+                                                type="button"
+                                                data-testid="btn-toggle-contexto-marketplace"
+                                                onClick={() => cambiarContexto(contextoActivo === 'articulos' ? 'dinamicas' : 'articulos')}
+                                                aria-label={contextoActivo === 'articulos' ? 'Cambiar a Dinámicas' : 'Cambiar a Artículos'}
+                                                className="flex min-w-0 flex-1 cursor-pointer items-center gap-0 rounded-lg py-0.5 pl-0 pr-2 hover:bg-white/5"
+                                            >
                                             <div
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors"
                                                 style={{
                                                     background:
-                                                        'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                                        contextoActivo === 'dinamicas'
+                                                            ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                                                            : 'linear-gradient(135deg, #2dd4bf, #0d9488)',
                                                 }}
                                             >
-                                                <ShoppingCart
-                                                    className="h-4.5 w-4.5 text-white"
-                                                    strokeWidth={2.5}
-                                                />
+                                                {contextoActivo === 'dinamicas' ? (
+                                                    <Ticket
+                                                        className="h-4.5 w-4.5 text-white"
+                                                        strokeWidth={2.5}
+                                                    />
+                                                ) : (
+                                                    <ShoppingCart
+                                                        className="h-4.5 w-4.5 text-white"
+                                                        strokeWidth={2.5}
+                                                    />
+                                                )}
                                             </div>
                                             {/* Alto fijo (= alto del título de 2 líneas de los otros) + centrado, para
                                                 igualar el alto del header y que "MarketPlace" quede centrado con el icono. */}
                                             <span className="flex flex-col justify-center min-h-9 leading-none min-w-0 ml-1.5">
-                                                <span className="truncate text-2xl font-extrabold tracking-tight text-white">Market<span className="text-teal-400">Place</span></span>
+                                                <span className="truncate text-2xl font-extrabold tracking-tight text-white">
+                                                    {contextoActivo === 'dinamicas' ? (
+                                                        <>Diná<span className="text-amber-400">micas</span></>
+                                                    ) : (
+                                                        <>Market<span className="text-teal-400">Place</span></>
+                                                    )}
+                                                </span>
                                                 {/* Segunda línea invisible: iguala el alto del header a los que sí llevan "Locales" debajo. */}
                                                 <span aria-hidden="true" className="text-xs font-bold uppercase tracking-[0.16em] text-transparent select-none hidden">{' '}</span>
                                             </span>
+                                            {/* Pista fija de que el título es un switch — el hover no es
+                                                descubrible en móvil (sin cursor) ni se ve en capturas. */}
+                                            <ArrowLeftRight className="h-5 w-5 shrink-0 text-white/70 ml-1" strokeWidth={2.5} />
+                                            </button>
                                         </div>
                                         <div className="flex shrink-0 items-center gap-0 -mr-1">
                                             <button
@@ -659,15 +500,19 @@ export function PaginaMarketplace() {
                                     <div className={`overflow-hidden transition-all duration-300 ease-in-out ${headerColapsado ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'}`}>
                                         <div className="px-3 pb-3">
                                             <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                                <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
-                                                {/* Chips de orden (Recientes/Más vistos) ocultos en
-                                                    móvil por espacio; el orden queda en "recientes".
-                                                    En desktop siguen visibles. */}
-                                                <DropdownCategoriaFeed
-                                                    categorias={categoriasMP}
-                                                    valor={categoriaFeed}
-                                                    onCambio={setCategoriaFeed}
-                                                />
+                                                {contextoActivo === 'articulos' && (
+                                                    <>
+                                                        <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
+                                                        {/* Chips de orden (Recientes/Más vistos) ocultos en
+                                                            móvil por espacio; el orden queda en "recientes".
+                                                            En desktop siguen visibles. */}
+                                                        <DropdownCategoriaFeed
+                                                            categorias={categoriasMP}
+                                                            valor={categoriaFeed}
+                                                            onCambio={setCategoriaFeed}
+                                                        />
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -692,26 +537,62 @@ export function PaginaMarketplace() {
                                         >
                                             <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                                         </button>
-                                        <div
-                                            className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-10 2xl:w-10"
-                                            style={{
-                                                background:
-                                                    'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                                            }}
+                                        {/* Logo+título ES el switch de contexto Artículos↔Dinámicas —
+                                            tocar aquí alterna icono/texto/color en vez de agregar chips
+                                            nuevos a la fila de filtros (saturaba el header). */}
+                                        <button
+                                            type="button"
+                                            data-testid="btn-toggle-contexto-marketplace-desktop"
+                                            onClick={() => cambiarContexto(contextoActivo === 'articulos' ? 'dinamicas' : 'articulos')}
+                                            aria-label={contextoActivo === 'articulos' ? 'Cambiar a Dinámicas' : 'Cambiar a Artículos'}
+                                            className="flex cursor-pointer items-center gap-3 rounded-lg px-1.5 py-1 lg:hover:bg-white/5"
                                         >
-                                            <ShoppingCart
-                                                className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
-                                                strokeWidth={2.5}
-                                            />
-                                        </div>
-                                        <div className="flex items-baseline">
-                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
-                                                Market
-                                            </span>
-                                            <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-teal-400 2xl:text-2xl">
-                                                Place
-                                            </span>
-                                        </div>
+                                            <div
+                                                className="flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg 2xl:h-10 2xl:w-10 transition-colors"
+                                                style={{
+                                                    background:
+                                                        contextoActivo === 'dinamicas'
+                                                            ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                                                            : 'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                                }}
+                                            >
+                                                {contextoActivo === 'dinamicas' ? (
+                                                    <Ticket
+                                                        className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
+                                                        strokeWidth={2.5}
+                                                    />
+                                                ) : (
+                                                    <ShoppingCart
+                                                        className="h-6 w-6 lg:h-[18px] lg:w-[18px] text-white 2xl:h-5 2xl:w-5"
+                                                        strokeWidth={2.5}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div className="flex items-baseline">
+                                                {contextoActivo === 'dinamicas' ? (
+                                                    <>
+                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
+                                                            Diná
+                                                        </span>
+                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-amber-400 2xl:text-2xl">
+                                                            micas
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
+                                                            Market
+                                                        </span>
+                                                        <span className="text-2xl lg:text-xl font-extrabold tracking-tight text-teal-400 2xl:text-2xl">
+                                                            Place
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            {/* Pista fija de que el título es un switch — el hover solo
+                                                se nota al pasar el mouse; esto es visible siempre. */}
+                                            <ArrowLeftRight className="h-5 w-5 shrink-0 text-white/70" strokeWidth={2.5} />
+                                        </button>
                                     </div>
 
                                     {/* Spacer para empujar chips + KPI + Publicar a la derecha */}
@@ -721,32 +602,36 @@ export function PaginaMarketplace() {
                                         Justificados a la derecha junto al KPI (decisión de Juan
                                         para que las 3 secciones públicas se vean coherentes). */}
                                     <div className="flex shrink-0 items-center gap-4">
-                                        <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
-                                        <div className="hidden 2xl:block min-w-0">
-                                            <ChipsFiltrosFeed
-                                                valor={orden}
-                                                onCambio={setOrden}
-                                                gpsDisponible={!sinGps}
-                                                variant="dark"
-                                            />
-                                        </div>
-                                        <DropdownCategoriaFeed
-                                            categorias={categoriasMP}
-                                            valor={categoriaFeed}
-                                            onCambio={setCategoriaFeed}
-                                        />
-                                        {data && (
-                                            <div className="flex flex-col items-end shrink-0">
-                                                <span
-                                                    data-testid="kpi-total-articulos"
-                                                    className="text-3xl lg:text-2xl 2xl:text-3xl font-extrabold text-white leading-none tabular-nums"
-                                                >
-                                                    {totalArticulos}
-                                                </span>
-                                                <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-xs font-semibold text-teal-400/80 uppercase tracking-wider">
-                                                    Publicaciones
-                                                </span>
-                                            </div>
+                                        {contextoActivo === 'articulos' && (
+                                            <>
+                                                <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
+                                                <div className="hidden 2xl:block min-w-0">
+                                                    <ChipsFiltrosFeed
+                                                        valor={orden}
+                                                        onCambio={setOrden}
+                                                        gpsDisponible={!sinGps}
+                                                        variant="dark"
+                                                    />
+                                                </div>
+                                                <DropdownCategoriaFeed
+                                                    categorias={categoriasMP}
+                                                    valor={categoriaFeed}
+                                                    onCambio={setCategoriaFeed}
+                                                />
+                                                {data && (
+                                                    <div className="flex flex-col items-end shrink-0">
+                                                        <span
+                                                            data-testid="kpi-total-articulos"
+                                                            className="text-3xl lg:text-2xl 2xl:text-3xl font-extrabold text-white leading-none tabular-nums"
+                                                        >
+                                                            {totalArticulos}
+                                                        </span>
+                                                        <span className="hidden text-sm 2xl:mt-1 2xl:block 2xl:text-xs font-semibold text-teal-400/80 uppercase tracking-wider">
+                                                            Publicaciones
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                         {/* Botón Publicar movido a FAB flotante — ver bloque al final
                                             del componente. FAB visible en móvil y desktop con animación
@@ -775,420 +660,63 @@ export function PaginaMarketplace() {
                     el resto del header sin sentirse desconectada. Ver bloque
                     DESKTOP HEADER arriba. */}
 
-                {/* ── Composer inline ─────────────────────────────────────
-                    Réplica del patrón de Servicios. Solo en modo personal —
-                    en modo comercial los negocios no publican artículos P2P.
-                    El atajo a "Mis publicaciones" vive como chip dentro del
-                    propio composer (header de la pill colapsada), por eso
-                    no hay widget lateral. */}
-                {esModoPersonal && (
-                    <div className="px-3 lg:px-0 pt-3">
-                        <ComposerSection />
-                    </div>
-                )}
-
-                {/* Composer de Dinámicas (Fase 2) — se activa solo por query param
-                    (?crearDinamica=1 / ?editarDinamica=<id>) mientras no existe el
-                    switch/pill visual real que lo revela (Fase 5). Mismo criterio de
-                    "solo modo personal" que el composer de artículos. */}
-                {esModoPersonal && <ComposerSectionDinamicas />}
-
-                {/* Estado: sin ciudad seleccionada. En móvil (sin Navbar global)
-                    el botón abre el ModalUbicacion para que el usuario pueda
-                    elegirla sin depender del selector del Navbar. */}
-                {!ciudad && (
-                    <div className="mx-3 mt-6 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:mx-0">
-                        <div className="flex items-start gap-2.5">
-                            <AlertCircle
-                                className="h-5 w-5 shrink-0 text-amber-600"
-                                strokeWidth={2}
-                            />
-                            <div className="flex-1">
-                                <strong className="font-semibold">
-                                    Selecciona tu ciudad
-                                </strong>
-                                <p className="mt-0.5">
-                                    Necesitamos tu ciudad para mostrarte artículos cerca de ti.
-                                </p>
-                                <button
-                                    data-testid="btn-seleccionar-ciudad"
-                                    onClick={abrirModalUbicacion}
-                                    className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm lg:hover:bg-amber-700"
-                                >
-                                    <MapPin className="h-3.5 w-3.5" strokeWidth={2.5} />
-                                    Elegir ciudad
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Estado: con ciudad pero sin GPS — invitación dinámica al
-                    estilo de los demás estados (sin card, halos pulsantes,
-                    sparkles). Importante: este bloque NO bloquea el feed,
-                    el usuario sigue viendo lo "Recién publicado" debajo. */}
-                {ciudad && sinGps && (
-                    <div className="relative mt-8 flex flex-col items-center px-6 pb-6 text-center lg:mt-12 lg:pb-8">
-                        <Sparkles
-                            className="absolute left-8 top-1 h-5 w-5 animate-pulse text-teal-400/70"
-                            strokeWidth={2}
-                            style={{ animationDuration: '2.5s' }}
-                        />
-                        <Sparkles
-                            className="absolute right-10 top-8 h-4 w-4 animate-pulse text-teal-300/70"
-                            strokeWidth={2}
-                            style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
-                        />
-
-                        <div className="relative mb-5">
-                            <div
-                                className="absolute inset-0 -m-5 animate-ping rounded-full bg-teal-300/40"
-                                style={{ animationDuration: '2.4s' }}
-                            />
-                            <div
-                                className="absolute inset-0 -m-2 animate-ping rounded-full bg-teal-400/40"
-                                style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
-                            />
-                            <div
-                                className="relative flex h-20 w-20 items-center justify-center rounded-full shadow-xl"
-                                style={{
-                                    background:
-                                        'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                                }}
-                            >
-                                <MapPin className="h-9 w-9 text-white" strokeWidth={2} />
-                            </div>
-                        </div>
-
-                        <h3 className="mb-2 text-xl font-extrabold tracking-tight text-slate-900 lg:text-2xl">
-                            Activa tu ubicación
-                        </h3>
-                        <p className="mb-5 max-w-sm text-sm text-slate-600 lg:text-base">
-                            Para ver artículos cerca de ti necesitamos tu ubicación.
-                            Mientras tanto, te mostramos lo recién publicado en{' '}
-                            <span className="font-bold text-slate-900">{ciudad}</span>.
-                        </p>
-
-                        <button
-                            data-testid="btn-activar-ubicacion"
-                            onClick={handleActivarUbicacion}
-                            disabled={cargandoGps}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-teal-500 to-teal-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <MapPin className="h-4 w-4" strokeWidth={2.5} />
-                            {cargandoGps ? 'Obteniendo...' : 'Activar ubicación'}
-                        </button>
-                    </div>
-                )}
-
-                {/* Estado: loading inicial */}
-                {isLoading && (
-                    <div className="flex items-center justify-center py-20">
-                        <IndicadorRefrescoFeed
-                            inline
-                            progreso={1}
-                            refrescando
-                            icon={<ShoppingCart className="h-9 w-9 text-teal-600" strokeWidth={2.25} />}
-                            claseAnillo="border-teal-200 border-t-teal-600"
-                        />
-                    </div>
-                )}
-
-                {/* Estado: error */}
-                {isError && !isLoading && (
-                    <div className="mx-3 mt-6 rounded-xl border-2 border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 lg:mx-0">
-                        <div className="flex items-start gap-2.5">
-                            <AlertCircle
-                                className="h-5 w-5 shrink-0 text-rose-600"
-                                strokeWidth={2}
-                            />
-                            <div>
-                                <strong className="font-semibold">
-                                    No pudimos cargar el feed
-                                </strong>
-                                <p className="mt-0.5">
-                                    Revisa tu conexión e intenta de nuevo.
-                                </p>
-                                <button
-                                    data-testid="btn-reintentar-feed"
-                                    onClick={() => refetch()}
-                                    className="mt-2.5 inline-flex cursor-pointer items-center rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm lg:hover:bg-rose-700"
-                                >
-                                    Reintentar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Refresco tipo Facebook: ícono de MarketPlace (ShoppingCart)
-                    con anillo giratorio teal — mismo criterio que el Home
-                    (Coyo) y Negocios: jalón en móvil (`progresoRefresco`
-                    sigue el dedo) + auto en PC (`refrescandoFeed`), nunca
-                    durante la paginación. */}
-                {!isLoading && !isError && (
-                    <IndicadorRefrescoFeed
-                        testId="marketplace-feed-refrescando"
-                        progreso={progresoRefresco}
-                        refrescando={refrescandoFeed}
-                        sinTransicion={pull.gestoActivo}
-                        icon={<ShoppingCart className="h-9 w-9 text-teal-600" strokeWidth={2.25} />}
-                        claseAnillo="border-teal-200 border-t-teal-600"
+                {/* Artículos y Dinámicas quedan AMBOS montados una vez que se
+                    activan por primera vez — se alterna con `hidden` (CSS),
+                    no con un ternario que desmonta. Evita reconstruir todo el
+                    DOM/efectos en cada toggle y conserva scroll/estado al
+                    volver de un lado al otro. Dinámicas se monta perezosamente
+                    (recién la primera vez que se activa) para no pagar su
+                    query/DOM si el usuario nunca la toca; Artículos es la
+                    vista por defecto, así que se monta siempre. */}
+                <div className={contextoActivo === 'articulos' ? '' : 'hidden'}>
+                    <SeccionFeedArticulos
+                        ciudad={ciudad}
+                        latitud={latitud}
+                        longitud={longitud}
+                        esModoPersonal={esModoPersonal}
+                        esEscritorio={esEscritorio}
+                        cargandoGps={cargandoGps}
+                        headerBottom={headerBottom}
+                        cuerpoRef={cuerpoRef}
+                        modoFeed={modoFeed}
+                        categoriaFeed={categoriaFeed}
+                        orden={orden}
+                        onLimpiarCategoria={() => setCategoriaFeed(null)}
+                        onActivarUbicacion={handleActivarUbicacion}
+                        onAbrirModalUbicacion={abrirModalUbicacion}
+                        onPublicar={handlePublicar}
                     />
+                </div>
+
+                {dinamicasMontada && (
+                    <div className={contextoActivo === 'dinamicas' ? '' : 'hidden'}>
+                        <SeccionFeedDinamicas ciudad={ciudad} esModoPersonal={esModoPersonal} />
+                    </div>
                 )}
-
-                {/* ════════════════════════════════════════════════════════════════
-                    FEED v1.2 — MÓVIL: reel horizontal + feed apilado (sin
-                    cambios). ESCRITORIO: columna "Recién publicado" FIJA a la
-                    izquierda (mismo mecanismo que la columna de cards de
-                    Negocios — sin `position: sticky`, fija desde el primer
-                    render, auto-scroll con pausa al hover) + feed a la
-                    derecha, sin scroll interno propio (fluye con <main>).
-                ════════════════════════════════════════════════════════════════ */}
-                {!isLoading && !isError && articulosFeed.length > 0 && (
-                    <>
-                        {/* ── MÓVIL ── Cards con inset `px-3` y separación
-                            `space-y-3` — antes iban de borde a borde sin
-                            padding de página (a diferencia de Negocios, que
-                            lo hereda del `p-4` de su `cuerpoRef`). El reel
-                            replica el mismo mecanismo que `ReelNegociosFeed`:
-                            SU contenedor con scroll no lleva `px-*` propio
-                            (`-mx-1 px-1`, neto ~0), el inset real lo da este
-                            wrapper NO scrolleable de afuera (`px-4`, mismo
-                            valor que el `p-4` de página de Negocios). */}
-                        <div className="lg:hidden">
-                            {articulosReel.length > 0 && (
-                                <div className="mt-2 px-4">
-                                    <ReelMarketplace articulos={articulosReel} />
-                                </div>
-                            )}
-                            <div className="space-y-3 px-3">
-                                {articulosFeedSinReel.map((articulo) => (
-                                    <CardArticuloFeed
-                                        key={articulo.id}
-                                        articulo={articulo}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* ── ESCRITORIO ── */}
-                        <div className="hidden lg:flex lg:items-start gap-2 2xl:gap-6">
-                            {hayColumnaCards && (
-                                <div
-                                    ref={cardsPlaceholderRef}
-                                    className="relative w-[320px] 2xl:w-[340px] shrink-0"
-                                    style={{ height: `calc(100vh - ${headerBottom + 16}px - 16px)` }}
-                                >
-                                    <div
-                                        className="w-[320px] 2xl:w-[340px] z-10 lg:fixed"
-                                        style={{
-                                            top: `${headerBottom + 16}px`,
-                                            left: cardsLeft !== null ? `${cardsLeft}px` : undefined,
-                                        }}
-                                    >
-                                        {/* Título FUERA del contenedor con scroll — así no
-                                            se oculta cuando el auto-scroll avanza el carrusel. */}
-                                        <h3
-                                            ref={cardsHeadingRef}
-                                            className="px-1 pb-2 text-sm font-bold uppercase tracking-wide text-slate-600"
-                                        >
-                                            Recién publicado
-                                        </h3>
-                                        <div
-                                            ref={cardsScrollRef}
-                                            className="marketplace-cards-scroll overflow-y-auto overflow-x-visible pr-1"
-                                            style={{ height: `calc(100vh - ${headerBottom + 16 + cardsHeadingAlto}px - 16px)` }}
-                                        >
-                                            <div className="flex flex-col gap-4 2xl:gap-5 pb-4">
-                                                {articulosReel.map((articulo) => (
-                                                    <CardArticulo
-                                                        key={articulo.id}
-                                                        articulo={articulo}
-                                                        variant="glass"
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Sin columna "Recién publicado" (orden ≠ recientes, o
-                                modo "busco"): la card NO se estira a lo ancho del
-                                contenedor completo — mantiene el mismo ancho que
-                                tendría junto a la columna (1280-320-8 / 1068-340-24)
-                                y se centra horizontalmente. */}
-                            <div
-                                className={
-                                    hayColumnaCards
-                                        ? 'min-w-0 flex-1'
-                                        : 'mx-auto w-full max-w-[952px] 2xl:max-w-[704px]'
-                                }
-                            >
-                                <div className="space-y-4">
-                                    {articulosFeedSinReel.map((articulo) => (
-                                        <CardArticuloFeed
-                                            key={articulo.id}
-                                            articulo={articulo}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sentinel + fin de feed — compartido entre ambos
-                            layouts (el que está oculto vía `hidden`/`lg:hidden`
-                            no ocupa espacio en el documento, así este queda
-                            posicionado justo después del que sí se ve). */}
-                        {hasNextPage && (
-                            <div
-                                ref={sentinelRef}
-                                className="flex items-center justify-center py-8"
-                            >
-                                {isFetchingNextPage ? (
-                                    <Loader2
-                                        className="h-6 w-6 animate-spin text-slate-500"
-                                        strokeWidth={2}
-                                    />
-                                ) : (
-                                    <div className="h-1 w-1" /> /* spacer */
-                                )}
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {/* Estado: vacío total. Dos casos bien distintos (mismo criterio
-                    que el feed de publicaciones de Negocios):
-                     - Hay categoría filtrada y no matchea nada → "sin
-                       coincidencias", CTA para limpiar el filtro. NO es lo
-                       mismo que "no hay artículos".
-                     - Sin filtro de categoría, la ciudad/modo realmente no
-                       tiene artículos aún → invitación a publicar. */}
-                {!isLoading &&
-                    !isError &&
-                    dataFeedInfinito &&
-                    articulosFeed.length === 0 && (
-                        <div className="relative mt-12 flex flex-col items-center px-6 text-center lg:mt-20">
-                            {/* Sparkles decorativos */}
-                            <Sparkles
-                                className="absolute left-8 top-2 h-5 w-5 animate-pulse text-teal-400/70"
-                                strokeWidth={2}
-                                style={{ animationDuration: '2.5s' }}
-                            />
-                            <Sparkles
-                                className="absolute right-10 top-10 h-4 w-4 animate-pulse text-teal-300/70"
-                                strokeWidth={2}
-                                style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
-                            />
-
-                            {/* Icono central con halos pulsantes */}
-                            <div className="relative mb-6">
-                                <div
-                                    className="absolute inset-0 -m-5 animate-ping rounded-full bg-teal-300/40"
-                                    style={{ animationDuration: '2.4s' }}
-                                />
-                                <div
-                                    className="absolute inset-0 -m-2 animate-ping rounded-full bg-teal-400/40"
-                                    style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
-                                />
-                                <div
-                                    className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
-                                    style={{
-                                        background:
-                                            'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                                    }}
-                                >
-                                    <ShoppingCart
-                                        className="h-11 w-11 text-white"
-                                        strokeWidth={2}
-                                    />
-                                </div>
-                            </div>
-
-                            {categoriaFeed !== null ? (
-                                <>
-                                    <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
-                                        Sin coincidencias
-                                    </h3>
-                                    <p className="mb-6 max-w-sm text-base text-slate-600">
-                                        No hay artículos con esta categoría.
-                                    </p>
-                                    <button
-                                        data-testid="btn-limpiar-categoria-empty-state"
-                                        onClick={() => setCategoriaFeed(null)}
-                                        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-teal-500 to-teal-700 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
-                                    >
-                                        <ShoppingCart className="h-4 w-4" strokeWidth={2.5} />
-                                        Ver todos los artículos
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
-                                        ¡Sé el primero!
-                                    </h3>
-                                    <p className="max-w-sm text-base text-slate-600">
-                                        Aún no hay {modoFeed === 'busco' ? 'búsquedas' : 'artículos'} en{' '}
-                                        <span className="font-bold text-slate-900">
-                                            {ciudad ?? 'tu zona'}
-                                        </span>
-                                        .
-                                    </p>
-
-                                    {/* CTA inline para desktop (donde no hay FAB visible al hacer scroll) */}
-                                    <button
-                                        data-testid="btn-publicar-empty-state"
-                                        onClick={handlePublicar}
-                                        className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
-                                    >
-                                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                                        Publicar primer artículo
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                {/* Indicador animado apuntando al FAB (abajo-derecha en móvil)
-                    — solo móvil cuando el feed está vacío. */}
-                {!isLoading &&
-                    !isError &&
-                    data &&
-                    recientes.length === 0 &&
-                    cercanos.length === 0 && (
-                        <div
-                            data-testid="empty-state-arrow-fab"
-                            className="pointer-events-none fixed bottom-36 right-3 z-20 flex flex-col items-end gap-1 lg:hidden"
-                            style={{ animation: 'mp-arrow-bounce 1.4s ease-in-out infinite' }}
-                        >
-                            <span className="rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-3 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
-                                ¡Publica aquí!
-                            </span>
-                            <CornerRightDown
-                                className="h-8 w-8 text-slate-900 drop-shadow"
-                                strokeWidth={3}
-                            />
-                            <style>{`
-                                @keyframes mp-arrow-bounce {
-                                    0%, 100% { transform: translate(0, 0); }
-                                    50% { transform: translate(6px, 6px); }
-                                }
-                            `}</style>
-                        </div>
-                    )}
 
             </div>
 
-            {/* FAB "+ Publicar" — visible solo en modo personal (los negocios
-                no publican artículos P2P en MarketPlace). Color teal de la
-                marca MP. Ver components/ui/FabPublicar.tsx. */}
-            {esModoPersonal && (
+            {/* FAB "+ Publicar" / "+ Organizar" — visible solo en modo personal
+                (los negocios no publican artículos P2P ni Dinámicas en
+                MarketPlace). Color según contexto activo. Ver components/ui/FabPublicar.tsx. */}
+            {esModoPersonal && contextoActivo === 'articulos' && (
                 <FabPublicar
                     onClick={handlePublicar}
                     ariaLabel="Publicar artículo"
                     claseColor="bg-linear-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30"
+                    topPublicar={topPublicar}
+                    esEscritorio={esEscritorio}
+                    bottomNavVisible={bottomNavVisible}
+                    labelConCardEscritorio
+                    claseRight="right-4 lg:right-[240px] 2xl:right-[394px]"
+                />
+            )}
+            {esModoPersonal && contextoActivo === 'dinamicas' && (
+                <FabPublicar
+                    onClick={handleOrganizarDinamica}
+                    ariaLabel="Organizar Dinámica"
+                    label="Organizar"
+                    claseColor="bg-linear-to-br from-amber-500 to-amber-700 shadow-lg shadow-amber-500/30 ring-2 ring-amber-300/30"
                     topPublicar={topPublicar}
                     esEscritorio={esEscritorio}
                     bottomNavVisible={bottomNavVisible}
@@ -1256,20 +784,6 @@ export function PaginaMarketplace() {
                 document.body
             )}
 
-            {/* Deep-link desde notificación de comentario — abre el modal de
-                comentarios del artículo puntual (con scroll + highlight al
-                comentario, ver ModalComentariosMarketplace). */}
-            {articuloIdDestacado && (
-                <ModalComentariosMarketplace
-                    abierto={!!articuloIdDestacado}
-                    onCerrar={() => {
-                        setArticuloIdDestacado(null);
-                        setComentarioIdDestacado(null);
-                    }}
-                    articuloId={articuloIdDestacado}
-                    comentarioDestacadoId={comentarioIdDestacado}
-                />
-            )}
         </div>
     );
 }

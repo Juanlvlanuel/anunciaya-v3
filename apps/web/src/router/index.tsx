@@ -99,6 +99,7 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 // Páginas de secciones principales
 import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticuloMarketplace';
+import PaginaDinamica from '../pages/private/marketplace/PaginaDinamica';
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
 import PaginaServicios from '../pages/private/servicios/PaginaServicios';
 import PaginaServicio from '../pages/private/servicios/PaginaServicio';
@@ -341,6 +342,14 @@ const router = createBrowserRouter([
             element: (
               <ModoPersonalEstrictoGuard>
                 <PaginaArticuloMarketplace />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          {
+            path: '/marketplace/dinamica/:dinamicaId',
+            element: (
+              <ModoPersonalEstrictoGuard>
+                <PaginaDinamica />
               </ModoPersonalEstrictoGuard>
             ),
           },

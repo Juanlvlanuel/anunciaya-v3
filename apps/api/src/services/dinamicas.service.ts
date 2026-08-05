@@ -21,11 +21,12 @@
  * controller solo mapea a status HTTP, cero lógica de negocio ahí.
  */
 
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, count, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { dinamicas, dinamicaBoletos } from '../db/schemas/schema.js';
+import { dinamicas, dinamicaBoletos, usuarios } from '../db/schemas/schema.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
+import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
 import { MIME_FOTO_O_VIDEO } from '../validations/archivoFoto.schema.js';
 import { puedeTransicionar, type EstadoDinamica } from './dinamicas/estados.js';
@@ -35,6 +36,7 @@ import type {
     CrearDinamicaInput,
     EditarBorradorDinamicaInput,
     ConfirmacionesDinamicaInput,
+    AgregarParticipanteManualInput,
 } from '../validations/dinamicas.schema.js';
 
 export type { EstadoDinamica };
@@ -285,22 +287,24 @@ async function obtenerParaEdicion(usuarioId: string, dinamicaId: string) {
     return fila;
 }
 
-export async function obtenerDinamica(dinamicaId: string) {
-    try {
-        const [fila] = await db
-            .select()
-            .from(dinamicas)
-            .where(eq(dinamicas.id, dinamicaId))
-            .limit(1);
+/** Nivel de insignia por Dinámicas completadas — mismo criterio en todo el
+ *  módulo (lista propia del organizador y ficha pública que ve un tercero). */
+function calcularNivelInsignia(completadas: number): 'nuevo' | 'activo' | 'confiable' {
+    return completadas >= 10 ? 'confiable' : completadas >= 3 ? 'activo' : 'nuevo';
+}
 
-        if (!fila) {
-            return { success: false, message: 'Dinámica no encontrada', code: 404 } satisfies RespuestaError;
-        }
-        return { success: true as const, data: fila };
-    } catch (error) {
-        console.error('Error en obtenerDinamica:', error);
-        return { success: false, message: 'Error al obtener la Dinámica', code: 500 } satisfies RespuestaError;
-    }
+/** Insignia de actividad de un organizador, calculada al vuelo (COUNT, sin
+ *  contador cacheado — Fase 1). Usada tanto en la ficha pública de un
+ *  tercero (Fase 3) como internamente por `listarMisDinamicas`. */
+async function calcularInsigniaOrganizador(usuarioId: string) {
+    const filas = await db
+        .select({ estado: dinamicas.estado })
+        .from(dinamicas)
+        .where(eq(dinamicas.organizadorUsuarioId, usuarioId));
+
+    const completadas = filas.filter((f) => f.estado === 'cerrada').length;
+    const canceladas = filas.filter((f) => f.estado === 'cancelada').length;
+    return { completadas, canceladas, nivel: calcularNivelInsignia(completadas) };
 }
 
 /** Lista las Dinámicas del organizador + la insignia de actividad calculada
@@ -315,18 +319,137 @@ export async function listarMisDinamicas(usuarioId: string) {
 
         const completadas = filas.filter((f) => f.estado === 'cerrada').length;
         const canceladas = filas.filter((f) => f.estado === 'cancelada').length;
-        const nivel = completadas >= 10 ? 'confiable' : completadas >= 3 ? 'activo' : 'nuevo';
 
         return {
             success: true as const,
             data: {
                 dinamicas: filas,
-                insignia: { completadas, canceladas, nivel },
+                insignia: { completadas, canceladas, nivel: calcularNivelInsignia(completadas) },
             },
         };
     } catch (error) {
         console.error('Error en listarMisDinamicas:', error);
         return { success: false, message: 'Error al listar tus Dinámicas', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** Ficha pública de una Dinámica: la fila + organizador embebido + boletos
+ *  vendidos/disponibles + insignia del organizador — igual criterio de
+ *  enriquecimiento que `ArticuloMarketplaceDetalle` en MarketPlace. */
+export async function obtenerDinamicaPublica(dinamicaId: string) {
+    try {
+        const [fila] = await db
+            .select({
+                dinamica: dinamicas,
+                organizadorId: usuarios.id,
+                organizadorNombre: usuarios.nombre,
+                organizadorApellidos: usuarios.apellidos,
+                organizadorAvatarUrl: usuarios.avatarUrl,
+            })
+            .from(dinamicas)
+            .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
+            .where(eq(dinamicas.id, dinamicaId))
+            .limit(1);
+
+        if (!fila) {
+            return { success: false, message: 'Dinámica no encontrada', code: 404 } satisfies RespuestaError;
+        }
+
+        const [boletosPagados, insigniaOrganizador] = await Promise.all([
+            contarBoletosPagados(dinamicaId),
+            calcularInsigniaOrganizador(fila.organizadorId),
+        ]);
+
+        const boletosDisponibles =
+            fila.dinamica.numeroTotalBoletos !== null
+                ? Math.max(0, fila.dinamica.numeroTotalBoletos - boletosPagados)
+                : null;
+
+        return {
+            success: true as const,
+            data: {
+                ...fila.dinamica,
+                organizador: {
+                    id: fila.organizadorId,
+                    nombre: fila.organizadorNombre,
+                    apellidos: fila.organizadorApellidos,
+                    avatarUrl: fila.organizadorAvatarUrl,
+                },
+                boletosPagados,
+                boletosDisponibles,
+                insigniaOrganizador,
+            },
+        };
+    } catch (error) {
+        console.error('Error en obtenerDinamicaPublica:', error);
+        return { success: false, message: 'Error al obtener la Dinámica', code: 500 } satisfies RespuestaError;
+    }
+}
+
+interface OpcionesFeedDinamicas {
+    ciudadId: string;
+    pagina?: number;
+    limite?: number;
+}
+
+/** Feed público de Dinámicas — `estado IN ('activa','pospuesta')`, filtrado
+ *  por ciudad, paginación offset-based igual que `marketplace.service.ts`
+ *  (`pagina/limite/hayMas`, se pide `limite + 1` para saber si hay más sin
+ *  un segundo COUNT). */
+export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas) {
+    try {
+        const pagina = Math.max(1, opciones.pagina ?? 1);
+        const limite = Math.min(20, Math.max(1, opciones.limite ?? 10));
+        const offset = (pagina - 1) * limite;
+
+        const filas = await db
+            .select({
+                dinamica: dinamicas,
+                organizadorId: usuarios.id,
+                organizadorNombre: usuarios.nombre,
+                organizadorApellidos: usuarios.apellidos,
+                organizadorAvatarUrl: usuarios.avatarUrl,
+            })
+            .from(dinamicas)
+            .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
+            .where(
+                and(
+                    eq(dinamicas.ciudadId, opciones.ciudadId),
+                    sql`${dinamicas.estado} IN ('activa', 'pospuesta')`,
+                ),
+            )
+            .orderBy(desc(dinamicas.createdAt))
+            .limit(limite + 1)
+            .offset(offset);
+
+        const hayMas = filas.length > limite;
+        const filasRecortadas = hayMas ? filas.slice(0, limite) : filas;
+
+        const items = await Promise.all(
+            filasRecortadas.map(async (fila) => {
+                const boletosPagados = await contarBoletosPagados(fila.dinamica.id);
+                const boletosDisponibles =
+                    fila.dinamica.numeroTotalBoletos !== null
+                        ? Math.max(0, fila.dinamica.numeroTotalBoletos - boletosPagados)
+                        : null;
+                return {
+                    ...fila.dinamica,
+                    organizador: {
+                        id: fila.organizadorId,
+                        nombre: fila.organizadorNombre,
+                        apellidos: fila.organizadorApellidos,
+                        avatarUrl: fila.organizadorAvatarUrl,
+                    },
+                    boletosPagados,
+                    boletosDisponibles,
+                };
+            }),
+        );
+
+        return { success: true as const, data: { dinamicas: items, pagina, limite, hayMas } };
+    } catch (error) {
+        console.error('Error en listarDinamicasPublicas:', error);
+        return { success: false, message: 'Error al listar Dinámicas', code: 500 } satisfies RespuestaError;
     }
 }
 
@@ -460,6 +583,195 @@ export async function contarBoletosPagados(dinamicaId: string): Promise<number> 
         .where(and(eq(dinamicaBoletos.dinamicaId, dinamicaId), eq(dinamicaBoletos.estado, 'pagado')));
 
     return fila?.total ?? 0;
+}
+
+// =============================================================================
+// BOLETOS — endpoints públicos (Fase 3)
+// =============================================================================
+
+/** Mensaje automático al organizador cuando alguien reserva un boleto —
+ *  calca `enviarCuponPorChatYA` (`ofertas.service.ts:1613`): best-effort,
+ *  nunca rompe la reserva si el chat falla. `contextoTipo: 'directo'` (no
+ *  se agrega un tipo nuevo al catálogo — evita ampliar el CHECK de
+ *  `conversaciones`, mismo tipo que ya usa `useIniciarChatDirectoPersona`
+ *  en el frontend). */
+async function notificarReservaBoletoPorChat(
+    compradorId: string,
+    dinamica: typeof dinamicas.$inferSelect,
+): Promise<void> {
+    try {
+        const convRes = await crearObtenerConversacion(
+            {
+                participante2Id: dinamica.organizadorUsuarioId,
+                participante1Modo: 'personal',
+                participante2Modo: 'personal',
+                contextoTipo: 'directo',
+            },
+            compradorId,
+        );
+        if (!convRes.success || !convRes.data) return;
+
+        await enviarMensaje({
+            conversacionId: convRes.data.id,
+            emisorId: compradorId,
+            emisorModo: 'personal',
+            tipo: 'texto',
+            contenido: `Reservé un boleto para "${dinamica.titulo}" — coordinamos el pago por aquí.`,
+        });
+    } catch (error) {
+        console.error('Error enviando mensaje de reserva de boleto por ChatYA (no crítico):', error);
+    }
+}
+
+/** Reserva pública de boleto: valida que la Dinámica acepte participantes,
+ *  que el número esté en rango y que la fecha límite no haya vencido, antes
+ *  de delegar en `reservarBoleto` (que resuelve la condición de carrera vía
+ *  el UNIQUE de la tabla). Dispara el chat automático best-effort. */
+export async function reservarBoletoPublico(usuarioId: string, dinamicaId: string, numeroBoleto: number) {
+    try {
+        const [dinamica] = await db.select().from(dinamicas).where(eq(dinamicas.id, dinamicaId)).limit(1);
+        if (!dinamica) {
+            return { success: false, message: 'Dinámica no encontrada', code: 404 } satisfies RespuestaError;
+        }
+        if (dinamica.estado !== 'activa' && dinamica.estado !== 'pospuesta') {
+            return { success: false, message: 'Esta Dinámica no está aceptando participantes', code: 409 } satisfies RespuestaError;
+        }
+        if (!dinamica.numeroTotalBoletos || numeroBoleto < 1 || numeroBoleto > dinamica.numeroTotalBoletos) {
+            return { success: false, message: 'Número de boleto fuera de rango', code: 400 } satisfies RespuestaError;
+        }
+        if (dinamica.fechaLimiteInscripcion && new Date(dinamica.fechaLimiteInscripcion).getTime() < Date.now()) {
+            return { success: false, message: 'La fecha límite de inscripción ya pasó', code: 409 } satisfies RespuestaError;
+        }
+
+        const resultado = await reservarBoleto({ dinamicaId, numeroBoleto, usuarioId });
+        if (!resultado.success) return resultado;
+
+        notificarReservaBoletoPorChat(usuarioId, dinamica).catch(() => undefined);
+
+        return resultado;
+    } catch (error) {
+        console.error('Error en reservarBoletoPublico:', error);
+        return { success: false, message: 'Error al reservar el boleto', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** El organizador registra a alguien sin cuenta AY — entra directo en
+ *  `pagado` (ya cobró por fuera antes de registrarlo, ver Contexto_Dinamicas.md). */
+export async function agregarParticipanteManual(
+    organizadorUsuarioId: string,
+    dinamicaId: string,
+    datos: AgregarParticipanteManualInput,
+) {
+    try {
+        const actual = await obtenerParaEdicion(organizadorUsuarioId, dinamicaId);
+        if ('success' in actual) return actual;
+
+        if (actual.estado !== 'activa' && actual.estado !== 'pospuesta') {
+            return { success: false, message: 'Esta Dinámica no está aceptando participantes', code: 409 } satisfies RespuestaError;
+        }
+        if (!actual.numeroTotalBoletos || datos.numeroBoleto < 1 || datos.numeroBoleto > actual.numeroTotalBoletos) {
+            return { success: false, message: 'Número de boleto fuera de rango', code: 400 } satisfies RespuestaError;
+        }
+
+        const ahora = new Date().toISOString();
+        const [fila] = await db
+            .insert(dinamicaBoletos)
+            .values({
+                dinamicaId,
+                numeroBoleto: datos.numeroBoleto,
+                nombreManual: datos.nombreManual,
+                telefonoManual: datos.telefonoManual,
+                estado: 'pagado',
+                reservadoEn: ahora,
+                reservadoExpiraEn: ahora,
+                pagadoEn: ahora,
+            })
+            .returning();
+
+        return { success: true as const, data: fila };
+    } catch (error) {
+        if (esErrorBoletoDuplicado(error)) {
+            return { success: false, message: 'Ese número de boleto ya fue tomado', code: 409 } satisfies RespuestaError;
+        }
+        console.error('Error en agregarParticipanteManual:', error);
+        return { success: false, message: 'Error al agregar el participante', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** El organizador confirma que un boleto reservado ya se pagó (fuera de la
+ *  app) — valida que quien llama es el organizador antes de delegar en
+ *  `confirmarPagoBoleto`. */
+export async function confirmarPagoBoletoOrganizador(
+    organizadorUsuarioId: string,
+    dinamicaId: string,
+    boletoId: string,
+) {
+    try {
+        const actual = await obtenerParaEdicion(organizadorUsuarioId, dinamicaId);
+        if ('success' in actual) return actual;
+
+        const [boleto] = await db.select().from(dinamicaBoletos).where(eq(dinamicaBoletos.id, boletoId)).limit(1);
+        if (!boleto || boleto.dinamicaId !== dinamicaId) {
+            return { success: false, message: 'Boleto no encontrado', code: 404 } satisfies RespuestaError;
+        }
+
+        return await confirmarPagoBoleto(boletoId);
+    } catch (error) {
+        console.error('Error en confirmarPagoBoletoOrganizador:', error);
+        return { success: false, message: 'Error al confirmar el pago del boleto', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** Lista pública de participantes (transparencia, ver Contexto_Dinamicas.md)
+ *  — sin teléfono. Incluye `id/nombre/apellidos/avatarUrl` de los que tienen
+ *  cuenta AY: son justo los campos que pide `useIniciarChatDirectoPersona`
+ *  en el frontend para el botón "Contactar" (visible a cualquiera que vea
+ *  la lista, no solo al organizador). */
+export async function listarBoletosPublico(dinamicaId: string) {
+    try {
+        const filas = await db
+            .select({
+                id: dinamicaBoletos.id,
+                numeroBoleto: dinamicaBoletos.numeroBoleto,
+                estado: dinamicaBoletos.estado,
+                nombreManual: dinamicaBoletos.nombreManual,
+                usuarioId: usuarios.id,
+                usuarioNombre: usuarios.nombre,
+                usuarioApellidos: usuarios.apellidos,
+                usuarioAvatarUrl: usuarios.avatarUrl,
+            })
+            .from(dinamicaBoletos)
+            .leftJoin(usuarios, eq(usuarios.id, dinamicaBoletos.usuarioId))
+            .where(eq(dinamicaBoletos.dinamicaId, dinamicaId))
+            .orderBy(dinamicaBoletos.numeroBoleto);
+
+        const boletos = filas.map((f) => ({
+            id: f.id,
+            numeroBoleto: f.numeroBoleto,
+            estado: f.estado,
+            usuario: f.usuarioId
+                ? { id: f.usuarioId, nombre: f.usuarioNombre, apellidos: f.usuarioApellidos, avatarUrl: f.usuarioAvatarUrl }
+                : null,
+            nombreManual: f.usuarioId ? null : f.nombreManual,
+        }));
+
+        return { success: true as const, data: boletos };
+    } catch (error) {
+        console.error('Error en listarBoletosPublico:', error);
+        return { success: false, message: 'Error al listar los participantes', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** Libera los boletos `reservado` cuya ventana de 24h ya venció (nadie
+ *  confirmó el pago) — llamado por el cron `dinamicas-expiracion.cron.ts`.
+ *  DELETE directo: el número simplemente vuelve a estar disponible. */
+export async function liberarBoletosExpirados(): Promise<number> {
+    const filas = await db
+        .delete(dinamicaBoletos)
+        .where(and(eq(dinamicaBoletos.estado, 'reservado'), sql`${dinamicaBoletos.reservadoExpiraEn} < NOW()`))
+        .returning({ id: dinamicaBoletos.id });
+
+    return filas.length;
 }
 
 // =============================================================================

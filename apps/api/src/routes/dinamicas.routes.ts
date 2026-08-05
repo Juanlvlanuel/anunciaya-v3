@@ -1,17 +1,19 @@
 /**
  * ============================================================================
- * DINÁMICAS ROUTES — Fase 1 (ciclo de vida, sin UI)
+ * DINÁMICAS ROUTES — Fase 1 (ciclo de vida) + Fase 3 (participación)
  * ============================================================================
  *
  * UBICACIÓN: apps/api/src/routes/dinamicas.routes.ts
  *
- * Rutas más específicas (/mias) van ANTES de las paramétricas (/:id), mismo
- * criterio que marketplace.routes.ts.
+ * Rutas más específicas (/mias, POST '/') van ANTES de las paramétricas
+ * (/:id, /:id/boletos/...), mismo criterio que marketplace.routes.ts.
  *
- * Endpoints expuestos en esta fase:
+ * Endpoints expuestos:
  *
  *   PÚBLICO (verificarTokenOpcional)
+ *   GET    /
  *   GET    /:id
+ *   GET    /:id/boletos
  *
  *   PRIVADOS (verificarToken + requiereModoPersonal — Dinámicas es 100% P2P personal)
  *   GET    /mias
@@ -22,9 +24,11 @@
  *   POST   /:id/publicar
  *   POST   /:id/posponer
  *   POST   /:id/cancelar
+ *   POST   /:id/boletos/reservar
+ *   POST   /:id/boletos/manual                 (solo el organizador — validado en el service)
+ *   POST   /:id/boletos/:boletoId/confirmar-pago (solo el organizador — validado en el service)
  *
- * NO en esta fase: reservar boleto (endpoint público + disparo de ChatYA) es
- * Fase 3; el motor de sorteo (elegir ganador) es Fase 4.
+ * NO en esta fase: el motor de sorteo (elegir ganador, semilla, hash) es Fase 4.
  */
 
 import { Router } from 'express';
@@ -35,7 +39,12 @@ import {
     postPosponerDinamica,
     postCancelarDinamica,
     getMisDinamicas,
+    getFeedDinamicas,
     getDinamica,
+    getBoletosDinamica,
+    postReservarBoleto,
+    postAgregarParticipanteManual,
+    postConfirmarPagoBoleto,
     postUploadImagen,
     deleteFotoDinamicaHuerfana,
 } from '../controllers/dinamicas.controller.js';
@@ -54,8 +63,13 @@ router.delete('/foto-huerfana', verificarToken, requiereModoPersonal, deleteFoto
 router.post('/:id/publicar', verificarToken, requiereModoPersonal, postPublicarDinamica);
 router.post('/:id/posponer', verificarToken, requiereModoPersonal, postPosponerDinamica);
 router.post('/:id/cancelar', verificarToken, requiereModoPersonal, postCancelarDinamica);
+router.post('/:id/boletos/reservar', verificarToken, requiereModoPersonal, postReservarBoleto);
+router.post('/:id/boletos/manual', verificarToken, requiereModoPersonal, postAgregarParticipanteManual);
+router.post('/:id/boletos/:boletoId/confirmar-pago', verificarToken, requiereModoPersonal, postConfirmarPagoBoleto);
 
 // ─── Público ─────────────────────────────────────────────────────────────
+router.get('/', verificarTokenOpcional, getFeedDinamicas);
 router.get('/:id', verificarTokenOpcional, getDinamica);
+router.get('/:id/boletos', verificarTokenOpcional, getBoletosDinamica);
 
 export default router;

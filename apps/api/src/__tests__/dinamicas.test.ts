@@ -27,6 +27,8 @@ import {
     publicarDinamicaSchema,
     posponerDinamicaSchema,
     cancelarDinamicaSchema,
+    reservarBoletoSchema,
+    agregarParticipanteManualSchema,
 } from '../validations/dinamicas.schema';
 
 // =============================================================================
@@ -353,6 +355,79 @@ describe('publicarDinamicaSchema', () => {
     it('RECHAZA sin version', () => {
         const r = publicarDinamicaSchema.safeParse({
             confirmaciones: confirmacionesValidas({ version: '' }),
+        });
+        expect(r.success).toBe(false);
+    });
+});
+
+// =============================================================================
+// 6. VALIDACIÓN ZOD — boletos (Fase 3)
+// =============================================================================
+//
+// Las reglas de negocio en tiempo de ejecución (número dentro de rango de
+// `numeroTotalBoletos`, estado de la Dinámica, fecha límite no vencida) viven
+// en `dinamicas.service.ts` — que importa `db/index.js` (Pool real) — así
+// que, mismo criterio que el resto de este archivo, no se cubren aquí con
+// tests de integración. Solo se cubre la forma del payload (Zod).
+
+describe('reservarBoletoSchema', () => {
+    it('acepta un número de boleto entero positivo', () => {
+        const r = reservarBoletoSchema.safeParse({ numeroBoleto: 42 });
+        expect(r.success).toBe(true);
+    });
+
+    it('RECHAZA número de boleto 0', () => {
+        const r = reservarBoletoSchema.safeParse({ numeroBoleto: 0 });
+        expect(r.success).toBe(false);
+    });
+
+    it('RECHAZA número de boleto negativo', () => {
+        const r = reservarBoletoSchema.safeParse({ numeroBoleto: -5 });
+        expect(r.success).toBe(false);
+    });
+
+    it('RECHAZA número de boleto no entero', () => {
+        const r = reservarBoletoSchema.safeParse({ numeroBoleto: 3.5 });
+        expect(r.success).toBe(false);
+    });
+
+    it('RECHAZA payload sin numeroBoleto', () => {
+        const r = reservarBoletoSchema.safeParse({});
+        expect(r.success).toBe(false);
+    });
+});
+
+describe('agregarParticipanteManualSchema', () => {
+    it('acepta numeroBoleto + nombreManual + telefonoManual', () => {
+        const r = agregarParticipanteManualSchema.safeParse({
+            numeroBoleto: 7,
+            nombreManual: 'Doña Lupita',
+            telefonoManual: '6381234567',
+        });
+        expect(r.success).toBe(true);
+    });
+
+    it('RECHAZA sin nombreManual', () => {
+        const r = agregarParticipanteManualSchema.safeParse({
+            numeroBoleto: 7,
+            telefonoManual: '6381234567',
+        });
+        expect(r.success).toBe(false);
+    });
+
+    it('RECHAZA sin telefonoManual', () => {
+        const r = agregarParticipanteManualSchema.safeParse({
+            numeroBoleto: 7,
+            nombreManual: 'Doña Lupita',
+        });
+        expect(r.success).toBe(false);
+    });
+
+    it('RECHAZA nombreManual vacío', () => {
+        const r = agregarParticipanteManualSchema.safeParse({
+            numeroBoleto: 7,
+            nombreManual: '',
+            telefonoManual: '6381234567',
         });
         expect(r.success).toBe(false);
     });

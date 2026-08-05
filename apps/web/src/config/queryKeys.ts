@@ -285,6 +285,9 @@ export const queryKeys = {
     all: () => ['dinamicas'] as const,
     dinamica: (dinamicaId: string) => ['dinamicas', 'dinamica', dinamicaId] as const,
     mias: () => ['dinamicas', 'mias'] as const,
+    feed: (filtros: { ciudad: string; pagina?: number; limite?: number }) =>
+      ['dinamicas', 'feed', filtros] as const,
+    boletos: (dinamicaId: string) => ['dinamicas', 'boletos', dinamicaId] as const,
   },
 
   // ─── Sección pública — Servicios ──────────────────────────────────────────

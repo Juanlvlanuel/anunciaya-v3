@@ -178,6 +178,38 @@ export type PosponerDinamicaInput = z.infer<typeof posponerDinamicaSchema>;
 export const cancelarDinamicaSchema = z.object({});
 
 // =============================================================================
+// BOLETOS (Fase 3)
+// =============================================================================
+
+export const reservarBoletoSchema = z.object({
+    numeroBoleto: z
+        .number({ message: 'El número de boleto debe ser un número' })
+        .int('El número de boleto debe ser un entero')
+        .positive('El número de boleto debe ser mayor a cero'),
+});
+
+export type ReservarBoletoInput = z.infer<typeof reservarBoletoSchema>;
+
+export const agregarParticipanteManualSchema = z.object({
+    numeroBoleto: z
+        .number({ message: 'El número de boleto debe ser un número' })
+        .int('El número de boleto debe ser un entero')
+        .positive('El número de boleto debe ser mayor a cero'),
+    nombreManual: z
+        .string()
+        .trim()
+        .min(1, 'El nombre es obligatorio')
+        .max(100, 'El nombre no puede exceder 100 caracteres'),
+    telefonoManual: z
+        .string()
+        .trim()
+        .min(1, 'El teléfono es obligatorio')
+        .max(20, 'El teléfono no puede exceder 20 caracteres'),
+});
+
+export type AgregarParticipanteManualInput = z.infer<typeof agregarParticipanteManualSchema>;
+
+// =============================================================================
 // SUBIDA DE IMÁGENES (Fase 2) — mismo patrón que uploadImagenSchema de MP
 // =============================================================================
 

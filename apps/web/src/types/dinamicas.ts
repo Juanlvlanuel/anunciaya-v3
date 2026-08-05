@@ -90,3 +90,52 @@ export interface MisDinamicasRespuesta {
     dinamicas: Dinamica[];
     insignia: InsigniaOrganizador;
 }
+
+// =============================================================================
+// FASE 3 — feed público, ficha enriquecida y participación
+// =============================================================================
+
+export interface OrganizadorDinamica {
+    id: string;
+    nombre: string;
+    apellidos: string;
+    avatarUrl: string | null;
+}
+
+/** Fila del feed público (`GET /api/dinamicas`) — la Dinámica + organizador
+ *  embebido + boletos vendidos/disponibles, calcado de `ArticuloFeedInfinito`. */
+export interface DinamicaFeedItem extends Dinamica {
+    organizador: OrganizadorDinamica;
+    boletosPagados: number;
+    boletosDisponibles: number | null;
+}
+
+/** Respuesta paginada del feed — mismo shape que `RespuestaFeedInfinito` de MarketPlace. */
+export interface RespuestaFeedDinamicas {
+    dinamicas: DinamicaFeedItem[];
+    pagina: number;
+    limite: number;
+    hayMas: boolean;
+}
+
+/** Ficha pública (`GET /api/dinamicas/:id`) — la Dinámica + organizador + insignia. */
+export interface DinamicaDetallePublico extends Dinamica {
+    organizador: OrganizadorDinamica;
+    boletosPagados: number;
+    boletosDisponibles: number | null;
+    insigniaOrganizador: InsigniaOrganizador;
+}
+
+export type EstadoBoletoDinamica = 'reservado' | 'pagado';
+
+/** Fila de la lista pública de participantes (`GET /api/dinamicas/:id/boletos`)
+ *  — sin teléfono (ver Contexto_Dinamicas.md). `usuario` viene con los campos
+ *  exactos que pide `useIniciarChatDirectoPersona` para el botón "Contactar". */
+export interface BoletoDinamica {
+    id: string;
+    numeroBoleto: number;
+    estado: EstadoBoletoDinamica;
+    usuario: OrganizadorDinamica | null;
+    /** Nombre del participante "Sin cuenta AY" — null si sí tiene cuenta. */
+    nombreManual: string | null;
+}

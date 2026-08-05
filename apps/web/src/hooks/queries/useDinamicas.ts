@@ -9,7 +9,7 @@
  * Ubicación: apps/web/src/hooks/queries/useDinamicas.ts
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
 import type {
@@ -17,7 +17,10 @@ import type {
     EditarBorradorDinamicaPayload,
     PublicarDinamicaPayload,
     Dinamica,
+    DinamicaDetallePublico,
     MisDinamicasRespuesta,
+    RespuestaFeedDinamicas,
+    BoletoDinamica,
 } from '../../types/dinamicas';
 
 // =============================================================================
@@ -150,14 +153,141 @@ export function useMisDinamicas() {
     });
 }
 
+/** Ficha de la Dinámica — el backend ya la devuelve enriquecida (organizador,
+ *  boletos vendidos/disponibles, insignia); `DinamicaDetallePublico` extiende
+ *  `Dinamica`, así que el composer (que solo lee los campos base para
+ *  hidratar el draft de edición) sigue funcionando igual. */
 export function useDinamica(dinamicaId: string | null) {
     return useQuery({
         queryKey: queryKeys.dinamicas.dinamica(dinamicaId ?? ''),
         queryFn: async () => {
-            const response = await api.get<{ success: boolean; data: Dinamica }>(`/dinamicas/${dinamicaId}`);
+            const response = await api.get<{ success: boolean; data: DinamicaDetallePublico }>(
+                `/dinamicas/${dinamicaId}`,
+            );
             return response.data.data;
         },
         enabled: !!dinamicaId,
+    });
+}
+
+// =============================================================================
+// FASE 3 — feed público, boletos y participación
+// =============================================================================
+
+interface UseFeedInfinitoDinamicasParams {
+    ciudad: string | null | undefined;
+    limite?: number;
+}
+
+/** Feed infinito de Dinámicas — calcado de `useFeedInfinitoMarketplace`
+ *  (`useMarketplace.ts`): mismo patrón de paginación offset-based,
+ *  `keepPreviousData` para evitar temblor visual (PATRON_REACT_QUERY). */
+export function useFeedInfinitoDinamicas(params: UseFeedInfinitoDinamicasParams) {
+    const { ciudad, limite = 10 } = params;
+    const habilitado = !!ciudad;
+
+    return useInfiniteQuery({
+        queryKey: queryKeys.dinamicas.feed({ ciudad: ciudad ?? '', limite }),
+        queryFn: async ({ pageParam }): Promise<RespuestaFeedDinamicas> => {
+            const response = await api.get<{ success: boolean; data: RespuestaFeedDinamicas }>('/dinamicas', {
+                params: { ciudad, pagina: pageParam, limite },
+            });
+            return response.data.success
+                ? response.data.data
+                : { dinamicas: [], pagina: pageParam as number, limite, hayMas: false };
+        },
+        initialPageParam: 1,
+        getNextPageParam: (ultimaPagina) => (ultimaPagina.hayMas ? ultimaPagina.pagina + 1 : undefined),
+        enabled: habilitado,
+        staleTime: 2 * 60 * 1000,
+        placeholderData: keepPreviousData,
+        refetchOnWindowFocus: true,
+        refetchOnMount: 'always',
+    });
+}
+
+/** Lista pública de participantes — transparencia antes del cierre de
+ *  inscripción (ver Contexto_Dinamicas.md). Sin `staleTime`: cambia seguido
+ *  (cada reserva/confirmación) y la ficha debe reflejarlo al reabrirse. */
+export function useBoletosDinamica(dinamicaId: string | null) {
+    return useQuery({
+        queryKey: queryKeys.dinamicas.boletos(dinamicaId ?? ''),
+        queryFn: async (): Promise<BoletoDinamica[]> => {
+            const response = await api.get<{ success: boolean; data: BoletoDinamica[] }>(
+                `/dinamicas/${dinamicaId}/boletos`,
+            );
+            return response.data.data;
+        },
+        enabled: !!dinamicaId,
+        staleTime: 0,
+    });
+}
+
+interface RespuestaBoletoOk {
+    success: true;
+    data: { id: string; numeroBoleto: number };
+}
+interface RespuestaBoletoError {
+    success: false;
+    message: string;
+}
+type RespuestaBoleto = RespuestaBoletoOk | RespuestaBoletoError;
+
+function invalidarDinamicaYBoletos(queryClient: ReturnType<typeof useQueryClient>, dinamicaId: string) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.dinamicas.dinamica(dinamicaId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dinamicas.boletos(dinamicaId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dinamicas.all() });
+}
+
+/** El usuario reserva un número de boleto para sí mismo — dispara chat
+ *  automático con el organizador en el backend (best-effort, sin acción del
+ *  frontend). */
+export function useReservarBoleto() {
+    const queryClient = useQueryClient();
+    return useMutation<RespuestaBoleto, unknown, { dinamicaId: string; numeroBoleto: number }>({
+        mutationFn: async ({ dinamicaId, numeroBoleto }) => {
+            const response = await api.post<RespuestaBoleto>(`/dinamicas/${dinamicaId}/boletos/reservar`, {
+                numeroBoleto,
+            });
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
+        },
+    });
+}
+
+/** El organizador registra a alguien sin cuenta AY — entra directo pagado. */
+export function useAgregarParticipanteManual() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        RespuestaBoleto,
+        unknown,
+        { dinamicaId: string; numeroBoleto: number; nombreManual: string; telefonoManual: string }
+    >({
+        mutationFn: async ({ dinamicaId, ...payload }) => {
+            const response = await api.post<RespuestaBoleto>(`/dinamicas/${dinamicaId}/boletos/manual`, payload);
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
+        },
+    });
+}
+
+/** El organizador confirma que un boleto reservado ya se pagó (fuera de la app). */
+export function useConfirmarPagoBoleto() {
+    const queryClient = useQueryClient();
+    return useMutation<RespuestaBoleto, unknown, { dinamicaId: string; boletoId: string }>({
+        mutationFn: async ({ dinamicaId, boletoId }) => {
+            const response = await api.post<RespuestaBoleto>(
+                `/dinamicas/${dinamicaId}/boletos/${boletoId}/confirmar-pago`,
+            );
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
+        },
     });
 }
 

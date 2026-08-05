@@ -17,18 +17,26 @@ import {
     publicarDinamica,
     posponerDinamica,
     cancelarDinamica,
-    obtenerDinamica,
+    obtenerDinamicaPublica,
+    listarDinamicasPublicas,
     listarMisDinamicas,
+    listarBoletosPublico,
+    reservarBoletoPublico,
+    agregarParticipanteManual,
+    confirmarPagoBoletoOrganizador,
     notificarDinamicaPospuesta,
     generarUrlUploadImagenDinamica,
     eliminarFotoDinamicaSiHuerfana,
 } from '../services/dinamicas.service.js';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import {
     crearDinamicaSchema,
     editarBorradorDinamicaSchema,
     publicarDinamicaSchema,
     posponerDinamicaSchema,
     uploadImagenDinamicaSchema,
+    reservarBoletoSchema,
+    agregarParticipanteManualSchema,
     formatearErroresZod,
 } from '../validations/dinamicas.schema.js';
 
@@ -199,13 +207,102 @@ export async function deleteFotoDinamicaHuerfana(req: Request, res: Response) {
     return res.status(200).json({ success: true });
 }
 
+/** POST /api/dinamicas/:id/boletos/manual — solo el organizador (body: numeroBoleto, nombreManual, telefonoManual) */
+export async function postAgregarParticipanteManual(req: Request, res: Response) {
+    const usuarioId = exigirUsuarioId(req, res);
+    if (!usuarioId) return;
+
+    const validacion = agregarParticipanteManualSchema.safeParse(req.body);
+    if (!validacion.success) {
+        return res.status(400).json({
+            success: false,
+            message: 'Datos inválidos',
+            errores: formatearErroresZod(validacion.error),
+        });
+    }
+
+    const resultado = await agregarParticipanteManual(usuarioId, req.params.id as string, validacion.data);
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.status(201).json(resultado);
+}
+
+/** POST /api/dinamicas/:id/boletos/:boletoId/confirmar-pago — solo el organizador */
+export async function postConfirmarPagoBoleto(req: Request, res: Response) {
+    const usuarioId = exigirUsuarioId(req, res);
+    if (!usuarioId) return;
+
+    const resultado = await confirmarPagoBoletoOrganizador(
+        usuarioId,
+        req.params.id as string,
+        req.params.boletoId as string,
+    );
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** POST /api/dinamicas/:id/boletos/reservar — requiere sesión (body: numeroBoleto) */
+export async function postReservarBoleto(req: Request, res: Response) {
+    const usuarioId = exigirUsuarioId(req, res);
+    if (!usuarioId) return;
+
+    const validacion = reservarBoletoSchema.safeParse(req.body);
+    if (!validacion.success) {
+        return res.status(400).json({
+            success: false,
+            message: 'Datos inválidos',
+            errores: formatearErroresZod(validacion.error),
+        });
+    }
+
+    const resultado = await reservarBoletoPublico(usuarioId, req.params.id as string, validacion.data.numeroBoleto);
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.status(201).json(resultado);
+}
+
 // =============================================================================
 // PÚBLICO (verificarTokenOpcional)
 // =============================================================================
 
-/** GET /api/dinamicas/:id */
+/** GET /api/dinamicas — feed público filtrado por ciudad (query: ciudad, pagina, limite) */
+export async function getFeedDinamicas(req: Request, res: Response) {
+    const ciudad = typeof req.query.ciudad === 'string' ? req.query.ciudad : '';
+    if (!ciudad.trim()) {
+        return res.status(400).json({ success: false, message: 'Falta el parámetro ciudad' });
+    }
+
+    const ciudadId = await resolverCiudadId(ciudad);
+    if (!ciudadId) {
+        return res.json({ success: true, data: { dinamicas: [], pagina: 1, limite: 10, hayMas: false } });
+    }
+
+    const pagina = req.query.pagina ? Number(req.query.pagina) : undefined;
+    const limite = req.query.limite ? Number(req.query.limite) : undefined;
+
+    const resultado = await listarDinamicasPublicas({ ciudadId, pagina, limite });
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** GET /api/dinamicas/:id — ficha enriquecida (organizador, boletos, insignia) */
 export async function getDinamica(req: Request, res: Response) {
-    const resultado = await obtenerDinamica(req.params.id as string);
+    const resultado = await obtenerDinamicaPublica(req.params.id as string);
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** GET /api/dinamicas/:id/boletos — lista pública de participantes (sin teléfono) */
+export async function getBoletosDinamica(req: Request, res: Response) {
+    const resultado = await listarBoletosPublico(req.params.id as string);
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }
