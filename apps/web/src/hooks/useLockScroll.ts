@@ -103,11 +103,13 @@ export function useLockScroll(isLocked: boolean) {
     scrollYRef.current = window.scrollY;
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollYRef.current}px`;
+    document.body.style.bottom = '0';
     document.body.style.width = '100%';
 
     return () => {
       document.body.style.position = '';
       document.body.style.top = '';
+      document.body.style.bottom = '';
       document.body.style.width = '';
       window.scrollTo(0, scrollYRef.current);
     };

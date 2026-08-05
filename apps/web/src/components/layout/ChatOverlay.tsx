@@ -493,18 +493,21 @@ export function ChatOverlay() {
     const prev = {
       position: body.style.position,
       top: body.style.top,
+      bottom: body.style.bottom,
       width: body.style.width,
       overflow: body.style.overflow,
     };
 
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
+    body.style.bottom = '0';
     body.style.width = '100%';
     body.style.overflow = 'hidden';
 
     return () => {
       body.style.position = prev.position;
       body.style.top = prev.top;
+      body.style.bottom = prev.bottom;
       body.style.width = prev.width;
       body.style.overflow = prev.overflow;
       window.scrollTo(0, scrollY);
