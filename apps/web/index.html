@@ -63,8 +63,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="AnunciaYA" />
 
-  <!-- Apple Touch Icons - AnunciaYA -->
-  <link rel="apple-touch-icon" href="/icons/anunciaya-192.png" />
+  <!-- Apple Touch Icons - AnunciaYA
+       Ícono dedicado (no el circular de Android): iOS no respeta transparencia
+       en apple-touch-icon y aplica su propio recorte de esquinas redondeadas,
+       así que necesita una imagen que rellene el cuadro completo de borde a
+       borde (ver apps/web/public/icons/apple-touch-icon.png). -->
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/apple-touch-icon-192.png" />
 
   <!-- MS Tiles - AnunciaYA -->
   <meta name="msapplication-TileImage" content="/icons/anunciaya-192.png" />
