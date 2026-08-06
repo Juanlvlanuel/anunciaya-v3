@@ -25,7 +25,7 @@ QUÉ ES: app de comercio local hiperlocal. Conecta vecinos con negocios de su ci
 SECCIONES PÚBLICAS:
 - Negocios: directorio de negocios locales. Cada uno muestra rating, reseñas, distancia y si está abierto ahorita. Las reseñas solo las puede escribir quien YA le compró al negocio (compra validada con CardYA) — así son de compras reales, no cualquiera puede reseñar sin haber comprado.
 - MarketPlace: compra-venta entre vecinos de artículos. Modo Vendo (ofreces algo — precio, condición y fotos son obligatorios) y modo Busco (buscas comprar algo y otros vecinos lo ven — presupuesto y fotos son opcionales, no pide condición).
-- Ofertas: promociones y cupones de descuento que publican los negocios; los guardas en Mis Cupones.
+- Ofertas: el feed PÚBLICO donde los negocios publican sus promociones (2x1, % de descuento, producto gratis, etc.) — aquí las descubres y navegas entre todas las de tu ciudad.
 - Servicios: oficios, servicios profesionales y vacantes de empleo. Modo Ofrezco (tienes un servicio que dar, o buscas empleo tú) y modo Solicito (necesitas contratar un servicio, o un negocio busca contratar personal).
 - Home ("Pregúntale a tu ciudad"): preguntas a Coyo o a la comunidad cualquier cosa de tu ciudad.
 
@@ -35,7 +35,7 @@ CARDYA: tu tarjeta de lealtad digital. Acumulas puntos cuando compras en negocio
 
 SISTEMA DE PUNTOS: los ganas comprando en negocios afiliados (el negocio te escanea tu CardYA con ScanYA) y los canjeas por recompensas propias de cada negocio, dentro de CardYA. ¿Expiran? Depende del negocio: por default NO expiran; cada negocio decide si activar expiración por inactividad (si dejas de comprarle X días, se vence TODO tu saldo con ese negocio — no es por lote ni por fecha fija, y volver a comprar reinicia el conteo). Si activa expiración, te avisa 7 días antes de que venza.
 
-MIS CUPONES: los cupones que guardaste de la sección Ofertas, listos para mostrar en el negocio.
+MIS CUPONES (distinto de Ofertas — no confundir): tu colección PERSONAL de los cupones que ya guardaste desde Ofertas. Ofertas es el escaparate público donde descubres promociones; Mis Cupones es tu bolsa privada con las que ya guardaste, cada una con su código para canjear en el negocio.
 
 MIS PUBLICACIONES: tus propias publicaciones activas en MarketPlace y Servicios (lo que estás vendiendo/buscando u ofreciendo/solicitando).
 
@@ -62,4 +62,5 @@ DUDAS FRECUENTES:
 - ¿Dónde veo mis puntos y recompensas? En CardYA.
 - ¿Cómo canjeo un cupón de Mis Cupones? Entra a Mis Cupones, abre el cupón que quieres usar y toca "revelar código" — te muestra un código personal que enseñas en el negocio para que te lo validen. El código NO se muestra automático, hay que revelarlo dentro del cupón.
 - ¿Cómo canjeo mis puntos de CardYA? Entra a CardYA, elige la recompensa del negocio donde tienes puntos y canjéala — se genera un voucher con código QR que muestras en el negocio para reclamarlo.
-- ¿Cómo publico algo en MarketPlace o Servicios? Con el botón "+ Publicar" de esa sección (o pídemelo a mí y te dejo un borrador con el título listo), llenas categoría, precio/presupuesto, agregas fotos (obligatorias si vendes) y publicas.`;
+- ¿Cómo publico algo en MarketPlace o Servicios? Con el botón "+ Publicar" de esa sección (o pídemelo a mí y te dejo un borrador con el título listo), llenas categoría, precio/presupuesto, agregas fotos (obligatorias si vendes) y publicas.
+- ¿Cómo agrego un producto a mi catálogo de negocio? Eso es distinto a MarketPlace — es en Business Studio → Catálogo. Ahí sí te puedo llevar directo, pero todavía no puedo armarte el borrador del producto como sí hago con MarketPlace; lo llenas tú ahí mismo.`;

@@ -26,6 +26,10 @@ export interface MensajeAsistenteCoyo {
     origenVoz?: boolean;
     /** Si viene, el mensaje de Coyo muestra un botón "Revisar y publicar". Los datos se aplican al composer SOLO al hacer click (no antes) — evita que un borrador nunca confirmado quede pendiente para una próxima creación manual sin relación. */
     accionPublicarMarketplace?: { ruta: string; titulo?: string; precio?: number };
+    /** Burbuja de audio (mensaje de voz del usuario) — igual patrón visual que ChatYA: onda + reproducir. `audioUrl` es un blob URL, solo vive mientras dure la pestaña — NUNCA se persiste a localStorage (no se sube el audio a ningún lado, igual que en el backend). Tras recargar la página, el mensaje vuelve a mostrarse como texto simple. */
+    audioUrl?: string;
+    audioWaveform?: number[];
+    audioDuracion?: number;
 }
 
 interface AsistenteCoyoState {
@@ -57,7 +61,14 @@ function guardarMensajes(mensajes: MensajeAsistenteCoyo[]): void {
     const key = getMensajesKey();
     if (!key) return;
     try {
-        localStorage.setItem(key, JSON.stringify(mensajes));
+        // `audioUrl` es un blob URL de esta pestaña — inválido tras recargar,
+        // así que nunca se persiste (se guarda undefined, no la URL vieja).
+        const paraGuardar = mensajes.map((m) => {
+            const copia = { ...m };
+            delete copia.audioUrl;
+            return copia;
+        });
+        localStorage.setItem(key, JSON.stringify(paraGuardar));
     } catch { /* sin acceso a localStorage */ }
 }
 

@@ -24,6 +24,7 @@ import {
     type ContextoAppAsistente,
 } from '../coyo/coyoIA.service.js';
 import { buscarEnTodaLaApp, type ResultadoBusquedaUnificada } from '../coyo/buscadorUnificado.js';
+import { listarSucursalesCercanas } from '../negocios.service.js';
 import { resolverDestino } from './capacidades.js';
 
 // =============================================================================
@@ -64,6 +65,8 @@ const TEXTO_REDIRECCION_NO_LOCAL =
     'Para eso no soy bueno, pero si buscas algo aquí en tu ciudad, dime y te ayudo a buscar.';
 const TEXTO_DESTINO_DESCONOCIDO =
     'No encontré esa sección, ¿me dices con otras palabras a dónde quieres ir?';
+const TEXTO_NEGOCIO_NO_ENCONTRADO =
+    'No encontré ningún negocio con ese nombre por aquí — ¿me dices si lo escribiste bien o me das más pistas?';
 
 // =============================================================================
 // buscar_informacion — mismas piezas que "Pregúntale a Peñasco", sin BD
@@ -113,6 +116,34 @@ async function responderBusquedaAsistente(
 }
 
 // =============================================================================
+// navegar_a_perfil_negocio — busca el negocio real por nombre y resuelve su ruta
+// =============================================================================
+
+async function resolverPerfilNegocio(
+    nombreNegocio: string,
+    datos: DatosBusquedaAsistente,
+): Promise<ResultadoAsistenteFrontend> {
+    if (!datos.ciudad) return { tipo: 'pregunta', texto: TEXTO_SIN_CIUDAD };
+
+    const resultado = await listarSucursalesCercanas(datos.usuarioId, {
+        latitud: datos.lat,
+        longitud: datos.lng,
+        busqueda: nombreNegocio,
+        ciudad: datos.ciudad,
+        limite: 1,
+        offset: 0,
+        modoFlexible: true,
+    });
+
+    const primero = resultado.data?.[0] as { sucursalId?: string } | undefined;
+    if (!primero?.sucursalId) {
+        return { tipo: 'pregunta', texto: TEXTO_NEGOCIO_NO_ENCONTRADO };
+    }
+
+    return { tipo: 'navegar', ruta: `/negocios/${primero.sucursalId}` };
+}
+
+// =============================================================================
 // FUNCIÓN PRINCIPAL — un turno completo del asistente
 // =============================================================================
 
@@ -145,6 +176,16 @@ export async function ejecutarPeticionAsistente(
             const ruta = resolverDestino(destino);
             if (!ruta) return { tipo: 'pregunta', texto: TEXTO_DESTINO_DESCONOCIDO };
             return { tipo: 'navegar', ruta, mensaje: data.mensaje };
+        }
+        case 'navegar_a_perfil_negocio': {
+            const nombreNegocio =
+                typeof data.parametros.nombreNegocio === 'string' ? data.parametros.nombreNegocio : '';
+            if (!nombreNegocio.trim()) return { tipo: 'pregunta', texto: TEXTO_NEGOCIO_NO_ENCONTRADO };
+            const resultado = await resolverPerfilNegocio(nombreNegocio, datosBusqueda);
+            if (resultado.tipo === 'navegar' && data.mensaje) {
+                return { ...resultado, mensaje: data.mensaje };
+            }
+            return resultado;
         }
         case 'crear_publicacion_marketplace': {
             const modo = data.parametros.modo === 'busco' ? 'busco' : 'vendo';

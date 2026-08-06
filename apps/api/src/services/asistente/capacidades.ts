@@ -69,7 +69,7 @@ export const DESTINOS_NAVEGABLES: Record<string, { ruta: string; descripcion: st
     },
     ofertas: {
         ruta: '/ofertas',
-        descripcion: 'Promociones y cupones de descuento de los negocios',
+        descripcion: 'Feed público para DESCUBRIR promociones de los negocios (distinto de Mis Cupones, que es tu colección personal ya guardada)',
     },
     servicios: {
         ruta: '/servicios',
@@ -103,6 +103,10 @@ export const DESTINOS_NAVEGABLES: Record<string, { ruta: string; descripcion: st
         ruta: '/business-studio',
         descripcion: 'Panel de gestión del negocio (catálogo, promociones, puntos, empleados, reportes) — solo si ya tiene negocio',
     },
+    business_studio_catalogo: {
+        ruta: '/business-studio/catalogo',
+        descripcion: 'Agregar o editar productos/servicios del catálogo del negocio — usa este destino cuando el comerciante pida crear/agregar un artículo o producto a SU catálogo (Coyo no puede armarle el borrador todavía, solo llevarlo ahí)',
+    },
 };
 
 /**
@@ -134,9 +138,22 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
         ],
     },
     {
+        nombre: 'navegar_a_perfil_negocio',
+        descripcion:
+            'Lleva al usuario al perfil de UN NEGOCIO ESPECÍFICO por nombre (ej. "llévame al perfil de Taqueria El Guero", "abre la página de la Panadería Tijuana"). Distinta de navegar_a_destino (que es solo para secciones fijas de la cuenta del usuario, no negocios). El backend busca el negocio real por el nombre que des — si no lo encuentra, se lo dice al usuario.',
+        parametros: [
+            {
+                nombre: 'nombreNegocio',
+                tipo: 'string',
+                descripcion: 'Nombre del negocio tal como lo dijo el usuario',
+                obligatorio: true,
+            },
+        ],
+    },
+    {
         nombre: 'crear_publicacion_marketplace',
         descripcion:
-            'Arma el borrador de una publicación de MarketPlace (vender o buscar un artículo) para que el usuario la revise y publique él mismo. Requiere el modo y una descripción de lo que quiere vender/buscar. NUNCA la ejecutes si falta el modo o no hay ninguna descripción del artículo — en ese caso pregunta primero. LÍMITE REAL (no la sobre-prometas): solo deja listo un TÍTULO corto y el precio si lo dieron — NUNCA puede agregar fotos ni escribir una descripción larga por su cuenta; eso lo completa el usuario en el formulario.',
+            'Arma el borrador de una publicación de MarketPlace PERSONAL (vender o buscar un artículo entre vecinos) para que el usuario la revise y publique él mismo. Requiere el modo y una descripción de lo que quiere vender/buscar. NUNCA la ejecutes si falta el modo o no hay ninguna descripción del artículo — en ese caso pregunta primero. LÍMITE REAL (no la sobre-prometas): solo deja listo un TÍTULO corto y el precio si lo dieron — NUNCA puede agregar fotos ni escribir una descripción larga por su cuenta; eso lo completa el usuario en el formulario. NO la uses si el usuario pide agregar un producto a SU CATÁLOGO de negocio (Business Studio) — eso es otra cosa, usa navegar_a_destino(business_studio_catalogo).',
         parametros: [
             {
                 nombre: 'modo',
