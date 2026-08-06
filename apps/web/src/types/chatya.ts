@@ -564,6 +564,12 @@ export interface MetadatosImagen {
   miniatura: string;
   /** Caption opcional del usuario */
   caption?: string;
+  /**
+   * ID interno de `useImagenChat` para reemplazar el placeholder crudo (preview
+   * instantáneo) por la versión optimizada cuando termina de procesar en
+   * background. Uso exclusivo del hook — no se usa fuera de él.
+   */
+  _idLocal?: string;
 }
 
 // =============================================================================

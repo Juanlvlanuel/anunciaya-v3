@@ -12,7 +12,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, Pencil, Smile, Paperclip, Camera, Image as ImageIcon, FileText, Mic, Trash2, Reply } from 'lucide-react';
+import { Send, X, Pencil, Smile, Paperclip, Camera, Image as ImageIcon, FileText, Mic, Trash2, Reply, RefreshCw } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
@@ -20,6 +20,7 @@ import { ICONOS } from '../../config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { ModalUbicacionChat } from './ModalUbicacionChat';
+import { marcarImagenPrecargada } from './BurbujaMensaje';
 import { SelectorEmojis } from './SelectorEmojis';
 import { TextoConEmojis } from './TextoConEmojis';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -554,11 +555,23 @@ export function InputMensaje({
         );
         await Promise.all(uploadPromises);
 
-        // 4. Enviar cada mensaje al backend con la URL real, reutilizando el temp existente
+        // 4. Precargar cada imagen real de R2 (para que el navegador ya la
+        // tenga cacheada/decodificada cuando el id temporal se reemplace por
+        // el real más abajo — evita que reaparezca el blur LQIP al remontar)
+        // y luego enviar el mensaje al backend, reutilizando el temp existente
         for (let i = 0; i < loteImagenes.length; i++) {
           const img = loteImagenes[i];
+          const urlReal = presignedResults[i].publicUrl;
+
+          await new Promise<void>((resolve) => {
+            const precarga = new Image();
+            precarga.onload = () => { marcarImagenPrecargada(urlReal); resolve(); };
+            precarga.onerror = () => resolve();
+            precarga.src = urlReal;
+          });
+
           const contenidoImagen = JSON.stringify({
-            url: presignedResults[i].publicUrl,
+            url: urlReal,
             ancho: img.ancho,
             alto: img.alto,
             peso: img.peso,
@@ -589,7 +602,8 @@ export function InputMensaje({
         }
       }
 
-      inputRef.current?.focus();
+      // No hacer focus al input — evita abrir el teclado en móvil después de
+      // enviar una foto (empujaría el chat hacia arriba sin motivo)
       return;
     }
 
@@ -1607,7 +1621,9 @@ export function InputMensaje({
                 }
               `}
             >
-              {puedeEnviar ? (
+              {procesandoImagen ? (
+                <RefreshCw className="w-6 h-6 animate-spin" />
+              ) : puedeEnviar ? (
                 <Send className="w-6 h-6" />
               ) : (
                 <Mic className="w-6 h-6" />

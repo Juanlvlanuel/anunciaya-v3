@@ -782,6 +782,26 @@ function parsearContenidoImagen(contenidoRaw: string): ContenidoImagen | null {
 }
 
 /**
+ * URLs de imagen que ya terminaron de cargar una vez en esta pestaña.
+ * El mensaje optimista cambia de `id` temporal a `id` real cuando el backend
+ * confirma el envío, lo que remonta `ImagenBurbuja` — sin este caché esa
+ * imagen (que ya se veía nítida) volvería a mostrar el blur LQIP por un
+ * instante aunque ya estuviera cargada en el navegador.
+ */
+const urlsImagenCargadas = new Set<string>();
+
+/**
+ * Marca una URL de imagen como ya cargada, sin pasar por `ImagenBurbuja`.
+ * La usa `InputMensaje` al precargar la imagen real de R2 en background
+ * mientras sube — así, cuando el backend confirma el mensaje y el `id`
+ * temporal se reemplaza por el real (remount de la burbuja), el navegador
+ * ya la tiene cacheada y decodificada y no vuelve a mostrarse el blur.
+ */
+export function marcarImagenPrecargada(url: string) {
+  urlsImagenCargadas.add(url);
+}
+
+/**
  * Componente interno para renderizar imagen con pipeline zero-flicker.
  *
  * TÉCNICA (3 pilares):
@@ -799,7 +819,7 @@ function ImagenBurbuja({
   onClick?: () => void;
 }) {
   const datos = parsearContenidoImagen(contenidoRaw);
-  const [cargada, setCargada] = useState(false);
+  const [cargada, setCargada] = useState(() => !!datos?.url && urlsImagenCargadas.has(datos.url));
 
   if (!datos) {
     return (
@@ -839,7 +859,10 @@ function ImagenBurbuja({
         alt={datos.caption || 'Imagen'}
         className="absolute inset-0 w-full h-full object-cover"
         style={{ opacity: cargada ? 1 : 0 }}
-        onLoad={() => setCargada(true)}
+        onLoad={() => {
+          urlsImagenCargadas.add(datos.url);
+          setCargada(true);
+        }}
         draggable={false}
       />
 

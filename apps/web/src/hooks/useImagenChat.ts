@@ -261,66 +261,79 @@ export function useImagenChat(): UseImagenChatResult {
   const blobUrlsRef = useRef<string[]>([]);
 
   // ---------------------------------------------------------------------------
-  // Procesar UNA imagen: validar → optimizar → LQIP → agregar al array
+  // Procesar UNA imagen: agregar placeholder crudo AL INSTANTE (preview
+  // inmediato en el strip) y optimizar (resize + WebP + LQIP) en background,
+  // reemplazando el placeholder cuando termina.
   // ---------------------------------------------------------------------------
   const procesarImagen = useCallback(async (archivo: File) => {
+    // ── Validar que no se exceda el máximo ──
+    if (imagenesListas.length >= MAX_IMAGENES) {
+      setError(`Máximo ${MAX_IMAGENES} imágenes por envío.`);
+      return;
+    }
+
+    // ── Validar formato ──
+    if (!FORMATOS_PERMITIDOS.includes(archivo.type)) {
+      setError('Formato no soportado. Usa JPG, PNG, WebP o GIF.');
+      return;
+    }
+
+    // ── Validar tamaño ──
+    if (archivo.size > MAX_TAMANO_BYTES) {
+      const maxMB = (MAX_TAMANO_BYTES / (1024 * 1024)).toFixed(0);
+      setError(`La imagen no puede pesar más de ${maxMB}MB.`);
+      return;
+    }
+
+    setError(null);
+    setProcesando(true);
+
+    // ── Preview instantáneo: placeholder con el archivo crudo (sin optimizar) ──
+    const idLocal = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    let blobUrlCrudo: string;
     try {
-      setError(null);
+      blobUrlCrudo = URL.createObjectURL(archivo);
+      blobUrlsRef.current.push(blobUrlCrudo);
+      const { ancho, alto } = await leerDimensiones(archivo);
 
-      // ── Validar que no se exceda el máximo ──
-      if (imagenesListas.length >= MAX_IMAGENES) {
-        setError(`Máximo ${MAX_IMAGENES} imágenes por envío.`);
-        return;
-      }
-
-      setProcesando(true);
-
-      // ── Validar formato ──
-      if (!FORMATOS_PERMITIDOS.includes(archivo.type)) {
-        throw new Error('Formato no soportado. Usa JPG, PNG, WebP o GIF.');
-      }
-
-      // ── Validar tamaño ──
-      if (archivo.size > MAX_TAMANO_BYTES) {
-        const maxMB = (MAX_TAMANO_BYTES / (1024 * 1024)).toFixed(0);
-        throw new Error(`La imagen no puede pesar más de ${maxMB}MB.`);
-      }
-
-      // ── Leer dimensiones originales (para validar que sea imagen real) ──
-      await leerDimensiones(archivo);
-
-      // ── Optimizar: redimensionar + comprimir WebP ──
-      const { archivo: archivoOptimizado, ancho, alto } = await optimizarImagen(archivo);
-
-      // ── Generar LQIP (micro-thumbnail base64 ~400 bytes) ──
-      const miniatura = await generarLQIP(archivoOptimizado);
-
-      // ── Crear blob URL para preview instantáneo ──
-      const blobUrl = URL.createObjectURL(archivoOptimizado);
-      blobUrlsRef.current.push(blobUrl);
-
-      // ── Agregar al array ──
-      const nuevaImagen: MetadatosImagen = {
-        archivo: archivoOptimizado,
-        blobUrl,
-        ancho,
-        alto,
-        peso: archivoOptimizado.size,
-        miniatura,
-      };
-
-      setImagenesListas((prev) => [...prev, nuevaImagen]);
-
+      setImagenesListas((prev) => [...prev, {
+        archivo, blobUrl: blobUrlCrudo, ancho, alto, peso: archivo.size, miniatura: '', _idLocal: idLocal,
+      }]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al procesar imagen';
       setError(msg);
+      setProcesando(false);
+      return;
+    }
+
+    // ── Optimizar en background: redimensionar + WebP + LQIP, luego reemplazar el placeholder ──
+    try {
+      const { archivo: archivoOptimizado, ancho, alto } = await optimizarImagen(archivo);
+      const miniatura = await generarLQIP(archivoOptimizado);
+      const blobUrlOptimizado = URL.createObjectURL(archivoOptimizado);
+      blobUrlsRef.current.push(blobUrlOptimizado);
+
+      setImagenesListas((prev) => prev.map((img) =>
+        img._idLocal === idLocal
+          ? { archivo: archivoOptimizado, blobUrl: blobUrlOptimizado, ancho, alto, peso: archivoOptimizado.size, miniatura, caption: img.caption, _idLocal: idLocal }
+          : img
+      ));
+    } catch (err) {
+      // La optimización falló: quitar el placeholder crudo, no dejar una imagen a medias
+      setImagenesListas((prev) => prev.filter((img) => img._idLocal !== idLocal));
+      const msg = err instanceof Error ? err.message : 'Error al procesar imagen';
+      setError(msg);
     } finally {
+      URL.revokeObjectURL(blobUrlCrudo);
+      blobUrlsRef.current = blobUrlsRef.current.filter((u) => u !== blobUrlCrudo);
       setProcesando(false);
     }
   }, [imagenesListas.length]);
 
   // ---------------------------------------------------------------------------
-  // Procesar MÚLTIPLES imágenes en paralelo (desde input multiple o drop)
+  // Procesar MÚLTIPLES imágenes (desde input multiple o drop): agregar un
+  // placeholder crudo por archivo AL INSTANTE (en orden) y optimizar cada
+  // una en paralelo en background, reemplazando su placeholder al terminar.
   // ---------------------------------------------------------------------------
   const procesarImagenes = useCallback(async (archivos: File[]) => {
     // Filtrar solo imágenes válidas
@@ -336,60 +349,69 @@ export function useImagenChat(): UseImagenChatResult {
 
     // Recortar al espacio disponible
     const lote = imagenes.slice(0, espacioDisponible);
-    if (lote.length < imagenes.length) {
-      setError(`Se agregaron ${lote.length} de ${imagenes.length} (máximo ${MAX_IMAGENES}).`);
-    } else {
-      setError(null);
-    }
+    let primerErrorLote = lote.length < imagenes.length
+      ? `Se agregaron ${lote.length} de ${imagenes.length} (máximo ${MAX_IMAGENES}).`
+      : null;
 
     setProcesando(true);
 
-    // Procesar todas en paralelo
+    // ── Preview instantáneo: un placeholder crudo por archivo, en orden ──
+    const pendientes: { idLocal: string; archivo: File; blobUrlCrudo: string }[] = [];
+    for (const [i, archivo] of lote.entries()) {
+      if (archivo.size > MAX_TAMANO_BYTES) {
+        if (!primerErrorLote) primerErrorLote = `${archivo.name} excede el límite de tamaño.`;
+        continue;
+      }
+      try {
+        const idLocal = `${Date.now()}_${Math.random().toString(36).slice(2)}_${i}`;
+        const blobUrlCrudo = URL.createObjectURL(archivo);
+        blobUrlsRef.current.push(blobUrlCrudo);
+        const { ancho, alto } = await leerDimensiones(archivo);
+        pendientes.push({ idLocal, archivo, blobUrlCrudo });
+        setImagenesListas((prev) => [...prev, {
+          archivo, blobUrl: blobUrlCrudo, ancho, alto, peso: archivo.size, miniatura: '', _idLocal: idLocal,
+        }]);
+      } catch {
+        if (!primerErrorLote) primerErrorLote = 'No pudimos procesar una de las imágenes.';
+      }
+    }
+
+    // ── Optimizar cada una en paralelo y reemplazar su placeholder al terminar ──
     const resultados = await Promise.allSettled(
-      lote.map(async (archivo) => {
-        // Validar tamaño
-        if (archivo.size > MAX_TAMANO_BYTES) {
-          throw new Error(`${archivo.name} excede el límite de tamaño.`);
-        }
-
-        // Validar que sea imagen real
-        await leerDimensiones(archivo);
-
-        // Optimizar
+      pendientes.map(async ({ idLocal, archivo, blobUrlCrudo }) => {
         const { archivo: archivoOptimizado, ancho, alto } = await optimizarImagen(archivo);
-
-        // LQIP
         const miniatura = await generarLQIP(archivoOptimizado);
+        const blobUrlOptimizado = URL.createObjectURL(archivoOptimizado);
+        blobUrlsRef.current.push(blobUrlOptimizado);
 
-        // Blob URL
-        const blobUrl = URL.createObjectURL(archivoOptimizado);
-        blobUrlsRef.current.push(blobUrl);
+        setImagenesListas((prev) => prev.map((img) =>
+          img._idLocal === idLocal
+            ? { archivo: archivoOptimizado, blobUrl: blobUrlOptimizado, ancho, alto, peso: archivoOptimizado.size, miniatura, caption: img.caption, _idLocal: idLocal }
+            : img
+        ));
 
-        return {
-          archivo: archivoOptimizado,
-          blobUrl,
-          ancho,
-          alto,
-          peso: archivoOptimizado.size,
-          miniatura,
-        } as MetadatosImagen;
+        URL.revokeObjectURL(blobUrlCrudo);
+        blobUrlsRef.current = blobUrlsRef.current.filter((u) => u !== blobUrlCrudo);
       })
     );
 
-    // Recoger las que se procesaron exitosamente
-    const exitosas = resultados
-      .filter((r): r is PromiseFulfilledResult<MetadatosImagen> => r.status === 'fulfilled')
-      .map((r) => r.value);
+    // Si alguna falló al optimizar, quitar su placeholder crudo
+    resultados.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        const { idLocal, blobUrlCrudo } = pendientes[i];
+        setImagenesListas((prev) => prev.filter((img) => img._idLocal !== idLocal));
+        URL.revokeObjectURL(blobUrlCrudo);
+        blobUrlsRef.current = blobUrlsRef.current.filter((u) => u !== blobUrlCrudo);
+        if (!primerErrorLote) {
+          primerErrorLote = r.reason instanceof Error ? r.reason.message : 'Error al procesar algunas imágenes';
+        }
+      }
+    });
 
-    if (exitosas.length > 0) {
-      setImagenesListas((prev) => [...prev, ...exitosas]);
-    }
-
-    // Si hubo errores individuales, mostrar el primero
-    const primerError = resultados.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
-    if (primerError && !error) {
-      const msg = primerError.reason instanceof Error ? primerError.reason.message : 'Error al procesar algunas imágenes';
-      setError(msg);
+    if (primerErrorLote && !error) {
+      setError(primerErrorLote);
+    } else if (!primerErrorLote) {
+      setError(null);
     }
 
     setProcesando(false);
