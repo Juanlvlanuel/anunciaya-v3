@@ -9,7 +9,7 @@
 
 Este documento describe la **arquitectura conceptual** del sistema Business Studio:
 - ✅ Arquitectura general y flujos
-- ✅ Los 13 módulos del sistema
+- ✅ Los 14 módulos del sistema
 - ✅ Endpoints principales verificados contra código real
 - ✅ Sistema de sucursales y roles
 - ✅ Servicio centralizado compartido
@@ -49,7 +49,7 @@ Este documento describe la **arquitectura conceptual** del sistema Business Stud
 Business Studio es el **centro de administración completo** para negocios registrados en AnunciaYA. Es una interfaz web dedicada que permite a dueños y gerentes gestionar todos los aspectos de su negocio desde un solo lugar.
 
 **Características principales:**
-- 13 módulos especializados de gestión
+- 14 módulos especializados de gestión
 - Sistema multi-sucursal integrado
 - Interfaz responsive (móvil, laptop 1366x768, desktop 1920x1080+)
 - Panel de preview en tiempo real

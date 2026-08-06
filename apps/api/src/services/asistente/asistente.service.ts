@@ -33,13 +33,14 @@ import { resolverDestino } from './capacidades.js';
 export type ResultadoAsistenteFrontend =
     | { tipo: 'pregunta'; texto: string }
     | { tipo: 'respuesta'; texto: string; resultados: ResultadoBusquedaUnificada['resultados'] | null }
-    | { tipo: 'navegar'; ruta: string }
+    | { tipo: 'navegar'; ruta: string; mensaje?: string }
     | {
           tipo: 'prefill_marketplace';
           ruta: string;
           modo: 'vendo' | 'busco';
           descripcionArticulo: string;
           precio?: number;
+          mensaje?: string;
       };
 
 export interface DatosBusquedaAsistente {
@@ -143,7 +144,7 @@ export async function ejecutarPeticionAsistente(
             const destino = typeof data.parametros.destino === 'string' ? data.parametros.destino : '';
             const ruta = resolverDestino(destino);
             if (!ruta) return { tipo: 'pregunta', texto: TEXTO_DESTINO_DESCONOCIDO };
-            return { tipo: 'navegar', ruta };
+            return { tipo: 'navegar', ruta, mensaje: data.mensaje };
         }
         case 'crear_publicacion_marketplace': {
             const modo = data.parametros.modo === 'busco' ? 'busco' : 'vendo';
@@ -159,6 +160,7 @@ export async function ejecutarPeticionAsistente(
                 modo,
                 descripcionArticulo,
                 precio,
+                mensaje: data.mensaje,
             };
         }
         case 'buscar_informacion': {

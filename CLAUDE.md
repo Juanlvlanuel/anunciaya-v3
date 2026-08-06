@@ -391,20 +391,20 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
-- **Business Studio** ✅ 100% — 13/13 módulos completados (Vacantes incluido)
-- **React Query** activo en BS (13/13: Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales, Vacantes) y en las públicas (Negocios, CardYA, Mis Cupones, Mis Guardados, MarketPlace, Ofertas, Servicios, Home/Pregúntale a Peñasco). ChatYA, ScanYA, Onboarding: evaluar caso por caso.
+- **Business Studio** ✅ 100% — 14/14 módulos completados (Vacantes y Publicaciones incluidos)
+- **React Query** activo en BS (14/14: Dashboard, Transacciones, Clientes, Opiniones, Alertas, Publicaciones, Catálogo, Promociones, Puntos y Recompensas, Empleados, Vacantes, Reportes, Sucursales, Mi Perfil Comercial) y en las públicas (Negocios, CardYA, Mis Cupones, Mis Guardados, MarketPlace, Ofertas, Servicios, Home/Pregúntale a Peñasco). ChatYA, ScanYA, Onboarding: evaluar caso por caso.
 
-### BS Módulos Completados (13/13)
+### BS Módulos Completados (14/14)
 
-Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅, Reportes ✅, Sucursales ✅, Vacantes ✅
+Dashboard ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Publicaciones ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos y Recompensas ✅, Empleados ✅, Vacantes ✅, Reportes ✅, Sucursales ✅, Mi Perfil Comercial ✅
 
-### BS Módulos Pendientes (0/13)
+### BS Módulos Pendientes (0/14)
 
 Ninguno. **Vacantes** ✅ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios (CRUD + KPIs + filtros; `pages/private/business-studio/vacantes/`, backend `vacantes.routes/controller/service`).
 
 ### Siguiente Sprint
 
-Las 4 secciones públicas (Negocios, MarketPlace, Ofertas, Servicios), el Home (Pregúntale a Peñasco), Business Studio (13/13, incl. Vacantes) y el Panel Admin (13/13, incl. Territorios) están **construidas**. El producto está funcionalmente completo de cara a la **beta de Puerto Peñasco (May-Jun 2026)**; el foco pasa a **QA/pulido y preparación del lanzamiento**. El siguiente frente concreto se define con Juan.
+Las 4 secciones públicas (Negocios, MarketPlace, Ofertas, Servicios), el Home (Pregúntale a Peñasco), Business Studio (14/14, incl. Vacantes) y el Panel Admin (13/13, incl. Territorios) están **construidas**. El producto está funcionalmente completo de cara a la **beta de Puerto Peñasco (May-Jun 2026)**; el foco pasa a **QA/pulido y preparación del lanzamiento**. El siguiente frente concreto se define con Juan.
 
 ---
 

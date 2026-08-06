@@ -33,6 +33,7 @@ import {
 } from './categoriasCatalogo.service.js';
 import { obtenerCategoriasMarketplace } from '../marketplace/categorias.js';
 import { CAPACIDADES_ASISTENTE, type Capacidad } from '../asistente/capacidades.js';
+import { CONOCIMIENTO_ANUNCIAYA } from './conocimientoAnunciaYA.js';
 
 // =============================================================================
 // PERSONALIDAD DE COYO — EDITABLE
@@ -707,16 +708,35 @@ export interface ContextoAppAsistente {
 
 /** Resultado de interpretar una petición: o Gemini decide EJECUTAR una capacidad, o hace una PREGUNTA porque falta un dato obligatorio. */
 export type ResultadoAsistente =
-    | { tipo: 'accion'; capacidad: string; parametros: Record<string, unknown> }
+    | {
+          tipo: 'accion';
+          capacidad: string;
+          parametros: Record<string, unknown>;
+          /** Texto que Gemini haya generado junto con la llamada a función (ej. explicando cómo usar lo que va a abrir). `undefined` si no generó nada. */
+          mensaje?: string;
+      }
     | { tipo: 'pregunta'; texto: string };
+
+// Base de conocimiento de AnunciaYA (qué es y cómo funciona cada sección) —
+// vive en su propio archivo, ver `conocimientoAnunciaYA.ts` (incluye la nota
+// de que hay que resincronizarla a mano si cambian reglas de negocio reales).
 
 const PROMPT_ASISTENTE_ACCIONES = `Además de responder, ahora también puedes EJECUTAR acciones dentro de la app llamando a una de las funciones disponibles.
 
-REGLA MÁS IMPORTANTE: solo llama una función cuando tengas TODOS sus datos obligatorios. Si al usuario le falta dar un dato obligatorio (ej. no dijo qué quiere vender, o pidió crear una publicación sin decir el modo), NO llames ninguna función — responde en texto plano, breve y cálido, preguntando JUSTO el dato que falta. Nunca inventes ni asumas un valor que el usuario no dio.
+CUÁNDO EJECUTAR UNA FUNCIÓN: solo cuando tengas TODOS sus datos obligatorios y la petición claramente pide navegar a una sección de la cuenta, crear una publicación, o buscar algo REAL (negocio/oferta/artículo/servicio) ya publicado en la ciudad.
+
+DUDAS DE "CÓMO HAGO X" (muy importante): si la duda del usuario es sobre CÓMO hacer/ver/cambiar algo (no solo "qué es") y ese "algo" corresponde a un destino de navegar_a_destino, LLAMA la función en vez de solo explicarlo en texto — así lo dejas directo en la pantalla donde puede hacerlo, no nada más se lo describas. Ej: "¿cómo cambio mi contraseña?" → navegar_a_destino(seguridad). Si la duda es solo conceptual ("¿qué es X?", "¿para qué sirve X?") y no hay una acción concreta que ejecutar, ahí sí respondes en texto con la información de AnunciaYA.
+
+SIEMPRE QUE LLAMES UNA FUNCIÓN, ACOMPÁÑALA CON UN MENSAJE BREVE (muy importante, no lo omitas): además de la llamada a función, escribe 1-2 frases explicando qué acabas de hacer o CÓMO sigue el proceso desde ahí — usa las "DUDAS FRECUENTES" y el resto de la información de AnunciaYA de más abajo si aplica. Ej: si navegas a Mis Cupones porque preguntaron cómo canjear un cupón, no digas solo "listo, ahí te dejo" — di algo como "Ahí te dejo Mis Cupones: abre el cupón que quieres usar y toca 'revelar código' para mostrarlo en el negocio." Nunca dejes una acción sin explicación de qué sigue.
+
+CUÁNDO RESPONDER EN TEXTO PLANO (sin llamar ninguna función):
+1. Si falta un dato obligatorio para ejecutar una función — pregunta JUSTO ese dato, breve y cálido. Nunca inventes ni asumas un valor que el usuario no dio.
+2. Si preguntan qué es, para qué sirve o cómo FUNCIONA (conceptualmente) algo de AnunciaYA (CardYA, ScanYA, ChatYA, puntos, cupones, Business Studio, membresía, etc.), o cualquier duda frecuente de la lista de abajo — respóndelo directo con la información de AnunciaYA de más abajo. Esto NO es una búsqueda de negocios ni requiere función.
+3. Si piden algo que de verdad no puedes hacer — dilo con honestidad, sin prometer algo que no existe. NUNCA digas que sí puedes hacer algo que no es cierto (ej. "sí te agrego la foto", "sí te escribo la descripción completa") — hoy SOLO puedes dejar un título corto y precio en el borrador de MarketPlace; fotos y descripción las completa el usuario en el formulario. Si de plano no sabes ayudar con algo, dilo con calidez e invita a preguntar otra cosa.
 
 Usa la conversación reciente como contexto: si en un turno anterior el usuario ya dio un dato (ej. "vendo mi bicicleta") y en el turno actual solo completa lo que faltaba (ej. "800 pesos"), combina ambos turnos para decidir si ya puedes ejecutar la función.
 
-Si el usuario pide algo que no corresponde a ninguna función disponible y tampoco es una pregunta de información, dile con calidez que todavía no sabes ayudar con eso.`;
+${CONOCIMIENTO_ANUNCIAYA}`;
 
 /**
  * Convierte el catálogo de capacidades (`services/asistente/capacidades.ts`,
@@ -809,9 +829,15 @@ export async function interpretarPeticionAsistente(
             console.warn('Coyo IA — interpretarPeticionAsistente: Gemini llamó una capacidad desconocida', llamada.name);
             return { disponible: false, razon: 'error_parseo' };
         }
+        const mensaje = respuesta.texto.trim();
         return {
             disponible: true,
-            data: { tipo: 'accion', capacidad: llamada.name, parametros: llamada.args ?? {} },
+            data: {
+                tipo: 'accion',
+                capacidad: llamada.name,
+                parametros: llamada.args ?? {},
+                ...(mensaje ? { mensaje } : {}),
+            },
         };
     }
 

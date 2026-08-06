@@ -114,7 +114,10 @@ export function PanelAsistenteCoyo() {
                 break;
             }
             case 'navegar': {
-                const respuesta = 'Listo, ahí te dejo 👋';
+                // `mensaje` viene de Gemini (explica cómo seguir desde ahí, ej.
+                // "abre el cupón y toca revelar código"). Si no generó nada,
+                // cae al texto genérico.
+                const respuesta = resultado.mensaje?.trim() || 'Listo, ahí te dejo 👋';
                 agregarMensaje({ rol: 'coyo', texto: respuesta });
                 if (origenVoz) hablar(respuesta);
                 // No se cierra: el usuario quiere seguir viendo/hablando con
@@ -123,7 +126,7 @@ export function PanelAsistenteCoyo() {
                 break;
             }
             case 'prefill_marketplace': {
-                const respuesta = 'Te dejo esto listo para que lo revises y publiques.';
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y publiques.';
                 agregarMensaje({
                     rol: 'coyo',
                     texto: respuesta,

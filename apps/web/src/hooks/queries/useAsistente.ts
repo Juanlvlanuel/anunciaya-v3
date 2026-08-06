@@ -24,13 +24,14 @@ export interface TurnoChatAsistente {
 export type ResultadoAsistente =
     | { tipo: 'pregunta'; texto: string }
     | { tipo: 'respuesta'; texto: string; resultados: unknown }
-    | { tipo: 'navegar'; ruta: string }
+    | { tipo: 'navegar'; ruta: string; mensaje?: string }
     | {
           tipo: 'prefill_marketplace';
           ruta: string;
           modo: 'vendo' | 'busco';
           descripcionArticulo: string;
           precio?: number;
+          mensaje?: string;
       };
 
 export interface InterpretarAsistentePayload {
