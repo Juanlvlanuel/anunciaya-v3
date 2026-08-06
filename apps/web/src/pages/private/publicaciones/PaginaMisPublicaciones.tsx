@@ -36,6 +36,10 @@ import {
     ShoppingCart,
     AlertTriangle,
     Trash2,
+    Ticket,
+    XCircle,
+    CalendarClock,
+    Ban,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -57,6 +61,7 @@ import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { CardArticuloMio } from '../../../components/marketplace/CardArticuloMio';
+import { CardDinamicaMio } from '../../../components/dinamicas/CardDinamicaMio';
 import { MisPublicacionesServiciosSection } from '../../../components/servicios/MisPublicacionesServiciosSection';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
@@ -69,29 +74,36 @@ import {
     useEliminarArticuloMarketplace,
     useReactivarArticulo,
 } from '../../../hooks/queries/useMarketplace';
+import {
+    useDinamicasDeOrganizador,
+    usePosponerDinamica,
+    useCancelarDinamica,
+} from '../../../hooks/queries/useDinamicas';
 import { notificar } from '../../../utils/notificaciones';
 import type { ArticuloMarketplace } from '../../../types/marketplace';
+import type { DinamicaFeedItem } from '../../../types/dinamicas';
 
 // =============================================================================
 // CONSTANTES
 // =============================================================================
 
-type TabPublicacion = 'activa' | 'pausada' | 'vendida';
+type TabPublicacion = 'activa' | 'pausada' | 'vendida' | 'cerrada';
 
 /**
- * Tipo de publicación. El usuario podrá publicar tanto en MarketPlace
- * (artículos físicos) como en Servicios (servicios/empleos), por lo que
- * este panel admite los dos tipos con un selector top-level que cambia
- * todo el contexto (tabs, conteos, listados, ciclos de vida).
+ * Tipo de publicación. El usuario podrá publicar en MarketPlace (artículos
+ * físicos), Servicios (servicios/empleos) o Dinámicas (rifas/concursos),
+ * por lo que este panel admite los tres tipos con un selector top-level que
+ * cambia todo el contexto (tabs, conteos, listados, ciclos de vida).
  *
  * Servicios todavía no tiene backend implementado — el tab muestra un
  * estado "Próximamente" hasta que llegue su sprint.
  */
-type TipoPublicacion = 'marketplace' | 'servicios';
+type TipoPublicacion = 'marketplace' | 'servicios' | 'dinamicas';
 
 const TIPOS: { id: TipoPublicacion; label: string; Icono: IconLike }[] = [
     { id: 'marketplace', label: 'MarketPlace', Icono: ShoppingCart },
     { id: 'servicios', label: 'Servicios', Icono: Briefcase },
+    { id: 'dinamicas', label: 'Dinámicas', Icono: Ticket },
 ];
 
 /**
@@ -104,6 +116,10 @@ const TIPOS: { id: TipoPublicacion; label: string; Icono: IconLike }[] = [
  *                pre-cableados en la UI aunque el backend de Servicios aún
  *                no exista — el body sigue mostrando "Próximamente" hasta
  *                que llegue su sprint.
+ * - Dinámicas:   2 estados — `activa` (agrupa activa/pospuesta/en_sorteo) y
+ *                `cerrada` (agrupa cerrada/cancelada). Su ciclo de vida no
+ *                calza con "Pausada"/"Vendida" de MP, así que usa su propio
+ *                par simplificado en vez de forzar 3 chips iguales.
  *
  * Decisión arquitectural acordada con el usuario (mayo 2026).
  */
@@ -119,6 +135,10 @@ const TABS_POR_TIPO: Record<
     servicios: [
         { id: 'activa', label: 'Activas', Icono: CheckCircle2 },
         { id: 'pausada', label: 'Pausadas', Icono: PauseCircle },
+    ],
+    dinamicas: [
+        { id: 'activa', label: 'Activas', Icono: CheckCircle2 },
+        { id: 'cerrada', label: 'Cerradas', Icono: XCircle },
     ],
 };
 
@@ -163,7 +183,7 @@ export function PaginaMisPublicaciones() {
     const tipoInicial: TipoPublicacion = (() => {
         const sp = new URLSearchParams(location.search);
         const t = sp.get('tipo');
-        return t === 'servicios' || t === 'marketplace' ? t : 'marketplace';
+        return t === 'servicios' || t === 'marketplace' || t === 'dinamicas' ? t : 'marketplace';
     })();
     const [tipoActivo, setTipoActivo] = useState<TipoPublicacion>(tipoInicial);
 
@@ -197,6 +217,11 @@ export function PaginaMisPublicaciones() {
         useState<ArticuloMarketplace | null>(null);
     const [articuloAEliminar, setArticuloAEliminar] =
         useState<ArticuloMarketplace | null>(null);
+    const [dinamicaAPosponer, setDinamicaAPosponer] =
+        useState<DinamicaFeedItem | null>(null);
+    const [dinamicaACancelar, setDinamicaACancelar] =
+        useState<DinamicaFeedItem | null>(null);
+    const [nuevaFechaPosponer, setNuevaFechaPosponer] = useState('');
 
     // Conteos de Servicios (los reporta la sección via callback `onConteos`).
     // Necesarios para los badges de los tabs cuando `tipoActivo === 'servicios'`.
@@ -218,11 +243,34 @@ export function PaginaMisPublicaciones() {
     const reactivarMutation = useReactivarArticulo();
     const eliminarMutation = useEliminarArticuloMarketplace();
 
+    // Dinámicas organizadas — `incluirCanceladas: true` porque este panel es
+    // privado (el organizador gestionando lo suyo), a diferencia del perfil
+    // público que las omite. Un solo fetch trae todo; se agrupa client-side
+    // en 2 baldes (activa/cerrada) porque el ciclo de vida real tiene más
+    // estados de los que tiene sentido mostrar como tabs.
+    const {
+        data: dinamicasData,
+        isPending: dinamicasPending,
+        isError: dinamicasError,
+        refetch: refetchDinamicas,
+    } = useDinamicasDeOrganizador(usuarioId ?? undefined, { incluirCanceladas: true });
+    const dinamicasActivas = (dinamicasData?.dinamicas ?? []).filter(
+        (d) => d.estado === 'activa' || d.estado === 'pospuesta' || d.estado === 'en_sorteo',
+    );
+    const dinamicasCerradas = (dinamicasData?.dinamicas ?? []).filter(
+        (d) => d.estado === 'cerrada' || d.estado === 'cancelada',
+    );
+    const posponerMutation = usePosponerDinamica();
+    const cancelarMutation = useCancelarDinamica();
+
     // Conteos por tab (siempre disponibles, independientes del tab activo).
     const conteoPorTab: Record<TabPublicacion, number> = {
         activa: queryActiva.data?.paginacion.total ?? 0,
         pausada: queryPausada.data?.paginacion.total ?? 0,
         vendida: queryVendida.data?.paginacion.total ?? 0,
+        // No aplica a MarketPlace (usa 'vendida') — solo para satisfacer
+        // `Record<TabPublicacion, …>`, que ahora incluye 'cerrada' por Dinámicas.
+        cerrada: 0,
     };
 
     // Query del tab actual — derivada de las 3 anteriores.
@@ -341,15 +389,98 @@ export function PaginaMisPublicaciones() {
         }
     };
 
+    // ─── Handlers de acciones por Dinámica ───────────────────────────────────
+    const irAOrganizarDinamica = () => navegar('/marketplace?dinamicas=1&crearDinamica=1');
+
+    const handleAbrirPosponer = (dinamica: DinamicaFeedItem) => {
+        setNuevaFechaPosponer('');
+        setDinamicaAPosponer(dinamica);
+    };
+
+    const handleAbrirCancelar = (dinamica: DinamicaFeedItem) => {
+        setDinamicaACancelar(dinamica);
+    };
+
+    const handleConfirmarPosponer = async () => {
+        if (!dinamicaAPosponer || !nuevaFechaPosponer) return;
+        try {
+            await posponerMutation.mutateAsync({
+                dinamicaId: dinamicaAPosponer.id,
+                nuevaFechaLimiteInscripcion: new Date(nuevaFechaPosponer).toISOString(),
+            });
+            notificar.exito('Dinámica pospuesta. Avisamos a quienes ya tenían boleto.');
+            setDinamicaAPosponer(null);
+        } catch {
+            notificar.error('No pudimos posponer la Dinámica. Intenta de nuevo.');
+        }
+    };
+
+    const handleConfirmarCancelar = async () => {
+        if (!dinamicaACancelar) return;
+        try {
+            await cancelarMutation.mutateAsync(dinamicaACancelar.id);
+            notificar.exito('Dinámica cancelada.');
+            setDinamicaACancelar(null);
+        } catch {
+            notificar.error('No pudimos cancelar la Dinámica. Intenta de nuevo.');
+        }
+    };
+
     // Colores de los tabs de estado (filtros) unificados con el tipo activo —
-    // teal para MarketPlace, sky para Servicios, igual que el FAB y los toggles.
+    // teal para MarketPlace, sky para Servicios, ámbar para Dinámicas, igual
+    // que el FAB y los toggles.
     const tabActivoClase = tipoActivo === 'marketplace'
         ? 'border-teal-400 bg-teal-500 shadow-teal-500/20'
+        : tipoActivo === 'dinamicas'
+        ? 'border-amber-400 bg-amber-500 shadow-amber-500/20'
         : 'border-sky-400 bg-sky-500 shadow-sky-500/20';
     const tabHoverClase = tipoActivo === 'marketplace'
         ? 'hover:border-teal-400/60'
+        : tipoActivo === 'dinamicas'
+        ? 'hover:border-amber-400/60'
         : 'hover:border-sky-400/60';
-    const tabBadgeClase = tipoActivo === 'marketplace' ? 'text-teal-600' : 'text-sky-600';
+    const tabBadgeClase = tipoActivo === 'marketplace'
+        ? 'text-teal-600'
+        : tipoActivo === 'dinamicas'
+        ? 'text-amber-600'
+        : 'text-sky-600';
+
+    // Conteo por tab según el tipo activo — cada tipo tiene su propia fuente
+    // de datos (MP: `conteoPorTab`, Servicios: callback `onConteos`,
+    // Dinámicas: los 2 arrays agrupados client-side).
+    const conteoParaTab = (tabId: TabPublicacion): number => {
+        if (tipoActivo === 'dinamicas') {
+            return tabId === 'activa' ? dinamicasActivas.length : tabId === 'cerrada' ? dinamicasCerradas.length : 0;
+        }
+        if (tipoActivo === 'servicios') {
+            return tabId === 'activa' ? conteosServicios.activa : tabId === 'pausada' ? conteosServicios.pausada : 0;
+        }
+        return conteoPorTab[tabId];
+    };
+
+    // Botón "Publicar"/"Organizar" del header y del FAB — mismo destino y
+    // paleta en los 3 lugares donde aparece (laptop, 2xl, FAB móvil).
+    const handlePublicarClick = () => {
+        if (tipoActivo === 'marketplace') return irAPublicar();
+        if (tipoActivo === 'dinamicas') return irAOrganizarDinamica();
+        return navegar('/servicios?crear=ofrezco');
+    };
+    const labelPublicar = tipoActivo === 'marketplace'
+        ? 'Publicar artículo'
+        : tipoActivo === 'dinamicas'
+        ? 'Organizar Dinámica'
+        : 'Publicar servicio';
+    const textoBotonPublicar = tipoActivo === 'dinamicas' ? 'Organizar' : 'Publicar';
+    const gradientePublicarHeader = tipoActivo === 'marketplace'
+        ? 'bg-linear-to-br from-teal-500 to-teal-700 shadow-teal-500/30 ring-teal-300/30'
+        : tipoActivo === 'dinamicas'
+        ? 'bg-linear-to-br from-amber-500 to-amber-700 shadow-amber-500/30 ring-amber-300/30'
+        : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30';
+    const gradientePublicarFabMovil = tipoActivo === 'marketplace'
+        ? 'bg-linear-to-br from-cyan-500 to-cyan-700 shadow-cyan-500/30 ring-cyan-300/30'
+        : tipoActivo === 'dinamicas'
+        ? 'bg-linear-to-br from-amber-500 to-amber-700 shadow-amber-500/30 ring-amber-300/30'
+        : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30';
 
     return (
         <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
@@ -523,6 +654,8 @@ export function PaginaMisPublicaciones() {
                                             const claseActivo =
                                                 tipo.id === 'marketplace'
                                                     ? 'border-teal-400 bg-linear-to-br from-teal-500 to-teal-600 text-white shadow-md shadow-teal-500/30'
+                                                    : tipo.id === 'dinamicas'
+                                                    ? 'border-amber-400 bg-linear-to-br from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30'
                                                     : 'border-sky-500 bg-linear-to-br from-sky-600 to-sky-700 text-white shadow-md shadow-sky-700/30';
                                             return (
                                                 <button
@@ -554,14 +687,7 @@ export function PaginaMisPublicaciones() {
                                         {TABS_POR_TIPO[tipoActivo].map((tab) => {
                                             const Icono = tab.Icono;
                                             const activo = tabActivo === tab.id;
-                                            const conteo =
-                                                tipoActivo === 'marketplace'
-                                                    ? conteoPorTab[tab.id]
-                                                    : tab.id === 'activa'
-                                                      ? conteosServicios.activa
-                                                      : tab.id === 'pausada'
-                                                        ? conteosServicios.pausada
-                                                        : 0;
+                                            const conteo = conteoParaTab(tab.id);
                                             return (
                                                 <button
                                                     key={tab.id}
@@ -599,21 +725,11 @@ export function PaginaMisPublicaciones() {
                                     {/* Publicar — icon-only */}
                                     <button
                                         data-testid="btn-publicar-header-laptop"
-                                        onClick={
-                                            tipoActivo === 'marketplace'
-                                                ? irAPublicar
-                                                : () => navegar('/servicios?crear=ofrezco')
-                                        }
-                                        aria-label={
-                                            tipoActivo === 'marketplace'
-                                                ? 'Publicar artículo'
-                                                : 'Publicar servicio'
-                                        }
+                                        onClick={handlePublicarClick}
+                                        aria-label={labelPublicar}
                                         className={
                                             'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md ring-2 transition-transform hover:scale-105 ' +
-                                            (tipoActivo === 'marketplace'
-                                                ? 'bg-linear-to-br from-teal-500 to-teal-700 shadow-teal-500/30 ring-teal-300/30'
-                                                : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30')
+                                            gradientePublicarHeader
                                         }
                                     >
                                         <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
@@ -671,6 +787,8 @@ export function PaginaMisPublicaciones() {
                                                 const claseActivo =
                                                     tipo.id === 'marketplace'
                                                         ? 'border-teal-400 bg-linear-to-br from-teal-500 to-teal-600 text-white shadow-md shadow-teal-500/30'
+                                                        : tipo.id === 'dinamicas'
+                                                        ? 'border-amber-400 bg-linear-to-br from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30'
                                                         : 'border-sky-500 bg-linear-to-br from-sky-600 to-sky-700 text-white shadow-md shadow-sky-700/30';
                                                 return (
                                                     <button
@@ -732,14 +850,7 @@ export function PaginaMisPublicaciones() {
                                             {TABS_POR_TIPO[tipoActivo].map((tab) => {
                                                 const Icono = tab.Icono;
                                                 const activo = tabActivo === tab.id;
-                                                const conteo =
-                                                    tipoActivo === 'marketplace'
-                                                        ? conteoPorTab[tab.id]
-                                                        : tab.id === 'activa'
-                                                          ? conteosServicios.activa
-                                                          : tab.id === 'pausada'
-                                                            ? conteosServicios.pausada
-                                                            : 0;
+                                                const conteo = conteoParaTab(tab.id);
                                                 return (
                                                     <button
                                                         key={tab.id}
@@ -778,24 +889,14 @@ export function PaginaMisPublicaciones() {
                                         MarketPlace / sky Servicios). */}
                                     <button
                                         data-testid="btn-publicar-header-desktop"
-                                        onClick={
-                                            tipoActivo === 'marketplace'
-                                                ? irAPublicar
-                                                : () => navegar('/servicios?crear=ofrezco')
-                                        }
-                                        aria-label={
-                                            tipoActivo === 'marketplace'
-                                                ? 'Publicar artículo'
-                                                : 'Publicar servicio'
-                                        }
+                                        onClick={handlePublicarClick}
+                                        aria-label={labelPublicar}
                                         className="flex shrink-0 cursor-pointer flex-col items-center gap-1 self-center"
                                     >
                                         <span
                                             className={
                                                 'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
-                                                (tipoActivo === 'marketplace'
-                                                    ? 'bg-linear-to-br from-teal-500 to-teal-700 shadow-teal-500/30 ring-teal-300/30'
-                                                    : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30')
+                                                gradientePublicarHeader
                                             }
                                         >
                                             <Plus
@@ -805,7 +906,7 @@ export function PaginaMisPublicaciones() {
                                             />
                                         </span>
                                         <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
-                                            Publicar
+                                            {textoBotonPublicar}
                                         </span>
                                         <style>{`
                                             @keyframes fab-publicar-mp-pulse {
@@ -840,6 +941,8 @@ export function PaginaMisPublicaciones() {
                                         const claseActivo =
                                             tipo.id === 'marketplace'
                                                 ? 'border-teal-400 bg-linear-to-br from-teal-500 to-teal-600 text-white shadow-md shadow-teal-500/30'
+                                                : tipo.id === 'dinamicas'
+                                                ? 'border-amber-400 bg-linear-to-br from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30'
                                                 : 'border-sky-500 bg-linear-to-br from-sky-600 to-sky-700 text-white shadow-md shadow-sky-700/30';
                                         return (
                                             <button
@@ -876,14 +979,7 @@ export function PaginaMisPublicaciones() {
                                     {TABS_POR_TIPO[tipoActivo].map((tab) => {
                                         const Icono = tab.Icono;
                                         const activo = tabActivo === tab.id;
-                                        const conteo =
-                                            tipoActivo === 'marketplace'
-                                                ? conteoPorTab[tab.id]
-                                                : tab.id === 'activa'
-                                                  ? conteosServicios.activa
-                                                  : tab.id === 'pausada'
-                                                    ? conteosServicios.pausada
-                                                    : 0;
+                                        const conteo = conteoParaTab(tab.id);
                                         return (
                                             <button
                                                 key={tab.id}
@@ -929,10 +1025,54 @@ export function PaginaMisPublicaciones() {
                        Sprint 7.2 — wireup con backend completo + acciones. */
                     <MisPublicacionesServiciosSection
                         tabActivo={
-                            tabActivo === 'vendida' ? 'activa' : tabActivo
+                            tabActivo === 'vendida' || tabActivo === 'cerrada' ? 'activa' : tabActivo
                         }
                         onConteos={setConteosServicios}
                     />
+                ) : tipoActivo === 'dinamicas' ? (
+                    // Dinámicas organizadas por el usuario, agrupadas
+                    // client-side en Activas/Cerradas (ver `dinamicasActivas`/
+                    // `dinamicasCerradas`) — mismo grid unificado que MP,
+                    // reutilizando `CardDinamicaMio`.
+                    dinamicasPending ? (
+                        <div className="flex items-center justify-center py-20">
+                            <Spinner tamanio="lg" />
+                        </div>
+                    ) : dinamicasError ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center">
+                            <AlertTriangle className="mb-3 h-10 w-10 text-amber-500" />
+                            <h3 className="text-lg font-bold text-slate-900">
+                                No pudimos cargar tus Dinámicas
+                            </h3>
+                            <p className="mt-1 text-sm font-medium text-slate-600">
+                                Revisa tu conexión y vuelve a intentarlo.
+                            </p>
+                            <button
+                                data-testid="btn-reintentar-dinamicas"
+                                onClick={() => refetchDinamicas()}
+                                className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white lg:hover:bg-slate-800"
+                            >
+                                Reintentar
+                            </button>
+                        </div>
+                    ) : (tabActivo === 'activa' ? dinamicasActivas : dinamicasCerradas).length === 0 ? (
+                        <EstadoVacioDinamicas tab={tabActivo} onOrganizar={irAOrganizarDinamica} />
+                    ) : (
+                        <div className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6">
+                            {(tabActivo === 'activa' ? dinamicasActivas : dinamicasCerradas).map((d) => (
+                                <div
+                                    key={d.id}
+                                    className="lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                                >
+                                    <CardDinamicaMio
+                                        dinamica={d}
+                                        onPosponer={handleAbrirPosponer}
+                                        onCancelar={handleAbrirCancelar}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )
                 ) : (
                     <>
                 {/* Banner: borrador sin publicar (solo si existe contenido) */}
@@ -1012,25 +1152,20 @@ export function PaginaMisPublicaciones() {
             </div>
 
             {/* ════════════════════════════════════════════════════════════════
-                FAB "+ Publicar" — visible en ambos modos (MarketPlace y
-                Servicios). El destino del onClick cambia según `tipoActivo`:
+                FAB "+ Publicar/Organizar" — visible en los 3 modos
+                (MarketPlace, Servicios, Dinámicas). El destino del onClick
+                cambia según `tipoActivo`:
                   - marketplace → /marketplace?crear=1 (composer inline MP)
                   - servicios   → /servicios?crear=ofrezco (composer inline)
-                Ambos expanden el composer en el feed de la sección. La
-                paleta cambia: teal/cyan para MP, sky para Servicios.
+                  - dinamicas   → /marketplace?dinamicas=1&crearDinamica=1
+                Todos expanden el composer en el feed de la sección. La
+                paleta cambia: cyan para MP, sky para Servicios, ámbar para
+                Dinámicas.
             ════════════════════════════════════════════════════════════════ */}
             <button
                 data-testid="fab-publicar"
-                onClick={
-                    tipoActivo === 'marketplace'
-                        ? irAPublicar
-                        : () => navegar('/servicios?crear=ofrezco')
-                }
-                aria-label={
-                    tipoActivo === 'marketplace'
-                        ? 'Publicar artículo'
-                        : 'Publicar servicio'
-                }
+                onClick={handlePublicarClick}
+                aria-label={labelPublicar}
                 style={{
                     transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
@@ -1041,9 +1176,7 @@ export function PaginaMisPublicaciones() {
                 <span
                     className={
                         'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
-                        (tipoActivo === 'marketplace'
-                            ? 'bg-linear-to-br from-cyan-500 to-cyan-700 shadow-cyan-500/30 ring-cyan-300/30'
-                            : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30')
+                        gradientePublicarFabMovil
                     }
                 >
                     <Plus
@@ -1052,12 +1185,12 @@ export function PaginaMisPublicaciones() {
                         style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
                     />
                 </span>
-                {/* Label "Publicar" — visible en móvil y desktop.
+                {/* Label "Publicar"/"Organizar" — visible en móvil y desktop.
                     Móvil: chip blanco translúcido con sombra para legibilidad
                     sobre fondos variables. Desktop: texto plano sobre el
                     gradient azul del MainLayout. */}
                 <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:text-base">
-                    Publicar
+                    {textoBotonPublicar}
                 </span>
                 <style>{`
                     @keyframes fab-publicar-mp-pulse {
@@ -1147,6 +1280,89 @@ export function PaginaMisPublicaciones() {
                 </div>
             </ModalAdaptativo>
 
+            {/* ── Modal: posponer Dinámica ── */}
+            <ModalAdaptativo
+                abierto={!!dinamicaAPosponer}
+                onCerrar={() => setDinamicaAPosponer(null)}
+                titulo="Posponer Dinámica"
+                ancho="sm"
+            >
+                <div className="space-y-4 p-4 lg:p-5">
+                    <p className="text-base font-medium text-slate-700 lg:text-sm 2xl:text-base">
+                        Elige la nueva fecha y hora límite de inscripción para{' '}
+                        <span className="font-bold text-slate-900">
+                            "{dinamicaAPosponer?.titulo}"
+                        </span>
+                        .
+                    </p>
+                    <input
+                        type="datetime-local"
+                        value={nuevaFechaPosponer}
+                        onChange={(e) => setNuevaFechaPosponer(e.target.value)}
+                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
+                    />
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                        <button
+                            data-testid="btn-cancelar-posponer"
+                            onClick={() => setDinamicaAPosponer(null)}
+                            className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
+                        >
+                            Cerrar
+                        </button>
+                        <button
+                            data-testid="btn-confirmar-posponer"
+                            onClick={handleConfirmarPosponer}
+                            disabled={posponerMutation.isPending || !nuevaFechaPosponer}
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-md lg:hover:bg-amber-700 disabled:opacity-60"
+                        >
+                            <CalendarClock className="h-4 w-4" strokeWidth={2.5} />
+                            {posponerMutation.isPending ? 'Guardando…' : 'Confirmar nueva fecha'}
+                        </button>
+                    </div>
+                </div>
+            </ModalAdaptativo>
+
+            {/* ── Modal: cancelar Dinámica ── */}
+            <ModalAdaptativo
+                abierto={!!dinamicaACancelar}
+                onCerrar={() => setDinamicaACancelar(null)}
+                titulo="Cancelar Dinámica"
+                ancho="sm"
+            >
+                <div className="space-y-4 p-4 lg:p-5">
+                    <p className="text-base font-medium text-slate-700 lg:text-sm 2xl:text-base">
+                        ¿Cancelar{' '}
+                        <span className="font-bold text-slate-900">
+                            "{dinamicaACancelar?.titulo}"
+                        </span>
+                        ?
+                    </p>
+                    <p className="text-sm font-medium text-slate-600 lg:text-xs 2xl:text-sm">
+                        Esta acción no se puede deshacer. Avisamos por ChatYA a quienes ya
+                        tenían boleto — el reembolso se coordina directamente con ellos, la
+                        app no cobra ni entrega nada.
+                    </p>
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                        <button
+                            data-testid="btn-cancelar-cancelar-dinamica"
+                            onClick={() => setDinamicaACancelar(null)}
+                            className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
+                        >
+                            Volver
+                        </button>
+                        <button
+                            data-testid="btn-confirmar-cancelar-dinamica"
+                            onClick={handleConfirmarCancelar}
+                            disabled={cancelarMutation.isPending}
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-md lg:hover:bg-red-700 disabled:opacity-60"
+                        >
+                            <Ban className="h-4 w-4" strokeWidth={2.5} />
+                            {cancelarMutation.isPending ? 'Cancelando…' : 'Sí, cancelar'}
+                        </button>
+                    </div>
+                </div>
+            </ModalAdaptativo>
+
             {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
                 empalmarse con el FAB Publicar (abajo-derecha en móvil); en PC
                 vuelve al canal derecho (el Publicar vive en el header). */}
@@ -1186,6 +1402,13 @@ const COPY_VACIO: Record<
         mensaje: 'Tu historial de ventas aparecerá aquí.',
         mostrarCta: false,
     },
+    // No aplica a MarketPlace (usa 'vendida'), pero `Record<TabPublicacion, …>`
+    // exige la llave completa — solo la usa `EstadoVacioDinamicas` más abajo.
+    cerrada: {
+        titulo: 'Sin Dinámicas cerradas',
+        mensaje: 'Aquí verás las que cierres o canceles.',
+        mostrarCta: false,
+    },
 };
 
 function EstadoVacio({ tab, onPublicar }: EstadoVacioProps) {
@@ -1210,6 +1433,55 @@ function EstadoVacio({ tab, onPublicar }: EstadoVacioProps) {
                 >
                     <Plus className="w-5 h-5" />
                     Publicar artículo
+                </button>
+            )}
+        </div>
+    );
+}
+
+// =============================================================================
+// SUBCOMPONENTE — Estado vacío por tab (Dinámicas)
+// =============================================================================
+
+interface EstadoVacioDinamicasProps {
+    tab: TabPublicacion;
+    onOrganizar: () => void;
+}
+
+const COPY_VACIO_DINAMICAS: Record<'activa' | 'cerrada', { titulo: string; mensaje: string; mostrarCta: boolean }> = {
+    activa: {
+        titulo: 'Sin Dinámicas activas',
+        mensaje: 'Organiza una rifa o concurso para empezar.',
+        mostrarCta: true,
+    },
+    cerrada: {
+        titulo: 'Sin Dinámicas cerradas',
+        mensaje: 'Aquí verás las que cierres o canceles.',
+        mostrarCta: false,
+    },
+};
+
+function EstadoVacioDinamicas({ tab, onOrganizar }: EstadoVacioDinamicasProps) {
+    const copy = COPY_VACIO_DINAMICAS[tab === 'cerrada' ? 'cerrada' : 'activa'];
+    return (
+        <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-24 h-24 rounded-full bg-linear-to-br from-amber-100 to-amber-50 flex items-center justify-center ring-8 ring-amber-50 mb-6">
+                <Ticket className="w-12 h-12 lg:w-16 lg:h-16 text-amber-500" />
+            </div>
+            <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                {copy.titulo}
+            </h3>
+            <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                {copy.mensaje}
+            </p>
+            {copy.mostrarCta && (
+                <button
+                    data-testid="btn-organizar-vacio"
+                    onClick={onOrganizar}
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
+                >
+                    <Plus className="w-5 h-5" />
+                    Organizar Dinámica
                 </button>
             )}
         </div>

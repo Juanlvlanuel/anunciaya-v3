@@ -85,17 +85,22 @@ export function SeccionFeedDinamicas({ ciudad, esModoPersonal }: SeccionFeedDina
                     >
                         <Ticket className="h-8 w-8 text-white" strokeWidth={2} />
                     </div>
-                    <h3 className="mb-1.5 text-lg font-bold text-white">Aún no hay Dinámicas en {ciudad}</h3>
-                    <p className="max-w-sm text-sm text-slate-400">
+                    <h3 className="mb-1.5 text-lg font-bold text-slate-900">Aún no hay Dinámicas en {ciudad}</h3>
+                    <p className="max-w-sm text-sm text-slate-600">
                         Organiza una rifa o concurso entre vecinos — el pago y la entrega del premio se coordinan
                         siempre fuera de la app.
                     </p>
                 </div>
             ) : (
-                <div className="px-3 lg:px-0 pt-3 space-y-3">
-                    {dinamicas.map((dinamica) => (
-                        <CardDinamica key={dinamica.id} dinamica={dinamica} />
-                    ))}
+                <div className="px-3 pt-3 lg:px-0">
+                    {/* 2 cards por fila a partir de `lg:` — en móvil se queda
+                        en 1 columna (la card ya trae header+foto+KPIs, muy
+                        angosta se vería apretada). */}
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+                        {dinamicas.map((dinamica) => (
+                            <CardDinamica key={dinamica.id} dinamica={dinamica} />
+                        ))}
+                    </div>
 
                     <div ref={sentinelRef} className="h-1" />
 

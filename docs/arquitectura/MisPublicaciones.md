@@ -1,18 +1,21 @@
 # 📦 Mis Publicaciones — Panel del Vendedor
 
-> **Última actualización:** 13 Mayo 2026
-> **Estado:** ✅ En producción para MarketPlace · UI pre-cableada para Servicios
+> **Última actualización:** 5 Agosto 2026 — se integró **Dinámicas** como 3er tipo de publicación (rifas/concursos organizados por el usuario).
+> **Estado:** ✅ En producción para MarketPlace y Dinámicas · UI pre-cableada para Servicios
 > **Ruta:** `/mis-publicaciones`
-> **Visibilidad:** Solo modo Personal (igual que MarketPlace)
+> **Visibilidad:** Solo modo Personal (igual que MarketPlace y Dinámicas)
 
 > **DATOS DEL SERVIDOR (React Query):**
-> - Hooks principales: `apps/web/src/hooks/queries/useMarketplace.ts`
+> - Hooks MarketPlace: `apps/web/src/hooks/queries/useMarketplace.ts`
 > - `useMisArticulosMarketplace(estado, paginacion)` — listado por estado, `keepPreviousData` para evitar temblor al cambiar de tab
 > - `useCambiarEstadoArticuloMarketplace()` — PATCH `/articulos/:id/estado`
 > - `useReactivarArticulo()` — POST `/articulos/:id/reactivar` (acepta `pausada` y `vendida`)
 > - `useEliminarArticuloMarketplace()` — DELETE `/articulos/:id`
+> - Hooks Dinámicas: `apps/web/src/hooks/queries/useDinamicas.ts`
+> - `useDinamicasDeOrganizador(usuarioId, { incluirCanceladas: true })` — mazo completo del organizador (activa/pospuesta/en_sorteo/cerrada/cancelada), agrupado client-side en 2 chips
+> - `usePosponerDinamica()` / `useCancelarDinamica()` — POST `/dinamicas/:id/posponer` / `/dinamicas/:id/cancelar`
 
-> **Identidad visual:** Cyan — Header dark sticky con icono `Package`, glow `rgba(6,182,212,0.07)`, mismo patrón estandarizado que CardYA / Cupones / Guardados / MarketPlace.
+> **Identidad visual:** Cyan (header) — el toggle de tipo usa teal para MarketPlace, sky para Servicios y **ámbar para Dinámicas**. Header dark sticky con icono `Package`, glow `rgba(6,182,212,0.07)`, mismo patrón estandarizado que CardYA / Cupones / Guardados / MarketPlace.
 
 ---
 
@@ -40,7 +43,7 @@
 
 ## 🎯 ¿Qué es Mis Publicaciones?
 
-**Mis Publicaciones** es el panel privado del vendedor donde gestiona el ciclo de vida de sus publicaciones de **MarketPlace** y, eventualmente, **Servicios**. Es una vista cross-módulo: un mismo panel sirve para administrar ambos tipos de contenido publicable, con tabs que cambian de contexto y comportamiento.
+**Mis Publicaciones** es el panel privado del vendedor donde gestiona el ciclo de vida de sus publicaciones de **MarketPlace**, **Dinámicas** y, eventualmente, **Servicios**. Es una vista cross-módulo: un mismo panel sirve para administrar los tres tipos de contenido publicable, con tabs que cambian de contexto y comportamiento.
 
 El vendedor entra al panel para responder preguntas operativas concretas:
 
@@ -108,14 +111,17 @@ El panel asume que el `usuarioId` del JWT es el dueño de las publicaciones que 
 
 ## 🔀 Tipos de publicación
 
-El panel admite dos tipos top-level. Cambiar de tipo redefine completamente el contexto: tabs aplicables, queries que se ejecutan, ciclo de vida, color de identidad activo del toggle.
+El panel admite tres tipos top-level. Cambiar de tipo redefine completamente el contexto: tabs aplicables, queries que se ejecutan, ciclo de vida, color de identidad activo del toggle.
 
 | Tipo | Estado del backend | Color del toggle | Tabs aplicables |
 |------|---------------------|------------------|-----------------|
 | **MarketPlace** | ✅ En producción | Gradient teal (`from-teal-500 to-teal-600`) | `Activas` · `Pausadas` · `Vendidas` |
+| **Dinámicas** | ✅ En producción | Gradient ámbar (`from-amber-500 to-amber-600`) | `Activas` · `Cerradas` |
 | **Servicios** | ⏳ UI pre-cableada · backend pendiente | Gradient sky (`from-sky-600 to-sky-700`) | `Activas` · `Pausadas` |
 
 > Cuando `tipoActivo === 'servicios'`, el body del panel muestra un empty state `Servicios — Próximamente` con paleta sky para diferenciarse del cyan de MarketPlace. Los tabs se renderizan pero no son funcionales hasta que llegue su sprint.
+>
+> Dinámicas es el 3er tipo (integrado Ago 2026) — a diferencia de Servicios, sí tiene backend completo desde el día 1 (reusa `docs/arquitectura/Dinamicas.md`), por eso no pasa por un estado "pre-cableado".
 
 ---
 
@@ -139,6 +145,17 @@ El panel admite dos tipos top-level. Cambiar de tipo redefine completamente el c
 
 > No replica el estado `vendida` del MarketPlace. Un servicio no se "vende y desaparece" — es recurrente. Cuando el vendedor ya no lo ofrece, lo elimina. Si en el futuro se integran empleos como sub-tipo, considerar agregar un tab `Cerradas` exclusivo para esa sub-categoría.
 
+### Dinámicas — 2 estados agrupados client-side
+
+El ciclo de vida real de una Dinámica tiene más estados (`borrador`/`activa`/`pospuesta`/`en_sorteo`/`cerrada`/`cancelada` — ver `docs/arquitectura/Dinamicas.md` §Ciclo de vida) de los que tiene sentido mostrar como tabs. En vez de forzar el mismo trío `Activas/Pausadas/Vendidas` de MarketPlace, Dinámicas usa su propio par:
+
+| Tab | Agrupa (backend) |
+|-----|-------------------|
+| `activa` | `activa`, `pospuesta`, `en_sorteo` |
+| `cerrada` | `cerrada`, `cancelada` |
+
+El agrupamiento se hace **client-side** (`dinamicasActivas`/`dinamicasCerradas` en `PaginaMisPublicaciones.tsx`) filtrando el array que devuelve `useDinamicasDeOrganizador` — no son 2 queries distintas, es 1 sola trayendo todo (`incluirCanceladas: true`, exclusivo de este panel) y particionada en memoria.
+
 ### Constante en código
 
 ```ts
@@ -148,6 +165,10 @@ const TABS_POR_TIPO: Record<TipoPublicacion, TabConfig[]> = {
         { id: 'pausada', label: 'Pausadas', Icono: PauseCircle },
         { id: 'vendida', label: 'Vendidas', Icono: ShoppingBag },
     ],
+    dinamicas: [
+        { id: 'activa',  label: 'Activas',  Icono: CheckCircle2 },
+        { id: 'cerrada', label: 'Cerradas', Icono: XCircle },
+    ],
     servicios: [
         { id: 'activa',  label: 'Activas',  Icono: CheckCircle2 },
         { id: 'pausada', label: 'Pausadas', Icono: PauseCircle },
@@ -155,7 +176,7 @@ const TABS_POR_TIPO: Record<TipoPublicacion, TabConfig[]> = {
 };
 ```
 
-Un `useEffect` autocorrige `tabActivo` cuando el tipo cambia y el tab actual no aplica al tipo nuevo (ej: estabas en `vendida` en MarketPlace y cambiaste a Servicios → resetea a `activa`).
+Un `useEffect` autocorrige `tabActivo` cuando el tipo cambia y el tab actual no aplica al tipo nuevo (ej: estabas en `vendida` en MarketPlace y cambiaste a Dinámicas o Servicios → resetea a `activa`).
 
 ---
 
@@ -171,20 +192,20 @@ Patrón estandarizado replicado de CardYA / Cupones / Guardados con paleta cyan.
 ┌────────────────────────────────────────────┐
 │ ← 📦 Mis Publicaciones        🔔 ☰         │
 │ ─── Gestiona tus Publicaciones ───         │
-│ [🛒] [💼] │ [Activas] [Pausadas] [Vendidas]│
+│ [🛒] [🎟️] [💼] │ [Activas] [Pausadas] [...]│
 └────────────────────────────────────────────┘
 ```
 
 - **Fila 1:** `[Volver]` + logo (gradient cyan-500→cyan-700) + título "Mis **Publicaciones**" (cyan-400) + `[🔔 Notificaciones]` + `[☰ Menú]`.
 - **Fila 2:** Subtítulo decorativo "Gestiona tus **Publicaciones**" con rayitas cyan a los lados (patrón estandarizado).
-- **Fila 3 (híbrida):** Toggle tipo `[🛒] [💼]` icon-only (`h-9 w-9 border-2 rounded-full`) FIJO a la izquierda + divider vertical sutil (`h-7 w-px bg-white/20`) + tabs estado SCROLLABLES a la derecha (`overflow-x-auto`, scrollbar oculto).
+- **Fila 3 (híbrida):** Toggle tipo `[🛒] [🎟️] [💼]` icon-only (`h-9 w-9 border-2 rounded-full`) FIJO a la izquierda + divider vertical sutil (`h-7 w-px bg-white/20`) + tabs estado SCROLLABLES a la derecha (`overflow-x-auto`, scrollbar oculto).
 
 #### Desktop (`≥ lg`)
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │ ← 📦 Mis Publicaciones    Gestiona tus Publicaciones                   │
-│   [🛒 MarketPlace] [💼 Serv]  ── PANEL DEL VENDEDOR ──                 │
+│   [🛒 MP] [🎟️ Dinám] [💼 Serv]  ── PANEL DEL VENDEDOR ──               │
 │                                    [Activas] [Pausadas] [Vendidas]     │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -197,9 +218,10 @@ Patrón estandarizado replicado de CardYA / Cupones / Guardados con paleta cyan.
 
 - **Tabs (estado):** activo `border-cyan-400 bg-cyan-500 text-white shadow-cyan-500/20`; inactivo `border-white/15 bg-white/5 text-slate-200`.
 - **Toggle MarketPlace activo:** `border-teal-400 bg-linear-to-br from-teal-500 to-teal-600 text-white shadow-teal-500/30`.
+- **Toggle Dinámicas activo:** `border-amber-400 bg-linear-to-br from-amber-500 to-amber-600 text-white shadow-amber-500/30`.
 - **Toggle Servicios activo:** `border-sky-500 bg-linear-to-br from-sky-600 to-sky-700 text-white shadow-sky-700/30`.
 
-Inactivo en ambos toggles: mismo estilo `border-white/15 bg-white/5` que los tabs inactivos — esto unifica visualmente la fila.
+Inactivo en los 3 toggles: mismo estilo `border-white/15 bg-white/5` que los tabs inactivos — esto unifica visualmente la fila. El botón "Publicar" del header/FAB también cambia de color y de texto (**"Organizar"** en vez de "Publicar") cuando `tipoActivo === 'dinamicas'`, y enruta a `/marketplace?dinamicas=1&crearDinamica=1` en vez de al composer de MarketPlace.
 
 ### Body
 
@@ -248,18 +270,27 @@ Card individual del vendedor. Estructura:
 
 **Menú "⋯"** flotante sobre la foto (móvil) o en la esquina superior derecha del contenido (desktop). Dropdown contextual según estado (ver §Acciones por estado).
 
-### FAB "+ Publicar"
+#### `CardDinamicaMio` (tab Dinámicas)
 
-Solo visible en modo MarketPlace (Servicios aún no tiene endpoint de publicar). Mismo patrón que el FAB del feed (`PaginaMarketplace`) pero con paleta cyan:
+`apps/web/src/components/dinamicas/CardDinamicaMio.tsx` — mismo cuerpo visual que `CardDinamicaCompacta` (foto `aspect-3/2`, título, precio por boleto, boletos vendidos, cuenta regresiva), más el menú "⋯" con **Posponer**/**Cancelar** (ver §Acciones por estado — Dinámicas). El botón "⋯" ni se muestra si la Dinámica ya está en `en_sorteo`/`cerrada`/`cancelada` (nada que gestionar, la card queda solo informativa).
+
+Usa el mismo grid que MarketPlace (`grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4`), no uno propio — coherencia visual entre los 3 tipos del panel.
+
+### FAB "+ Publicar" / "+ Organizar"
+
+Visible en MarketPlace y Dinámicas (Servicios aún no tiene endpoint de publicar). Mismo patrón que el FAB del feed (`PaginaMarketplace`) pero con paleta cyan (MP) o ámbar (Dinámicas):
 
 - Móvil: baja a `bottom-4` cuando el `BottomNav` se oculta al hacer scroll; sube a `bottom-20` cuando reaparece.
 - Desktop: fijo en `bottom-6`, alineado a la izquierda de la `ColumnaDerecha`.
 - Icono `Plus` con animación rotate-pulse cada 2.4s.
+- Texto cambia a **"Organizar"** y destino a `/marketplace?dinamicas=1&crearDinamica=1` cuando `tipoActivo === 'dinamicas'`.
 
 ### Modales de confirmación
 
-- **Marcar vendido** (`ModalAdaptativo` con `ancho="sm"`): texto contextualizado "¿Confirmas que vendiste 'X'?" + CTAs Cancelar / Sí, lo vendí.
-- **Eliminar** (`ModalAdaptativo`): texto "¿Eliminar 'X'?" + advertencia "Esta acción no se puede deshacer" + CTAs Cancelar / Sí, eliminar (rojo).
+- **Marcar vendido** (`ModalAdaptativo` con `ancho="sm"`, MarketPlace): texto contextualizado "¿Confirmas que vendiste 'X'?" + CTAs Cancelar / Sí, lo vendí.
+- **Eliminar** (`ModalAdaptativo`, MarketPlace): texto "¿Eliminar 'X'?" + advertencia "Esta acción no se puede deshacer" + CTAs Cancelar / Sí, eliminar (rojo).
+- **Posponer Dinámica** (`ModalAdaptativo`, Dinámicas): input `datetime-local` para la nueva fecha límite + CTAs Cerrar / Confirmar nueva fecha (ámbar).
+- **Cancelar Dinámica** (`ModalAdaptativo`, Dinámicas): texto "¿Cancelar 'X'?" + advertencia sobre reembolso coordinado por ChatYA + CTAs Volver / Sí, cancelar (rojo).
 
 ---
 
@@ -281,9 +312,22 @@ Pausadas y Vendidas son **estados derivados** de tener publicaciones — el usua
 
 Cuando `tipoActivo === 'servicios'`, el body no entra al flujo normal de tabs/empty states — muestra un empty `Servicios — Próximamente` con paleta **sky** (no cyan) y el icono `Briefcase`. Esto bypasa el tab activo y se queda fijo hasta que el sprint de Servicios cablee los queries reales.
 
+### Empty states — Dinámicas
+
+`EstadoVacioDinamicas` (propio, no reusa `EstadoVacio` de MarketPlace) con paleta ámbar e icono `Ticket`:
+
+| Tab | Título | Mensaje | CTA |
+|-----|--------|---------|-----|
+| `activa` | "Sin Dinámicas activas" | "Organiza una rifa o concurso para empezar." | ✅ "Organizar Dinámica" (botón ámbar) |
+| `cerrada` | "Sin Dinámicas cerradas" | "Aquí verás las que cierres o canceles." | ❌ Sin CTA |
+
+Mismo criterio que MarketPlace: solo `activa` es el punto de entrada natural, así que es la única con CTA.
+
 ---
 
 ## ⚙️ Acciones por estado
+
+### MarketPlace
 
 El menú "⋯" del card muestra acciones contextuales según el estado del artículo. Todas las acciones permanecen visibles arriba del separador; `Eliminar` siempre va abajo del separador, en rojo.
 
@@ -292,6 +336,15 @@ El menú "⋯" del card muestra acciones contextuales según el estado del artí
 | `activa` | Editar · Pausar · Marcar vendido · Eliminar |
 | `pausada` | Editar · Re-Activar · Marcar vendido · Eliminar |
 | `vendida` | Re-Activar · Eliminar |
+
+### Dinámicas
+
+`CardDinamicaMio` no tiene `Editar` ni `Eliminar` — una Dinámica publicada no se edita (solo se pospone/cancela) y no hay endpoint DELETE (se cancela, no se borra; ver `docs/arquitectura/Dinamicas.md` §Backend).
+
+| Estado actual | Acciones disponibles |
+|---------------|----------------------|
+| `activa` / `pospuesta` | Posponer · Cancelar |
+| `en_sorteo` / `cerrada` / `cancelada` | Ninguna — el botón "⋯" ni se renderiza |
 
 ### Transiciones de estado
 
@@ -474,6 +527,8 @@ Esto cubre el caso "el usuario quita un guardado desde `PaginaGuardados` y al vo
 
 ## 🌐 API y endpoints
 
+### MarketPlace
+
 Todos detrás de `verificarToken + requiereModoPersonal`.
 
 | Método | Ruta | Propósito |
@@ -484,6 +539,16 @@ Todos detrás de `verificarToken + requiereModoPersonal`.
 | `DELETE` | `/api/marketplace/articulos/:id` | Soft delete + cleanup R2 |
 
 > El endpoint `GET /api/marketplace/mis-articulos` ya existía desde el Sprint 1 (Backend Base) del MarketPlace. El panel no requirió backend nuevo — toda la implementación fue frontend, salvo extensiones puntuales en services existentes para devolver `unidadVenta` y `guardado` en queries cross-vista.
+
+### Dinámicas
+
+| Método | Ruta | Auth | Propósito |
+|--------|------|------|-----------|
+| `GET` | `/api/dinamicas/organizador/:usuarioId?incluirCanceladas=1` | `verificarTokenOpcional` | Mazo completo del organizador. `incluirCanceladas` solo se honra en backend si `usuarioId` coincide con el usuario autenticado del token — este panel es el único caso que lo activa (el perfil público nunca la manda en `true`) |
+| `POST` | `/api/dinamicas/:id/posponer` | `verificarToken + requiereModoPersonal` | Nueva fecha límite de inscripción |
+| `POST` | `/api/dinamicas/:id/cancelar` | `verificarToken + requiereModoPersonal` | Cancelar (terminal) |
+
+> Este panel no requirió endpoints nuevos exclusivos — reusa `GET /organizador/:usuarioId` (ya existía para el Perfil público) sumándole el parámetro opt-in `incluirCanceladas`, y `posponer`/`cancelar` (ya existían desde `PaginaDinamica.tsx`). Ver `docs/arquitectura/Dinamicas.md` §Backend — Endpoints para la lista completa del módulo.
 
 ---
 
@@ -547,6 +612,8 @@ Ambas son one-shot manuales (no automatizadas en deploy) — ver `docs/migracion
 
 ## 🪝 Hooks React Query
 
+### MarketPlace
+
 Definidos en `apps/web/src/hooks/queries/useMarketplace.ts`.
 
 ```ts
@@ -563,6 +630,20 @@ useEliminarArticuloMarketplace();        // { articuloId }
 
 `useMisArticulosMarketplace` usa `keepPreviousData: true` (Regla `PATRON_REACT_QUERY.md`) para evitar temblor visual al cambiar de tab.
 
+### Dinámicas
+
+Definidos en `apps/web/src/hooks/queries/useDinamicas.ts`.
+
+```ts
+// Lectura — 1 sola query trae todo (activa/pospuesta/en_sorteo/cerrada/cancelada),
+// se agrupa en memoria en dinamicasActivas/dinamicasCerradas (no son 2 queries).
+useDinamicasDeOrganizador(usuarioId, { incluirCanceladas: true });
+
+// Mutaciones — invalidan queryKeys.dinamicas.all() automáticamente
+usePosponerDinamica();  // { dinamicaId, nuevaFechaLimiteInscripcion }
+useCancelarDinamica();  // dinamicaId
+```
+
 ### Query keys
 
 Centralizadas en `apps/web/src/config/queryKeys.ts`:
@@ -570,6 +651,9 @@ Centralizadas en `apps/web/src/config/queryKeys.ts`:
 ```ts
 queryKeys.marketplace.misArticulos(estado, paginacion)
 // → ['marketplace', 'mis-articulos', estado, paginacion]
+
+queryKeys.dinamicas.deOrganizador(usuarioId, incluirCanceladas)
+// → ['dinamicas', 'organizador', usuarioId, incluirCanceladas]
 ```
 
 ---
@@ -580,17 +664,20 @@ queryKeys.marketplace.misArticulos(estado, paginacion)
 
 | Archivo | Propósito |
 |---------|-----------|
-| `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx` | Página completa con header + body + FAB + modales |
-| `apps/web/src/components/marketplace/CardArticuloMio.tsx` | Card del vendedor (foto + overlay + KPIs + menú "⋯") |
+| `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx` | Página completa con header + body + FAB + modales (los 3 tipos) |
+| `apps/web/src/components/marketplace/CardArticuloMio.tsx` | Card del vendedor de MarketPlace (foto + overlay + KPIs + menú "⋯") |
+| `apps/web/src/components/dinamicas/CardDinamicaMio.tsx` | Card del organizador de Dinámicas (foto + KPIs + menú "⋯" con Posponer/Cancelar) |
 
 ### Hooks y configuración
 
 | Archivo | Propósito |
 |---------|-----------|
 | `apps/web/src/hooks/queries/useMarketplace.ts` | `useMisArticulosMarketplace`, `useCambiarEstado…`, `useReactivar…`, `useEliminar…` |
+| `apps/web/src/hooks/queries/useDinamicas.ts` | `useDinamicasDeOrganizador`, `usePosponerDinamica`, `useCancelarDinamica` |
 | `apps/web/src/hooks/useGuardados.ts` | `aplicarCambioGuardadoEnCache` (sincronización cross-vista) |
-| `apps/web/src/config/queryKeys.ts` | `marketplace.misArticulos(estado, paginacion)` |
+| `apps/web/src/config/queryKeys.ts` | `marketplace.misArticulos(estado, paginacion)`, `dinamicas.deOrganizador(usuarioId, incluirCanceladas)` |
 | `apps/web/src/types/marketplace.ts` | `ArticuloMarketplace`, `EstadoArticulo`, `CondicionArticulo` |
+| `apps/web/src/types/dinamicas.ts` | `DinamicaFeedItem`, `DinamicasDeOrganizadorRespuesta` |
 
 ### Backend reutilizado (sin código propio del panel)
 
@@ -600,6 +687,8 @@ queryKeys.marketplace.misArticulos(estado, paginacion)
 | `apps/api/src/services/marketplace.service.ts` | `obtenerMisArticulos`, `cambiarEstado`, `eliminar` |
 | `apps/api/src/services/marketplace/expiracion.ts` | `reactivarArticulo` (extiende +30 días, acepta `pausada` y `vendida`) |
 | `apps/api/src/controllers/marketplace.controller.ts` | Controllers que llaman a los services |
+| `apps/api/src/routes/dinamicas.routes.ts` | Endpoints `organizador/:usuarioId`, `:id/posponer`, `:id/cancelar` |
+| `apps/api/src/services/dinamicas.service.ts` | `listarDinamicasDeOrganizador` (con `incluirCanceladas`), `posponerDinamica`, `cancelarDinamica` |
 
 ### Hermanos (vistas relacionadas)
 
@@ -616,7 +705,7 @@ queryKeys.marketplace.misArticulos(estado, paginacion)
 
 ### 1. Tipo top-level, no filtro lateral
 
-MarketPlace y Servicios son ramas separadas del mismo árbol de gestión. Convertirlas en filtro lateral hubiera obligado a una jerarquía artificial; con el toggle top-level cada rama tiene su propio ciclo de vida, queries, conteos y estados.
+MarketPlace, Dinámicas y Servicios son ramas separadas del mismo árbol de gestión. Convertirlas en filtro lateral hubiera obligado a una jerarquía artificial; con el toggle top-level cada rama tiene su propio ciclo de vida, queries, conteos y estados.
 
 ### 2. UI de Servicios pre-cableada antes de que exista backend
 
@@ -656,11 +745,20 @@ Al sincronizar el cache cross-vista, `aplicarCambioGuardadoEnCache` actualiza el
 
 Intentar unificarlas con props condicionales generaría una explosión de variantes — preferimos cards separadas con responsabilidades claras.
 
+### 9. Dinámicas — 2 chips en vez de forzar los 3 de MarketPlace
+
+El ciclo de vida real de una Dinámica (`borrador`/`activa`/`pospuesta`/`en_sorteo`/`cerrada`/`cancelada`) no calza con `Activas/Pausadas/Vendidas`. En vez de inventar un mapeo forzado a esos 3 nombres, Dinámicas usa su propio par (`Activas`/`Cerradas`), agrupando estados afines client-side. Esto evita nombres de tab que mientan sobre lo que realmente contienen.
+
+### 10. Sin "Editar" ni "Eliminar" en Dinámicas
+
+A diferencia de MarketPlace (donde el vendedor sí puede editar precio/fotos de una publicación activa), una Dinámica publicada **no se edita** — cambiar las reglas de una rifa a medio camino, con gente que ya tiene boletos, sería injusto para los participantes. Tampoco se "elimina" — se **cancela** (estado terminal, auditable), preservando el registro de quién participó. Por eso `CardDinamicaMio` solo ofrece Posponer/Cancelar, nunca Editar/Eliminar.
+
 ---
 
 ## 🔗 Referencias
 
-- `docs/arquitectura/MarketPlace.md` — módulo padre (filosofía, estados del artículo, ciclo de vida, página pública compartible).
+- `docs/arquitectura/MarketPlace.md` — módulo padre de MarketPlace (filosofía, estados del artículo, ciclo de vida, página pública compartible).
+- `docs/arquitectura/Dinamicas.md` — módulo padre de Dinámicas (ciclo de vida, boletos, moderación, endpoints completos, estado por fase).
 - `docs/arquitectura/Guardados.md` — sistema cross-módulo de guardados (sincronización del flag).
 - `docs/arquitectura/ChatYA.md` — sistema de mensajería que se invoca desde la card de detalle.
 - `docs/estandares/TOKENS_GLOBALES.md` — reglas de diseño aplicadas (Regla 1 texto mínimo, Regla 6 bordes, Regla 13 estética B2B).

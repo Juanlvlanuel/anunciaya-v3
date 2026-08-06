@@ -23,12 +23,13 @@
  * Ubicación: apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useListoParaAnimar } from '../../../hooks/useListoParaAnimar';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { ShoppingCart, ChevronLeft, ChevronDown, Search, Tag, Ticket, ArrowLeftRight, X } from 'lucide-react';
 
@@ -232,9 +233,17 @@ export function PaginaMarketplace() {
     // reserva espacio por sí solo). Se usa para un espaciador que empuja el
     // inicio del feed hacia abajo cuando el overlay está expandido — si no,
     // el overlay queda tapando el primer bloque del feed.
+    // `useLayoutEffect` (no `useEffect`): mide ANTES del primer pintado, así
+    // el espaciador del feed ya nace con el alto correcto — con `useEffect`
+    // el primer render pinta alto 0 y luego salta al real ya con la
+    // transición CSS puesta, viéndose como que el contenido se reacomoda.
     const overlayHeaderRef = useRef<HTMLDivElement>(null);
     const [alturaOverlayHeader, setAlturaOverlayHeader] = useState(0);
-    useEffect(() => {
+    // `false` durante el primer pintado — apaga la transición CSS del
+    // espaciador solo en el montaje inicial, para que el salto de 0 al alto
+    // real medido no se anime. Ver `useListoParaAnimar`.
+    const listoParaAnimar = useListoParaAnimar();
+    useLayoutEffect(() => {
         const el = overlayHeaderRef.current;
         if (!el) return;
         const medir = () => setAlturaOverlayHeader(el.offsetHeight);
@@ -732,7 +741,7 @@ export function PaginaMarketplace() {
                     className="lg:hidden"
                     style={{
                         height: headerColapsado ? 0 : alturaOverlayHeader,
-                        transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        transition: listoParaAnimar ? 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                     }}
                 />
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro

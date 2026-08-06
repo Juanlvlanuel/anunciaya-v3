@@ -345,6 +345,7 @@ export async function obtenerDinamicaPublica(dinamicaId: string) {
                 organizadorNombre: usuarios.nombre,
                 organizadorApellidos: usuarios.apellidos,
                 organizadorAvatarUrl: usuarios.avatarUrl,
+                organizadorUltimaConexion: usuarios.ultimaConexion,
             })
             .from(dinamicas)
             .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
@@ -374,6 +375,7 @@ export async function obtenerDinamicaPublica(dinamicaId: string) {
                     nombre: fila.organizadorNombre,
                     apellidos: fila.organizadorApellidos,
                     avatarUrl: fila.organizadorAvatarUrl,
+                    ultimaConexion: fila.organizadorUltimaConexion,
                 },
                 boletosPagados,
                 boletosDisponibles,
@@ -450,6 +452,87 @@ export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas) {
     } catch (error) {
         console.error('Error en listarDinamicasPublicas:', error);
         return { success: false, message: 'Error al listar Dinámicas', code: 500 } satisfies RespuestaError;
+    }
+}
+
+interface OpcionesDinamicasDeOrganizador {
+    pagina?: number;
+    limite?: number;
+    /** Solo para el propio organizador viendo "Mis Publicaciones" — incluye
+     *  `cancelada` en el listado (no solo en la insignia). En el perfil
+     *  público (default) se omite: no hay nada útil que mostrarle a un
+     *  tercero sobre una Dinámica cancelada. */
+    incluirCanceladas?: boolean;
+}
+
+/** Dinámicas organizadas por un usuario específico + su insignia — para el
+ *  perfil público compartido de MarketPlace (`PaginaPerfilVendedor.tsx`,
+ *  que ya muestra Publicaciones/Vendidos y ahora también "Dinámicas
+ *  organizadas") y para "Mis Publicaciones" (`PaginaMisPublicaciones.tsx`,
+ *  con `incluirCanceladas: true`). A diferencia de `listarMisDinamicas`
+ *  (que exige que `usuarioId` sea el del token, vía el controller), esta
+ *  función es pública: cualquiera puede consultar las Dinámicas de un
+ *  tercero. Excluye `borrador` (privado, aún no publicado) siempre. */
+export async function listarDinamicasDeOrganizador(usuarioId: string, opciones: OpcionesDinamicasDeOrganizador = {}) {
+    try {
+        const pagina = Math.max(1, opciones.pagina ?? 1);
+        const limite = Math.min(20, Math.max(1, opciones.limite ?? 12));
+        const offset = (pagina - 1) * limite;
+        const estadosPermitidos = opciones.incluirCanceladas
+            ? sql`${dinamicas.estado} IN ('activa', 'pospuesta', 'en_sorteo', 'cerrada', 'cancelada')`
+            : sql`${dinamicas.estado} IN ('activa', 'pospuesta', 'en_sorteo', 'cerrada')`;
+
+        const [filas, insignia] = await Promise.all([
+            db
+                .select({
+                    dinamica: dinamicas,
+                    organizadorId: usuarios.id,
+                    organizadorNombre: usuarios.nombre,
+                    organizadorApellidos: usuarios.apellidos,
+                    organizadorAvatarUrl: usuarios.avatarUrl,
+                })
+                .from(dinamicas)
+                .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
+                .where(
+                    and(
+                        eq(dinamicas.organizadorUsuarioId, usuarioId),
+                        estadosPermitidos,
+                    ),
+                )
+                .orderBy(desc(dinamicas.createdAt))
+                .limit(limite + 1)
+                .offset(offset),
+            calcularInsigniaOrganizador(usuarioId),
+        ]);
+
+        const hayMas = filas.length > limite;
+        const filasRecortadas = hayMas ? filas.slice(0, limite) : filas;
+
+        const items = await Promise.all(
+            filasRecortadas.map(async (fila) => {
+                const boletosPagados = await contarBoletosPagados(fila.dinamica.id);
+                const boletosDisponibles =
+                    fila.dinamica.numeroTotalBoletos !== null
+                        ? Math.max(0, fila.dinamica.numeroTotalBoletos - boletosPagados)
+                        : null;
+                return {
+                    ...fila.dinamica,
+                    organizador: {
+                        id: fila.organizadorId,
+                        nombre: fila.organizadorNombre,
+                        apellidos: fila.organizadorApellidos,
+                        avatarUrl: fila.organizadorAvatarUrl,
+                    },
+                    boletosPagados,
+                    boletosDisponibles,
+                };
+            }),
+        );
+
+        return { success: true as const, data: { dinamicas: items, insignia, pagina, limite, hayMas } };
+    } catch (error) {
+        console.error('Error en listarDinamicasDeOrganizador:', error);
+        return { success: false, message: 'Error al listar las Dinámicas de este organizador', code: 500 } satisfies RespuestaError;
     }
 }
 

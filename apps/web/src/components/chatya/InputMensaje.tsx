@@ -720,7 +720,8 @@ export function InputMensaje({
         datosCreacion.contextoTipo === 'marketplace' ||
         datosCreacion.contextoTipo === 'servicio' ||
         datosCreacion.contextoTipo === 'oferta' ||
-        datosCreacion.contextoTipo === 'articulo_negocio';
+        datosCreacion.contextoTipo === 'articulo_negocio' ||
+        datosCreacion.contextoTipo === 'dinamica';
       if (esContextoConCardBackend) {
         await useChatYAStore.getState().cargarMensajes(conv.id);
       }

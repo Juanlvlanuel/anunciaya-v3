@@ -222,12 +222,22 @@ interface SistemaServicioPublicacion {
   iniciadorId?: string;
 }
 
+interface SistemaDinamica {
+  subtipo: 'dinamica';
+  dinamicaId: string;
+  titulo: string;
+  precioBoleto: string | number | null;
+  fotoUrl: string | null;
+  iniciadorId?: string;
+}
+
 type DatosSistema =
   | SistemaArticuloMP
   | SistemaContactoPerfil
   | SistemaOfertaNegocio
   | SistemaArticuloNegocio
   | SistemaServicioPublicacion
+  | SistemaDinamica
   | { subtipo?: string };
 
 function parsearContenidoSistema(raw: string): DatosSistema | null {
@@ -362,6 +372,72 @@ function MensajeSistema({ contenidoRaw, miId }: MensajeSistemaProps) {
                 {formatearPrecioMP(d.precio)}
               </span>
               <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-teal-700 lg:group-hover:text-teal-900">
+                Ver
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Subtipo: card de Dinámica ─────────────────────────────────────────────
+  if (datos && (datos as SistemaDinamica).subtipo === 'dinamica') {
+    const d = datos as SistemaDinamica;
+    const irALaDinamica = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!d.dinamicaId) {
+        // eslint-disable-next-line no-console
+        console.warn('[MensajeSistema] dinamica sin dinamicaId', datos);
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent('chatya:navegar-externo', {
+          detail: `/marketplace/dinamica/${d.dinamicaId}`,
+        }),
+      );
+    };
+    return (
+      <div className={`flex w-full my-1 ${justify}`}>
+        <button
+          type="button"
+          data-testid={`mensaje-sistema-dinamica-${d.dinamicaId}`}
+          onClick={irALaDinamica}
+          className="group flex w-full max-w-sm cursor-pointer items-stretch overflow-hidden rounded-xl border-2 border-slate-300 bg-white text-left shadow-md lg:hover:border-amber-500"
+        >
+          {/* Foto cuadrada izquierda */}
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden bg-slate-200">
+            {d.fotoUrl ? (
+              <img
+                src={d.fotoUrl}
+                alt={d.titulo}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <ImageOff className="h-8 w-8 text-slate-500" strokeWidth={1.5} />
+            )}
+          </div>
+          {/* Contenido */}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold uppercase tracking-wide text-amber-700">
+                Dinámicas
+              </p>
+              <p className="line-clamp-2 text-sm font-bold leading-tight text-slate-900">
+                {d.titulo}
+              </p>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              {d.precioBoleto !== null && (
+                <span className="shrink-0 text-base font-extrabold text-slate-900">
+                  {formatearPrecioMP(d.precioBoleto)}
+                  <span className="ml-1 text-[11px] font-semibold text-slate-600">por boleto</span>
+                </span>
+              )}
+              <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-amber-700 lg:group-hover:text-amber-900">
                 Ver
                 <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
               </span>

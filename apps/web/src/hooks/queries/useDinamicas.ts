@@ -21,6 +21,7 @@ import type {
     MisDinamicasRespuesta,
     RespuestaFeedDinamicas,
     BoletoDinamica,
+    DinamicasDeOrganizadorRespuesta,
 } from '../../types/dinamicas';
 
 // =============================================================================
@@ -288,6 +289,33 @@ export function useConfirmarPagoBoleto() {
         onSuccess: (data, vars) => {
             if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
         },
+    });
+}
+
+/** Dinámicas organizadas por un usuario específico + su insignia — alimenta
+ *  la sección "Dinámicas organizadas" del perfil público compartido de
+ *  MarketPlace (`PaginaPerfilVendedor.tsx`) y, con `incluirCanceladas: true`,
+ *  el tab Dinámicas de "Mis Publicaciones" (`PaginaMisPublicaciones.tsx`) —
+ *  el backend solo honra `incluirCanceladas` cuando `usuarioId` es el del
+ *  propio usuario autenticado. */
+export function useDinamicasDeOrganizador(
+    usuarioId: string | undefined,
+    opciones: { incluirCanceladas?: boolean } = {},
+) {
+    const { incluirCanceladas = false } = opciones;
+    return useQuery({
+        queryKey: queryKeys.dinamicas.deOrganizador(usuarioId ?? '', incluirCanceladas),
+        queryFn: async (): Promise<DinamicasDeOrganizadorRespuesta> => {
+            const response = await api.get<{ success: boolean; data: DinamicasDeOrganizadorRespuesta }>(
+                `/dinamicas/organizador/${usuarioId}`,
+                { params: incluirCanceladas ? { incluirCanceladas: 1 } : undefined },
+            );
+            return response.data.success
+                ? response.data.data
+                : { dinamicas: [], insignia: { completadas: 0, canceladas: 0, nivel: 'nuevo' }, pagina: 1, limite: 12, hayMas: false };
+        },
+        enabled: !!usuarioId,
+        staleTime: 2 * 60 * 1000,
     });
 }
 

@@ -22,6 +22,7 @@ import {
     articulos,
     articulosMarketplace,
     serviciosPublicaciones,
+    dinamicas,
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
 import { emitirAUsuario, estaUsuarioConectado } from '../socket.js';
@@ -856,6 +857,23 @@ export async function crearObtenerConversacion(
                     contextoTipo: input.contextoTipo,
                     contextoReferenciaId: input.contextoReferenciaId,
                 });
+            } else if (
+                input.contextoTipo === 'dinamica' &&
+                input.contextoReferenciaId
+            ) {
+                // Mismo patrón que oferta/articulo_negocio: si la conversación
+                // ya existe y se abre ChatYA desde OTRA Dinámica del mismo
+                // organizador, insertar la card del nuevo contexto.
+                await insertarMensajeContextoDinamica(
+                    existente.id,
+                    input.contextoReferenciaId,
+                    usuarioId,
+                    input.participante2Id,
+                );
+                await actualizarContextoConversacion(existente.id, {
+                    contextoTipo: 'dinamica',
+                    contextoReferenciaId: input.contextoReferenciaId,
+                });
             }
 
             return obtenerConversacion(existente.id, usuarioId, input.participante1SucursalId ?? null);
@@ -918,6 +936,21 @@ export async function crearObtenerConversacion(
                 usuarioId,
                 input.participante2Id,
             );
+        } else if (
+            input.contextoTipo === 'dinamica' &&
+            input.contextoReferenciaId
+        ) {
+            // ChatYA abierto desde el botón "Contactar" de la ficha de una
+            // Dinámica. Mismo patrón que oferta/articulo_negocio: se inserta
+            // el mensaje sistema con la card de contexto (foto/título/precio
+            // por boleto) para que persista en BD y ambos participantes la
+            // vean al refrescar.
+            await insertarMensajeContextoDinamica(
+                nueva.id,
+                input.contextoReferenciaId,
+                usuarioId,
+                input.participante2Id,
+            );
         }
 
         return obtenerConversacion(nueva.id, usuarioId, input.participante1SucursalId ?? null);
@@ -973,7 +1006,7 @@ async function incrementarTotalMensajesPublicacion(
 async function actualizarContextoConversacion(
     conversacionId: string,
     nuevoContexto: {
-        contextoTipo: 'marketplace' | 'servicio' | 'oferta' | 'articulo_negocio';
+        contextoTipo: 'marketplace' | 'servicio' | 'oferta' | 'articulo_negocio' | 'dinamica';
         articuloMarketplaceId?: string;
         servicioPublicacionId?: string;
         contextoReferenciaId?: string;
@@ -1117,6 +1150,115 @@ async function insertarMensajeContextoMarketplace(
         // el mensaje de contexto — peor caso, la conversación queda sin la
         // card y el usuario igual puede chatear normal.
         console.error('Error en insertarMensajeContextoMarketplace:', error);
+    }
+}
+
+// =============================================================================
+// HELPER: INSERTAR MENSAJE SISTEMA DE CONTEXTO (Dinámicas)
+// =============================================================================
+
+/**
+ * Inserta un mensaje `tipo='sistema'` con JSON discriminado para dar
+ * contexto al inicio de una conversación originada desde el botón
+ * "Contactar" de la ficha de una Dinámica.
+ *
+ * Análogo a `insertarMensajeContextoMarketplace` — subtipo único `'dinamica'`,
+ * snapshot con titulo/precioBoleto/fotoUrl. A diferencia de MarketPlace/
+ * Servicios, Dinámicas NO tiene columna FK dedicada en `chat_conversaciones`
+ * (`dinamica_id`) — usa la columna genérica `contexto_referencia_id`, mismo
+ * patrón que `oferta`/`articulo_negocio` (evita una migración de columna
+ * nueva; solo se amplió el CHECK de `contexto_tipo`).
+ *
+ * Mismo comportamiento que el resto: `emisorId = NULL` (sistema), NO
+ * incrementa contadores de no leídos, emite Socket.io a ambos lados. Si la
+ * Dinámica ya no existe, no inserta nada — no rompe el flujo principal de
+ * creación de conversación.
+ */
+async function insertarMensajeContextoDinamica(
+    conversacionId: string,
+    dinamicaId: string,
+    iniciadorId: string,
+    receptorId: string,
+): Promise<void> {
+    try {
+        const [din] = await db
+            .select({
+                id: dinamicas.id,
+                titulo: dinamicas.titulo,
+                precioBoleto: dinamicas.precioBoleto,
+                fotosPremio: dinamicas.fotosPremio,
+            })
+            .from(dinamicas)
+            .where(eq(dinamicas.id, dinamicaId))
+            .limit(1);
+
+        if (!din) return;
+
+        const fotos = (din.fotosPremio as Array<{ url: string; tipo: string; posterUrl?: string | null }> | null) ?? [];
+        const portada = fotos.find((f) => f.tipo === 'imagen') ?? fotos[0];
+        const fotoUrl = portada ? (portada.tipo === 'video' ? (portada.posterUrl ?? null) : portada.url) : null;
+
+        const contenido = JSON.stringify({
+            subtipo: 'dinamica',
+            dinamicaId: din.id,
+            titulo: din.titulo,
+            precioBoleto: din.precioBoleto,
+            fotoUrl,
+            iniciadorId,
+        });
+        const previewTexto = `Sobre: ${din.titulo}`.substring(0, 100);
+
+        const [msg] = await db
+            .insert(chatMensajes)
+            .values({
+                conversacionId,
+                emisorId: null,
+                emisorModo: null,
+                emisorSucursalId: null,
+                tipo: 'sistema',
+                contenido,
+                estado: 'enviado',
+            })
+            .returning();
+
+        const ahora = new Date().toISOString();
+        await db
+            .update(chatConversaciones)
+            .set({
+                ultimoMensajeTexto: previewTexto,
+                ultimoMensajeFecha: ahora,
+                ultimoMensajeTipo: 'sistema',
+                ultimoMensajeEstado: 'enviado',
+                ultimoMensajeEmisorId: null,
+                updatedAt: ahora,
+            })
+            .where(eq(chatConversaciones.id, conversacionId));
+
+        const mensajeResponse: MensajeResponse = {
+            id: msg.id,
+            conversacionId: msg.conversacionId,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: msg.contenido,
+            estado: msg.estado as EstadoMensaje,
+            editado: msg.editado,
+            editadoAt: msg.editadoAt,
+            eliminado: msg.eliminado,
+            eliminadoAt: msg.eliminadoAt,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: msg.createdAt ?? '',
+            entregadoAt: msg.entregadoAt,
+            leidoAt: msg.leidoAt,
+        };
+
+        emitirAUsuario(iniciadorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+        emitirAUsuario(receptorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+    } catch (error) {
+        console.error('Error en insertarMensajeContextoDinamica:', error);
     }
 }
 

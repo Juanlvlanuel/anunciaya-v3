@@ -53,7 +53,8 @@ export type ContextoTipo =
   | 'articulo_negocio'
   | 'servicio'
   | 'directo'
-  | 'notas';
+  | 'notas'
+  | 'dinamica';
 
 // =============================================================================
 // PAGINACIÓN

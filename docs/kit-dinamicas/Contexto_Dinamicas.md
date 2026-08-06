@@ -1,6 +1,8 @@
 # Contexto para brainstorm — Módulo "Dinámicas" (rifas/concursos)
 
 > Este documento es para pegar en un chat nuevo de Claude y seguir explorando ideas. Resume lo ya decidido, incluyendo una sesión de continuación donde se cerraron varias decisiones pendientes, para que el chat nuevo parta de aquí en vez de reinventar lo ya platicado.
+>
+> ⚠️ **Este documento es de planeación/producto (histórico).** Para la referencia técnica de lo ya construido (endpoints, tablas, componentes, estado por fase) ver **`docs/arquitectura/Dinamicas.md`** — se actualiza según avanzan las Fases 3-4-5.
 
 ## Qué es AnunciaYA (para dar contexto al chat nuevo)
 
@@ -140,7 +142,7 @@ Tabla `dinamica_boletos`: `dinamica_id`, `numero_boleto` (**UNIQUE compuesto con
 
 ## Pendiente — se retoma más adelante, no ahora
 
-- **Ilustraciones de lotería mexicana**: para los métodos de carta única y tabla completa, se usarán personajes clásicos (El Gallo, La Dama, El Diablito, etc.) pero con **arte propio e ilustraciones originales** generadas vía prompt en Gemini (no la baraja tradicional de "Don Clemente", que tiene derechos de autor). Queda pendiente de trabajar cuando llegue el momento de esa fase — no es bloqueante para el resto del plan.
+- ~~**Ilustraciones de lotería mexicana**~~ — **COMPLETADO**: las 54 cartas (arte propio, original, generado vía prompt en Gemini — no la baraja de "Don Clemente") ya están generadas. Formato final: WebP, guardadas en `apps/web/public/loteria/`, nombradas `carta-{NN}-{slug-personaje}.webp` (ej. `carta-01-el-gallo.webp`). Pendiente real ahora: cablear estas imágenes en la UI de los métodos "carta única" y "tabla completa" cuando se desarrolle esa fase (ver Fase 4 abajo) — las imágenes en sí ya no son bloqueante.
 
 ## Lo que quedó abierto
 

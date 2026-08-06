@@ -19,6 +19,7 @@ import {
     cancelarDinamica,
     obtenerDinamicaPublica,
     listarDinamicasPublicas,
+    listarDinamicasDeOrganizador,
     listarMisDinamicas,
     listarBoletosPublico,
     reservarBoletoPublico,
@@ -39,6 +40,8 @@ import {
     agregarParticipanteManualSchema,
     formatearErroresZod,
 } from '../validations/dinamicas.schema.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function exigirUsuarioId(req: Request, res: Response): string | null {
     const id = req.usuario?.usuarioId ?? null;
@@ -285,6 +288,32 @@ export async function getFeedDinamicas(req: Request, res: Response) {
     const limite = req.query.limite ? Number(req.query.limite) : undefined;
 
     const resultado = await listarDinamicasPublicas({ ciudadId, pagina, limite });
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** GET /api/dinamicas/organizador/:usuarioId — Dinámicas organizadas por un
+ *  usuario específico + su insignia. Alimenta la sección "Dinámicas
+ *  organizadas" del perfil público compartido de MarketPlace
+ *  (`PaginaPerfilVendedor.tsx`) — es público, no requiere que sea "tu"
+ *  usuario (a diferencia de GET /mias). */
+export async function getDinamicasDeOrganizador(req: Request, res: Response) {
+    const usuarioId = req.params.usuarioId as string;
+    if (!UUID_REGEX.test(usuarioId)) {
+        return res.status(400).json({ success: false, message: 'El ID del organizador no es válido' });
+    }
+
+    const pagina = req.query.pagina ? Number(req.query.pagina) : undefined;
+    const limite = req.query.limite ? Number(req.query.limite) : undefined;
+    // `incluirCanceladas` solo aplica cuando quien pide es el propio
+    // organizador autenticado ("Mis Publicaciones") — a un tercero viendo
+    // el perfil público no le mostramos Dinámicas canceladas de nadie.
+    const incluirCanceladas =
+        req.query.incluirCanceladas === '1' && req.usuario?.usuarioId === usuarioId;
+
+    const resultado = await listarDinamicasDeOrganizador(usuarioId, { pagina, limite, incluirCanceladas });
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }

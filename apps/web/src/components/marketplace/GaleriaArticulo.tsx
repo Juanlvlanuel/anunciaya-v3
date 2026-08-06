@@ -35,12 +35,20 @@ interface GaleriaArticuloProps {
     titulo: string;
     /** Índice de portada (foto que se muestra primero) */
     fotoPortadaIndex?: number;
+    /**
+     * Cómo encaja la foto principal de escritorio dentro de su contenedor.
+     * `'contain'` (default, MarketPlace): respeta la relación de aspecto,
+     * puede dejar barras. `'cover'` (Dinámicas): rellena el área completa
+     * recortando lo que sobre, sin importar la relación de aspecto original.
+     */
+    ajusteImagen?: 'contain' | 'cover';
 }
 
 export function GaleriaArticulo({
     fotos,
     titulo,
     fotoPortadaIndex = 0,
+    ajusteImagen = 'contain',
 }: GaleriaArticuloProps) {
     // Reordenar para que la portada sea la primera
     const fotosOrdenadas = (() => {
@@ -202,12 +210,18 @@ export function GaleriaArticulo({
                     data-testid="img-principal"
                     onClick={() => abrirLightbox(indiceActual)}
                     aria-label="Ver imagen ampliada"
-                    className="group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-slate-100"
+                    className={`group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-slate-100 ${
+                        ajusteImagen === 'cover' ? 'h-[380px] lg:h-[460px] 2xl:h-[560px]' : ''
+                    }`}
                 >
                     <img
                         src={fuenteThumbnail(fotosOrdenadas[indiceActual])}
                         alt={`${titulo} — foto ${indiceActual + 1}`}
-                        className="h-full max-h-[480px] w-full object-contain transition-transform group-hover:scale-[1.02] 2xl:max-h-[560px]"
+                        className={`w-full transition-transform group-hover:scale-[1.02] ${
+                            ajusteImagen === 'cover'
+                                ? 'h-full object-cover'
+                                : 'h-full max-h-[480px] object-contain 2xl:max-h-[560px]'
+                        }`}
                     />
                     {fotosOrdenadas[indiceActual].tipo === 'video' && (
                         <Play

@@ -12,6 +12,7 @@
  *
  *   PÚBLICO (verificarTokenOpcional)
  *   GET    /
+ *   GET    /organizador/:usuarioId
  *   GET    /:id
  *   GET    /:id/boletos
  *
@@ -40,6 +41,7 @@ import {
     postCancelarDinamica,
     getMisDinamicas,
     getFeedDinamicas,
+    getDinamicasDeOrganizador,
     getDinamica,
     getBoletosDinamica,
     postReservarBoleto,
@@ -69,6 +71,7 @@ router.post('/:id/boletos/:boletoId/confirmar-pago', verificarToken, requiereMod
 
 // ─── Público ─────────────────────────────────────────────────────────────
 router.get('/', verificarTokenOpcional, getFeedDinamicas);
+router.get('/organizador/:usuarioId', verificarTokenOpcional, getDinamicasDeOrganizador);
 router.get('/:id', verificarTokenOpcional, getDinamica);
 router.get('/:id/boletos', verificarTokenOpcional, getBoletosDinamica);
 

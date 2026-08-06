@@ -65,7 +65,9 @@ export function PreviewContextoInput({
         ? 'text-teal-700'
         : cardData.subtipo === 'servicio_publicacion'
           ? 'text-sky-700'
-          : 'text-blue-700';
+          : cardData.subtipo === 'dinamica'
+            ? 'text-amber-700'
+            : 'text-blue-700';
 
   const eyebrowTexto =
     cardData.subtipo === 'oferta'
@@ -74,9 +76,11 @@ export function PreviewContextoInput({
         ? 'MarketPlace'
         : cardData.subtipo === 'servicio_publicacion'
           ? 'Servicios'
-          : cardData.tipoArticulo === 'servicio'
-            ? 'Servicio'
-            : 'Producto';
+          : cardData.subtipo === 'dinamica'
+            ? 'Dinámicas'
+            : cardData.tipoArticulo === 'servicio'
+              ? 'Servicio'
+              : 'Producto';
 
   return (
     <div
@@ -146,6 +150,12 @@ export function PreviewContextoInput({
               </span>
             )}
           </div>
+        )}
+        {cardData.subtipo === 'dinamica' && cardData.precio !== undefined && (
+          <p className="mt-0.5 text-sm font-extrabold text-slate-900">
+            {formatearPrecio(cardData.precio)}
+            <span className="ml-1 text-[11px] font-semibold text-slate-600">por boleto</span>
+          </p>
         )}
       </div>
 

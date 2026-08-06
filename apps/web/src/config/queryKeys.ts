@@ -288,6 +288,8 @@ export const queryKeys = {
     feed: (filtros: { ciudad: string; pagina?: number; limite?: number }) =>
       ['dinamicas', 'feed', filtros] as const,
     boletos: (dinamicaId: string) => ['dinamicas', 'boletos', dinamicaId] as const,
+    deOrganizador: (usuarioId: string, incluirCanceladas = false) =>
+        ['dinamicas', 'organizador', usuarioId, incluirCanceladas] as const,
   },
 
   // ─── Sección pública — Servicios ──────────────────────────────────────────

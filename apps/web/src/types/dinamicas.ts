@@ -100,6 +100,9 @@ export interface OrganizadorDinamica {
     nombre: string;
     apellidos: string;
     avatarUrl: string | null;
+    /** Solo viene poblado en la ficha de detalle (`obtenerDinamicaPublica`),
+     *  no en el feed. ISO/formato Postgres de `usuarios.ultima_conexion`. */
+    ultimaConexion?: string | null;
 }
 
 /** Fila del feed público (`GET /api/dinamicas`) — la Dinámica + organizador
@@ -138,4 +141,15 @@ export interface BoletoDinamica {
     usuario: OrganizadorDinamica | null;
     /** Nombre del participante "Sin cuenta AY" — null si sí tiene cuenta. */
     nombreManual: string | null;
+}
+
+/** Dinámicas organizadas por un usuario específico + su insignia
+ *  (`GET /api/dinamicas/organizador/:usuarioId`) — alimenta la sección
+ *  "Dinámicas organizadas" del perfil público compartido de MarketPlace. */
+export interface DinamicasDeOrganizadorRespuesta {
+    dinamicas: DinamicaFeedItem[];
+    insignia: InsigniaOrganizador;
+    pagina: number;
+    limite: number;
+    hayMas: boolean;
 }

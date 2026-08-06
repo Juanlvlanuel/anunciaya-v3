@@ -46,7 +46,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import {
@@ -56,9 +56,11 @@ import {
     AlertCircle,
     PackageX,
     ShoppingBag,
+    ShoppingCart,
     BadgeCheck,
     Ban,
     ShieldOff,
+    Ticket,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -92,7 +94,9 @@ import {
     useVendedorMarketplace,
     useVendedorPublicaciones,
 } from '../../../hooks/queries/useMarketplace';
+import { useDinamicasDeOrganizador } from '../../../hooks/queries/useDinamicas';
 import { CardArticulo } from '../../../components/marketplace/CardArticulo';
+import { CardDinamicaCompacta } from '../../../components/dinamicas/CardDinamicaCompacta';
 import { Spinner } from '../../../components/ui/Spinner';
 import Tooltip from '../../../components/ui/Tooltip';
 import { ModalImagenes } from '../../../components/ui/ModalImagenes';
@@ -141,6 +145,7 @@ function aFeed(a: ArticuloMarketplace): ArticuloFeed {
 export function PaginaPerfilVendedor() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const usuarioActual = useAuthStore((s) => s.usuario);
     const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
@@ -162,7 +167,17 @@ export function PaginaPerfilVendedor() {
     const agregarContacto = useChatYAStore((s) => s.agregarContacto);
     const eliminarContacto = useChatYAStore((s) => s.eliminarContacto);
 
-    const [tabActiva, setTabActiva] = useState<'activa' | 'vendida'>('activa');
+    // Grupo de nivel superior: MarketPlace vs Dinámicas. Dentro de
+    // MarketPlace, un sub-filtro aparte para En venta/Vendidas — antes eran
+    // 3 tabs al mismo nivel (Publicaciones/Vendidos/Dinámicas organizadas),
+    // pero mezclaba dos jerarquías distintas (sección vs estado del artículo).
+    // Inicial desde `?tab=dinamicas` — ej. al llegar desde el link "ver
+    // organizador" de una Dinámica, que quiere aterrizar directo en esa tab
+    // en vez del default MarketPlace.
+    const [grupoActivo, setGrupoActivo] = useState<'marketplace' | 'dinamicas'>(
+        searchParams.get('tab') === 'dinamicas' ? 'dinamicas' : 'marketplace',
+    );
+    const [subFiltroMP, setSubFiltroMP] = useState<'activa' | 'vendida'>('activa');
     const [accionBloqueoEnCurso, setAccionBloqueoEnCurso] = useState(false);
     const [accionContactoEnCurso, setAccionContactoEnCurso] = useState(false);
 
@@ -173,8 +188,34 @@ export function PaginaPerfilVendedor() {
         !!perfil &&
         (perfil.kpis.publicacionesActivas > 0 || perfil.kpis.vendidos > 0);
 
+    // Solo pide Publicaciones/Vendidos cuando el grupo activo es MarketPlace
+    // — evita una request innecesaria mientras se ve el grupo Dinámicas.
     const { data: publicaciones, isFetching: cargandoPublicaciones } =
-        useVendedorPublicaciones(esVendedor ? usuarioId : undefined, tabActiva);
+        useVendedorPublicaciones(
+            esVendedor && grupoActivo === 'marketplace' ? usuarioId : undefined,
+            subFiltroMP,
+        );
+
+    // ─── Dinámicas organizadas — 2do grupo junto a MarketPlace (no una
+    // sección aparte). Perfil neutral: el grupo solo aparece si la persona
+    // organizó/completó/canceló al menos una. ─────────────────────────────
+    const { data: dinamicasOrganizador, isFetching: cargandoDinamicas } =
+        useDinamicasDeOrganizador(usuarioId);
+    const esOrganizador =
+        !!dinamicasOrganizador &&
+        (dinamicasOrganizador.dinamicas.length > 0 ||
+            dinamicasOrganizador.insignia.completadas > 0 ||
+            dinamicasOrganizador.insignia.canceladas > 0);
+
+    // Si la persona NO tiene publicaciones/ventas pero sí organiza
+    // Dinámicas, el grupo por defecto ('marketplace') no existiría — cambia
+    // a 'dinamicas' apenas se sepa. Solo corre cuando estos booleans cambian
+    // (una vez que las queries resuelven), no pelea con clicks del usuario.
+    useEffect(() => {
+        if (!esVendedor && esOrganizador) {
+            setGrupoActivo((actual) => (actual === 'dinamicas' ? actual : 'dinamicas'));
+        }
+    }, [esVendedor, esOrganizador]);
 
     // ─── Estado online REAL via Socket.io (patrón ChatYA) ─────────────────────
     // Pide al servidor el estado actual del usuario perfilado y queda suscrito
@@ -335,7 +376,7 @@ export function PaginaPerfilVendedor() {
     const articulos = publicaciones?.data ?? [];
     const totalActivos = perfil.kpis.publicacionesActivas;
     const totalVendidos = perfil.kpis.vendidos;
-    const totalPublicacionesTab = tabActiva === 'activa' ? totalActivos : totalVendidos;
+    const totalPublicacionesTab = subFiltroMP === 'activa' ? totalActivos : totalVendidos;
 
     // Estado de presencia: 'conectado' | 'ausente' | 'desconectado' | undefined
     const estadoPresencia = estadoUsuario?.estado;
@@ -472,11 +513,15 @@ export function PaginaPerfilVendedor() {
                     <HeroCard
                         perfil={perfil}
                         esVendedor={esVendedor}
+                        esOrganizador={esOrganizador}
+                        grupoActivo={grupoActivo}
                         esUnoMismo={esUnoMismo}
                         estaBloqueado={estaBloqueado}
                         estadoPresencia={estadoPresencia}
                         totalActivos={totalActivos}
                         totalVendidos={totalVendidos}
+                        totalCompletadas={dinamicasOrganizador?.insignia.completadas ?? 0}
+                        totalCanceladas={dinamicasOrganizador?.insignia.canceladas ?? 0}
                         esContacto={esContacto}
                         accionContactoEnCurso={accionContactoEnCurso}
                         onToggleContacto={handleToggleContacto}
@@ -484,33 +529,73 @@ export function PaginaPerfilVendedor() {
                         onEnviarMensaje={handleEnviarMensaje}
                     />
 
-                    {esVendedor && (
+                    {(esVendedor || esOrganizador) && (
                         <div className="mt-6 lg:mt-3">
-                            <TabsSegmented
-                                tabActiva={tabActiva}
-                                totalActivos={totalActivos}
-                                totalVendidos={totalVendidos}
-                                onChange={setTabActiva}
+                            <TabsGrupo
+                                grupoActivo={grupoActivo}
+                                mostrarMarketplace={esVendedor}
+                                mostrarDinamicas={esOrganizador}
+                                totalMarketplace={totalActivos + totalVendidos}
+                                totalDinamicas={dinamicasOrganizador?.dinamicas.length ?? 0}
+                                onChange={setGrupoActivo}
                             />
 
+                            {grupoActivo === 'marketplace' && (
+                                <div className="mt-3 flex items-center gap-2">
+                                    <ChipSubFiltro
+                                        activo={subFiltroMP === 'activa'}
+                                        label="En venta"
+                                        count={totalActivos}
+                                        onClick={() => setSubFiltroMP('activa')}
+                                        testId="subfiltro-en-venta"
+                                    />
+                                    <ChipSubFiltro
+                                        activo={subFiltroMP === 'vendida'}
+                                        label="Vendidas"
+                                        count={totalVendidos}
+                                        onClick={() => setSubFiltroMP('vendida')}
+                                        testId="subfiltro-vendidas"
+                                    />
+                                </div>
+                            )}
+
                             <div className="mt-4 lg:mt-2">
-                                {cargandoPublicaciones && articulos.length === 0 ? (
+                                {grupoActivo === 'dinamicas' ? (
+                                    cargandoDinamicas && !dinamicasOrganizador ? (
+                                        <div className="flex min-h-40 items-center justify-center">
+                                            <Spinner tamanio="md" />
+                                        </div>
+                                    ) : !dinamicasOrganizador || dinamicasOrganizador.dinamicas.length === 0 ? (
+                                        <p className="py-16 text-center text-base text-slate-600">
+                                            No hay Dinámicas activas en este momento.
+                                        </p>
+                                    ) : (
+                                        <div
+                                            data-testid="grid-dinamicas"
+                                            className="grid grid-cols-2 items-start gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4"
+                                        >
+                                            {dinamicasOrganizador.dinamicas.map((d) => (
+                                                <CardDinamicaCompacta key={d.id} dinamica={d} />
+                                            ))}
+                                        </div>
+                                    )
+                                ) : cargandoPublicaciones && articulos.length === 0 ? (
                                     <div className="flex min-h-40 items-center justify-center">
                                         <Spinner tamanio="md" />
                                     </div>
                                 ) : articulos.length === 0 ? (
                                     <EstadoVacio
-                                        tab={tabActiva}
+                                        tab={subFiltroMP}
                                         esUnoMismo={esUnoMismo}
                                         totalTab={totalPublicacionesTab}
                                     />
                                 ) : (
                                     <div
-                                        data-testid={`grid-${tabActiva}`}
+                                        data-testid={`grid-${subFiltroMP}`}
                                         className="grid grid-cols-2 items-start gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4"
                                     >
                                         {articulos.map((a) =>
-                                            tabActiva === 'vendida' ? (
+                                            subFiltroMP === 'vendida' ? (
                                                 <CardConOverlayVendido
                                                     key={a.id}
                                                     articulo={aFeed(a)}
@@ -555,11 +640,17 @@ interface HeroCardProps {
         };
     };
     esVendedor: boolean;
+    esOrganizador: boolean;
+    /** KPI mostrado depende de la tab activa (MarketPlace vs Dinámicas) —
+     *  no ambos a la vez. */
+    grupoActivo: 'marketplace' | 'dinamicas';
     esUnoMismo: boolean;
     estaBloqueado: boolean;
     estadoPresencia: 'conectado' | 'ausente' | 'desconectado' | undefined;
     totalActivos: number;
     totalVendidos: number;
+    totalCompletadas: number;
+    totalCanceladas: number;
     esContacto: boolean;
     accionContactoEnCurso: boolean;
     onToggleContacto: () => void;
@@ -570,11 +661,15 @@ interface HeroCardProps {
 function HeroCard({
     perfil,
     esVendedor,
+    esOrganizador,
+    grupoActivo,
     esUnoMismo,
     estaBloqueado,
     estadoPresencia,
     totalActivos,
     totalVendidos,
+    totalCompletadas,
+    totalCanceladas,
     esContacto,
     accionContactoEnCurso,
     onToggleContacto,
@@ -634,20 +729,38 @@ function HeroCard({
 
                 {/* ── Columna derecha: KPIs (3 cards) + botones (3 cols) ───── */}
                 <div className="flex flex-col gap-3 lg:gap-2">
-                    {esVendedor && (
+                    {esVendedor && grupoActivo === 'marketplace' && (
                         <div
                             data-testid="kpis-vendedor"
                             className="grid grid-cols-2 divide-x-2 divide-slate-300 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100"
                         >
                             <KpiCard
-                                icono={<Package className="h-5 w-5 lg:h-4 lg:w-4" strokeWidth={1.75} />}
+                                icono={<Package className="h-5 w-5 text-teal-600 lg:h-4 lg:w-4" strokeWidth={1.75} />}
                                 valor={totalActivos.toString()}
                                 label="Publicaciones"
                             />
                             <KpiCard
-                                icono={<ShoppingBag className="h-5 w-5 lg:h-4 lg:w-4" strokeWidth={1.75} />}
+                                icono={<ShoppingBag className="h-5 w-5 text-emerald-600 lg:h-4 lg:w-4" strokeWidth={1.75} />}
                                 valor={totalVendidos.toString()}
                                 label="Vendidos"
+                            />
+                        </div>
+                    )}
+
+                    {esOrganizador && grupoActivo === 'dinamicas' && (
+                        <div
+                            data-testid="kpis-organizador-dinamicas"
+                            className="grid grid-cols-2 divide-x-2 divide-slate-300 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100"
+                        >
+                            <KpiCard
+                                icono={<Ticket className="h-5 w-5 text-amber-600 lg:h-4 lg:w-4" strokeWidth={1.75} />}
+                                valor={totalCompletadas.toString()}
+                                label="Completadas"
+                            />
+                            <KpiCard
+                                icono={<Ban className="h-5 w-5 text-rose-500 lg:h-4 lg:w-4" strokeWidth={1.75} />}
+                                valor={totalCanceladas.toString()}
+                                label="Canceladas"
                             />
                         </div>
                     )}
@@ -874,51 +987,97 @@ function AvatarConAdornos({
 // TABS — segmented control con Dark Gradient (TC-7), counter círculo
 // =============================================================================
 
-interface TabsSegmentedProps {
-    tabActiva: 'activa' | 'vendida';
-    totalActivos: number;
-    totalVendidos: number;
-    onChange: (tab: 'activa' | 'vendida') => void;
+interface TabsGrupoProps {
+    grupoActivo: 'marketplace' | 'dinamicas';
+    mostrarMarketplace: boolean;
+    mostrarDinamicas: boolean;
+    totalMarketplace: number;
+    totalDinamicas: number;
+    onChange: (grupo: 'marketplace' | 'dinamicas') => void;
 }
 
-function TabsSegmented({
-    tabActiva,
-    totalActivos,
-    totalVendidos,
+/** 2 tabs de nivel superior — MarketPlace vs Dinámicas. El estado del
+ *  artículo (En venta/Vendidas) es un sub-filtro aparte, no otra tab al
+ *  mismo nivel (mezclaba sección con estado). */
+function TabsGrupo({
+    grupoActivo,
+    mostrarMarketplace,
+    mostrarDinamicas,
+    totalMarketplace,
+    totalDinamicas,
     onChange,
-}: TabsSegmentedProps) {
+}: TabsGrupoProps) {
     return (
         <div
             role="tablist"
-            className="flex gap-8 border-b-2 border-slate-300"
+            className="flex gap-4 overflow-x-auto border-b-2 border-slate-300 lg:gap-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
-            <TabUnderline
-                activa={tabActiva === 'activa'}
-                icono={<Package className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
-                label="Publicaciones"
-                count={totalActivos}
-                onClick={() => onChange('activa')}
-                testId="tab-publicaciones"
-            />
-            <TabUnderline
-                activa={tabActiva === 'vendida'}
-                icono={<ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
-                label="Vendidos"
-                count={totalVendidos}
-                onClick={() => onChange('vendida')}
-                testId="tab-vendidos"
-            />
+            {mostrarMarketplace && (
+                <TabUnderline
+                    activa={grupoActivo === 'marketplace'}
+                    icono={<ShoppingCart className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
+                    label="MarketPlace"
+                    count={totalMarketplace}
+                    onClick={() => onChange('marketplace')}
+                    testId="tab-marketplace"
+                />
+            )}
+            {mostrarDinamicas && (
+                <TabUnderline
+                    activa={grupoActivo === 'dinamicas'}
+                    icono={<Ticket className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
+                    label="Dinámicas"
+                    count={totalDinamicas}
+                    onClick={() => onChange('dinamicas')}
+                    testId="tab-dinamicas"
+                    acento="amber"
+                />
+            )}
         </div>
+    );
+}
+
+interface ChipSubFiltroProps {
+    activo: boolean;
+    label: string;
+    count: number;
+    onClick: () => void;
+    testId: string;
+}
+
+/** Sub-filtro dentro del grupo MarketPlace (En venta/Vendidas) — chip
+ *  redondeado, mismo patrón que `ChipsFiltrosFeed.tsx` (variant clara). */
+function ChipSubFiltro({ activo, label, count, onClick, testId }: ChipSubFiltroProps) {
+    return (
+        <button
+            type="button"
+            data-testid={testId}
+            onClick={onClick}
+            aria-pressed={activo}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold lg:cursor-pointer ${
+                activo
+                    ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
+                    : 'border-slate-300 bg-white text-slate-700 lg:hover:border-teal-400 lg:hover:text-teal-700'
+            }`}
+        >
+            <span>{label}</span>
+            <span className={`tabular-nums ${activo ? 'text-white/80' : 'text-slate-400'}`}>
+                {count}
+            </span>
+        </button>
     );
 }
 
 interface TabUnderlineProps {
     activa: boolean;
     icono: React.ReactNode;
-    label: string;
+    label: React.ReactNode;
     count: number;
     onClick: () => void;
     testId: string;
+    /** Color de acento cuando la tab está activa — 'teal' (default, Publicaciones/Vendidos)
+     *  o 'amber' (Dinámicas, misma identidad ámbar que el resto del módulo). */
+    acento?: 'teal' | 'amber';
 }
 
 /**
@@ -928,16 +1087,20 @@ interface TabUnderlineProps {
  * esa zona. Tab inactiva en slate-500 con hover slate-700.
  * Patrón B2B clásico (Linear/Stripe/Notion).
  */
-function TabUnderline({ activa, icono, label, count, onClick, testId }: TabUnderlineProps) {
+function TabUnderline({ activa, icono, label, count, onClick, testId, acento = 'teal' }: TabUnderlineProps) {
+    const colorActivo = acento === 'amber'
+        ? { borde: 'border-amber-500', texto: 'text-amber-700' }
+        : { borde: 'border-teal-500', texto: 'text-teal-700' };
+
     return (
         <button
             data-testid={testId}
             onClick={onClick}
             role="tab"
             aria-selected={activa}
-            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:pb-1.5 lg:pt-1 lg:text-lg ${
+            className={`relative -mb-0.5 inline-flex shrink-0 items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold whitespace-nowrap transition-colors lg:cursor-pointer lg:pb-1.5 lg:pt-1 lg:text-lg ${
                 activa
-                    ? 'border-teal-500 text-teal-700'
+                    ? `${colorActivo.borde} ${colorActivo.texto}`
                     : 'border-transparent text-slate-600 hover:text-slate-800'
             }`}
         >
@@ -945,7 +1108,7 @@ function TabUnderline({ activa, icono, label, count, onClick, testId }: TabUnder
             <span>{label}</span>
             <span
                 className={`text-sm font-bold tabular-nums ${
-                    activa ? 'text-teal-700' : 'text-slate-500'
+                    activa ? colorActivo.texto : 'text-slate-500'
                 }`}
             >
                 {count}

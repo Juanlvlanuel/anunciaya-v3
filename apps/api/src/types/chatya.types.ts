@@ -41,7 +41,8 @@ export type ContextoTipo =
   | 'articulo_negocio'
   | 'servicio'
   | 'directo'
-  | 'notas';
+  | 'notas'
+  | 'dinamica';
 
 // =============================================================================
 // INPUTS (lo que recibe el backend)

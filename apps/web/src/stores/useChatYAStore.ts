@@ -86,7 +86,8 @@ export type ContextoPendienteSubtipo =
   | 'oferta'
   | 'articulo_negocio'
   | 'articulo_marketplace'
-  | 'servicio_publicacion';
+  | 'servicio_publicacion'
+  | 'dinamica';
 
 export interface ContextoPendienteCardData {
   subtipo: ContextoPendienteSubtipo;
@@ -1121,7 +1122,8 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
           datosCreacion.contextoTipo === 'marketplace' ||
           datosCreacion.contextoTipo === 'servicio' ||
           datosCreacion.contextoTipo === 'oferta' ||
-          datosCreacion.contextoTipo === 'articulo_negocio';
+          datosCreacion.contextoTipo === 'articulo_negocio' ||
+          datosCreacion.contextoTipo === 'dinamica';
         if (esContextoConCardBackend) {
           await get().cargarMensajes(conv.id);
           // Retry defensivo: si el primer fetch corrió ANTES de que el
