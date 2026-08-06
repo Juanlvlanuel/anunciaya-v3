@@ -272,7 +272,7 @@ Card individual del vendedor. Estructura:
 
 #### `CardDinamicaMio` (tab Dinámicas)
 
-`apps/web/src/components/dinamicas/CardDinamicaMio.tsx` — mismo cuerpo visual que `CardDinamicaCompacta` (foto `aspect-3/2`, título, precio por boleto, boletos vendidos, cuenta regresiva), más el menú "⋯" con **Posponer**/**Cancelar** (ver §Acciones por estado — Dinámicas). El botón "⋯" ni se muestra si la Dinámica ya está en `en_sorteo`/`cerrada`/`cancelada` (nada que gestionar, la card queda solo informativa).
+`apps/web/src/components/dinamicas/CardDinamicaMio.tsx` — mismo cuerpo visual que `CardDinamicaCompacta` (foto `aspect-3/2`, título, precio por boleto, boletos vendidos, cuenta regresiva), más el menú "⋯" con **Agregar Participante**/**Posponer**/**Cancelar** (ver §Acciones por estado — Dinámicas). El botón "⋯" ni se muestra si la Dinámica ya está en `en_sorteo`/`cerrada`/`cancelada` (nada que gestionar, la card queda solo informativa).
 
 Usa el mismo grid que MarketPlace (`grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4`), no uno propio — coherencia visual entre los 3 tipos del panel.
 
@@ -339,11 +339,11 @@ El menú "⋯" del card muestra acciones contextuales según el estado del artí
 
 ### Dinámicas
 
-`CardDinamicaMio` no tiene `Editar` ni `Eliminar` — una Dinámica publicada no se edita (solo se pospone/cancela) y no hay endpoint DELETE (se cancela, no se borra; ver `docs/arquitectura/Dinamicas.md` §Backend).
+`CardDinamicaMio` no tiene `Editar` ni `Eliminar` — una Dinámica publicada no se edita (solo se pospone/cancela/agrega participantes) y no hay endpoint DELETE (se cancela, no se borra; ver `docs/arquitectura/Dinamicas.md` §Backend). El menú comparte los mismos 3 modales que la ficha de detalle (`ModalesAccionDinamica.tsx`), unificados en agosto 2026.
 
 | Estado actual | Acciones disponibles |
 |---------------|----------------------|
-| `activa` / `pospuesta` | Posponer · Cancelar |
+| `activa` / `pospuesta` | Agregar Participante · Posponer · Cancelar |
 | `en_sorteo` / `cerrada` / `cancelada` | Ninguna — el botón "⋯" ni se renderiza |
 
 ### Transiciones de estado
@@ -666,14 +666,15 @@ queryKeys.dinamicas.deOrganizador(usuarioId, incluirCanceladas)
 |---------|-----------|
 | `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx` | Página completa con header + body + FAB + modales (los 3 tipos) |
 | `apps/web/src/components/marketplace/CardArticuloMio.tsx` | Card del vendedor de MarketPlace (foto + overlay + KPIs + menú "⋯") |
-| `apps/web/src/components/dinamicas/CardDinamicaMio.tsx` | Card del organizador de Dinámicas (foto + KPIs + menú "⋯" con Posponer/Cancelar) |
+| `apps/web/src/components/dinamicas/CardDinamicaMio.tsx` | Card del organizador de Dinámicas (foto + KPIs + menú "⋯" con Agregar Participante/Posponer/Cancelar) |
+| `apps/web/src/components/dinamicas/ModalesAccionDinamica.tsx` | Los 3 modales de acción unificados (Agregar/Posponer/Cancelar), compartidos con `PaginaDinamica.tsx` |
 
 ### Hooks y configuración
 
 | Archivo | Propósito |
 |---------|-----------|
 | `apps/web/src/hooks/queries/useMarketplace.ts` | `useMisArticulosMarketplace`, `useCambiarEstado…`, `useReactivar…`, `useEliminar…` |
-| `apps/web/src/hooks/queries/useDinamicas.ts` | `useDinamicasDeOrganizador`, `usePosponerDinamica`, `useCancelarDinamica` |
+| `apps/web/src/hooks/queries/useDinamicas.ts` | `useDinamicasDeOrganizador`, `usePosponerDinamica`, `useCancelarDinamica`, `useAgregarParticipanteManual` |
 | `apps/web/src/hooks/useGuardados.ts` | `aplicarCambioGuardadoEnCache` (sincronización cross-vista) |
 | `apps/web/src/config/queryKeys.ts` | `marketplace.misArticulos(estado, paginacion)`, `dinamicas.deOrganizador(usuarioId, incluirCanceladas)` |
 | `apps/web/src/types/marketplace.ts` | `ArticuloMarketplace`, `EstadoArticulo`, `CondicionArticulo` |

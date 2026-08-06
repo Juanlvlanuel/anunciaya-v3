@@ -40,6 +40,7 @@ import {
 import { Icon, ICONOS, type IconProps } from '@/config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
 import { useIniciarChatDinamica } from '../../../hooks/useIniciarChatDinamica';
 import {
@@ -56,6 +57,11 @@ import { DropdownCompartir } from '../../../components/compartir/DropdownCompart
 import Tooltip from '../../../components/ui/Tooltip';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { ModalImagenes } from '../../../components/ui/ModalImagenes';
+import {
+    ModalAgregarParticipanteDinamica,
+    ModalPosponerDinamica,
+    ModalCancelarDinamica,
+} from '../../../components/dinamicas/ModalesAccionDinamica';
 import { notificar } from '../../../utils/notificaciones';
 import { formatearUltimaConexion } from '../../../utils/marketplace';
 import type { BoletoDinamica, DinamicaDetallePublico } from '../../../types/dinamicas';
@@ -97,6 +103,7 @@ export function PaginaDinamica() {
     const { dinamicaId } = useParams<{ dinamicaId: string }>();
     const navigate = useNavigate();
     const handleVolver = useVolverAtras('/marketplace?dinamicas=1');
+    const cuerpoRef = useScrollAppShell();
     const usuarioActual = useAuthStore((s) => s.usuario);
     const iniciarChat = useIniciarChatDirectoPersona();
     const iniciarChatDinamica = useIniciarChatDinamica();
@@ -113,8 +120,7 @@ export function PaginaDinamica() {
     const [boletoSeleccionado, setBoletoSeleccionado] = useState<number | null>(null);
     const [modalManualAbierto, setModalManualAbierto] = useState(false);
     const [modalPosponerAbierto, setModalPosponerAbierto] = useState(false);
-    const [formManual, setFormManual] = useState({ numeroBoleto: '', nombreManual: '', telefonoManual: '' });
-    const [nuevaFecha, setNuevaFecha] = useState('');
+    const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
     const boletosScrollRef = useRef<HTMLDivElement>(null);
 
     const esOrganizador = !!usuarioActual && !!dinamica && usuarioActual.id === dinamica.organizadorUsuarioId;
@@ -187,23 +193,12 @@ export function PaginaDinamica() {
         }
     }
 
-    async function enviarParticipanteManual() {
+    async function enviarParticipanteManual(datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string }) {
         if (!dinamicaId) return;
-        const numero = Number(formManual.numeroBoleto);
-        if (!numero || !formManual.nombreManual.trim() || !formManual.telefonoManual.trim()) {
-            notificar.error('Completa número de boleto, nombre y teléfono.');
-            return;
-        }
-        const r = await agregarManual.mutateAsync({
-            dinamicaId,
-            numeroBoleto: numero,
-            nombreManual: formManual.nombreManual.trim(),
-            telefonoManual: formManual.telefonoManual.trim(),
-        });
+        const r = await agregarManual.mutateAsync({ dinamicaId, ...datos });
         if (r.success) {
             notificar.exito('Participante agregado.');
             setModalManualAbierto(false);
-            setFormManual({ numeroBoleto: '', nombreManual: '', telefonoManual: '' });
         } else {
             notificar.error(r.message);
         }
@@ -216,9 +211,9 @@ export function PaginaDinamica() {
         else notificar.error(r.message);
     }
 
-    async function enviarPosponer() {
-        if (!dinamicaId || !nuevaFecha) return;
-        const r = await posponer.mutateAsync({ dinamicaId, nuevaFechaLimiteInscripcion: new Date(nuevaFecha).toISOString() });
+    async function enviarPosponer(nuevaFechaLimiteInscripcionISO: string) {
+        if (!dinamicaId) return;
+        const r = await posponer.mutateAsync({ dinamicaId, nuevaFechaLimiteInscripcion: nuevaFechaLimiteInscripcionISO });
         if (r.success) {
             notificar.exito('Dinámica pospuesta.');
             setModalPosponerAbierto(false);
@@ -229,25 +224,28 @@ export function PaginaDinamica() {
 
     async function enviarCancelar() {
         if (!dinamicaId) return;
-        if (!window.confirm('¿Cancelar esta Dinámica? Esta acción no se puede deshacer.')) return;
         const r = await cancelar.mutateAsync(dinamicaId);
-        if (r.success) notificar.exito('Dinámica cancelada.');
-        else notificar.error(r.message);
+        if (r.success) {
+            notificar.exito('Dinámica cancelada.');
+            setModalCancelarAbierto(false);
+        } else {
+            notificar.error(r.message);
+        }
     }
 
-    // Placeholder mientras se diseña la página pública compartible (pendiente
-    // aparte) — apunta a la ficha privada por ahora, no a un link público.
+    // Página pública compartible — /p/dinamica/:id (PaginaDinamicaPublica),
+    // accesible sin login. Mismo patrón que /p/articulo-marketplace/:id.
     const linkCompartido =
         typeof window !== 'undefined'
-            ? `${window.location.origin}/marketplace/dinamica/${dinamica.id}`
-            : `/marketplace/dinamica/${dinamica.id}`;
+            ? `${window.location.origin}/p/dinamica/${dinamica.id}`
+            : `/p/dinamica/${dinamica.id}`;
 
     function handleGuardar() {
         notificar.info('Guardar Dinámicas estará disponible pronto.');
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-24">
+        <div className="flex h-full flex-col bg-slate-50 lg:block lg:h-auto lg:min-h-full">
             {/* ════════════════════════════════════════════════════════════════
                 HEADER DARK STICKY — mismo ancho/patrón que
                 PaginaArticuloMarketplace (fondo negro + glow + grid pattern +
@@ -350,7 +348,10 @@ export function PaginaDinamica() {
             {/* ════════════════════════════════════════════════════════════════
                 CONTENIDO — mismo ancho que PaginaArticuloMarketplace.
             ════════════════════════════════════════════════════════════════ */}
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 lg:py-8 2xl:max-w-[920px] 2xl:px-4">
+            <div
+                ref={cuerpoRef}
+                className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 lg:py-8 2xl:max-w-[920px] 2xl:px-4"
+            >
                 {/* ─── HERO: Galería (izq) + Info/organizador/acciones (der) ─── */}
                 <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
                     <div className="relative min-w-0">
@@ -365,7 +366,7 @@ export function PaginaDinamica() {
                                     onEditarBorrador={() => navigate(`/marketplace?dinamicas=1&editarDinamica=${dinamica.id}`, { replace: true })}
                                     onAgregarManual={() => setModalManualAbierto(true)}
                                     onPosponer={() => setModalPosponerAbierto(true)}
-                                    onCancelar={enviarCancelar}
+                                    onCancelar={() => setModalCancelarAbierto(true)}
                                 />
                             )}
                             <BloqueInfoDinamica dinamica={dinamica} cuentaRegresiva={cuentaRegresiva} conReservaKebab={esOrganizador} />
@@ -387,7 +388,7 @@ export function PaginaDinamica() {
                                         onEditarBorrador={() => navigate(`/marketplace?dinamicas=1&editarDinamica=${dinamica.id}`, { replace: true })}
                                         onAgregarManual={() => setModalManualAbierto(true)}
                                         onPosponer={() => setModalPosponerAbierto(true)}
-                                        onCancelar={enviarCancelar}
+                                        onCancelar={() => setModalCancelarAbierto(true)}
                                     />
                                 )}
                                 <BloqueInfoDinamica dinamica={dinamica} cuentaRegresiva={cuentaRegresiva} conReservaKebab={esOrganizador} />
@@ -508,7 +509,7 @@ export function PaginaDinamica() {
                                         <div key={b.id} className="flex items-center gap-2.5 px-3 py-2.5">
                                             <span className="w-8 shrink-0 text-xs font-bold text-slate-600">#{b.numeroBoleto}</span>
                                             <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
-                                                {b.usuario ? `${b.usuario.nombre} ${b.usuario.apellidos}` : `${b.nombreManual} · Sin cuenta AY`}
+                                                {b.usuario ? `${b.usuario.nombre} ${b.usuario.apellidos}` : `${b.nombreManual} · Sin cuenta AnunciaYA`}
                                             </span>
                                             <span
                                                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
@@ -572,69 +573,29 @@ export function PaginaDinamica() {
                 </div>
             </ModalAdaptativo>
 
-            {/* Modal: agregar participante manual */}
-            <ModalAdaptativo
+            <ModalAgregarParticipanteDinamica
                 abierto={modalManualAbierto}
+                dinamica={dinamica}
+                pendiente={agregarManual.isPending}
                 onCerrar={() => setModalManualAbierto(false)}
-                titulo="Agregar participante sin cuenta AY"
-                ancho="sm"
-            >
-                <div className="space-y-3">
-                    <input
-                        type="number"
-                        placeholder="Número de boleto"
-                        value={formManual.numeroBoleto}
-                        onChange={(e) => setFormManual((f) => ({ ...f, numeroBoleto: e.target.value }))}
-                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
-                    />
-                    <input
-                        type="text"
-                        placeholder="Nombre"
-                        value={formManual.nombreManual}
-                        onChange={(e) => setFormManual((f) => ({ ...f, nombreManual: e.target.value }))}
-                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
-                    />
-                    <input
-                        type="tel"
-                        placeholder="Teléfono"
-                        value={formManual.telefonoManual}
-                        onChange={(e) => setFormManual((f) => ({ ...f, telefonoManual: e.target.value }))}
-                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
-                    />
-                    <button
-                        onClick={enviarParticipanteManual}
-                        disabled={agregarManual.isPending}
-                        className="w-full rounded-full bg-amber-600 py-2 text-sm font-bold text-white lg:hover:bg-amber-700 disabled:opacity-60 lg:cursor-pointer"
-                    >
-                        {agregarManual.isPending ? 'Agregando...' : 'Agregar participante'}
-                    </button>
-                </div>
-            </ModalAdaptativo>
+                onConfirmar={enviarParticipanteManual}
+            />
 
-            {/* Modal: posponer */}
-            <ModalAdaptativo
+            <ModalPosponerDinamica
                 abierto={modalPosponerAbierto}
+                dinamica={dinamica}
+                pendiente={posponer.isPending}
                 onCerrar={() => setModalPosponerAbierto(false)}
-                titulo="Posponer Dinámica"
-                ancho="sm"
-            >
-                <div className="space-y-3">
-                    <p className="text-sm font-medium text-slate-700">Elige la nueva fecha y hora límite de inscripción.</p>
-                    <input
-                        type="datetime-local"
-                        value={nuevaFecha}
-                        onChange={(e) => setNuevaFecha(e.target.value)}
-                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
-                    />
-                    <button
-                        onClick={enviarPosponer}
-                        disabled={posponer.isPending || !nuevaFecha}
-                        className="w-full rounded-full bg-amber-600 py-2 text-sm font-bold text-white lg:hover:bg-amber-700 disabled:opacity-60 lg:cursor-pointer"
-                    >
-                        {posponer.isPending ? 'Posponiendo...' : 'Confirmar nueva fecha'}
-                    </button>
-                </div>
-            </ModalAdaptativo>
+                onConfirmar={enviarPosponer}
+            />
+
+            <ModalCancelarDinamica
+                abierto={modalCancelarAbierto}
+                dinamica={dinamica}
+                pendiente={cancelar.isPending}
+                onCerrar={() => setModalCancelarAbierto(false)}
+                onConfirmar={enviarCancelar}
+            />
         </div>
     );
 }

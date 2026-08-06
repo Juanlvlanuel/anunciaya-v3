@@ -9,7 +9,7 @@
  * Acciones disponibles según estado (no hay "Editar" ni "Eliminar" — una
  * Dinámica no se edita tras publicarse ni se borra, solo se pospone o
  * cancela; backend no tiene endpoint DELETE para esto):
- *   - activa/pospuesta → Posponer · Cancelar
+ *   - activa/pospuesta → Agregar Participante · Posponer · Cancelar
  *   - en_sorteo/cerrada/cancelada → sin acciones (estado terminal o en
  *     curso), el botón "⋯" ni se muestra — la card solo navega al detalle.
  *
@@ -18,13 +18,14 @@
 
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ImageOff, MoreVertical, Ticket, Users, CalendarClock, Ban, type LucideIcon } from 'lucide-react';
+import { Clock, ImageOff, MoreVertical, Ticket, Users, CalendarClock, Ban, UserPlus, type LucideIcon } from 'lucide-react';
 import Tooltip from '../ui/Tooltip';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type { DinamicaFeedItem } from '../../types/dinamicas';
 
 interface CardDinamicaMioProps {
     dinamica: DinamicaFeedItem;
+    onAgregarManual: (dinamica: DinamicaFeedItem) => void;
     onPosponer: (dinamica: DinamicaFeedItem) => void;
     onCancelar: (dinamica: DinamicaFeedItem) => void;
 }
@@ -54,7 +55,7 @@ function formatearCuentaRegresiva(fechaLimite: string | null): string | null {
     return `${min}min`;
 }
 
-export function CardDinamicaMio({ dinamica, onPosponer, onCancelar }: CardDinamicaMioProps) {
+export function CardDinamicaMio({ dinamica, onAgregarManual, onPosponer, onCancelar }: CardDinamicaMioProps) {
     const navigate = useNavigate();
     const [menuAbierto, setMenuAbierto] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -183,6 +184,14 @@ export function CardDinamicaMio({ dinamica, onPosponer, onCancelar }: CardDinami
                     role="menu"
                 >
                     <BotonMenu
+                        testId={`menu-agregar-participante-${dinamica.id}`}
+                        icono={UserPlus}
+                        iconColor="text-blue-600"
+                        onClick={(e) => handleAccion(e, () => onAgregarManual(dinamica))}
+                    >
+                        Agregar Part.
+                    </BotonMenu>
+                    <BotonMenu
                         testId={`menu-posponer-${dinamica.id}`}
                         icono={CalendarClock}
                         iconColor="text-amber-600"
@@ -256,7 +265,7 @@ function BotonMenu({
             data-testid={testId}
             onClick={onClick}
             role="menuitem"
-            className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-sm font-semibold lg:gap-2.5 lg:px-3 lg:py-1.5 2xl:gap-3 2xl:px-3.5 2xl:py-2.5 ${textColor} ${hoverClass}`}
+            className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-sm font-semibold whitespace-nowrap lg:gap-2.5 lg:px-3 lg:py-1.5 2xl:gap-3 2xl:px-3.5 2xl:py-2.5 ${textColor} ${hoverClass}`}
         >
             <Icono className={`h-4 w-4 shrink-0 2xl:h-5 2xl:w-5 ${iconColor}`} strokeWidth={2.5} />
             {children}

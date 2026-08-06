@@ -36,7 +36,6 @@ import {
     PackageX,
     PauseCircle,
     AlertCircle,
-    MessageSquare,
     ShieldCheck,
     UserCheck,
     Flag,
@@ -155,11 +154,7 @@ export function PaginaArticuloMarketplacePublico() {
         >
             <HeaderPublico />
 
-            <main
-                className={`flex-1 overflow-y-auto ${
-                    !noActiva ? 'pb-20 lg:pb-0' : ''
-                }`}
-            >
+            <main className="flex-1 overflow-y-auto">
                 {/* Wrapper único `max-w-7xl` — mismo layout que la versión
                     privada pero sin header dark del módulo (HeaderPublico
                     arriba ya da el contexto de marca). */}
@@ -209,7 +204,10 @@ export function PaginaArticuloMarketplacePublico() {
 
                             {/* Card vendedor — SOLO móvil. En desktop va en col-derecha */}
                             <div className="px-3 lg:hidden">
-                                <CardVendedor vendedor={articulo.vendedor} />
+                                <CardVendedor
+                                    vendedor={articulo.vendedor}
+                                    onContactar={!estadoNoActivo ? handleEnviarMensaje : undefined}
+                                />
                             </div>
 
                             {/* Mapa */}
@@ -250,18 +248,22 @@ export function PaginaArticuloMarketplacePublico() {
                                 <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
                                     <BloqueInfo articulo={articulo} compacto />
 
-                                    <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
-                                        {!estadoNoActivo ? (
-                                            <BotonContactoPublico onClick={handleEnviarMensaje} />
-                                        ) : (
+                                    {estadoNoActivo && (
+                                        <div className="mt-3 border-t-2 border-slate-200 pt-3">
                                             <MensajeEstadoNoActiva estado={estadoNoActivo} />
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Card vendedor — padding aumentado para
-                                    coincidir con las demás cards del panel. */}
-                                <CardVendedor vendedor={articulo.vendedor} className="p-4" />
+                                    coincidir con las demás cards del panel.
+                                    Ícono de ChatYA cuando el artículo sigue
+                                    activo (reemplaza el botón CTA suelto). */}
+                                <CardVendedor
+                                    vendedor={articulo.vendedor}
+                                    className="p-4"
+                                    onContactar={!estadoNoActivo ? handleEnviarMensaje : undefined}
+                                />
 
                                 {/* Características compactas — padding aumentado
                                     para mantener consistencia con la card de
@@ -357,16 +359,6 @@ export function PaginaArticuloMarketplacePublico() {
                     final del scroll interno (no como bloque fijo separado). */}
                 <FooterPublico />
             </main>
-
-            {/* Barra fija inferior — solo móvil cuando el artículo está activo.
-                Fuera del main para que quede pegada al viewport y no scrollee
-                con el contenido. z-20 para quedar sobre el contenido pero
-                debajo del HeaderPublico sticky (que es z-50). */}
-            {!noActiva && (
-                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:hidden">
-                    <BotonContactoPublico onClick={handleEnviarMensaje} />
-                </div>
-            )}
 
             <ModalAuthRequerido
                 abierto={modalAuthAbierto}
@@ -608,23 +600,6 @@ function CardCompraSegura({ className = '' }: { className?: string }) {
                 ))}
             </ul>
         </div>
-    );
-}
-
-interface BotonContactoProps {
-    onClick: () => void;
-}
-
-function BotonContactoPublico({ onClick }: BotonContactoProps) {
-    return (
-        <button
-            data-testid="btn-enviar-mensaje-publico"
-            onClick={onClick}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer"
-        >
-            <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
-            Enviar mensaje al vendedor
-        </button>
     );
 }
 

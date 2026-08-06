@@ -33,10 +33,16 @@ i18n
     supportedLngs: ['es', 'en'],
     defaultNS: 'common',
 
+    // AnunciaYA es una app en español mexicano por defecto — SIEMPRE.
+    // Sin 'navigator' en el orden: el idioma del navegador/SO (ej. Chrome
+    // en incógnito reportando inglés) ya no puede pisar el default. Solo
+    // cambia si el usuario lo elige a mano con `SelectorIdioma` (que sí
+    // persiste en localStorage vía `i18n.changeLanguage()`).
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       caches: ['localStorage'],
     },
+    lng: 'es',
 
     interpolation: {
       escapeValue: false, // React ya escapa por defecto

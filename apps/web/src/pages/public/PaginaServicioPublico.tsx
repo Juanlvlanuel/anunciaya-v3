@@ -40,7 +40,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     PauseCircle,
     AlertCircle,
-    MessageSquare,
     ShieldCheck,
     UserCheck,
     Flag,
@@ -154,11 +153,7 @@ export function PaginaServicioPublico() {
         >
             <HeaderPublico />
 
-            <main
-                className={`flex-1 overflow-y-auto ${
-                    !noActiva ? 'pb-20 lg:pb-0' : ''
-                }`}
-            >
+            <main className="flex-1 overflow-y-auto">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div className="pb-5 lg:pb-8 lg:pt-2">
                         <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
@@ -302,18 +297,15 @@ export function PaginaServicioPublico() {
                                     <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
                                         <BloqueInfo publicacion={publicacion} compacto />
 
-                                        {/* CTA "Contactar negocio" — SOLO vacantes.
-                                            Para servicios/solicitudes el botón vive
-                                            dentro de la card del oferente (abajo).
-                                            Si está pausada, mostrar el mensaje de
-                                            estado sin importar el tipo. */}
-                                        {(esVacante || estadoNoActivo) && (
-                                            <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
-                                                {!estadoNoActivo ? (
-                                                    <BotonContactoPublico onClick={handleEnviarMensaje} tipo={publicacion.tipo} />
-                                                ) : (
-                                                    <MensajeEstadoNoActiva estado={estadoNoActivo} />
-                                                )}
+                                        {/* El contacto (ícono ChatYA) vive siempre
+                                            dentro de la card del oferente (abajo) —
+                                            mismo patrón en vacantes/servicios/
+                                            solicitudes. Aquí solo queda el mensaje
+                                            de estado cuando la publicación no está
+                                            activa. */}
+                                        {estadoNoActivo && (
+                                            <div className="mt-3 border-t-2 border-slate-200 pt-3">
+                                                <MensajeEstadoNoActiva estado={estadoNoActivo} />
                                             </div>
                                         )}
                                     </div>
@@ -399,12 +391,6 @@ export function PaginaServicioPublico() {
 
                 <FooterPublico />
             </main>
-
-            {!noActiva && (
-                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:hidden">
-                    <BotonContactoPublico onClick={handleEnviarMensaje} tipo={publicacion.tipo} />
-                </div>
-            )}
 
             <ModalAuthRequerido
                 abierto={modalAuthAbierto}
@@ -531,11 +517,10 @@ interface CardOferentePublicoProps {
     publicacion: PublicacionDetalle;
     /** Padding reducido para caber en el panel sticky desktop. */
     compacto?: boolean;
-    /** Handler del botón "Contactar oferente/solicitante" que se renderiza
-     *  debajo del nombre cuando NO es vacante. Si se omite, el botón no
-     *  aparece (caller decide dónde colocarlo). En vacantes el contacto
-     *  vive arriba (WhatsApp del negocio) y abajo (Contactar negocio en
-     *  la card principal), no aquí. */
+    /** Ícono de ChatYA (mismo patrón que `CardVendedor` de MP y
+     *  `CardOrganizadorPublico` de Dinámicas) que se renderiza debajo del
+     *  nombre. Si se omite, no aparece (caller decide). En vacantes convive
+     *  con el botón de WhatsApp del negocio, arriba. */
     onContactar?: () => void;
 }
 
@@ -684,18 +669,11 @@ function CardOferentePublico({
                 </button>
             )}
 
-            {/* Botón "Contactar oferente/solicitante" — SOLO para servicios
-                personales y solicitudes (no vacantes — en vacantes el CTA
-                vive en la card principal con "Contactar negocio"). Aquí va
-                anclado al perfil porque servicios/solicitudes no tienen
-                WhatsApp público, así que este es el único canal disponible. */}
-            {!esVacante && onContactar && (
-                <BotonContactoPublico
-                    onClick={onContactar}
-                    tipo={tipo}
-                    className="mt-3"
-                />
-            )}
+            {/* Ícono de ChatYA — mismo patrón que `CardVendedor` (MP) y
+                `CardOrganizadorPublico` (Dinámicas): solo ícono, sin fondo
+                ni texto, dentro de la card de identidad. En vacantes convive
+                con el botón de WhatsApp de arriba. */}
+            {onContactar && <BotonContactoPublico onClick={onContactar} className="mt-3" />}
             {menuWhatsApp}
         </div>
     );
@@ -800,31 +778,23 @@ function CardContratoSeguro({ className = '' }: { className?: string }) {
 
 interface BotonContactoProps {
     onClick: () => void;
-    tipo: PublicacionDetalle['tipo'];
     /** Clases extra del wrapper (ej. `mt-3` cuando va dentro de la card
      *  del oferente). Se concatena al final del className base. */
     className?: string;
 }
 
-function BotonContactoPublico({ onClick, tipo, className = '' }: BotonContactoProps) {
-    // Texto dinámico según tipo de publicación. Diferencia el destino del
-    // chat (negocio / oferente / solicitante) y a la vez se aparta
-    // visualmente del botón WhatsApp del negocio (que ya vive en la card
-    // del oferente arriba) para que ambos canales convivan sin redundar.
-    const label =
-        tipo === 'vacante-empresa'
-            ? 'Contactar negocio'
-            : tipo === 'solicito'
-              ? 'Contactar solicitante'
-              : 'Contactar oferente';
+/** Solo ícono de ChatYA, sin fondo ni texto — mismo patrón que
+ *  `CardVendedor` (MP) y `CardOrganizadorPublico` (Dinámicas). */
+function BotonContactoPublico({ onClick, className = '' }: BotonContactoProps) {
     return (
         <button
+            type="button"
             data-testid="btn-enviar-mensaje-publico-servicio"
             onClick={onClick}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer ${className}`}
+            aria-label="Contactar por ChatYA"
+            className={`flex w-full items-center justify-center py-1 lg:cursor-pointer lg:hover:opacity-80 ${className}`}
         >
-            <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
-            {label}
+            <img src="/ChatYA.webp" alt="" className="h-8 w-auto object-contain" />
         </button>
     );
 }

@@ -89,8 +89,8 @@ export function CardDinamicaCompacta({ dinamica }: CardDinamicaCompactaProps) {
                     </div>
                 )}
 
-                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                    <Ticket className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                    <Ticket className="h-4 w-4 shrink-0" strokeWidth={2} />
                     <span>
                         {dinamica.boletosPagados}
                         {totalBoletos > 0 ? `/${totalBoletos}` : ''} vendidos
@@ -98,8 +98,8 @@ export function CardDinamicaCompacta({ dinamica }: CardDinamicaCompactaProps) {
                 </div>
 
                 {cuentaRegresiva && (
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                        <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                        <Clock className="h-4 w-4 shrink-0" strokeWidth={2} />
                         <span>{cuentaRegresiva} para cerrar</span>
                     </div>
                 )}

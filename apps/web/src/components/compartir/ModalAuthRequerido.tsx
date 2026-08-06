@@ -23,6 +23,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useUiStore } from '../../stores/useUiStore';
 import {
     Lock,
     LogIn,
@@ -32,6 +33,7 @@ import {
     Search,
     Tag,
     ShoppingBag,
+    Ticket,
     Check,
     Sparkles,
 } from 'lucide-react';
@@ -54,7 +56,8 @@ export type TipoPublicacionAuth =
     | 'solicitud'
     | 'servicio'
     | 'oferta'
-    | 'articulo';
+    | 'articulo'
+    | 'dinamica';
 
 interface ContextoAuth {
     /** Tipo de publicación que motivó el modal. Determina copy + color del
@@ -185,6 +188,16 @@ const CONFIG_TIPO: Record<
         gradient: 'from-teal-500 to-teal-700',
         accent: 'teal',
     },
+    dinamica: {
+        Icono: Ticket,
+        titulo: '¡Participa en esta Dinámica!',
+        descripcionBase: (titulo) =>
+            titulo
+                ? `Inicia sesión para reservar tu boleto o contactar al organizador de "${titulo}".`
+                : 'Inicia sesión para reservar tu boleto o contactar al organizador.',
+        gradient: 'from-amber-500 to-amber-600',
+        accent: 'amber',
+    },
 };
 
 // Mapping de accent → clases Tailwind (texto + borde + hover bg).
@@ -250,6 +263,7 @@ export function ModalAuthRequerido({
     urlRetorno,
 }: ModalAuthRequeridoProps) {
     const navigate = useNavigate();
+    const abrirModalLogin = useUiStore((s) => s.abrirModalLogin);
 
     // El `contexto` (tipo de publicación) tiene prioridad sobre `accion`:
     // si la página pública lo pasa, mostramos copy específico de Postúlate /
@@ -280,7 +294,11 @@ export function ModalAuthRequerido({
         if (urlRetorno) {
             sessionStorage.setItem('ay_ruta_pendiente', urlRetorno);
         }
-        navigate('/login');
+        // El login SIEMPRE es el `ModalLogin` global (montado en RootLayout,
+        // disponible en cualquier página) — nunca hubo una ruta `/login`
+        // dedicada. Cerramos este modal para no dejar dos modales apilados.
+        onCerrar();
+        abrirModalLogin();
     };
 
     const handleRegistro = () => {
@@ -300,6 +318,7 @@ export function ModalAuthRequerido({
             ancho="sm"
             mostrarHeader={false}
             paddingContenido="none"
+            className="max-w-[340px] lg:max-w-sm 2xl:max-w-md"
         >
             {/* ─── Hero: barra de acento + icono grande con gradient ──── */}
             <div className="relative">

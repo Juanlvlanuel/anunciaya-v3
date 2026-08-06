@@ -36,10 +36,18 @@ import { ModalImagenes } from '../ui/ModalImagenes';
 
 interface OferenteCardProps {
     publicacion: PublicacionDetalle;
+    /** "Ver perfil"/"Ver negocio" — navega al perfil del oferente. */
     onClick?: () => void;
+    /**
+     * Si se pasa, muestra el ícono de ChatYA (solo ícono, sin fondo/texto)
+     * en la fila de trust badges, alineado a la derecha — mismo patrón que
+     * `CardVendedor` (MP) y `CardOrganizadorPublico` (Dinámicas). Solo lo
+     * usa la versión PÚBLICA del detalle (`PaginaServicioPublico`).
+     */
+    onContactar?: () => void;
 }
 
-export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
+export function OferenteCard({ publicacion, onClick, onContactar }: OferenteCardProps) {
     const { oferente, tipo } = publicacion;
     const esEmpresa = tipo === 'vacante-empresa';
 
@@ -178,13 +186,27 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
             </div>
 
             {/* Trust badge "Suele responder rápido" — pill emerald
-                destacado (indicador de valor para el usuario). */}
-            {respondeRapido && (
-                <div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
-                        <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-                        Suele responder rápido
-                    </span>
+                destacado (indicador de valor para el usuario) + ícono de
+                ChatYA a la derecha cuando la página pública pasa
+                `onContactar`. */}
+            {(respondeRapido || onContactar) && (
+                <div className="flex items-center gap-2">
+                    {respondeRapido && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
+                            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            Suele responder rápido
+                        </span>
+                    )}
+                    {onContactar && (
+                        <button
+                            type="button"
+                            onClick={onContactar}
+                            aria-label="Contactar por ChatYA"
+                            className="ml-auto flex shrink-0 items-center justify-center lg:cursor-pointer lg:hover:opacity-80"
+                        >
+                            <img src="/ChatYA.webp" alt="" className="h-8 w-auto object-contain" />
+                        </button>
+                    )}
                 </div>
             )}
 

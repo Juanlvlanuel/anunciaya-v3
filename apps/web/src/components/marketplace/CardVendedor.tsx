@@ -24,9 +24,17 @@ interface CardVendedorProps {
     /** Clases adicionales — útil para sobrescribir padding desde la página
      *  pública del MarketPlace que usa cards con `p-5` para más aire. */
     className?: string;
+    /**
+     * Si se pasa, muestra el ícono de ChatYA (solo ícono, sin fondo/texto —
+     * mismo patrón que `CardOrganizadorPublico` de Dinámicas) en la fila de
+     * trust badges, alineado a la derecha. Solo lo usa la versión PÚBLICA
+     * del detalle (`PaginaArticuloMarketplacePublico`) — la privada ya tiene
+     * su propia `BarraContacto` con WhatsApp+chat, así que aquí no se pasa.
+     */
+    onContactar?: () => void;
 }
 
-export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
+export function CardVendedor({ vendedor, className = '', onContactar }: CardVendedorProps) {
     const navigate = useNavigate();
     const handleVerPerfil = () => {
         navigate(`/marketplace/usuario/${vendedor.id}`);
@@ -100,13 +108,27 @@ export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
 
             {/* Trust badge — "Suele responder rápido" se mantiene como
                 pill emerald destacado (es indicador de valor real para
-                el comprador). */}
-            {respondeRapido && (
-                <div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
-                        <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-                        Suele responder rápido
-                    </span>
+                el comprador) + ícono de ChatYA a la derecha cuando la
+                página pública pasa `onContactar` (mismo patrón que
+                `CardOrganizadorPublico` de Dinámicas). */}
+            {(respondeRapido || onContactar) && (
+                <div className="flex items-center gap-2">
+                    {respondeRapido && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
+                            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            Suele responder rápido
+                        </span>
+                    )}
+                    {onContactar && (
+                        <button
+                            type="button"
+                            onClick={onContactar}
+                            aria-label="Contactar por ChatYA"
+                            className="ml-auto flex shrink-0 items-center justify-center lg:cursor-pointer lg:hover:opacity-80"
+                        >
+                            <img src="/ChatYA.webp" alt="" className="h-8 w-auto object-contain" />
+                        </button>
+                    )}
                 </div>
             )}
 

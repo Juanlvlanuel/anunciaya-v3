@@ -36,7 +36,7 @@ export function HeaderPublico() {
                         <img
                             src="/logo-anunciaya-azul.webp"
                             alt="AnunciaYA"
-                            className="h-8 lg:h-9 2xl:h-11 w-auto object-contain"
+                            className="h-11 lg:h-9 2xl:h-11 w-auto object-contain"
                         />
                     </button>
 

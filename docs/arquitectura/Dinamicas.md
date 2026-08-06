@@ -1,8 +1,8 @@
 # 🎟️ Dinámicas — Rifas y Concursos P2P entre Usuarios
 
-> **Última actualización:** 5 Agosto 2026
-> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción, Fase 4 (motor de sorteo) y Fase 5 (tarjeta compartible) pendientes.
-> **Versión:** 0.3.0 (Fase 3)
+> **Última actualización:** 6 Agosto 2026
+> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción (incl. página pública para compartir y chat con contexto por ChatYA), Fase 4 (motor de sorteo) y Fase 5 (tarjeta compartible) pendientes. Único hueco funcional dentro de Fase 3: el botón "Guardar" del detalle es placeholder (ver §Decisiones y pendientes abiertos).
+> **Versión:** 0.3.1 (Fase 3 + pulido visual y chat/compartir)
 > **Doc de planeación original:** `docs/kit-dinamicas/Contexto_Dinamicas.md` (decisiones de producto previas a construir; este documento es la referencia técnica viva de lo ya construido — se va actualizando fase por fase).
 
 > **Identidad visual:** Ámbar (`#f59e0b → #d97706`) — distingue a Dinámicas de MarketPlace (teal) dentro del mismo módulo compartido.
@@ -20,6 +20,8 @@
 5. [Moderación](#moderación)
 6. [Identidad visual](#identidad-visual)
 7. [Pantallas y componentes](#pantallas-y-componentes)
+   - [Página pública para compartir](#página-pública-para-compartir)
+   - [Chat con contexto — ChatYA](#chat-con-contexto--chatya)
 8. [Backend — Endpoints](#backend--endpoints)
 9. [Base de Datos](#base-de-datos)
 10. [Cron Jobs](#cron-jobs)
@@ -165,16 +167,17 @@ Cumple las mismas reglas heredadas que MarketPlace (`TOKENS_GLOBALES.md` Regla 1
 **Ruta:** `/marketplace/dinamica/:dinamicaId`
 **Archivo:** `apps/web/src/pages/private/marketplace/PaginaDinamica.tsx`
 
-Página de una sola columna (no 2 columnas como el detalle de MarketPlace):
+Rediseñada (ago-2026) para calcar el patrón de `PaginaArticuloMarketplace.tsx` (P2 de MarketPlace) — header dark sticky ancho completo + hero de 2 columnas en desktop, ancho `max-w-7xl`/`2xl:max-w-[920px]` en ambas. Usa el patrón **app-shell propio** (`useScrollAppShell` + contenedor `flex-1 min-h-0 overflow-y-auto`, header como hermano `shrink-0`) — sin esto el scroll vertical no funciona en móvil, porque la ruta cae en `esAppShellPropio` de `MainLayout.tsx`.
 
-- Galería horizontal de fotos del premio.
-- Card del organizador (avatar, insignia de nivel, botón "Contactar" con logo ChatYA — visible para cualquiera que no sea el organizador).
-- Datos clave en grid 2 columnas: tipo de premio, método de sorteo, precio de boleto, cuenta regresiva de inscripción.
-- Descripción.
-- **Acciones del organizador** (solo si `esOrganizador`): "Editar borrador" (si `estado='borrador'`), "Agregar participante manual", "Posponer", "Cancelar Dinámica" — estas 3 últimas solo si acepta participantes.
-- **Grid de boletos numerado y clickeable** (`grid-cols-8 lg:grid-cols-10`) — 3 estados visuales (disponible/reservado/pagado). Click en uno disponible abre el modal de reserva.
-- **Lista pública de participantes** — nombre (o "Sin cuenta AY"), estado del boleto, botón "Contactar" por fila (para quien tenga cuenta AY, visible a cualquiera que vea la lista) y "Confirmar pago" (solo organizador, solo boletos `reservado`).
-- Modales: reservar boleto, agregar participante manual, posponer (input `datetime-local`).
+- **Header dark sticky:** ícono+"Detalle"+título truncado, botones **Compartir** (`DropdownCompartir`, apunta a la página pública `/p/dinamica/:id`) y **Guardar** (bookmark) a la derecha.
+- **Hero 2 columnas** (`lg:grid-cols-[3fr_2fr]`): galería (`GaleriaArticulo` con `ajusteImagen="cover"` — rellena el área sin importar la relación de aspecto) a la izquierda; columna derecha con 3 cards apiladas (`sticky`, no scrollean con el resto):
+  1. Card de info: título, precio del boleto, tags densos (tipo de premio / método de sorteo / cuenta regresiva) — sin pills grandes, patrón `rounded-md` denso (Regla 13 de tokens).
+  2. **Card del organizador** — mismo patrón que `CardVendedor` (MP) / `OferenteCard` (Servicios): avatar con ring, nombre en 2 líneas + `BadgeCheck`, insignia + ícono de ChatYA (solo ícono, sin fondo) en el mismo renglón, actividad ("Activa hace X") + "Ver perfil →" (a `/marketplace/usuario/:id?tab=dinamicas`) en el renglón de abajo.
+  3. Trust box "Cómo funciona" (ámbar).
+- **Menú "⋯" del organizador** (kebab, esquina superior derecha de la card de info — solo si `esOrganizador`): "Agregar Part." (azul), "Posponer" (ámbar), "Cancelar Dinámica" (rojo), y "Editar borrador" si `estado='borrador'`. Reemplazó los botones inline que había antes.
+- **Grid de boletos** — ya NO es un grid que crece verticalmente: es un carrusel horizontal (`grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem]`, 5 filas fijas, columnas nuevas hacia la derecha) navegado con flechas `ChevronLeft`/`ChevronRight`, 3 estados visuales (disponible/reservado/pagado).
+- **Lista pública de participantes** — nombre (o "Sin cuenta AnunciaYA"), estado del boleto, botón "Contactar" por fila y "Confirmar pago" (solo organizador, solo `reservado`).
+- **Modales unificados** — `apps/web/src/components/dinamicas/ModalesAccionDinamica.tsx`: `ModalAgregarParticipanteDinamica`, `ModalPosponerDinamica`, `ModalCancelarDinamica`. Un solo componente compartido entre esta página y "Mis Publicaciones" (antes cada una tenía su propia copia con estilos distintos, una incluso usaba `window.confirm()` nativo). Header con gradiente color-coded por acción (azul/ámbar/rojo) + ícono en círculo, mismo patrón que `ModalConfirmarCanje.tsx` de CardYA. El campo de teléfono de "Agregar participante" usa `InputTelefono` (lada `+52` editable + formato visual `(638) 113 2658`).
 
 ### Composer — crear/editar
 
@@ -196,7 +199,29 @@ Móvil: página completa estilo "Nueva publicación" de Instagram/Facebook. Desk
 - **Activas** — agrupa `activa`, `pospuesta`, `en_sorteo`.
 - **Cerradas** — agrupa `cerrada`, `cancelada`.
 
-Usa `useDinamicasDeOrganizador(usuarioId, { incluirCanceladas: true })` — a diferencia del perfil público, aquí SÍ se ven las canceladas (es el propio organizador gestionando lo suyo). Renderiza `CardDinamicaMio` con sus modales de Posponer/Cancelar (mismo patrón `ModalAdaptativo` que "Marcar vendido"/"Eliminar" de MarketPlace). FAB dice "Organizar" en vez de "Publicar" y enruta a `/marketplace?dinamicas=1&crearDinamica=1`.
+Usa `useDinamicasDeOrganizador(usuarioId, { incluirCanceladas: true })` — a diferencia del perfil público, aquí SÍ se ven las canceladas (es el propio organizador gestionando lo suyo). Renderiza `CardDinamicaMio` con su menú "⋯" (Agregar Part. / Posponer / Cancelar, mismo componente `ModalesAccionDinamica.tsx` que la ficha de detalle). FAB dice "Organizar" en vez de "Publicar" y enruta a `/marketplace?dinamicas=1&crearDinamica=1`.
+
+### Página pública para compartir
+
+**Ruta:** `/p/dinamica/:dinamicaId`
+**Archivo:** `apps/web/src/pages/public/PaginaDinamicaPublica.tsx`
+
+Versión accesible sin sesión del detalle, para los links compartidos (WhatsApp/redes). Sigue el mismo patrón que `PaginaArticuloMarketplacePublico.tsx` (su par de MarketPlace, plantilla de este archivo):
+
+- Mismo diseño aprobado del detalle privado (galería, hero 2 columnas, boletos, participantes, "Cómo funciona"), pero con el chrome de auth intercambiado: `HeaderPublico`/`FooterPublico` en vez del header dark del módulo; sin menú de acciones del organizador (100% privadas); reservar boleto y "Contactar" abren `ModalAuthRequerido` (nuevo tipo `'dinamica'`, ícono `Ticket`, tema ámbar) en vez de la acción real.
+- OG tags vía `useOpenGraph` para que el preview en WhatsApp/FB se vea bien.
+- El botón "Compartir" de la ficha privada apunta aquí (antes apuntaba a la ruta privada como placeholder).
+- **Importante:** las columnas del hero (`lg:grid-cols-[3fr_2fr]`) necesitan `min-w-0` en ambos hijos — sin eso, el carrusel de boletos (ancho intrínseco de cientos de px) expande la columna del grid y desborda toda la página horizontalmente. La ficha privada ya lo tenía; la pública lo copió después de un bug real.
+
+### Chat con contexto — ChatYA
+
+El botón "Contactar" (organizador, desde el card del feed o la ficha) abre ChatYA con una card de contexto pre-cargada (foto + título + precio por boleto) + mensaje pre-llenado, igual que ya existe en MarketPlace/Servicios/Ofertas. Piezas:
+
+- **Nuevo `contextoTipo: 'dinamica'`** en `chat_conversaciones` — migración `docs/migraciones/2026-08-05-chat-contexto-tipo-dinamica.sql` (amplía el `CHECK`). Reusa la columna genérica `contexto_referencia_id` (mismo patrón que `oferta`/`articulo_negocio`) — **no** tiene columna FK dedicada como `articulo_marketplace_id`, así que no hizo falta agregar columna nueva.
+- **Backend:** `insertarMensajeContextoDinamica()` en `chatya.service.ts`, cableado en `crearObtenerConversacion()` tanto para conversación nueva como existente.
+- **Frontend:** `apps/web/src/hooks/useIniciarChatDinamica.ts` (calca `useIniciarChatMarketplace.ts`) — acepta un tipo estructural mínimo (`{id, titulo, precioBoleto, fotosPremio, organizador}`) que satisfacen tanto `DinamicaFeedItem` como `DinamicaDetallePublico`, así lo puede usar tanto `CardDinamica.tsx` (feed) como `PaginaDinamica.tsx` (detalle) sin acoplarse a un solo shape.
+- **Render de la card:** `PreviewContextoInput.tsx` (antes de enviar) y `BurbujaMensaje.tsx` (persistida) — nuevo caso `subtipo: 'dinamica'`, eyebrow ámbar "Dinámicas", navega a `/marketplace/dinamica/:id` al hacer click.
+- El "Contactar" de un **participante** (no el organizador) en la lista de la ficha sigue usando el chat directo simple (`useIniciarChatDirectoPersona`), sin card — son personas, no el recurso.
 
 ---
 
@@ -279,7 +304,7 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 |---|---|---|
 | **Fase 1** | Backend: ciclo de vida, CRUD de borrador, transiciones de estado, boletos (funciones internas sin endpoint) | ✅ Completa |
 | **Fase 2** | Moderación de texto reducida, checklist legal al publicar, fotos de evidencia del premio en R2, composer de creación/edición | ✅ Completa |
-| **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones | ✅ Completa (+ varias rondas de pulido visual, Ago 2026) |
+| **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados** | ✅ Completa salvo el botón "Guardar" (placeholder, ver §Decisiones y pendientes abiertos) |
 | **Fase 4** | Motor de sorteo: tómbola clásica animada, lotería carta única, lotería tabla completa (con sincronización en tiempo real) + 3 pantallas de resultado | 🔜 Pendiente — no ha empezado. Las 54 cartas de lotería ya están listas como preparación. |
 | **Fase 5** | Tarjeta compartible (imagen de resultado para redes sociales) | 🔜 Pendiente |
 
@@ -287,6 +312,7 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 
 ## 🧭 Decisiones y pendientes abiertos
 
+- **Botón "Guardar" (bookmark) del detalle es placeholder.** Muestra un toast "estará disponible pronto" — `'dinamica'` todavía no existe como `entityType` en el sistema de `useGuardados` (ni en el CHECK de la tabla `guardados`). Es el único hueco funcional que le falta a Fase 3. Para cerrarlo: agregar `'dinamica'` al union de `EntityType` en `useGuardados.ts`, ampliar el CHECK de `guardados.entity_type` (migración) y conectar el botón en `PaginaDinamica.tsx`.
 - **`pospuesta → activa` no existe como transición explícita.** Posponer es idempotente desde `activa` o `pospuesta`; siempre aterriza en `pospuesta` con la nueva fecha. Si se quiere una acción "reactivar" separada más adelante, es un cambio de alcance a discutir.
 - **El feed de "Mis Dinámicas" (`GET /mias`)** no filtra por estado (trae todo) — a diferencia de `listarDinamicasDeOrganizador` (usado en Perfil/Mis Publicaciones), que sí agrupa. Verificar si `GET /mias` sigue en uso real o quedó obsoleto tras la integración a Mis Publicaciones.
 - **Detalle de implementación de los 3 métodos de sorteo (Fase 4)** aún no se ha bajado a pantallas concretas — se resuelve en el mismo orden en que se van a construir: primero tómbola (más simple, prueba el motor base), luego carta única (reusa el mismo motor, solo cambia la piel visual), y tabla completa al final (única que requiere sincronización en tiempo real).

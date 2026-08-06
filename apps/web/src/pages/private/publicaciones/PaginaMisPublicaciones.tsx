@@ -38,8 +38,6 @@ import {
     Trash2,
     Ticket,
     XCircle,
-    CalendarClock,
-    Ban,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -62,6 +60,11 @@ import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { CardArticuloMio } from '../../../components/marketplace/CardArticuloMio';
 import { CardDinamicaMio } from '../../../components/dinamicas/CardDinamicaMio';
+import {
+    ModalAgregarParticipanteDinamica,
+    ModalPosponerDinamica,
+    ModalCancelarDinamica,
+} from '../../../components/dinamicas/ModalesAccionDinamica';
 import { MisPublicacionesServiciosSection } from '../../../components/servicios/MisPublicacionesServiciosSection';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
@@ -78,6 +81,7 @@ import {
     useDinamicasDeOrganizador,
     usePosponerDinamica,
     useCancelarDinamica,
+    useAgregarParticipanteManual,
 } from '../../../hooks/queries/useDinamicas';
 import { notificar } from '../../../utils/notificaciones';
 import type { ArticuloMarketplace } from '../../../types/marketplace';
@@ -221,7 +225,8 @@ export function PaginaMisPublicaciones() {
         useState<DinamicaFeedItem | null>(null);
     const [dinamicaACancelar, setDinamicaACancelar] =
         useState<DinamicaFeedItem | null>(null);
-    const [nuevaFechaPosponer, setNuevaFechaPosponer] = useState('');
+    const [dinamicaParaAgregar, setDinamicaParaAgregar] =
+        useState<DinamicaFeedItem | null>(null);
 
     // Conteos de Servicios (los reporta la sección via callback `onConteos`).
     // Necesarios para los badges de los tabs cuando `tipoActivo === 'servicios'`.
@@ -262,6 +267,7 @@ export function PaginaMisPublicaciones() {
     );
     const posponerMutation = usePosponerDinamica();
     const cancelarMutation = useCancelarDinamica();
+    const agregarManualMutation = useAgregarParticipanteManual();
 
     // Conteos por tab (siempre disponibles, independientes del tab activo).
     const conteoPorTab: Record<TabPublicacion, number> = {
@@ -393,7 +399,6 @@ export function PaginaMisPublicaciones() {
     const irAOrganizarDinamica = () => navegar('/marketplace?dinamicas=1&crearDinamica=1');
 
     const handleAbrirPosponer = (dinamica: DinamicaFeedItem) => {
-        setNuevaFechaPosponer('');
         setDinamicaAPosponer(dinamica);
     };
 
@@ -401,12 +406,35 @@ export function PaginaMisPublicaciones() {
         setDinamicaACancelar(dinamica);
     };
 
-    const handleConfirmarPosponer = async () => {
-        if (!dinamicaAPosponer || !nuevaFechaPosponer) return;
+    const handleAbrirAgregarManual = (dinamica: DinamicaFeedItem) => {
+        setDinamicaParaAgregar(dinamica);
+    };
+
+    const handleConfirmarAgregarManual = async (datos: {
+        numeroBoleto: number;
+        nombreManual: string;
+        telefonoManual: string;
+    }) => {
+        if (!dinamicaParaAgregar) return;
+        try {
+            const r = await agregarManualMutation.mutateAsync({ dinamicaId: dinamicaParaAgregar.id, ...datos });
+            if (r.success) {
+                notificar.exito('Participante agregado.');
+                setDinamicaParaAgregar(null);
+            } else {
+                notificar.error(r.message);
+            }
+        } catch {
+            notificar.error('No pudimos agregar al participante. Intenta de nuevo.');
+        }
+    };
+
+    const handleConfirmarPosponer = async (nuevaFechaLimiteInscripcionISO: string) => {
+        if (!dinamicaAPosponer) return;
         try {
             await posponerMutation.mutateAsync({
                 dinamicaId: dinamicaAPosponer.id,
-                nuevaFechaLimiteInscripcion: new Date(nuevaFechaPosponer).toISOString(),
+                nuevaFechaLimiteInscripcion: nuevaFechaLimiteInscripcionISO,
             });
             notificar.exito('Dinámica pospuesta. Avisamos a quienes ya tenían boleto.');
             setDinamicaAPosponer(null);
@@ -1066,6 +1094,7 @@ export function PaginaMisPublicaciones() {
                                 >
                                     <CardDinamicaMio
                                         dinamica={d}
+                                        onAgregarManual={handleAbrirAgregarManual}
                                         onPosponer={handleAbrirPosponer}
                                         onCancelar={handleAbrirCancelar}
                                     />
@@ -1280,88 +1309,29 @@ export function PaginaMisPublicaciones() {
                 </div>
             </ModalAdaptativo>
 
-            {/* ── Modal: posponer Dinámica ── */}
-            <ModalAdaptativo
-                abierto={!!dinamicaAPosponer}
-                onCerrar={() => setDinamicaAPosponer(null)}
-                titulo="Posponer Dinámica"
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-base font-medium text-slate-700 lg:text-sm 2xl:text-base">
-                        Elige la nueva fecha y hora límite de inscripción para{' '}
-                        <span className="font-bold text-slate-900">
-                            "{dinamicaAPosponer?.titulo}"
-                        </span>
-                        .
-                    </p>
-                    <input
-                        type="datetime-local"
-                        value={nuevaFechaPosponer}
-                        onChange={(e) => setNuevaFechaPosponer(e.target.value)}
-                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900"
-                    />
-                    <div className="flex items-center justify-end gap-2 pt-2">
-                        <button
-                            data-testid="btn-cancelar-posponer"
-                            onClick={() => setDinamicaAPosponer(null)}
-                            className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
-                        >
-                            Cerrar
-                        </button>
-                        <button
-                            data-testid="btn-confirmar-posponer"
-                            onClick={handleConfirmarPosponer}
-                            disabled={posponerMutation.isPending || !nuevaFechaPosponer}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-md lg:hover:bg-amber-700 disabled:opacity-60"
-                        >
-                            <CalendarClock className="h-4 w-4" strokeWidth={2.5} />
-                            {posponerMutation.isPending ? 'Guardando…' : 'Confirmar nueva fecha'}
-                        </button>
-                    </div>
-                </div>
-            </ModalAdaptativo>
+            <ModalAgregarParticipanteDinamica
+                abierto={!!dinamicaParaAgregar}
+                dinamica={dinamicaParaAgregar}
+                pendiente={agregarManualMutation.isPending}
+                onCerrar={() => setDinamicaParaAgregar(null)}
+                onConfirmar={handleConfirmarAgregarManual}
+            />
 
-            {/* ── Modal: cancelar Dinámica ── */}
-            <ModalAdaptativo
+            <ModalPosponerDinamica
+                abierto={!!dinamicaAPosponer}
+                dinamica={dinamicaAPosponer}
+                pendiente={posponerMutation.isPending}
+                onCerrar={() => setDinamicaAPosponer(null)}
+                onConfirmar={handleConfirmarPosponer}
+            />
+
+            <ModalCancelarDinamica
                 abierto={!!dinamicaACancelar}
+                dinamica={dinamicaACancelar}
+                pendiente={cancelarMutation.isPending}
                 onCerrar={() => setDinamicaACancelar(null)}
-                titulo="Cancelar Dinámica"
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-base font-medium text-slate-700 lg:text-sm 2xl:text-base">
-                        ¿Cancelar{' '}
-                        <span className="font-bold text-slate-900">
-                            "{dinamicaACancelar?.titulo}"
-                        </span>
-                        ?
-                    </p>
-                    <p className="text-sm font-medium text-slate-600 lg:text-xs 2xl:text-sm">
-                        Esta acción no se puede deshacer. Avisamos por ChatYA a quienes ya
-                        tenían boleto — el reembolso se coordina directamente con ellos, la
-                        app no cobra ni entrega nada.
-                    </p>
-                    <div className="flex items-center justify-end gap-2 pt-2">
-                        <button
-                            data-testid="btn-cancelar-cancelar-dinamica"
-                            onClick={() => setDinamicaACancelar(null)}
-                            className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
-                        >
-                            Volver
-                        </button>
-                        <button
-                            data-testid="btn-confirmar-cancelar-dinamica"
-                            onClick={handleConfirmarCancelar}
-                            disabled={cancelarMutation.isPending}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-md lg:hover:bg-red-700 disabled:opacity-60"
-                        >
-                            <Ban className="h-4 w-4" strokeWidth={2.5} />
-                            {cancelarMutation.isPending ? 'Cancelando…' : 'Sí, cancelar'}
-                        </button>
-                    </div>
-                </div>
-            </ModalAdaptativo>
+                onConfirmar={handleConfirmarCancelar}
+            />
 
             {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
                 empalmarse con el FAB Publicar (abajo-derecha en móvil); en PC

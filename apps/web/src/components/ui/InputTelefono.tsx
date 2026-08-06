@@ -13,6 +13,8 @@
  * Ubicación: apps/web/src/components/ui/InputTelefono.tsx
  */
 
+import { useState } from 'react';
+
 interface InputTelefonoProps {
 	value: string;
 	onChange: (v: string) => void;
@@ -25,6 +27,26 @@ interface InputTelefonoProps {
 	claseAlto?: string;
 	/** Clase de tamaño de texto de los campos. Default coincide con el patrón histórico. */
 	claseTexto?: string;
+	/**
+	 * Si es true, el campo de número se muestra agrupado visualmente como
+	 * "(638) 113 2658" mientras se escribe. El valor guardado (`value`/
+	 * `onChange`) NO cambia — sigue siendo "lada dígitos" sin formato, el
+	 * agrupado es solo de despliegue. Default false (comportamiento
+	 * histórico: dígitos corridos, sin paréntesis ni espacios).
+	 */
+	formatoVisual?: boolean;
+}
+
+/** "6381234658" → "(638) 123 4658" — agrupado progresivo mientras se escribe. */
+function formatearVisualNumero(digitos: string): string {
+	if (!digitos) return '';
+	const area = digitos.slice(0, 3);
+	const medio = digitos.slice(3, 6);
+	const final = digitos.slice(6, 10);
+	let salida = area.length === 3 ? `(${area})` : `(${area}`;
+	if (medio) salida += ` ${medio}`;
+	if (final) salida += ` ${final}`;
+	return salida;
 }
 
 // Borde + sombra interior + halo azul al enfocar. El inset va en className (no en style inline)
@@ -64,8 +86,19 @@ export function InputTelefono({
 	testIdLada,
 	claseAlto = 'h-10 lg:h-9 2xl:h-10',
 	claseTexto = 'text-sm lg:text-xs 2xl:text-sm',
+	formatoVisual = false,
 }: InputTelefonoProps) {
 	const { lada, numero } = normalizarTelefono(value);
+
+	// Mientras el usuario está borrando/reescribiendo la lada, el campo puede
+	// pasar transitoriamente por "" o "+" — estados que `normalizarTelefono`
+	// NO puede representar (los trata como "vacío" y cae al default "+52").
+	// Sin este estado local, cada tecla de borrado quedaba pisada de
+	// inmediato por ese default y la lada nunca se podía vaciar para
+	// escribir una nueva. Solo se aplica el default "+52" al perder el foco.
+	const [ladaEditando, setLadaEditando] = useState<string | null>(null);
+	const ladaMostrada = ladaEditando !== null ? ladaEditando : lada;
+	const numeroMostrado = formatoVisual ? formatearVisualNumero(numero) : numero;
 
 	return (
 		<div className="flex gap-1.5 min-w-0">
@@ -77,14 +110,26 @@ export function InputTelefono({
 					id={`${prefijo}-lada`}
 					name={`${prefijo}-lada`}
 					type="text"
-					value={lada}
+					value={ladaMostrada}
 					disabled={disabled}
 					onChange={(e) => {
 						let l = e.target.value;
 						if (!l.startsWith('+')) l = '+' + l.replace(/[^0-9]/g, '');
 						l = l.replace(/[^+0-9]/g, '');
-						if (l === '+' || l === '') l = '+52';
+						setLadaEditando(l);
+						// Solo propagamos hacia el padre cuando hay algo útil
+						// que combinar — si quedó "" o "+", esperamos a que
+						// el usuario siga escribiendo o suelte el foco.
+						if (l !== '' && l !== '+') {
+							onChange(numero ? `${l} ${numero}` : l);
+						}
+					}}
+					onBlur={() => {
+						if (ladaEditando === null) return;
+						let l = ladaEditando;
+						if (l === '' || l === '+') l = '+52';
 						onChange(numero ? `${l} ${numero}` : l);
+						setLadaEditando(null);
 					}}
 					placeholder="+52"
 					maxLength={4}
@@ -102,14 +147,23 @@ export function InputTelefono({
 					name={`${prefijo}-numero`}
 					type="tel"
 					inputMode="numeric"
-					value={numero}
+					value={numeroMostrado}
 					disabled={disabled}
 					onChange={(e) => {
-						const n = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+						let n = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+						// Con `formatoVisual`, el backspace a veces borra un
+						// paréntesis/espacio decorativo en vez de un dígito
+						// (ej. "(638)" → "(638" al borrar ")") — el conteo de
+						// dígitos queda igual y el usuario ve que "no borra".
+						// Si el campo se acortó pero los dígitos no cambiaron,
+						// recortamos uno más para que el backspace sí borre.
+						if (formatoVisual && e.target.value.length < numeroMostrado.length && n.length === numero.length) {
+							n = n.slice(0, -1);
+						}
 						onChange(n ? `${lada} ${n}` : lada);
 					}}
-					placeholder={placeholder}
-					maxLength={10}
+					placeholder={formatoVisual ? '(638) 113 2658' : placeholder}
+					maxLength={formatoVisual ? 14 : 10}
 					className={`w-full min-w-0 bg-transparent outline-none ${claseTexto} font-medium text-slate-800`}
 					data-testid={testIdNumero}
 				/>
