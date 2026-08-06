@@ -87,6 +87,13 @@ interface UseImagenChatResult {
   setCaption: (caption: string) => void;
   /** Cancelar/limpiar TODAS las imágenes seleccionadas */
   limpiar: () => void;
+  /**
+   * Vacía el strip de preview SIN revocar los blob URLs — usar cuando el
+   * envío optimista va a reutilizar `blobUrl` en la burbuja del chat
+   * mientras sube a R2 en background. Quien llama es responsable de
+   * revocar cada blobUrl cuando ya no se necesite.
+   */
+  limpiarSinRevocar: () => void;
   /** ¿Se pueden agregar más imágenes? */
   puedeAgregarMas: boolean;
   /** Máximo de imágenes por envío (constante exportada para UI) */
@@ -434,6 +441,16 @@ export function useImagenChat(): UseImagenChatResult {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Limpiar solo el strip de preview: NO revoca blob URLs (el caller los
+  // reutiliza en la burbuja optimista mientras sube a R2)
+  // ---------------------------------------------------------------------------
+  const limpiarSinRevocar = useCallback(() => {
+    setImagenesListas([]);
+    setError(null);
+    setProcesando(false);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Valores computados
   // ---------------------------------------------------------------------------
   const imagenLista = imagenesListas.length > 0 ? imagenesListas[0] : null;
@@ -449,6 +466,7 @@ export function useImagenChat(): UseImagenChatResult {
     removerImagen,
     setCaption,
     limpiar,
+    limpiarSinRevocar,
     puedeAgregarMas,
     maxImagenes: MAX_IMAGENES,
   };

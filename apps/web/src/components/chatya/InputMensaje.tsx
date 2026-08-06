@@ -210,6 +210,7 @@ export function InputMensaje({
     removerImagen,
     setCaption,
     limpiar: limpiarImagen,
+    limpiarSinRevocar: limpiarImagenSinRevocar,
     puedeAgregarMas,
     maxImagenes,
   } = useImagenChat();
@@ -486,26 +487,74 @@ export function InputMensaje({
       return;
     }
 
-    // ── ENVÍO DE IMÁGENES (una o múltiples) ──
+    // ── ENVÍO DE IMÁGENES (una o múltiples, optimista: aparecen de inmediato con el blob local, suben en background) ──
     if (tieneImagenes) {
-      // Copiar array y limpiar preview inmediatamente (optimista)
+      // Copiar array y vaciar el strip de preview SIN revocar los blobUrl — se
+      // reutilizan como `url` del mensaje optimista mientras sube a R2.
       const loteImagenes = [...imagenesListas];
-      limpiarImagen();
+      limpiarImagenSinRevocar();
+
+      // 1. Insertar un mensaje optimista POR IMAGEN, ANTES de subir a R2, usando
+      // el blobUrl local (ya es una preview real, no un placeholder) + LQIP.
+      const tempIds = loteImagenes.map(() => `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+      const miIdImagen = obtenerMiIdChatYA() || null;
+
+      useChatYAStore.setState((state) => ({
+        mensajes: [
+          ...[...loteImagenes].reverse().map((img, iRev) => {
+            const i = loteImagenes.length - 1 - iRev;
+            return {
+              id: tempIds[i],
+              conversacionId: conversacionActivaId!,
+              emisorId: miIdImagen,
+              emisorModo: null,
+              emisorSucursalId: null,
+              empleadoId: null,
+              tipo: 'imagen' as const,
+              contenido: JSON.stringify({
+                url: img.blobUrl,
+                ancho: img.ancho,
+                alto: img.alto,
+                peso: img.peso,
+                miniatura: img.miniatura,
+                caption: i === 0 ? (img.caption || undefined) : undefined,
+              }),
+              estado: 'enviado' as const,
+              editado: false,
+              editadoAt: null,
+              eliminado: false,
+              eliminadoAt: null,
+              respuestaAId: null,
+              reenviadoDeId: null,
+              createdAt: new Date().toISOString(),
+              entregadoAt: null,
+              leidoAt: null,
+            };
+          }),
+          ...state.mensajes,
+        ],
+        enviandoMensaje: true,
+        conversaciones: state.conversaciones.map((c) =>
+          c.id === conversacionActivaId
+            ? { ...c, ultimoMensajeTexto: '📷 Imagen', ultimoMensajeFecha: new Date().toISOString(), ultimoMensajeTipo: 'imagen' as const, ultimoMensajeEstado: 'enviado' as const, ultimoMensajeEmisorId: miIdImagen }
+            : c
+        ),
+      }));
 
       try {
-        // 1. Pedir presigned URLs para todas las imágenes en paralelo
+        // 2. Pedir presigned URLs para todas las imágenes en paralelo
         const presignedPromises = loteImagenes.map((img) =>
           chatyaService.obtenerPresignedUrlImagen(img.archivo.name, img.archivo.type, img.archivo.size)
         );
         const presignedResults = await Promise.all(presignedPromises);
 
-        // 2. Subir todas a R2 en paralelo
+        // 3. Subir todas a R2 en paralelo (el mensaje ya se ve con el blob local)
         const uploadPromises = loteImagenes.map((img, i) =>
           chatyaService.subirArchivoAR2(presignedResults[i].uploadUrl, img.archivo, img.archivo.type)
         );
         await Promise.all(uploadPromises);
 
-        // 3. Enviar un mensaje por cada imagen (secuencial para mantener orden)
+        // 4. Enviar cada mensaje al backend con la URL real, reutilizando el temp existente
         for (let i = 0; i < loteImagenes.length; i++) {
           const img = loteImagenes[i];
           const contenidoImagen = JSON.stringify({
@@ -517,7 +566,8 @@ export function InputMensaje({
             caption: i === 0 ? (img.caption || undefined) : undefined, // Caption solo en la primera
           });
 
-          await enviarMensaje({ contenido: contenidoImagen, tipo: 'imagen' });
+          await enviarMensaje({ contenido: contenidoImagen, tipo: 'imagen' }, tempIds[i]);
+          URL.revokeObjectURL(img.blobUrl);
         }
 
         // Si también hay texto, enviar como mensaje separado al final
@@ -527,6 +577,16 @@ export function InputMensaje({
       } catch (err) {
         console.error('Error al enviar imágenes:', err);
         setErrorUpload('No se pudo enviar la imagen. Intenta de nuevo.');
+        // Marcar como fallidas y liberar los blobs pendientes
+        useChatYAStore.setState((state) => ({
+          mensajes: state.mensajes.map((m) =>
+            tempIds.includes(m.id) ? { ...m, estado: 'fallido' as const } : m
+          ),
+          enviandoMensaje: false,
+        }));
+        for (const img of loteImagenes) {
+          URL.revokeObjectURL(img.blobUrl);
+        }
       }
 
       inputRef.current?.focus();
@@ -746,7 +806,7 @@ export function InputMensaje({
     // ── ENVÍO NORMAL ──
     await enviarMensaje({ contenido, tipo: 'texto' });
     inputRef.current?.focus();
-  }, [texto, enviandoMensaje, enviarMensaje, conversacionActivaId, mensajeEditando, onCancelarEdicion, mensajeRespondiendo, onCancelarRespuesta, imagenesListas, limpiarImagen, documentoListo, limpiarDocumento, audioListo, limpiarAudio]);
+  }, [texto, enviandoMensaje, enviarMensaje, conversacionActivaId, mensajeEditando, onCancelarEdicion, mensajeRespondiendo, onCancelarRespuesta, imagenesListas, limpiarImagenSinRevocar, documentoListo, limpiarDocumento, audioListo, limpiarAudio]);
 
   // ---------------------------------------------------------------------------
   // Enter para enviar (Shift+Enter para nueva línea futuro)
