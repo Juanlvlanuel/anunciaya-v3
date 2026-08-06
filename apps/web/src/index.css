@@ -87,8 +87,24 @@ input:-webkit-autofill:active {
 /* TIPOGRAFÍA GLOBAL                             */
 /* ============================================= */
 
+/* Fallback con métricas ajustadas a Inter (mismos valores que usa
+   next/font para su optimización automática de Inter, calculados sobre
+   Arial vía capsize). Mientras Inter descarga desde Google Fonts
+   (font-display: swap en index.html), el navegador pinta con ESTA fuente
+   en vez de la genérica `system-ui` — ocupa el mismo espacio (mismo
+   ascent/descent/x-height que Inter), así el swap cuando Inter termina de
+   cargar no salta ni corre el layout, solo cambia sutilmente el trazo. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+  size-adjust: 107.12%;
+}
+
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', 'Inter Fallback', system-ui, sans-serif;
   overscroll-behavior: none;
 }
 
