@@ -174,13 +174,23 @@ export const ModalImagenes = ({
     }
   }, [indiceActual, images.length]);
 
+  // Índice saneado: `indiceActual` se sincroniza con `initialIndex` vía efecto
+  // (corre después del render), así que en el primer render tras cambiar de
+  // galería puede seguir apuntando a un índice que ya no existe en el nuevo
+  // array (ej. veías la imagen 4 de una galería y ahora se abre una sola
+  // imagen). Sin este clamp, `images[indiceActual]` da `undefined` y explota
+  // al leer `.tipo`.
+  const indiceSeguro = images.length > 0
+    ? Math.min(Math.max(indiceActual, 0), images.length - 1)
+    : 0;
+
   // Descargar imagen
   const [descargando, setDescargando] = useState(false);
   const descargarImagen = useCallback(async () => {
-    if (descargando) return;
+    if (descargando || images.length === 0) return;
     setDescargando(true);
     try {
-      const url = normalizarItem(images[indiceActual]).url;
+      const url = normalizarItem(images[indiceSeguro]).url;
       const response = await fetch(url);
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -194,16 +204,16 @@ export const ModalImagenes = ({
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(normalizarItem(images[indiceActual]).url, '_blank');
+      window.open(normalizarItem(images[indiceSeguro]).url, '_blank');
     } finally {
       setDescargando(false);
     }
-  }, [images, indiceActual, descargando]);
+  }, [images, indiceSeguro, descargando]);
 
-  if (!isOpen) return null;
+  if (!isOpen || images.length === 0) return null;
 
   const hayMultiplesImagenes = images.length > 1;
-  const itemActual = normalizarItem(images[indiceActual]);
+  const itemActual = normalizarItem(images[indiceSeguro]);
 
   // En modo contenido (preview/ChatYA), el modal se posiciona `absolute` relativo al
   // contenedor del portal. En modo normal (fullscreen del viewport), usa `fixed`.
@@ -248,7 +258,7 @@ export const ModalImagenes = ({
           ) : (
             <img
               src={itemActual.url}
-              alt={`Imagen ${indiceActual + 1} de ${images.length}`}
+              alt={`Imagen ${indiceSeguro + 1} de ${images.length}`}
               className={`${esContenido ? 'max-w-full max-h-full' : 'max-w-[85vw] max-h-[55vh] lg:max-w-[75vw] lg:max-h-[75vh] 2xl:max-w-[60vw] 2xl:max-h-[55vh]'} object-contain select-none`}
               draggable={false}
             />
@@ -287,7 +297,7 @@ export const ModalImagenes = ({
               chocar con el botón de descargar (bottom-right). */}
           {hayMultiplesImagenes && (
             <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
-              {indiceActual + 1}/{images.length}
+              {indiceSeguro + 1}/{images.length}
             </div>
           )}
         </div>
