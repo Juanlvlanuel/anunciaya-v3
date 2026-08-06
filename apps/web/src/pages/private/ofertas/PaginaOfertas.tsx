@@ -37,6 +37,7 @@ import {
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 import { useScrollAppShell } from '@/hooks/useScrollAppShell';
+import { useListoParaAnimar } from '@/hooks/useListoParaAnimar';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -123,6 +124,10 @@ export default function PaginaOfertas() {
   // que empuja el inicio del feed hacia abajo cuando el overlay está
   // expandido — si no, el overlay queda tapando el primer bloque del feed.
   const [alturaOverlayHeader, setAlturaOverlayHeader] = useState(0);
+  // `false` durante el primer pintado — apaga la transición CSS del
+  // espaciador solo en el montaje inicial, para que el salto de 0 al alto
+  // real medido no se anime. Ver `useListoParaAnimar`.
+  const listoParaAnimar = useListoParaAnimar();
 
   // Cleanup al unmount: resetea filtros locales (chip) y limpia el buscador
   // GLOBAL del Navbar para no contaminar las otras secciones.
@@ -457,7 +462,7 @@ export default function PaginaOfertas() {
           className="lg:hidden"
           style={{
             height: headerColapsado ? 0 : alturaOverlayHeader,
-            transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: listoParaAnimar ? 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
           }}
         />
         {/* Refresco tipo Facebook: ícono de Ofertas (Tag) con anillo

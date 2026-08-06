@@ -20,6 +20,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useListoParaAnimar } from '../../../hooks/useListoParaAnimar';
 import { normalizarTexto } from '../../../utils/normalizarTexto';
 import { Mapa, Marker, Popup, useMap, type MapRef, type MarkerEvent } from '../../../components/mapa/Mapa';
 import { ChipsFiltros } from '../../../components/negocios/ChipsFiltros';
@@ -944,15 +945,21 @@ export function PaginaNegocios() {
   // (el header vive `position: fixed` — un `top` calculado solo con el alto
   // del header, sin ese offset, dejaba la columna metida por detrás).
   const [headerBottom, setHeaderBottom] = useState(150);
+  // Borde inferior de SOLO la fila fija (sin sumar el overlay de
+  // subtítulo+chips) — el indicador de refresco es `z-40`, por ENCIMA del
+  // overlay (`z-10`), así que se ancla justo debajo de la fila fija (igual
+  // que en Ofertas/Servicios/MP, donde flota sobre el overlay) en vez de
+  // debajo de todo el header expandido, que lo dejaba más abajo que en las
+  // otras 3 secciones.
+  const [headerBottomBase, setHeaderBottomBase] = useState(150);
 
   // Posición combinada del indicador de refresco del feed de publicaciones:
   // `left` centrado en la página completa (medido arriba) + `top` justo
-  // debajo del borde real del header (`headerBottom`, ya reactivo al
-  // colapso del header móvil y al sticky de escritorio). Con `position:
+  // debajo de la fila fija del header (`headerBottomBase`). Con `position:
   // fixed` esto lo saca del flujo normal — así en móvil aparece ENCIMA del
   // `ReelNegociosFeed` en vez de después (el feed va después del carrusel en
   // el DOM) y en escritorio no cae detrás del Navbar (z-50).
-  const feedIndicadorPos = feedIndicadorLeft !== null ? { left: feedIndicadorLeft, top: headerBottom + 8 } : null;
+  const feedIndicadorPos = feedIndicadorLeft !== null ? { left: feedIndicadorLeft, top: headerBottomBase + 8 } : null;
 
   // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N negocios" +
   // chips de filtros) al hacer scroll hacia abajo, dejando solo la fila
@@ -978,9 +985,19 @@ export function PaginaNegocios() {
   // para sumarlo a mano en `topPublicar`/`headerBottom`/`--negocios-header-h`
   // — esos 3 consumidores ya tienen su propia transición CSS (`top`/`height`
   // 300ms), así que el salto instantáneo del valor se ve suave igual.
+  // `useLayoutEffect` (no `useEffect`): mide ANTES del primer pintado, así
+  // el espaciador del feed ya nace con el alto correcto — con `useEffect`
+  // el primer render pinta alto 0, luego salta al alto real ya con la
+  // transición CSS puesta, y ese salto se veía como que "todo el contenido
+  // se reacomoda" al entrar a la página.
+  // `false` durante el primer pintado — apaga la transición CSS del
+  // espaciador solo en el montaje inicial, para que el salto de 0 al alto
+  // real medido no se anime (eso se veía como "el contenido se reacomoda"
+  // al entrar a la página). Ver `useListoParaAnimar`.
+  const listoParaAnimar = useListoParaAnimar();
   const overlayRef = useRef<HTMLDivElement>(null);
   const [overlayAltura, setOverlayAltura] = useState(0);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = overlayRef.current;
     if (!el) return;
     const medir = () => setOverlayAltura(el.offsetHeight);
@@ -996,9 +1013,11 @@ export function PaginaNegocios() {
     const overlayVisible = !buscadorMovilAbierto && !headerColapsado;
     const extra = overlayVisible ? overlayAltura : 0;
     const medir = () => {
-      const bottom = el.getBoundingClientRect().bottom + extra;
+      const bottomBase = el.getBoundingClientRect().bottom;
+      const bottom = bottomBase + extra;
       setTopPublicar(bottom + 8);
       setHeaderBottom(bottom);
+      setHeaderBottomBase(bottomBase);
       document.documentElement.style.setProperty('--negocios-header-h', `${el.offsetHeight + extra}px`);
     };
     medir();
@@ -1480,7 +1499,7 @@ export function PaginaNegocios() {
               className="lg:hidden"
               style={{
                 height: headerColapsado ? 0 : overlayAltura,
-                transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: listoParaAnimar ? 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
               }}
             />
           )}

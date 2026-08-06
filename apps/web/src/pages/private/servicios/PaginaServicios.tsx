@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useListoParaAnimar } from '../../../hooks/useListoParaAnimar';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
@@ -136,6 +137,10 @@ export function PaginaServicios() {
     // que empuja el inicio del feed hacia abajo cuando el overlay está
     // expandido — si no, el overlay queda tapando el primer bloque del feed.
     const [alturaOverlayHeader, setAlturaOverlayHeader] = useState(0);
+    // `false` durante el primer pintado — apaga la transición CSS del
+    // espaciador solo en el montaje inicial, para que el salto de 0 al alto
+    // real medido no se anime. Ver `useListoParaAnimar`.
+    const listoParaAnimar = useListoParaAnimar();
 
     // ─── Stores ────────────────────────────────────────────────────────────
     // CRÍTICO: la ciudad se lee del mismo store que usa el Navbar global
@@ -683,7 +688,7 @@ export function PaginaServicios() {
                     className="lg:hidden"
                     style={{
                         height: headerColapsado ? 0 : alturaOverlayHeader,
-                        transition: 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        transition: listoParaAnimar ? 'height 300ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                     }}
                 />
                 {/* Refresco tipo Facebook: ícono de Servicios (Wrench) con

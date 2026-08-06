@@ -18,7 +18,7 @@
  * Ubicación: apps/web/src/components/ofertas/HeaderOfertas.tsx
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ChevronLeft,
@@ -83,8 +83,12 @@ export default function HeaderOfertas({
 
   // Mide el alto real del overlay (natural, no afectado por `transform`) y
   // se lo reporta al padre — ver `onAlturaOverlayCambio` en la interfaz.
+  // `useLayoutEffect` (no `useEffect`): mide ANTES del primer pintado, así
+  // el espaciador del feed en la página ya nace con el alto correcto — con
+  // `useEffect` el primer render pinta alto 0 y luego salta al real ya con
+  // la transición CSS puesta, viéndose como que el contenido se reacomoda.
   const overlayRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = overlayRef.current;
     if (!el || !onAlturaOverlayCambio) return;
     const medir = () => onAlturaOverlayCambio(el.offsetHeight);

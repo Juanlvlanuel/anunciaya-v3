@@ -19,6 +19,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface IndicadorRefrescoFeedProps {
     /** 0..1 — qué tan cerca del umbral va el jalón (sin gesto: 0 o 1 según `refrescando`). */
@@ -86,7 +87,8 @@ export function IndicadorRefrescoFeed({
     const visible = progreso > 0 || refrescando;
     const escala = refrescando ? 1 : 0.55 + progreso * 0.45;
     const fijo = posicionFija !== undefined;
-    return (
+
+    const elemento = (
         <div
             data-testid={testId}
             className={`pointer-events-none z-40 ${fijo ? 'fixed' : 'absolute left-1/2 top-2'}`}
@@ -102,6 +104,15 @@ export function IndicadorRefrescoFeed({
             {nucleo}
         </div>
     );
+
+    // `fijo` (posicionFija) va por PORTAL a `document.body`: si el indicador
+    // se queda como descendiente normal, cualquier ancestro con `position`
+    // + z-index propio (ej. `cuerpoRef` con `z-0`) lo atrapa dentro de SU
+    // contexto de apilamiento — ahí el `z-40` del indicador ya no compite
+    // contra el header a nivel raíz, y un panel con z-index explícito
+    // (necesario para que el header tape su propio overlay colapsado) lo
+    // termina cubriendo por completo aunque el indicador tenga z más alto.
+    return fijo ? createPortal(elemento, document.body) : elemento;
 }
 
 export default IndicadorRefrescoFeed;
