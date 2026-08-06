@@ -62,7 +62,7 @@ export function useIniciarChatDinamica() {
         if (usuarioActual.id === organizador.id) return;
 
         const portada = fotosPremio.find((f) => f.tipo === 'imagen') ?? fotosPremio[0];
-        const fotoUrl = portada ? (portada.tipo === 'video' ? portada.posterUrl : portada.url) : null;
+        const fotoUrl = portada ? (portada.tipo === 'video' ? (portada.posterUrl ?? null) : portada.url) : null;
 
         // Dinámicas es siempre P2P en modo personal — sin sucursal, sin FK
         // dedicada (usa la genérica `contextoReferenciaId`).

@@ -166,7 +166,7 @@ export function PaginaDinamica() {
     // pre-cargada (foto + título + precio por boleto) y un borrador de
     // mensaje, mismo comportamiento que "Contactar" en MarketPlace.
     function contactarOrganizador() {
-        if (usuarioActual?.id === dinamica.organizador.id) return;
+        if (!dinamica || usuarioActual?.id === dinamica.organizador.id) return;
         iniciarChatDinamica(dinamica);
     }
 
