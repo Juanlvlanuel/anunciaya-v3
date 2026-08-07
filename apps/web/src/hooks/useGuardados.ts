@@ -46,12 +46,17 @@ import type {
   PublicacionesDeVendedor,
   ArticuloMarketplace,
 } from '../types/marketplace';
+import type {
+  DinamicaFeedItem,
+  DinamicaDetallePublico,
+  RespuestaFeedDinamicas,
+} from '../types/dinamicas';
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-type EntityType = 'oferta' | 'servicio' | 'articulo_marketplace';
+type EntityType = 'oferta' | 'servicio' | 'articulo_marketplace' | 'dinamica';
 
 interface UseGuardadosParams {
   /**
@@ -205,6 +210,49 @@ export function aplicarCambioGuardadoEnCache(
   );
 }
 
+/**
+ * Mismo propósito que `aplicarCambioGuardadoEnCache`, para Dinámicas —
+ * sincroniza el feed infinito y el detalle. No hay "publicaciones del
+ * vendedor" equivalente en Dinámicas (el guardar es siempre sobre la
+ * Dinámica de OTRO organizador), así que solo son 2 cachés.
+ */
+export function aplicarCambioGuardadoEnCacheDinamica(
+  qc: QueryClient,
+  dinamicaId: string,
+  guardadoNuevo: boolean,
+  delta: 1 | -1,
+): void {
+  qc.setQueriesData<InfiniteData<RespuestaFeedDinamicas>>(
+    { queryKey: ['dinamicas', 'feed'] },
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          dinamicas: page.dinamicas.map((d): DinamicaFeedItem =>
+            d.id === dinamicaId
+              ? { ...d, guardado: guardadoNuevo, totalGuardados: Math.max(0, d.totalGuardados + delta) }
+              : d
+          ),
+        })),
+      };
+    },
+  );
+
+  qc.setQueryData<DinamicaDetallePublico>(
+    queryKeys.dinamicas.dinamica(dinamicaId),
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        guardado: guardadoNuevo,
+        totalGuardados: Math.max(0, old.totalGuardados + delta),
+      };
+    },
+  );
+}
+
 // =============================================================================
 // HOOK PRINCIPAL
 // =============================================================================
@@ -290,6 +338,8 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
     onGuardadoChange?.(true);
     if (entityType === 'articulo_marketplace') {
       aplicarCambioGuardadoEnCache(qc, entityId, true, +1);
+    } else if (entityType === 'dinamica') {
+      aplicarCambioGuardadoEnCacheDinamica(qc, entityId, true, +1);
     }
 
     try {
@@ -311,6 +361,8 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
       onGuardadoChange?.(estadoAnterior);
       if (entityType === 'articulo_marketplace') {
         aplicarCambioGuardadoEnCache(qc, entityId, estadoAnterior, -1);
+      } else if (entityType === 'dinamica') {
+        aplicarCambioGuardadoEnCacheDinamica(qc, entityId, estadoAnterior, -1);
       }
 
       // Notificar error
@@ -337,6 +389,8 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
     onGuardadoChange?.(false);
     if (entityType === 'articulo_marketplace') {
       aplicarCambioGuardadoEnCache(qc, entityId, false, -1);
+    } else if (entityType === 'dinamica') {
+      aplicarCambioGuardadoEnCacheDinamica(qc, entityId, false, -1);
     }
 
     try {
@@ -355,6 +409,8 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
       onGuardadoChange?.(estadoAnterior);
       if (entityType === 'articulo_marketplace') {
         aplicarCambioGuardadoEnCache(qc, entityId, estadoAnterior, +1);
+      } else if (entityType === 'dinamica') {
+        aplicarCambioGuardadoEnCacheDinamica(qc, entityId, estadoAnterior, +1);
       }
 
       // Notificar error

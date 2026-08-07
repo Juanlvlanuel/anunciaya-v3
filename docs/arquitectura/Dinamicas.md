@@ -1,7 +1,7 @@
 # 🎟️ Dinámicas — Rifas y Concursos P2P entre Usuarios
 
 > **Última actualización:** 6 Agosto 2026
-> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción (incl. página pública para compartir y chat con contexto por ChatYA), Fase 4 (motor de sorteo) y Fase 5 (tarjeta compartible) pendientes. Único hueco funcional dentro de Fase 3: el botón "Guardar" del detalle es placeholder (ver §Decisiones y pendientes abiertos).
+> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción (incl. página pública para compartir, chat con contexto por ChatYA y guardar en "Mis Guardados"), Fase 4 (motor de sorteo) y Fase 5 (tarjeta compartible) pendientes.
 > **Versión:** 0.3.1 (Fase 3 + pulido visual y chat/compartir)
 > **Doc de planeación original:** `docs/kit-dinamicas/Contexto_Dinamicas.md` (decisiones de producto previas a construir; este documento es la referencia técnica viva de lo ya construido — se va actualizando fase por fase).
 
@@ -305,7 +305,7 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 |---|---|---|
 | **Fase 1** | Backend: ciclo de vida, CRUD de borrador, transiciones de estado, boletos (funciones internas sin endpoint) | ✅ Completa |
 | **Fase 2** | Moderación de texto reducida, checklist legal al publicar, fotos de evidencia del premio en R2, composer de creación/edición | ✅ Completa |
-| **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados** | ✅ Completa salvo el botón "Guardar" (placeholder, ver §Decisiones y pendientes abiertos) |
+| **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados**, **guardar en "Mis Guardados"** | ✅ Completa |
 | **Fase 4** | Motor de sorteo: tómbola clásica animada, lotería carta única, lotería tabla completa (con sincronización en tiempo real) + 3 pantallas de resultado | 🔜 Pendiente — no ha empezado. Las 54 cartas de lotería ya están listas como preparación. |
 | **Fase 5** | Tarjeta compartible (imagen de resultado para redes sociales) | 🔜 Pendiente |
 
@@ -313,7 +313,7 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 
 ## 🧭 Decisiones y pendientes abiertos
 
-- **Botón "Guardar" (bookmark) del detalle es placeholder.** Muestra un toast "estará disponible pronto" — `'dinamica'` todavía no existe como `entityType` en el sistema de `useGuardados` (ni en el CHECK de la tabla `guardados`). Es el único hueco funcional que le falta a Fase 3. Para cerrarlo: agregar `'dinamica'` al union de `EntityType` en `useGuardados.ts`, ampliar el CHECK de `guardados.entity_type` (migración) y conectar el botón en `PaginaDinamica.tsx`.
+- **Guardar en "Mis Guardados"** (ago-2026) — `'dinamica'` es `entityType` del sistema genérico `guardados` (`/api/guardados`), igual que oferta/servicio/articulo_marketplace. Bookmark disponible en `PaginaDinamica.tsx` (header, ícono `Bookmark`) y en `CardDinamica.tsx` (feed, corazón sobre la portada, oculto si `esMio`). Tab propio "Dinámicas" en `PaginaGuardados.tsx` (`ContenidoDinamicas`, reusa `CardDinamicaCompacta` + `BookmarkGlass`). Solo muestra Dinámicas `activa`/`pospuesta` (mismo criterio que el feed); requirió migración `docs/migraciones/2026-08-06-guardados-dinamicas.sql` (columna `dinamicas.total_guardados` + CHECK de `guardados.entity_type`). Ver `docs/arquitectura/Guardados.md` §Tab 4.
 - **`pospuesta → activa` no existe como transición explícita.** Posponer es idempotente desde `activa` o `pospuesta`; siempre aterriza en `pospuesta` con la nueva fecha. Si se quiere una acción "reactivar" separada más adelante, es un cambio de alcance a discutir.
 - **El feed de "Mis Dinámicas" (`GET /mias`)** no filtra por estado (trae todo) — a diferencia de `listarDinamicasDeOrganizador` (usado en Perfil/Mis Publicaciones), que sí agrupa. Verificar si `GET /mias` sigue en uso real o quedó obsoleto tras la integración a Mis Publicaciones.
 - **Detalle de implementación de los 3 métodos de sorteo (Fase 4)** aún no se ha bajado a pantallas concretas — se resuelve en el mismo orden en que se van a construir: primero tómbola (más simple, prueba el motor base), luego carta única (reusa el mismo motor, solo cambia la piel visual), y tabla completa al final (única que requiere sincronización en tiempo real).

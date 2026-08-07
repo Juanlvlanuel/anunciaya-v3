@@ -43,6 +43,7 @@ import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
 import { useIniciarChatDinamica } from '../../../hooks/useIniciarChatDinamica';
+import { useGuardados } from '../../../hooks/useGuardados';
 import {
     useDinamica,
     useBoletosDinamica,
@@ -119,6 +120,14 @@ export function PaginaDinamica() {
     const posponer = usePosponerDinamica();
     const cancelar = useCancelarDinamica();
     const editar = useEditarBorradorDinamica();
+    // `entityId`/`initialGuardado` con fallback porque el hook debe llamarse
+    // incondicionalmente ANTES de los early return de loading/error de abajo
+    // (dinamica todavía puede ser undefined en ese punto).
+    const { guardado, loading: guardandoPendiente, toggleGuardado } = useGuardados({
+        entityType: 'dinamica',
+        entityId: dinamica?.id ?? '',
+        initialGuardado: dinamica?.guardado ?? false,
+    });
 
     const [boletoSeleccionado, setBoletoSeleccionado] = useState<number | null>(null);
     const [modalManualAbierto, setModalManualAbierto] = useState(false);
@@ -260,7 +269,7 @@ export function PaginaDinamica() {
             : `/p/dinamica/${dinamica.id}`;
 
     function handleGuardar() {
-        notificar.info('Guardar Dinámicas estará disponible pronto.');
+        toggleGuardado();
     }
 
     return (
@@ -349,14 +358,25 @@ export function PaginaDinamica() {
                                 />
                             </Tooltip>
 
-                            <Tooltip text="Guardar Dinámica" position="bottom" className="hidden lg:block">
+                            <Tooltip text={guardado ? 'Quitar de guardados' : 'Guardar Dinámica'} position="bottom" className="hidden lg:block">
                                 <button
                                     data-testid="btn-guardar-dinamica"
                                     onClick={handleGuardar}
-                                    aria-label="Guardar Dinámica"
-                                    className="relative flex h-[38px] w-[38px] items-center justify-center rounded-full border-2 border-white/40 bg-transparent overflow-visible transition-transform duration-200 lg:cursor-pointer lg:hover:scale-110 lg:hover:border-white/70 active:opacity-70"
+                                    disabled={guardandoPendiente}
+                                    aria-label={guardado ? 'Quitar de guardados' : 'Guardar Dinámica'}
+                                    aria-pressed={guardado}
+                                    className={`relative flex h-[38px] w-[38px] items-center justify-center rounded-full overflow-visible transition-transform duration-200 lg:cursor-pointer lg:hover:scale-110 active:opacity-70 disabled:opacity-50 ${
+                                        guardado ? 'bg-white border-2 border-amber-500' : 'bg-transparent border-2 border-white/40 lg:hover:border-white/70'
+                                    }`}
                                 >
-                                    <Bookmark className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.9)' }} />
+                                    {guardado && (
+                                        <span
+                                            aria-hidden
+                                            className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
+                                            style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                                        />
+                                    )}
+                                    <Bookmark className="h-5 w-5" style={{ color: guardado ? '#f59e0b' : 'rgba(255,255,255,0.9)' }} />
                                 </button>
                             </Tooltip>
                         </div>

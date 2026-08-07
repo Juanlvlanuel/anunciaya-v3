@@ -287,7 +287,7 @@ export async function getFeedDinamicas(req: Request, res: Response) {
     const pagina = req.query.pagina ? Number(req.query.pagina) : undefined;
     const limite = req.query.limite ? Number(req.query.limite) : undefined;
 
-    const resultado = await listarDinamicasPublicas({ ciudadId, pagina, limite });
+    const resultado = await listarDinamicasPublicas({ ciudadId, pagina, limite }, req.usuario?.usuarioId);
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }
@@ -322,7 +322,7 @@ export async function getDinamicasDeOrganizador(req: Request, res: Response) {
 
 /** GET /api/dinamicas/:id — ficha enriquecida (organizador, boletos, insignia) */
 export async function getDinamica(req: Request, res: Response) {
-    const resultado = await obtenerDinamicaPublica(req.params.id as string);
+    const resultado = await obtenerDinamicaPublica(req.params.id as string, req.usuario?.usuarioId);
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }

@@ -10,18 +10,19 @@
 
 ---
 
-**Última actualización:** 5 Junio 2026
-**Estado:** ✅ 100% Operacional (Negocios, Ofertas, Marketplace)
+**Última actualización:** 6 Agosto 2026
+**Estado:** ✅ Operacional (Negocios, Ofertas, Marketplace, Servicios, Dinámicas)
 
 > **Negocio fuera de circulación (Jun 2026):** guardar y listar respetan el estado del negocio.
 > `agregarGuardado` bloquea guardar **ofertas** y **vacantes-empresa** de negocios fuera
 > (`activo=false`); `obtenerGuardados` las **OCULTA** de la lista (no las borra → si el negocio
 > reactiva, el guardado reaparece solo). Las publicaciones de persona física no se tocan. Reusa
 > `estaFueraDeCirculacion` del helper central. Ver `Notificaciones.md`/`ChatYA.md` para el resto del tema.
+> Dinámicas no pasa por este candado — es 100% P2P personal, sin negocio asociado.
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - `hooks/queries/useMisGuardados.ts`
-> - Hooks: `useOfertasGuardadas()`, `useNegociosSeguidos()` (con GPS en query key), `useArticulosMarketplaceGuardados()`
+> - Hooks: `useOfertasGuardadas()`, `useNegociosSeguidos()` (con GPS en query key), `useArticulosMarketplaceGuardados()`, `useServiciosGuardados()`, `useDinamicasGuardadas()`
 > - Eliminación de guardados usa `invalidateQueries` para refrescar
 
 **Identidad visual:** Rose (rosa) — Header dark estilo CardYA
@@ -165,7 +166,7 @@ La página usa el mismo patrón visual que CardYA y Mis Cupones:
 
 ## 🗂️ Sistema de Tabs
 
-La página tiene 4 tabs en orden B2C → P2P: **Negocios**, **Ofertas**, **Marketplace**, **Servicios**. Los 3 primeros son funcionales; el último muestra "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
+La página tiene 5 tabs en orden B2C → P2P: **Negocios**, **Ofertas**, **Marketplace**, **Dinámicas**, **Servicios**. Los 4 primeros son funcionales; el último muestra "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
 
 **Tab inicial al entrar:** Negocios (`useState<TabGuardado>('negocios')`). Si se quiere otro default, cambiar el estado inicial.
 
@@ -235,9 +236,54 @@ GET /api/guardados?entityType=articulo_marketplace&pagina=1&limite=50
 
 ---
 
-### Tab 4: Servicios *(próximamente)*
+### Tab 4: Dinámicas (ago-2026)
 
-Estado visual "Próximamente disponible". Sin funcionalidad activa. Cubrirá los guardados de la sección pública Servicios (servicios e intangibles, incluye empleos). El `entityType` del endpoint es `'servicio'` (alineado con el CHECK constraint de BD).
+**Contador:** Muestra número total `Dinámicas (N)`
+
+**Contenido:**
+- Lista de Dinámicas (rifas/concursos) guardadas, `entityType` `'dinamica'`
+- Solo muestra Dinámicas en estado `activa`/`pospuesta` — mismo criterio de visibilidad dinámica que Ofertas/Marketplace/Servicios (si el organizador la cancela o entra en sorteo, desaparece de Mis Guardados; el registro en `guardados` se conserva)
+- Cards `CardDinamicaCompacta` (misma que usa el perfil público del organizador) + `BookmarkGlass` propio de esta página (la card no trae su propio corazón)
+
+**Query backend:**
+```typescript
+GET /api/guardados?entityType=dinamica&pagina=1&limite=50
+```
+
+**Acciones por tarjeta:**
+- Click en card → Navega a `/marketplace/dinamica/{id}` (detalle completo)
+- Bookmark glass (🔖) → Activa modo selección múltiple
+- Eliminar seleccionados → `DELETE /api/guardados/dinamica/{entityId}` por cada uno
+
+**Dónde se guarda (bookmark real, no el de esta página):**
+- Ficha de detalle (`PaginaDinamica.tsx`) — botón "Guardar" del header dark
+- Card del feed público (`CardDinamica.tsx`) — corazón sobre la portada (oculto si es tu propia Dinámica)
+
+Ver `docs/arquitectura/Dinamicas.md` §Decisiones y pendientes abiertos.
+
+---
+
+### Tab 5: Servicios
+
+> Nota: esta sección decía "próximamente" — quedó desactualizada. Se implementó en Sprint 9.3 y está en producción (`ContenidoServicios` en `PaginaGuardados.tsx`, reemplazó al placeholder `EstadoProximamente`).
+
+**Contador:** Muestra número total `Servicios (N)`
+
+**Contenido:**
+- Lista de publicaciones guardadas de la sección pública Servicios (servicios/intangibles, incluye vacantes y solicitudes), `entityType` `'servicio'`
+- Solo muestra publicaciones en estado `activa`; vacantes-empresa de negocios fuera de circulación quedan ocultas
+- Card `CardServicio` (universal del feed, mismo componente para vacante/servicio/solicito) + `BookmarkGlass` propio (posición `top-left`, el badge de tipo del card se mueve a `top-right` vía `posicionBadgeTipo="right"`)
+- Distancia calculada client-side desde el GPS del usuario contra `ubicacionAproximada` de la publicación
+
+**Query backend:**
+```typescript
+GET /api/guardados?entityType=servicio&pagina=1&limite=50
+```
+
+**Acciones por tarjeta:**
+- Click en card → Navega al detalle de la publicación
+- Bookmark glass (🔖) → Activa modo selección múltiple
+- Eliminar seleccionados → `DELETE /api/guardados/servicio/{entityId}` por cada uno
 
 ---
 

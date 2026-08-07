@@ -49,6 +49,9 @@ export interface Dinamica {
     timestampSorteo: string | null;
     hashVerificacion: string | null;
     confirmaciones: ConfirmacionesDinamica | null;
+    /** Contador denormalizado de "Mis Guardados" — mismo patrón que
+     *  `totalGuardados` de MarketPlace/Servicios. */
+    totalGuardados: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -111,6 +114,9 @@ export interface DinamicaFeedItem extends Dinamica {
     organizador: OrganizadorDinamica;
     boletosPagados: number;
     boletosDisponibles: number | null;
+    /** true si el usuario autenticado actual la tiene en "Mis Guardados".
+     *  Siempre false para visitantes anónimos. */
+    guardado: boolean;
 }
 
 /** Respuesta paginada del feed — mismo shape que `RespuestaFeedInfinito` de MarketPlace. */
@@ -129,6 +135,8 @@ export interface DinamicaDetallePublico extends Dinamica {
     insigniaOrganizador: InsigniaOrganizador;
     /** Nombre de la ciudad (join con `ciudades` a partir de `ciudadId`). */
     ciudadNombre: string | null;
+    /** true si el usuario autenticado actual la tiene en "Mis Guardados". */
+    guardado: boolean;
 }
 
 export type EstadoBoletoDinamica = 'reservado' | 'pagado';

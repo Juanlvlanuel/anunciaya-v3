@@ -21,9 +21,12 @@
 import { useCallback, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Clock, ImageOff, Ticket, Users } from 'lucide-react';
+import { Icon, ICONOS } from '../../config/iconos';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useIniciarChatDinamica } from '../../hooks/useIniciarChatDinamica';
+import { useGuardados } from '../../hooks/useGuardados';
+import { useSaveBubble } from '../../hooks/useSaveBubble';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import type { DinamicaFeedItem } from '../../types/dinamicas';
 
@@ -78,6 +81,20 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
     const estado = ETIQUETA_ESTADO[dinamica.estado] ?? ETIQUETA_ESTADO.activa;
     const esMio = usuarioActual?.id === dinamica.organizador.id;
 
+    // Guardar/quitar de "Mis Guardados" — mismo patrón que el corazón de
+    // `CardArticulo.tsx` (MarketPlace): estado optimista + bubble flotante.
+    const { guardado, loading: guardandoPendiente, toggleGuardado } = useGuardados({
+        entityType: 'dinamica',
+        entityId: dinamica.id,
+        initialGuardado: dinamica.guardado,
+    });
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
+    const handleClickGuardar = (e: MouseEvent) => {
+        e.stopPropagation();
+        triggerSaveBubble(e, guardado ? 'unsave' : 'save');
+        toggleGuardado();
+    };
+
     const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
 
     const irAlDetalle = () => navigate(`/marketplace/dinamica/${dinamica.id}`);
@@ -113,24 +130,58 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
 
             {/* Portada — clickeable (va al detalle, como la galería de MP).
                 El estado va superpuesto arriba a la derecha (sólido +
-                sombra, se lee sobre cualquier foto). */}
-            <button
-                type="button"
-                onClick={irAlDetalle}
-                aria-label="Ver Dinámica"
-                className="relative block aspect-video w-full bg-slate-200 lg:cursor-pointer"
-            >
-                {portadaUrl ? (
-                    <img src={portadaUrl} alt={dinamica.titulo} className="block h-full w-full object-cover" />
-                ) : (
-                    <div className="h-full w-full flex items-center justify-center text-slate-400">
-                        <ImageOff className="h-10 w-10" strokeWidth={1.5} />
-                    </div>
+                sombra, se lee sobre cualquier foto). El botón de guardar es
+                un HERMANO (no puede ir dentro del <button> de la portada —
+                <button> anidado es HTML inválido), superpuesto arriba a la
+                izquierda, mismo patrón que el corazón de `CardArticulo.tsx`. */}
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={irAlDetalle}
+                    aria-label="Ver Dinámica"
+                    className="relative block aspect-video w-full bg-slate-200 lg:cursor-pointer"
+                >
+                    {portadaUrl ? (
+                        <img src={portadaUrl} alt={dinamica.titulo} className="block h-full w-full object-cover" />
+                    ) : (
+                        <div className="h-full w-full flex items-center justify-center text-slate-400">
+                            <ImageOff className="h-10 w-10" strokeWidth={1.5} />
+                        </div>
+                    )}
+                    <span className={`absolute top-2.5 right-2.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-md shadow-black/20 ${estado.clase}`}>
+                        {estado.texto}
+                    </span>
+                </button>
+
+                {!esMio && (
+                    <button
+                        type="button"
+                        data-testid={`btn-guardar-dinamica-${dinamica.id}`}
+                        onClick={handleClickGuardar}
+                        disabled={guardandoPendiente}
+                        aria-label={guardado ? 'Quitar de guardados' : 'Guardar Dinámica'}
+                        aria-pressed={guardado}
+                        className={`absolute left-2.5 top-2.5 z-10 flex h-[38px] w-[38px] cursor-pointer items-center justify-center rounded-full backdrop-blur-[10px] overflow-visible disabled:opacity-50 ${
+                            guardado
+                                ? 'border-2 border-amber-500 bg-white'
+                                : 'border border-white/10 bg-black/25'
+                        }`}
+                    >
+                        {guardado && (
+                            <span
+                                aria-hidden
+                                className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
+                                style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                            />
+                        )}
+                        <Icon
+                            icon={ICONOS.guardar}
+                            className="w-5 h-5"
+                            style={{ color: guardado ? '#f59e0b' : 'white' }}
+                        />
+                    </button>
                 )}
-                <span className={`absolute top-2.5 right-2.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-md shadow-black/20 ${estado.clase}`}>
-                    {estado.texto}
-                </span>
-            </button>
+            </div>
 
             {/* Header — organizador. Avatar y nombre son los que navegan (no
                 el card completo), igual que CardArticuloFeed de MP. La
@@ -265,6 +316,7 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
                     initialIndex={0}
                 />
             )}
+            {saveBubble}
         </article>
     );
 }

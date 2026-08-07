@@ -26,6 +26,7 @@ import {
     X,
     Check,
     ShoppingCart,
+    Ticket,
     Clock,
     History,
     type LucideIcon,
@@ -62,23 +63,26 @@ import {
     useNegociosSeguidos,
     useArticulosMarketplaceGuardados,
     useServiciosGuardados,
+    useDinamicasGuardadas,
 } from '@/hooks/queries/useMisGuardados';
-import { aplicarCambioGuardadoEnCache } from '@/hooks/useGuardados';
+import { aplicarCambioGuardadoEnCache, aplicarCambioGuardadoEnCacheDinamica } from '@/hooks/useGuardados';
 import notificar from '@/utils/notificaciones';
 import { CardArticulo } from '@/components/marketplace/CardArticulo';
 import { CardArticuloGuardado } from '@/components/marketplace/CardArticuloGuardado';
 import { CardServicio } from '@/components/servicios/CardServicio';
+import { CardDinamicaCompacta } from '@/components/dinamicas/CardDinamicaCompacta';
 import { calcularDistanciaMetros } from '@/utils/marketplace';
 import { useGpsStore } from '@/stores/useGpsStore';
 import type { Oferta } from '@/types/ofertas';
 import type { ArticuloFeed } from '@/types/marketplace';
 import type { PublicacionServicio } from '@/types/servicios';
+import type { DinamicaFeedItem } from '@/types/dinamicas';
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-type TabGuardado = 'negocios' | 'ofertas' | 'marketplace' | 'servicios';
+type TabGuardado = 'negocios' | 'ofertas' | 'marketplace' | 'dinamicas' | 'servicios';
 
 type Ordenamiento = 'recientes' | 'antiguos' | 'alfabetico-az' | 'alfabetico-za';
 
@@ -158,6 +162,7 @@ export function PaginaGuardados() {
     const negociosQuery = useNegociosSeguidos();
     const articulosMarketplaceQuery = useArticulosMarketplaceGuardados();
     const serviciosQuery = useServiciosGuardados();
+    const dinamicasQuery = useDinamicasGuardadas();
     const ofertas = (ofertasQuery.data ?? []) as GuardadoOferta[];
     const negocios = (negociosQuery.data ?? []) as NegocioSeguido[];
     const articulosMarketplace = (articulosMarketplaceQuery.data ?? []) as Array<{
@@ -174,10 +179,18 @@ export function PaginaGuardados() {
         createdAt: string;
         publicacion: PublicacionServicio;
     }>;
+    const dinamicas = (dinamicasQuery.data ?? []) as Array<{
+        id: string;
+        entityType: string;
+        entityId: string;
+        createdAt: string;
+        dinamica: DinamicaFeedItem;
+    }>;
     const loadingOfertas = ofertasQuery.isPending;
     const loadingNegocios = negociosQuery.isPending;
     const loadingArticulosMarketplace = articulosMarketplaceQuery.isPending;
     const loadingServicios = serviciosQuery.isPending;
+    const loadingDinamicas = dinamicasQuery.isPending;
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<GuardadoOferta | null>(null);
 
     // Filtros (para implementación futura)
@@ -264,6 +277,8 @@ export function PaginaGuardados() {
             setIdsSeleccionados(new Set(negocios.map((n) => n.id)));
         } else if (tabActivo === 'marketplace') {
             setIdsSeleccionados(new Set(articulosMarketplace.map((a) => a.id)));
+        } else if (tabActivo === 'dinamicas') {
+            setIdsSeleccionados(new Set(dinamicas.map((d) => d.id)));
         } else if (tabActivo === 'servicios') {
             setIdsSeleccionados(new Set(servicios.map((s) => s.id)));
         }
@@ -282,6 +297,7 @@ export function PaginaGuardados() {
         const negociosOriginales = [...negocios];
         const articulosOriginales = [...articulosMarketplace];
         const serviciosOriginales = [...servicios];
+        const dinamicasOriginales = [...dinamicas];
 
         try {
             // Eliminación: se refresca después del delete
@@ -320,6 +336,12 @@ export function PaginaGuardados() {
                     if (item) {
                         return api.delete(`guardados/articulo_marketplace/${item.entityId}`);
                     }
+                } else if (tabActivo === 'dinamicas') {
+                    // Mismo endpoint genérico que ofertas/marketplace/servicios.
+                    const item = dinamicasOriginales.find(d => d.id === guardadoId);
+                    if (item) {
+                        return api.delete(`guardados/dinamica/${item.entityId}`);
+                    }
                 } else if (tabActivo === 'servicios') {
                     // Sprint 9.3 — desguardar publicación de Servicios.
                     // Mismo endpoint genérico que ofertas/marketplace.
@@ -355,6 +377,16 @@ export function PaginaGuardados() {
                         aplicarCambioGuardadoEnCache(qc, a.entityId, false, -1);
                     });
             }
+            // Sincronizar cache de Dinámicas (feed + detalle) — mismo motivo
+            // que MarketPlace arriba: sin esto el corazón sigue amber al
+            // volver al feed o a la ficha de detalle.
+            if (tabActivo === 'dinamicas') {
+                dinamicasOriginales
+                    .filter(d => idsAEliminar.includes(d.id))
+                    .forEach(d => {
+                        aplicarCambioGuardadoEnCacheDinamica(qc, d.entityId, false, -1);
+                    });
+            }
         } catch (error) {
             console.error('Error al eliminar guardados:', error);
             
@@ -372,11 +404,13 @@ export function PaginaGuardados() {
         tabActivo === 'ofertas' ? ofertas.length :
         tabActivo === 'negocios' ? negocios.length :
         tabActivo === 'marketplace' ? articulosMarketplace.length :
+        tabActivo === 'dinamicas' ? dinamicas.length :
         tabActivo === 'servicios' ? servicios.length : 0;
     const loading =
         tabActivo === 'ofertas' ? loadingOfertas :
         tabActivo === 'negocios' ? loadingNegocios :
         tabActivo === 'marketplace' ? loadingArticulosMarketplace :
+        tabActivo === 'dinamicas' ? loadingDinamicas :
         tabActivo === 'servicios' ? loadingServicios : false;
 
     // Ordenar items según selección
@@ -414,6 +448,7 @@ export function PaginaGuardados() {
         { id: 'negocios', label: 'Negocios', Icono: Store },
         { id: 'ofertas', label: 'Ofertas', Icono: Tag },
         { id: 'marketplace', label: 'Marketplace', Icono: ShoppingCart },
+        { id: 'dinamicas', label: 'Dinámicas', Icono: Ticket },
         { id: 'servicios', label: 'Servicios', Icono: Briefcase },
     ];
 
@@ -421,6 +456,7 @@ export function PaginaGuardados() {
         if (id === 'ofertas') return ofertas.length;
         if (id === 'negocios') return negocios.length;
         if (id === 'marketplace') return articulosMarketplace.length;
+        if (id === 'dinamicas') return dinamicas.length;
         if (id === 'servicios') return servicios.length;
         return 0;
     };
@@ -750,6 +786,18 @@ export function PaginaGuardados() {
                             <ContenidoMarketplace
                                 items={articulosMarketplace}
                                 loading={loadingArticulosMarketplace}
+                                onClickBookmark={handleClickBookmark}
+                                modoSeleccion={modoSeleccion}
+                                idsSeleccionados={idsSeleccionados}
+                            />
+                        </div>
+                    )}
+
+                    {tabActivo === 'dinamicas' && (
+                        <div className="animate-fade-in">
+                            <ContenidoDinamicas
+                                items={dinamicas}
+                                loading={loadingDinamicas}
                                 onClickBookmark={handleClickBookmark}
                                 modoSeleccion={modoSeleccion}
                                 idsSeleccionados={idsSeleccionados}
@@ -1235,6 +1283,84 @@ function ContenidoMarketplace({
                         articulo={{ ...item.articulo, distanciaMetros: null } as ArticuloFeed}
                         onClick={() => navegarASeccion(`/marketplace/articulo/${item.articulo.id}`)}
                     />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// =============================================================================
+// CONTENIDO DINÁMICAS (agosto 2026)
+// =============================================================================
+
+interface ItemDinamicaGuardado {
+    id: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    dinamica: DinamicaFeedItem;
+}
+
+interface ContenidoDinamicasProps {
+    items: ItemDinamicaGuardado[];
+    loading: boolean;
+    onClickBookmark: (id: string, e: React.MouseEvent) => void;
+    modoSeleccion: boolean;
+    idsSeleccionados: Set<string>;
+}
+
+function ContenidoDinamicas({
+    items,
+    loading,
+    onClickBookmark,
+    modoSeleccion,
+    idsSeleccionados,
+}: ContenidoDinamicasProps) {
+    if (loading) {
+        return (
+            <div className="flex min-h-40 items-center justify-center">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-500 border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (items.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                {/* Patrón estándar idéntico a Cupones/CardYA */}
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-rose-50 flex items-center justify-center ring-8 ring-rose-50 mb-6">
+                    <Ticket className="w-12 h-12 lg:w-16 lg:h-16 text-rose-400" />
+                </div>
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                    Sin Dinámicas guardadas
+                </h3>
+                <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                    Toca el ❤️ en una rifa o concurso para guardarlo aquí.
+                </p>
+            </div>
+        );
+    }
+
+    // Grid alineado a los otros 3 tabs (Ofertas/Marketplace/Servicios).
+    return (
+        <div
+            data-testid="grid-dinamicas-guardadas"
+            className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6"
+        >
+            {items.map((item) => (
+                <div
+                    key={item.id}
+                    className="relative lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                >
+                    {/* Bookmark con estilo glass (unificado con los demás
+                        tabs). `CardDinamicaCompacta` no tiene su propio
+                        corazón — este overlay lo reemplaza. */}
+                    <BookmarkGlass
+                        seleccionado={modoSeleccion && idsSeleccionados.has(item.id)}
+                        onClick={(e) => onClickBookmark(item.id, e)}
+                    />
+
+                    <CardDinamicaCompacta dinamica={item.dinamica} />
                 </div>
             ))}
         </div>

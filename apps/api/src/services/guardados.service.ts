@@ -26,6 +26,7 @@
 import { eq, and, sql, or, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { estaFueraDeCirculacion } from '../utils/estadoNegocio.js';
+import { contarBoletosPagados } from './dinamicas.service.js';
 import {
     guardados,
     ofertas,
@@ -33,13 +34,15 @@ import {
     negocios,
     articulosMarketplace,
     serviciosPublicaciones,
+    dinamicas,
+    usuarios,
 } from '../db/schemas/schema';
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-type EntityType = 'oferta' | 'servicio' | 'articulo_marketplace';
+type EntityType = 'oferta' | 'servicio' | 'articulo_marketplace' | 'dinamica';
 
 interface AgregarGuardadoParams {
     userId: string;
@@ -144,6 +147,11 @@ export async function agregarGuardado(params: AgregarGuardadoParams) {
                 .update(serviciosPublicaciones)
                 .set({ totalGuardados: sql`${serviciosPublicaciones.totalGuardados} + 1` })
                 .where(eq(serviciosPublicaciones.id, entityId));
+        } else if (entityType === 'dinamica') {
+            await db
+                .update(dinamicas)
+                .set({ totalGuardados: sql`${dinamicas.totalGuardados} + 1` })
+                .where(eq(dinamicas.id, entityId));
         }
 
         return {
@@ -217,6 +225,13 @@ export async function quitarGuardado(
                     totalGuardados: sql`GREATEST(${serviciosPublicaciones.totalGuardados} - 1, 0)`,
                 })
                 .where(eq(serviciosPublicaciones.id, entityId));
+        } else if (entityType === 'dinamica') {
+            await db
+                .update(dinamicas)
+                .set({
+                    totalGuardados: sql`GREATEST(${dinamicas.totalGuardados} - 1, 0)`,
+                })
+                .where(eq(dinamicas.id, entityId));
         }
 
         return {
@@ -730,6 +745,92 @@ export async function obtenerGuardados(
                 success: true,
                 data: {
                     guardados: guardadosConPublicacion,
+                    total,
+                    pagina,
+                    limite,
+                    totalPaginas,
+                },
+            };
+        }
+
+        // =====================================================================
+        // CASO 4: entityType === 'dinamica' → JOIN con Dinámicas + organizador
+        // (Sprint — tab "Dinámicas" en Mis Guardados, ago-2026)
+        // =====================================================================
+        else if (entityType === 'dinamica') {
+            const guardadosConDinamicaBase = await db
+                .select({
+                    id: guardados.id,
+                    entityType: guardados.entityType,
+                    entityId: guardados.entityId,
+                    createdAt: guardados.createdAt,
+                    dinamica: dinamicas,
+                    organizadorId: usuarios.id,
+                    organizadorNombre: usuarios.nombre,
+                    organizadorApellidos: usuarios.apellidos,
+                    organizadorAvatarUrl: usuarios.avatarUrl,
+                })
+                .from(guardados)
+                .innerJoin(dinamicas, eq(dinamicas.id, guardados.entityId))
+                .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
+                .where(and(
+                    ...condiciones,
+                    // Solo Dinámicas que el visitante aún puede ver/participar
+                    // — igual filtro que el feed público. Si el organizador la
+                    // pospone/reactiva sigue visible; si entra en sorteo o
+                    // cierra, desaparece de Mis Guardados (el registro en
+                    // `guardados` se conserva por si vuelve a estar activa).
+                    sql`${dinamicas.estado} IN ('activa', 'pospuesta')`,
+                ))
+                .orderBy(sql`${guardados.createdAt} DESC`)
+                .limit(limite)
+                .offset(offset);
+
+            const guardadosConDinamica = await Promise.all(
+                guardadosConDinamicaBase.map(async (fila) => {
+                    const boletosPagados = await contarBoletosPagados(fila.dinamica.id);
+                    const boletosDisponibles =
+                        fila.dinamica.numeroTotalBoletos !== null
+                            ? Math.max(0, fila.dinamica.numeroTotalBoletos - boletosPagados)
+                            : null;
+                    return {
+                        id: fila.id,
+                        entityType: fila.entityType,
+                        entityId: fila.entityId,
+                        createdAt: fila.createdAt,
+                        dinamica: {
+                            ...fila.dinamica,
+                            organizador: {
+                                id: fila.organizadorId,
+                                nombre: fila.organizadorNombre,
+                                apellidos: fila.organizadorApellidos,
+                                avatarUrl: fila.organizadorAvatarUrl,
+                            },
+                            boletosPagados,
+                            boletosDisponibles,
+                        },
+                    };
+                }),
+            );
+
+            const [{ count }] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(guardados)
+                .innerJoin(dinamicas, eq(dinamicas.id, guardados.entityId))
+                .where(
+                    and(
+                        eq(guardados.usuarioId, userId),
+                        eq(guardados.entityType, 'dinamica'),
+                        sql`${dinamicas.estado} IN ('activa', 'pospuesta')`,
+                    ),
+                );
+            const total = Number(count);
+            const totalPaginas = Math.ceil(total / limite);
+
+            return {
+                success: true,
+                data: {
+                    guardados: guardadosConDinamica,
                     total,
                     pagina,
                     limite,

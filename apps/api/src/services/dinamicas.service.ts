@@ -368,8 +368,20 @@ export async function listarMisDinamicas(usuarioId: string) {
 /** Ficha pública de una Dinámica: la fila + organizador embebido + boletos
  *  vendidos/disponibles + insignia del organizador — igual criterio de
  *  enriquecimiento que `ArticuloMarketplaceDetalle` en MarketPlace. */
-export async function obtenerDinamicaPublica(dinamicaId: string) {
+/** `usuarioActualId` es opcional (viene de `verificarTokenOpcional`) — solo
+ *  sirve para calcular el flag `guardado` del visitante actual, igual patrón
+ *  que `marketplace.service.ts` (`obtenerArticuloDetalle`). */
+export async function obtenerDinamicaPublica(dinamicaId: string, usuarioActualId?: string) {
     try {
+        const guardadoExpr = usuarioActualId
+            ? sql<boolean>`EXISTS (
+                SELECT 1 FROM guardados g
+                WHERE g.usuario_id = ${usuarioActualId}
+                  AND g.entity_type = 'dinamica'
+                  AND g.entity_id = ${dinamicas.id}
+              )`
+            : sql<boolean>`FALSE`;
+
         const [fila] = await db
             .select({
                 dinamica: dinamicas,
@@ -379,6 +391,7 @@ export async function obtenerDinamicaPublica(dinamicaId: string) {
                 organizadorAvatarUrl: usuarios.avatarUrl,
                 organizadorUltimaConexion: usuarios.ultimaConexion,
                 ciudadNombre: ciudades.nombre,
+                guardado: guardadoExpr,
             })
             .from(dinamicas)
             .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
@@ -405,6 +418,7 @@ export async function obtenerDinamicaPublica(dinamicaId: string) {
             data: {
                 ...fila.dinamica,
                 ciudadNombre: fila.ciudadNombre,
+                guardado: fila.guardado,
                 organizador: {
                     id: fila.organizadorId,
                     nombre: fila.organizadorNombre,
@@ -432,12 +446,22 @@ interface OpcionesFeedDinamicas {
 /** Feed público de Dinámicas — `estado IN ('activa','pospuesta')`, filtrado
  *  por ciudad, paginación offset-based igual que `marketplace.service.ts`
  *  (`pagina/limite/hayMas`, se pide `limite + 1` para saber si hay más sin
- *  un segundo COUNT). */
-export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas) {
+ *  un segundo COUNT). `usuarioActualId` opcional (`verificarTokenOpcional`)
+ *  — solo para el flag `guardado` de cada card. */
+export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas, usuarioActualId?: string) {
     try {
         const pagina = Math.max(1, opciones.pagina ?? 1);
         const limite = Math.min(20, Math.max(1, opciones.limite ?? 10));
         const offset = (pagina - 1) * limite;
+
+        const guardadoExpr = usuarioActualId
+            ? sql<boolean>`EXISTS (
+                SELECT 1 FROM guardados g
+                WHERE g.usuario_id = ${usuarioActualId}
+                  AND g.entity_type = 'dinamica'
+                  AND g.entity_id = ${dinamicas.id}
+              )`
+            : sql<boolean>`FALSE`;
 
         const filas = await db
             .select({
@@ -446,6 +470,7 @@ export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas) {
                 organizadorNombre: usuarios.nombre,
                 organizadorApellidos: usuarios.apellidos,
                 organizadorAvatarUrl: usuarios.avatarUrl,
+                guardado: guardadoExpr,
             })
             .from(dinamicas)
             .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
@@ -471,6 +496,7 @@ export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas) {
                         : null;
                 return {
                     ...fila.dinamica,
+                    guardado: fila.guardado,
                     organizador: {
                         id: fila.organizadorId,
                         nombre: fila.organizadorNombre,

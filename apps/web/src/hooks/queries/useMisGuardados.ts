@@ -91,6 +91,32 @@ export function useServiciosGuardados() {
 }
 
 // =============================================================================
+// DINÁMICAS GUARDADAS (agosto 2026)
+// =============================================================================
+
+/**
+ * Lista paginada de Dinámicas que el usuario guardó. Usa el endpoint
+ * genérico `/guardados` con `entityType=dinamica`. El backend hace JOIN con
+ * `dinamicas` + organizador y devuelve el shape `DinamicaFeedItem` (mismo
+ * que consume `CardDinamicaCompacta`), envuelto en `{ ..., dinamica: {...} }`.
+ */
+export function useDinamicasGuardadas() {
+  const usuarioId = useAuthStore((s) => s.usuario?.id ?? '');
+  const habilitado = !!usuarioId;
+
+  return useQuery({
+    queryKey: ['guardados', 'dinamicas', usuarioId] as const,
+    queryFn: async () => {
+      const response = await api.get('/guardados', {
+        params: { entityType: 'dinamica', pagina: 1, limite: 50 },
+      });
+      return response.data.success ? response.data.data.guardados ?? [] : [];
+    },
+    enabled: habilitado,
+  });
+}
+
+// =============================================================================
 // NEGOCIOS SEGUIDOS
 // =============================================================================
 

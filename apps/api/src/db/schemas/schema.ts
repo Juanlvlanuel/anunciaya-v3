@@ -2838,6 +2838,9 @@ export const dinamicas = pgTable("dinamicas", {
 	semillaAleatoria: varchar("semilla_aleatoria", { length: 128 }),
 	timestampSorteo: timestamp("timestamp_sorteo", { withTimezone: true, mode: 'string' }),
 	hashVerificacion: varchar("hash_verificacion", { length: 128 }),
+	// Contador denormalizado de "Mis Guardados" — mismo patrón que
+	// articulos_marketplace.total_guardados / servicios_publicaciones.total_guardados.
+	totalGuardados: integer("total_guardados").default(0).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
