@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -36,11 +37,15 @@ import {
     UserCheck,
     UserPlus,
     Users,
+    X,
 } from 'lucide-react';
 import { Icon, ICONOS, type IconProps } from '@/config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useBreakpoint } from '../../../hooks/useBreakpoint';
+import { useBackNativo } from '../../../hooks/useBackNativo';
+import { usePortalTarget } from '../../../hooks/usePortalTarget';
 import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
 import { useIniciarChatDinamica } from '../../../hooks/useIniciarChatDinamica';
 import { useGuardados } from '../../../hooks/useGuardados';
@@ -60,6 +65,12 @@ import Tooltip from '../../../components/ui/Tooltip';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { ModalImagenes } from '../../../components/ui/ModalImagenes';
 import {
+    HeaderAccionGradiente,
+    ResumenAccionModal,
+    AvisoContextualModal,
+    BotonesAccionModal,
+} from '../../../components/ui/ModalAccionGradiente';
+import {
     ModalAgregarParticipanteDinamica,
     ModalPosponerDinamica,
     ModalCancelarDinamica,
@@ -67,7 +78,7 @@ import {
 } from '../../../components/dinamicas/ModalesAccionDinamica';
 import { notificar } from '../../../utils/notificaciones';
 import { formatearUltimaConexion } from '../../../utils/marketplace';
-import type { BoletoDinamica, DinamicaDetallePublico } from '../../../types/dinamicas';
+import type { BoletoDinamica, DinamicaDetallePublico, OrganizadorDinamica } from '../../../types/dinamicas';
 
 // Wrapper local: icono migrado a Iconify manteniendo el nombre familiar.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -75,6 +86,10 @@ const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 const SOMBRA_CARD = '0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)';
+
+/** Cuántos participantes se muestran inline antes de mostrar "Ver todos" —
+ *  con hasta 200 boletos posibles, la card no puede crecer sin límite. */
+const MAX_PARTICIPANTES_PREVIEW = 6;
 
 const ETIQUETA_TIPO_PREMIO: Record<string, string> = { fisico: 'Premio físico', efectivo: 'Premio en efectivo' };
 const ETIQUETA_METODO: Record<string, string> = {
@@ -131,9 +146,11 @@ export function PaginaDinamica() {
 
     const [boletoSeleccionado, setBoletoSeleccionado] = useState<number | null>(null);
     const [modalManualAbierto, setModalManualAbierto] = useState(false);
+    const [numeroBoletoParaAgregar, setNumeroBoletoParaAgregar] = useState<number | null>(null);
     const [modalPosponerAbierto, setModalPosponerAbierto] = useState(false);
     const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
     const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
+    const [modalParticipantesAbierto, setModalParticipantesAbierto] = useState(false);
     const boletosScrollRef = useRef<HTMLDivElement>(null);
 
     const esOrganizador = !!usuarioActual && !!dinamica && usuarioActual.id === dinamica.organizadorUsuarioId;
@@ -143,6 +160,11 @@ export function PaginaDinamica() {
         for (const b of boletos) mapa.set(b.numeroBoleto, b);
         return mapa;
     }, [boletos]);
+
+    const participantesVisibles = useMemo(
+        () => boletos.filter((b) => b.estado === 'pagado' || b.estado === 'reservado'),
+        [boletos],
+    );
 
     if (isLoading) {
         return (
@@ -195,6 +217,14 @@ export function PaginaDinamica() {
         el.scrollBy({ left: direccion * el.clientWidth * 0.8, behavior: 'smooth' });
     }
 
+    // Organizador: click en un boleto disponible del grid abre "Agregar
+    // Participante" ya con ese número — más rápido que abrirlo desde el
+    // menú "⋯" y escribir el número a mano.
+    function abrirAgregarManualConBoleto(numero: number) {
+        setNumeroBoletoParaAgregar(numero);
+        setModalManualAbierto(true);
+    }
+
     async function confirmarReserva() {
         if (!dinamicaId || boletoSeleccionado === null) return;
         const r = await reservarBoleto.mutateAsync({ dinamicaId, numeroBoleto: boletoSeleccionado });
@@ -212,6 +242,7 @@ export function PaginaDinamica() {
         if (r.success) {
             notificar.exito('Participante agregado.');
             setModalManualAbierto(false);
+            setNumeroBoletoParaAgregar(null);
         } else {
             notificar.error(r.message);
         }
@@ -482,18 +513,32 @@ export function PaginaDinamica() {
                                     {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => i + 1).map((numero) => {
                                         const boleto = mapaBoletos.get(numero);
                                         const estado = boleto?.estado ?? 'disponible';
+                                        // El organizador no puede reservarse boletos de su
+                                        // propia Dinámica (backend lo rechaza con 403) — en vez
+                                        // de mostrarle el recuadro bloqueado, click sobre uno
+                                        // disponible abre "Agregar Participante" con ese boleto
+                                        // ya elegido (para registrar a alguien que le pagó por
+                                        // fuera). Cualquier otra persona ve el flujo normal de
+                                        // "Reservar boleto".
                                         return (
                                             <button
                                                 key={numero}
                                                 data-testid={`boleto-${numero}`}
                                                 disabled={estado !== 'disponible'}
-                                                onClick={() => setBoletoSeleccionado(numero)}
+                                                title={esOrganizador && estado === 'disponible' ? 'Agregar participante en este boleto' : undefined}
+                                                onClick={() =>
+                                                    esOrganizador
+                                                        ? abrirAgregarManualConBoleto(numero)
+                                                        : setBoletoSeleccionado(numero)
+                                                }
                                                 className={`flex h-14 w-14 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
                                                     estado === 'pagado'
                                                         ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
                                                         : estado === 'reservado'
                                                           ? 'bg-amber-100 text-amber-700 cursor-not-allowed'
-                                                          : 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-amber-500 lg:hover:text-white'
+                                                          : esOrganizador
+                                                            ? 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-blue-600 lg:hover:text-white'
+                                                            : 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-amber-500 lg:hover:text-white'
                                                 }`}
                                             >
                                                 {numero}
@@ -536,80 +581,84 @@ export function PaginaDinamica() {
                         </div>
                     )}
 
-                    {/* Lista de participantes */}
-                    {boletos.length > 0 && (
+                    {/* Lista de participantes — preview de los primeros
+                        `MAX_PARTICIPANTES_PREVIEW`; si hay más, "Ver todos"
+                        abre `ModalListaParticipantes` con la lista completa
+                        (fullscreen en móvil, modal centrado en desktop) para
+                        no dejar crecer esta card verticalmente sin límite
+                        (hasta 200 boletos posibles). */}
+                    {participantesVisibles.length > 0 && (
                         <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
                             <h2 className="mb-3 flex items-center gap-1.5 text-base font-bold text-slate-900">
                                 <Users className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
                                 Participantes
+                                <span className="text-sm font-semibold text-slate-500">({participantesVisibles.length})</span>
                             </h2>
                             <div className="divide-y divide-slate-200 rounded-lg border border-slate-200">
-                                {boletos
-                                    .filter((b) => b.estado === 'pagado' || b.estado === 'reservado')
-                                    .map((b) => (
-                                        <div key={b.id} className="flex items-center gap-2.5 px-3 py-2.5">
-                                            <span className="w-8 shrink-0 text-xs font-bold text-slate-600">#{b.numeroBoleto}</span>
-                                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
-                                                {b.usuario ? `${b.usuario.nombre} ${b.usuario.apellidos}` : `${b.nombreManual} · Sin cuenta AnunciaYA`}
-                                            </span>
-                                            <span
-                                                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                                    b.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                                                }`}
-                                            >
-                                                {b.estado === 'pagado' ? 'Pagado' : 'Reservado'}
-                                            </span>
-                                            {b.usuario && usuarioActual?.id !== b.usuario.id && (
-                                                <button
-                                                    onClick={() => abrirChatCon(b.usuario!)}
-                                                    className="shrink-0 rounded-full border-2 border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-700 lg:cursor-pointer lg:hover:bg-amber-100"
-                                                >
-                                                    Contactar
-                                                </button>
-                                            )}
-                                            {esOrganizador && b.estado === 'reservado' && (
-                                                <button
-                                                    onClick={() => confirmarPagoDe(b.id)}
-                                                    className="shrink-0 rounded-full bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
-                                                >
-                                                    Confirmar pago
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                {participantesVisibles.slice(0, MAX_PARTICIPANTES_PREVIEW).map((b) => (
+                                    <FilaParticipante
+                                        key={b.id}
+                                        boleto={b}
+                                        esOrganizador={esOrganizador}
+                                        usuarioActualId={usuarioActual?.id}
+                                        onContactar={abrirChatCon}
+                                        onConfirmarPago={confirmarPagoDe}
+                                    />
+                                ))}
                             </div>
+                            {participantesVisibles.length > MAX_PARTICIPANTES_PREVIEW && (
+                                <button
+                                    type="button"
+                                    data-testid="btn-ver-todos-participantes"
+                                    onClick={() => setModalParticipantesAbierto(true)}
+                                    className="mt-3 w-full rounded-lg border-2 border-amber-300 py-2 text-sm font-bold text-amber-700 lg:cursor-pointer lg:hover:bg-amber-50"
+                                >
+                                    Ver todos ({participantesVisibles.length})
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Modal: reservar boleto */}
+            {/* Modal: reservar boleto — mismo patrón de header degradado que
+                los modales de acción de Dinámicas (Posponer/Cancelar/etc.),
+                vía los subcomponentes compartidos de ModalAccionGradiente. */}
             <ModalAdaptativo
                 abierto={boletoSeleccionado !== null}
                 onCerrar={() => setBoletoSeleccionado(null)}
-                titulo="Reservar boleto"
                 ancho="sm"
+                mostrarHeader={false}
+                paddingContenido="none"
+                sinScrollInterno
+                alturaMaxima="xl"
+                colorHandle="rgba(255,255,255,0.4)"
+                headerOscuro
+                className="max-w-xs lg:max-w-sm 2xl:max-w-md"
             >
-                <div className="space-y-4">
-                    <p className="text-sm font-medium text-slate-700">
-                        Vas a reservar el boleto <strong className="font-bold text-slate-900">#{boletoSeleccionado}</strong>
-                        {dinamica.precioBoleto && <> por <strong className="font-bold text-slate-900">${Number(dinamica.precioBoleto).toLocaleString('es-MX')}</strong></>}.
-                        El pago se coordina directamente con el organizador por ChatYA — la app no cobra ni entrega nada.
-                    </p>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setBoletoSeleccionado(null)}
-                            className="flex-1 rounded-full border-2 border-slate-300 py-2 text-sm font-bold text-slate-700 lg:cursor-pointer"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={confirmarReserva}
-                            disabled={reservarBoleto.isPending}
-                            className="flex-1 rounded-full bg-amber-600 py-2 text-sm font-bold text-white lg:hover:bg-amber-700 disabled:opacity-60 lg:cursor-pointer"
-                        >
-                            {reservarBoleto.isPending ? 'Reservando...' : 'Confirmar reserva'}
-                        </button>
+                <div className="flex max-h-[85vh] flex-col lg:max-h-[75vh] 2xl:max-h-[75vh]">
+                    <HeaderAccionGradiente
+                        icono={Ticket}
+                        titulo="Reservar boleto"
+                        subtitulo={`Boleto #${boletoSeleccionado}${dinamica.precioBoleto ? ` · $${Number(dinamica.precioBoleto).toLocaleString('es-MX')}` : ''}`}
+                        gradiente={GRADIENTE_DINAMICAS}
+                    />
+                    <div className="flex-1 overflow-y-auto p-5 lg:p-4 2xl:p-5">
+                        <ResumenAccionModal icono={Ticket} texto={dinamica.titulo} />
+
+                        <AvisoContextualModal tono="amber">
+                            El pago se coordina directamente con el organizador por ChatYA — la app no cobra ni entrega nada.
+                        </AvisoContextualModal>
+
+                        <BotonesAccionModal
+                            onCerrar={() => setBoletoSeleccionado(null)}
+                            onConfirmar={confirmarReserva}
+                            pendiente={reservarBoleto.isPending}
+                            textoConfirmar="Confirmar reserva"
+                            textoPendiente="Reservando…"
+                            colorBase="#f59e0b"
+                            colorOscuro="#d97706"
+                        />
                     </div>
                 </div>
             </ModalAdaptativo>
@@ -618,7 +667,11 @@ export function PaginaDinamica() {
                 abierto={modalManualAbierto}
                 dinamica={dinamica}
                 pendiente={agregarManual.isPending}
-                onCerrar={() => setModalManualAbierto(false)}
+                numeroBoletoInicial={numeroBoletoParaAgregar}
+                onCerrar={() => {
+                    setModalManualAbierto(false);
+                    setNumeroBoletoParaAgregar(null);
+                }}
                 onConfirmar={enviarParticipanteManual}
             />
 
@@ -644,6 +697,16 @@ export function PaginaDinamica() {
                 pendiente={editar.isPending}
                 onCerrar={() => setModalEditarAbierto(false)}
                 onConfirmar={enviarEditar}
+            />
+
+            <ModalListaParticipantes
+                abierto={modalParticipantesAbierto}
+                onCerrar={() => setModalParticipantesAbierto(false)}
+                participantes={participantesVisibles}
+                esOrganizador={esOrganizador}
+                usuarioActualId={usuarioActual?.id}
+                onContactar={abrirChatCon}
+                onConfirmarPago={confirmarPagoDe}
             />
         </div>
     );
@@ -973,6 +1036,184 @@ function CardComoFunciona() {
                 ))}
             </ul>
         </div>
+    );
+}
+
+// =============================================================================
+// FilaParticipante — una fila de la lista, compartida entre el preview
+// inline y `ModalListaParticipantes`.
+// =============================================================================
+
+interface FilaParticipanteProps {
+    boleto: BoletoDinamica;
+    esOrganizador: boolean;
+    usuarioActualId: string | undefined;
+    onContactar: (usuario: OrganizadorDinamica) => void;
+    onConfirmarPago: (boletoId: string) => void;
+}
+
+function FilaParticipante({ boleto, esOrganizador, usuarioActualId, onContactar, onConfirmarPago }: FilaParticipanteProps) {
+    return (
+        <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <span className="w-8 shrink-0 text-xs font-bold text-slate-600">#{boleto.numeroBoleto}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+                {boleto.usuario ? `${boleto.usuario.nombre} ${boleto.usuario.apellidos}` : `${boleto.nombreManual} · Sin cuenta AnunciaYA`}
+            </span>
+            <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    boleto.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                }`}
+            >
+                {boleto.estado === 'pagado' ? 'Pagado' : 'Reservado'}
+            </span>
+            {boleto.usuario && usuarioActualId !== boleto.usuario.id && (
+                <button
+                    type="button"
+                    onClick={() => onContactar(boleto.usuario!)}
+                    aria-label="Contactar por ChatYA"
+                    className="flex shrink-0 items-center justify-center rounded-full p-1 transition-transform duration-200 active:opacity-70 lg:cursor-pointer lg:hover:scale-110"
+                >
+                    <img src="/ChatYA.webp" alt="" className="h-7 w-auto object-contain" />
+                </button>
+            )}
+            {esOrganizador && boleto.estado === 'reservado' && (
+                <button
+                    onClick={() => onConfirmarPago(boleto.id)}
+                    className="shrink-0 rounded-full bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
+                >
+                    Confirmar pago
+                </button>
+            )}
+        </div>
+    );
+}
+
+// =============================================================================
+// ModalListaParticipantes — lista completa de participantes. Móvil: página
+// completa (mismo patrón que `ComposerSection.tsx` de MarketPlace/Servicios
+// — sin overlay oscuro, cubre todo el viewport). Desktop: `ModalAdaptativo`
+// centrado con scroll interno.
+// =============================================================================
+
+interface ModalListaParticipantesProps {
+    abierto: boolean;
+    onCerrar: () => void;
+    participantes: BoletoDinamica[];
+    esOrganizador: boolean;
+    usuarioActualId: string | undefined;
+    onContactar: (usuario: OrganizadorDinamica) => void;
+    onConfirmarPago: (boletoId: string) => void;
+}
+
+function ModalListaParticipantes({
+    abierto,
+    onCerrar,
+    participantes,
+    esOrganizador,
+    usuarioActualId,
+    onContactar,
+    onConfirmarPago,
+}: ModalListaParticipantesProps) {
+    const { esMobile } = useBreakpoint();
+    const portalTarget = usePortalTarget();
+    const esContenido = portalTarget !== document.body;
+
+    const abiertoMovil = abierto && esMobile;
+    useBackNativo({
+        abierto: abiertoMovil,
+        onCerrar,
+        discriminador: '_dinamicaListaParticipantes',
+    });
+
+    // Bloquear scroll del body mientras la página completa está abierta —
+    // mismo mecanismo que `ComposerSection.tsx`.
+    useEffect(() => {
+        if (!abiertoMovil || esContenido) return;
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.bottom = '0';
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.bottom = '';
+            document.body.style.width = '';
+            document.body.style.overflow = '';
+            window.scrollTo(0, scrollY);
+        };
+    }, [abiertoMovil, esContenido]);
+
+    const lista = (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="divide-y divide-slate-200">
+                {participantes.map((b) => (
+                    <FilaParticipante
+                        key={b.id}
+                        boleto={b}
+                        esOrganizador={esOrganizador}
+                        usuarioActualId={usuarioActualId}
+                        onContactar={onContactar}
+                        onConfirmarPago={onConfirmarPago}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+
+    if (esMobile) {
+        if (!abierto) return null;
+        return createPortal(
+            <div
+                data-testid="modal-lista-participantes-fullscreen"
+                className={`${esContenido ? 'absolute' : 'fixed'} inset-0 z-52 flex flex-col bg-white`}
+                style={esContenido ? undefined : { paddingTop: 'env(safe-area-inset-top)' }}
+            >
+                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
+                    <h2 className="text-base font-bold text-slate-900">Participantes ({participantes.length})</h2>
+                    <button
+                        type="button"
+                        onClick={onCerrar}
+                        aria-label="Cerrar"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                    >
+                        <X className="h-5 w-5" strokeWidth={2.5} />
+                    </button>
+                </div>
+                {lista}
+            </div>,
+            portalTarget,
+        );
+    }
+
+    return (
+        <ModalAdaptativo
+            abierto={abierto}
+            onCerrar={onCerrar}
+            ancho="md"
+            mostrarHeader={false}
+            paddingContenido="none"
+            sinScrollInterno
+            alturaMaxima="xl"
+            discriminador="_dinamicaListaParticipantes"
+            className="max-h-[80vh]"
+        >
+            <div className="flex max-h-[80vh] flex-col">
+                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
+                    <h2 className="text-base font-bold text-slate-900">Participantes ({participantes.length})</h2>
+                    <button
+                        type="button"
+                        onClick={onCerrar}
+                        aria-label="Cerrar"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 lg:cursor-pointer lg:hover:bg-slate-100"
+                    >
+                        <X className="h-5 w-5" strokeWidth={2.5} />
+                    </button>
+                </div>
+                {lista}
+            </div>
+        </ModalAdaptativo>
     );
 }
 

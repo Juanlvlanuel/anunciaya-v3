@@ -742,6 +742,7 @@ export async function contarBoletosPagados(dinamicaId: string): Promise<number> 
 async function notificarReservaBoletoPorChat(
     compradorId: string,
     dinamica: typeof dinamicas.$inferSelect,
+    numeroBoleto: number,
 ): Promise<void> {
     try {
         const convRes = await crearObtenerConversacion(
@@ -755,12 +756,21 @@ async function notificarReservaBoletoPorChat(
         );
         if (!convRes.success || !convRes.data) return;
 
+        // Boleto + precio en el mensaje — el organizador sabe de inmediato
+        // cuál boleto es y cuánto cobrar sin tener que ir a buscarlo en la
+        // app. `metodoSorteo` (tómbola/carta única/tabla completa) no cambia
+        // este texto: el participante siempre reserva un "boleto" numerado
+        // 1..N sin importar el método; la carta de lotería que le toque es
+        // cosa del motor de sorteo (Fase 4, aún no construido).
+        const precioTexto = dinamica.precioBoleto
+            ? ` por $${Number(dinamica.precioBoleto).toLocaleString('es-MX')}`
+            : '';
         await enviarMensaje({
             conversacionId: convRes.data.id,
             emisorId: compradorId,
             emisorModo: 'personal',
             tipo: 'texto',
-            contenido: `Reservé un boleto para "${dinamica.titulo}" — coordinamos el pago por aquí.`,
+            contenido: `Reservé el boleto #${numeroBoleto} de "${dinamica.titulo}"${precioTexto} — coordinamos el pago por aquí.`,
         });
     } catch (error) {
         console.error('Error enviando mensaje de reserva de boleto por ChatYA (no crítico):', error);
@@ -777,6 +787,13 @@ export async function reservarBoletoPublico(usuarioId: string, dinamicaId: strin
         if (!dinamica) {
             return { success: false, message: 'Dinámica no encontrada', code: 404 } satisfies RespuestaError;
         }
+        if (dinamica.organizadorUsuarioId === usuarioId) {
+            return {
+                success: false,
+                message: 'No puedes reservar un boleto de tu propia Dinámica',
+                code: 403,
+            } satisfies RespuestaError;
+        }
         if (dinamica.estado !== 'activa' && dinamica.estado !== 'pospuesta') {
             return { success: false, message: 'Esta Dinámica no está aceptando participantes', code: 409 } satisfies RespuestaError;
         }
@@ -790,7 +807,7 @@ export async function reservarBoletoPublico(usuarioId: string, dinamicaId: strin
         const resultado = await reservarBoleto({ dinamicaId, numeroBoleto, usuarioId });
         if (!resultado.success) return resultado;
 
-        notificarReservaBoletoPorChat(usuarioId, dinamica).catch(() => undefined);
+        notificarReservaBoletoPorChat(usuarioId, dinamica, numeroBoleto).catch(() => undefined);
 
         return resultado;
     } catch (error) {

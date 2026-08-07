@@ -73,6 +73,11 @@ interface ModalAgregarParticipanteDinamicaProps {
     abierto: boolean;
     dinamica: DinamicaParaModal | null;
     pendiente: boolean;
+    /** Boleto pre-seleccionado — cuando el organizador hace click directo
+     *  sobre un recuadro disponible del grid (en vez de abrir el modal
+     *  desde el menú "⋯" sin número en mente). El campo llega bloqueado
+     *  para que quede claro que corresponde a ESE recuadro. */
+    numeroBoletoInicial?: number | null;
     onCerrar: () => void;
     onConfirmar: (datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string }) => void;
 }
@@ -81,6 +86,7 @@ export function ModalAgregarParticipanteDinamica({
     abierto,
     dinamica,
     pendiente,
+    numeroBoletoInicial,
     onCerrar,
     onConfirmar,
 }: ModalAgregarParticipanteDinamicaProps) {
@@ -94,10 +100,11 @@ export function ModalAgregarParticipanteDinamica({
     // así el usuario no pierde lo que ya escribió si el backend rechaza).
     useEffect(() => {
         if (abierto) {
-            setNumeroBoleto('');
+            setNumeroBoleto(numeroBoletoInicial ? String(numeroBoletoInicial) : '');
             setNombreManual('');
             setTelefonoManual('+52');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [abierto]);
 
     if (!dinamica) return null;
@@ -144,6 +151,8 @@ export function ModalAgregarParticipanteDinamica({
                             value={numeroBoleto}
                             onChange={(e) => setNumeroBoleto(e.target.value)}
                             placeholder="Ej. 42"
+                            disabled={!!numeroBoletoInicial}
+                            ayuda={numeroBoletoInicial ? 'Elegiste este boleto desde el grid.' : undefined}
                             className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                         <Input
