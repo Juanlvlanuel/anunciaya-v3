@@ -87,12 +87,15 @@ export function DetallePublicacionNegocioContenido({
                 </div>
             </div>
 
-            {/* ── ESCRITORIO: 2 columnas independientes, flujo normal, MISMO
-                alto fijo `h-[700px]` en ambas (vacías o llenas) — con
-                scroll interno propio cada una, así no se desbalancean
-                aunque el contenido de una sea más corto que el de la otra. */}
+            {/* ── ESCRITORIO: 2 columnas independientes, flujo normal.
+                Izquierda: alto automático según su contenido (imagen +
+                texto), SIN scroll propio. Derecha (comentarios): alto fijo
+                `h-[700px]` con scroll interno — necesita ese límite para
+                comportarse como un panel de chat, sin importar cuántos
+                comentarios haya. Las columnas ya no quedan forzadas a la
+                misma altura. */}
             <div className="hidden lg:flex lg:items-start lg:gap-6 2xl:gap-8">
-                <div className={`scroll-discreto w-[560px] 2xl:w-[640px] shrink-0 h-[700px] space-y-4 overflow-y-auto p-5 ${TARJETA_CLASES}`}>
+                <div className={`w-[560px] 2xl:w-[640px] shrink-0 space-y-4 p-5 ${TARJETA_CLASES}`}>
                     {contenidoIzquierda}
                 </div>
 
