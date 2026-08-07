@@ -108,6 +108,15 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   nuevo_marketplace: 'sistema',
   nuevo_servicio: 'sistema',
   sistema: 'sistema',
+  // ── Verificadas ago-2026: ya deep-linkeaban bien (por referenciaTipo),
+  // solo les faltaba familia visual propia (caían al gris genérico). ──────
+  alerta_seguridad: 'alerta',
+  marketplace_expirada: 'alerta',
+  marketplace_proxima_expirar: 'pendiente',
+  // Sin deep-link antes (crearNotificacion no le mandaba referenciaTipo) —
+  // corregido también en `obtenerRutaDestino` (case especial por `tipo`,
+  // mismo patrón que `membresia_en_gracia`).
+  negocio_fuera_circulacion: 'alerta',
   // ── Sprint 1.D — Home / Coyo ─────────────────────────────────────────
   pregunta_comunidad_respondida: 'comunidad',
   coyo_recomendacion: 'coyo',
@@ -118,6 +127,7 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   // porque ambas significan lo mismo: "hay actividad nueva en una
   // pregunta donde te importa".
   pregunta_comunidad_seguida_respondida: 'comunidad',
+  comunidad_respuesta_comentario: 'comunidad',
   // ── Estatus de pago de membresía ──────────────────────────────────────
   membresia_en_gracia: 'membresia',
   pago_rechazado: 'membresia',
@@ -131,6 +141,10 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   negocio_publicacion_respuesta_comentario: 'comunidad',
   servicios_nuevo_comentario: 'comunidad',
   servicios_respuesta_comentario: 'comunidad',
+  // ── Dinámicas ─────────────────────────────────────────────────────────
+  // 'pendiente' (azul, glifo reloj) — encaja con "cambió una fecha, entérate".
+  dinamica_pospuesta: 'pendiente',
+  dinamica_resultado: 'entregado',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -270,6 +284,14 @@ function obtenerRutaDestino(n: Notificacion): string | null {
   if (tipo === 'membresia_en_gracia') {
     return '/perfil?tab=pagos';
   }
+  // Negocio fuera de circulación: `crearNotificacion` no le manda
+  // `referenciaTipo` (solo `referenciaId` = negocioId, sin tipo asociado en
+  // el switch de abajo) — se resuelve por `tipo` directo, mismo patrón que
+  // `membresia_en_gracia`. Resolverlo suele pasar por ponerse al día con el
+  // pago, así que apunta al mismo destino.
+  if (tipo === 'negocio_fuera_circulacion') {
+    return '/perfil?tab=pagos';
+  }
   // Comentarios (MarketPlace / Negocios): al feed + auto-abrir el modal de
   // comentarios de esa publicación puntual (NO el detalle dedicado — el
   // `case 'marketplace':` genérico de abajo apunta ahí, así que estos tipos
@@ -343,6 +365,10 @@ function obtenerRutaDestino(n: Notificacion): string | null {
         // (`servicios_nueva_pregunta` / `servicios_pregunta_respondida`)
         // referencian la publicación. Deep-link al detalle.
         return referenciaId ? `/servicios/${referenciaId}` : null;
+      case 'dinamica':
+        // 'dinamica_pospuesta' / 'dinamica_resultado' referencian la
+        // Dinámica — deep-link a su ficha de detalle.
+        return referenciaId ? `/marketplace/dinamica/${referenciaId}` : null;
       default:
         return null;
     }

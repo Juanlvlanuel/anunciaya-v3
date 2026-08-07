@@ -27,6 +27,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
+    FileText,
     Flag,
     Loader2,
     MapPin,
@@ -86,10 +87,6 @@ const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 const SOMBRA_CARD = '0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)';
-
-/** Cuántos participantes se muestran inline antes de mostrar "Ver todos" —
- *  con hasta 200 boletos posibles, la card no puede crecer sin límite. */
-const MAX_PARTICIPANTES_PREVIEW = 6;
 
 const ETIQUETA_TIPO_PREMIO: Record<string, string> = { fisico: 'Premio físico', efectivo: 'Premio en efectivo' };
 const ETIQUETA_METODO: Record<string, string> = {
@@ -478,7 +475,10 @@ export function PaginaDinamica() {
                     {/* Descripción */}
                     {dinamica.descripcion && (
                         <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
-                            <h2 className="mb-2 text-base font-bold text-slate-900">Descripción</h2>
+                            <h2 className="mb-2 flex items-center gap-1.5 text-base font-bold text-slate-900">
+                                <FileText className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+                                Descripción
+                            </h2>
                             <p className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700">
                                 {dinamica.descripcion}
                             </p>
@@ -581,42 +581,25 @@ export function PaginaDinamica() {
                         </div>
                     )}
 
-                    {/* Lista de participantes — preview de los primeros
-                        `MAX_PARTICIPANTES_PREVIEW`; si hay más, "Ver todos"
-                        abre `ModalListaParticipantes` con la lista completa
-                        (fullscreen en móvil, modal centrado en desktop) para
-                        no dejar crecer esta card verticalmente sin límite
-                        (hasta 200 boletos posibles). */}
+                    {/* Participantes — sin preview inline. Toda la card es un
+                        botón que abre `ModalListaParticipantes` con la lista
+                        completa (fullscreen en móvil, modal centrado en
+                        desktop); así la ficha no crece verticalmente sin
+                        límite (hasta 200 boletos posibles). */}
                     {participantesVisibles.length > 0 && (
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
-                            <h2 className="mb-3 flex items-center gap-1.5 text-base font-bold text-slate-900">
+                        <button
+                            type="button"
+                            data-testid="btn-abrir-participantes"
+                            onClick={() => setModalParticipantesAbierto(true)}
+                            className="mx-3 flex w-[calc(100%-1.5rem)] items-center justify-between rounded-xl border-2 border-slate-300 bg-white p-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:w-full lg:cursor-pointer lg:p-4 lg:hover:border-amber-400"
+                        >
+                            <span className="flex items-center gap-1.5 text-base font-bold text-slate-900">
                                 <Users className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
                                 Participantes
                                 <span className="text-sm font-semibold text-slate-500">({participantesVisibles.length})</span>
-                            </h2>
-                            <div className="divide-y divide-slate-200 rounded-lg border border-slate-200">
-                                {participantesVisibles.slice(0, MAX_PARTICIPANTES_PREVIEW).map((b) => (
-                                    <FilaParticipante
-                                        key={b.id}
-                                        boleto={b}
-                                        esOrganizador={esOrganizador}
-                                        usuarioActualId={usuarioActual?.id}
-                                        onContactar={abrirChatCon}
-                                        onConfirmarPago={confirmarPagoDe}
-                                    />
-                                ))}
-                            </div>
-                            {participantesVisibles.length > MAX_PARTICIPANTES_PREVIEW && (
-                                <button
-                                    type="button"
-                                    data-testid="btn-ver-todos-participantes"
-                                    onClick={() => setModalParticipantesAbierto(true)}
-                                    className="mt-3 w-full rounded-lg border-2 border-amber-300 py-2 text-sm font-bold text-amber-700 lg:cursor-pointer lg:hover:bg-amber-50"
-                                >
-                                    Ver todos ({participantesVisibles.length})
-                                </button>
-                            )}
-                        </div>
+                            </span>
+                            <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={2.5} />
+                        </button>
                     )}
                 </div>
             </div>
@@ -1059,14 +1042,26 @@ function FilaParticipante({ boleto, esOrganizador, usuarioActualId, onContactar,
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
                 {boleto.usuario ? `${boleto.usuario.nombre} ${boleto.usuario.apellidos}` : `${boleto.nombreManual} · Sin cuenta AnunciaYA`}
             </span>
-            <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    boleto.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                }`}
-            >
-                {boleto.estado === 'pagado' ? 'Pagado' : 'Reservado'}
-            </span>
-            {boleto.usuario && usuarioActualId !== boleto.usuario.id && (
+            {/* Para el organizador, cuando está "reservado" el botón
+                "Confirmar pago" ya comunica el estado — mostrar también la
+                badge "Reservado" ahí es redundante. Para cualquier otra
+                persona (que no ve ese botón) la badge sigue siendo la única
+                señal de estado, así que se queda. "Pagado" no tiene botón
+                que la reemplace, así que se muestra siempre. */}
+            {!(esOrganizador && boleto.estado === 'reservado') && (
+                <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        boleto.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    }`}
+                >
+                    {boleto.estado === 'pagado' ? 'Pagado' : 'Reservado'}
+                </span>
+            )}
+            {/* Solo el organizador puede contactar a un participante desde
+                aquí — la lista es pública para transparencia (verificar
+                quién participa), pero eso no autoriza a que cualquier
+                visitante le escriba directo a la gente. */}
+            {esOrganizador && boleto.usuario && usuarioActualId !== boleto.usuario.id && (
                 <button
                     type="button"
                     onClick={() => onContactar(boleto.usuario!)}
@@ -1162,6 +1157,25 @@ function ModalListaParticipantes({
         </div>
     );
 
+    const header = (
+        <div className="relative shrink-0">
+            <HeaderAccionGradiente
+                icono={Users}
+                titulo="Participantes"
+                subtitulo={`${participantes.length} en esta Dinámica`}
+                gradiente={GRADIENTE_DINAMICAS}
+            />
+            <button
+                type="button"
+                onClick={onCerrar}
+                aria-label="Cerrar"
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-white lg:cursor-pointer lg:hover:bg-white/15"
+            >
+                <X className="h-5 w-5" strokeWidth={2.5} />
+            </button>
+        </div>
+    );
+
     if (esMobile) {
         if (!abierto) return null;
         return createPortal(
@@ -1170,17 +1184,7 @@ function ModalListaParticipantes({
                 className={`${esContenido ? 'absolute' : 'fixed'} inset-0 z-52 flex flex-col bg-white`}
                 style={esContenido ? undefined : { paddingTop: 'env(safe-area-inset-top)' }}
             >
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
-                    <h2 className="text-base font-bold text-slate-900">Participantes ({participantes.length})</h2>
-                    <button
-                        type="button"
-                        onClick={onCerrar}
-                        aria-label="Cerrar"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-                    >
-                        <X className="h-5 w-5" strokeWidth={2.5} />
-                    </button>
-                </div>
+                {header}
                 {lista}
             </div>,
             portalTarget,
@@ -1197,20 +1201,13 @@ function ModalListaParticipantes({
             sinScrollInterno
             alturaMaxima="xl"
             discriminador="_dinamicaListaParticipantes"
-            className="max-h-[80vh]"
+            className="h-[80vh] max-w-xs lg:max-w-sm 2xl:max-w-md"
         >
-            <div className="flex max-h-[80vh] flex-col">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
-                    <h2 className="text-base font-bold text-slate-900">Participantes ({participantes.length})</h2>
-                    <button
-                        type="button"
-                        onClick={onCerrar}
-                        aria-label="Cerrar"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 lg:cursor-pointer lg:hover:bg-slate-100"
-                    >
-                        <X className="h-5 w-5" strokeWidth={2.5} />
-                    </button>
-                </div>
+            {/* `h-full` (no `max-h`) — el modal siempre ocupa el mismo alto
+                fijo, tenga 1 participante o 200, en vez de encogerse al
+                tamaño del contenido. */}
+            <div className="flex h-full flex-col">
+                {header}
                 {lista}
             </div>
         </ModalAdaptativo>

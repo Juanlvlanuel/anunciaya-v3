@@ -32,6 +32,14 @@ export type TipoNotificacion =
   | 'sistema'
   | 'nuevo_marketplace'
   | 'nuevo_servicio'
+  /** Al comerciante (Business Studio), ej. "cliente frecuente" o actividad fuera de horario. */
+  | 'alerta_seguridad'
+  /** Al vendedor, cuando el cron auto-pausa su publicación por expirar. */
+  | 'marketplace_expirada'
+  /** Al vendedor, ~3 días antes de que su publicación expire. */
+  | 'marketplace_proxima_expirar'
+  /** Al dueño, cuando su negocio queda suspendido/cancelado. */
+  | 'negocio_fuera_circulacion'
   // ── Sprint 1.D — Home / Coyo ──────────────────────────────────────────
   /** Al autor de una pregunta cuando alguien responde en el Home. */
   | 'pregunta_comunidad_respondida'
@@ -43,6 +51,8 @@ export type TipoNotificacion =
   /** A los vecinos que marcaron "Yo también quiero saber" en una
    *  pregunta, cuando otro vecino responde a esa pregunta. */
   | 'pregunta_comunidad_seguida_respondida'
+  /** Al autor de un comentario en una pregunta del Home, cuando le responden dentro del hilo. */
+  | 'comunidad_respuesta_comentario'
   // ── Estatus de pago de membresía (avisos personales al dueño) ──────────
   | 'membresia_en_gracia'
   | 'pago_rechazado'
@@ -60,7 +70,12 @@ export type TipoNotificacion =
   /** Servicios: al dueño cuando comentan su publicación. */
   | 'servicios_nuevo_comentario'
   /** Servicios: al autor cuando responden su comentario. */
-  | 'servicios_respuesta_comentario';
+  | 'servicios_respuesta_comentario'
+  // ── Dinámicas (Fase 1, agosto 2026) ──────────────────────────────────
+  /** Al organizador y a los participantes cuando se pospone la fecha límite. */
+  | 'dinamica_pospuesta'
+  /** A los participantes cuando se anuncia el resultado del sorteo. */
+  | 'dinamica_resultado';
 
 export type ReferenciaTipo =
   | 'transaccion'
@@ -76,6 +91,8 @@ export type ReferenciaTipo =
   | 'alerta'
   // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
   | 'pregunta_comunidad'
+  /** Apunta a `dinamicas.id`. */
+  | 'dinamica'
   // ── Comentarios de Negocios (publicaciones libres) ────────────────────
   | 'negocio_publicacion';
 
