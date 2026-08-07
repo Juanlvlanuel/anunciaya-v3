@@ -32,6 +32,7 @@
 25. [Highlight de Foco en Inputs y Selects](#25-highlight-de-foco-en-inputs-y-selects)
 26. [Composer estilo Post (Instagram/Facebook)](#26-composer-estilo-post-instagramfacebook)
 27. [Feed de Posts estilo Facebook + Rail "Recién publicado"](#27-feed-de-posts-estilo-facebook--rail-recién-publicado)
+28. [Páginas Públicas de Compartir — Card de Negocio/Autor + Imagen](#28-páginas-públicas-de-compartir--card-de-negocioautor--imagen)
 
 ---
 
@@ -2238,3 +2239,123 @@ Patrón de feed de 1 columna que comparten las 3 secciones públicas (Negocios, 
 - Negocios: `CardPublicacionNegocioFeed.tsx` + `ReelNegociosFeed.tsx`/`CardNegocioReel.tsx` + columna fija en `PaginaNegocios.tsx` (tab Feed).
 - MarketPlace: `CardArticuloFeed.tsx` + `ReelMarketplace.tsx`/`CardArticuloReel.tsx` + columna fija en `PaginaMarketplace.tsx`.
 - Servicios: `CardServicioFeed.tsx` (+ `ModalComentariosServicio.tsx`) + `ReelServicios.tsx`/`CardServicioReel.tsx` + columna fija en `PaginaServicios.tsx` (las 4 tabs). Universal para los 3 tipos de publicación (`servicio-persona`/`solicito`/`vacante-empresa`) — mismo criterio que la card de grilla `CardServicio.tsx` (que se mantiene aparte para Guardados/Perfil Prestador).
+
+---
+
+## 28. Páginas Públicas de Compartir — Card de Negocio/Autor + Imagen
+
+Patrón unificado 06 ago 2026 en las 6 páginas auto-contenidas de `/p/...` (Producto, Ofertas, MarketPlace, Dinámicas, Servicios, Publicación de Negocio). Doc funcional completo: `docs/arquitectura/Paginas_Publicas.md` — esta sección es la referencia de tokens/clases exactas.
+
+### Card de negocio/autor
+
+Card de "quién ofrece esto" (negocio, vendedor, organizador, oferente) — misma estructura en las 6 páginas:
+
+```tsx
+<div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+  {/* Línea 1: avatar + nombre */}
+  <div className="flex items-center gap-3">
+    <div
+      className={`h-14 w-14 shrink-0 overflow-hidden rounded-full lg:h-16 lg:w-16 ${avatarUrl ? 'cursor-pointer' : ''}`}
+      onClick={avatarUrl ? () => setAvatarAbierto(true) : undefined}
+    >
+      {avatarUrl ? <img src={avatarUrl} className="h-full w-full object-cover" /> : <Fallback />}
+    </div>
+    <h3 className="flex items-center gap-1 text-sm font-bold text-slate-900 lg:text-base">
+      <span className="truncate">{nombre}</span>
+      <BadgeCheck className="h-6 w-6 shrink-0 fill-blue-500 text-white" strokeWidth={2.5} />
+    </h3>
+  </div>
+
+  {/* Línea 2: contacto — íconos alineados a la derecha */}
+  <div className="mt-2 flex items-center justify-end gap-3">
+    <button onClick={onContactar} aria-label="Contactar por ChatYA" className="lg:cursor-pointer lg:hover:opacity-80">
+      <img src="/ChatYA.webp" className="h-8 w-auto object-contain" />
+    </button>
+    {/* WhatsApp: SOLO si la publicación es de un negocio real (Producto, Oferta, Vacante) */}
+    {whatsapp && (
+      <button onClick={onWhatsapp} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] shadow-md lg:cursor-pointer lg:hover:scale-105">
+        <WhatsAppIcon className="h-4 w-4" />
+      </button>
+    )}
+  </div>
+
+  {/* Línea 3: actividad + acción, mismo renglón */}
+  <div className="mt-2 flex items-center gap-2">
+    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-slate-400" />
+      Publicado {formatearTiempoRelativo(createdAt)}
+    </div>
+    <button onClick={onVerNegocio} className="ml-auto inline-flex items-center gap-0.5 text-sm font-bold text-{color}-700 lg:cursor-pointer lg:hover:text-{color}-900 lg:hover:underline">
+      Ver negocio <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+    </button>
+  </div>
+
+  {avatarAbierto && avatarUrl && <ModalImagenes images={[avatarUrl]} initialIndex={0} isOpen onClose={...} />}
+</div>
+```
+
+**Reglas:**
+- **Avatar**: `h-14 w-14 lg:h-16 lg:w-16` — tamaño único en las 6 páginas. Siempre clickeable → `ModalImagenes` cuando hay URL.
+- **`BadgeCheck`** `h-6 w-6 fill-blue-500 text-white strokeWidth={2.5}` — siempre visible junto al nombre, sin condicionar a tipo de publicación.
+- **ChatYA**: siempre `/ChatYA.webp`, ícono solo (sin fondo/texto), alineado a la derecha (o solo elemento de la fila si no hay WhatsApp).
+- **WhatsApp**: círculo `bg-[#25D366]` de `h-8 w-8`, ícono `h-4 w-4` — solo cuando la publicación es de un negocio con número registrado (Producto, Oferta, Vacante de Servicios). No aplica a MarketPlace P2P, Dinámicas, servicio-persona/solicito, ni Publicación de Negocio (el feed no trae el dato).
+- **"Publicado hace X"**: `formatearTiempoRelativo(createdAt)` de la publicación — **no** la última conexión del usuario (`formatearUltimaConexion`, que en datos reales suele venir `null`/vieja y deja la fila vacía).
+- **"Ver negocio"/"Ver perfil"**: color temático del módulo (ver tabla de `ModalAuthRequerido` más abajo — mismo color en ambos). `ChevronRight` `h-4 w-4 strokeWidth={2.5}`.
+- **Sin label "Ofrecido por"/"Sobre el negocio"** encima de la card — es redundante con el contenido de la card misma.
+- No agregar `<p className="text-xs...">` de vistas/tiempo en el bloque de info de arriba si ya está esta card debajo — es la misma info duplicada (se quitó de MarketPlace por esto).
+
+### Imagen principal — full-bleed móvil
+
+```tsx
+<div className="relative overflow-hidden bg-white lg:rounded-xl lg:border-2 lg:border-slate-300 lg:shadow-md">
+  <div className="group relative aspect-[4/3] lg:aspect-[3/2]">
+    <img
+      onClick={() => setImagenAbierta(true)}
+      className="h-full w-full cursor-pointer object-cover transition-transform duration-300 lg:group-hover:scale-[1.02]"
+    />
+    {/* badges absolutos */}
+  </div>
+</div>
+```
+
+- **Sin margen ni `rounded`/`border` en móvil** (`mx-3` queda prohibido en la imagen principal de estas páginas) — full-bleed borde a borde. Card bordeada solo desde `lg:`.
+- **`aspect-[4/3]`** en móvil, en las 6 páginas — antes cada módulo tenía su propio ratio (`16/9` Servicios, `1:1` MarketPlace/Dinámicas).
+- **Zoom en hover** (solo desktop): `group` en el wrapper + `lg:group-hover:scale-[1.02]` en el `<img>`.
+- **Siempre clickeable** → `ModalImagenes`.
+- **Componentes de galería compartidos con vistas privadas**: exponer el tratamiento full-bleed como prop opcional (default = comportamiento histórico privado), nunca cambiar el default del componente compartido a menos que el bug sea real en ambos contextos (ver `object-contain` → `object-cover` de `GaleriaPublicacionNegocio`, que sí se corrigió parejo por ser una franja vacía real, no una preferencia de diseño público-vs-privado).
+
+### Badges tipo píldora con gradiente
+
+```tsx
+<div className="flex items-center gap-1.5 rounded-full border bg-linear-to-r from-{color}-500 to-{color}-700 border-{color}-400/50 px-3 py-1.5 text-sm font-bold text-white shadow-lg">
+  <Icono className="h-4 w-4" />
+  {texto}
+</div>
+```
+
+Reemplaza el `rounded-lg` sólido (`bg-{color}-500`) por `rounded-full` + gradiente + borde — mismo lenguaje visual que los badges de urgencia/descuento que ya usaban Ofertas y Dinámicas.
+
+### `ModalAuthRequerido` — color por `contexto.tipo`
+
+`apps/web/src/components/compartir/ModalAuthRequerido.tsx`, `CONFIG_TIPO`:
+
+| `tipo` | Módulo | Color |
+|--------|--------|-------|
+| `articulo` | MarketPlace (P2P) | teal |
+| `producto` | Producto (catálogo de negocio) | blue |
+| `oferta` | Ofertas | amber |
+| `vacante` / `solicitud` / `servicio` | Servicios (los 3 tipos) | sky |
+| `dinamica` | Dinámicas | amber |
+| `publicacion` | Publicación de Negocio | blue |
+
+⚠️ `producto` y `articulo` son tipos **distintos a propósito** (colisión real corregida: compartían `'articulo'` y Producto heredaba el teal de MarketPlace). No fusionar.
+
+**Evitar apilar modales:** cuando el ícono de ChatYA vive DENTRO de otro modal (`ModalOfertaDetalle`, `ModalDetalleItem`), si no hay sesión el modal actual se **cierra primero** (`onClose()`) y luego se abre `ModalAuthRequerido` — nunca dejar ambos abiertos a la vez (problema de z-index entre modales con distinto `zIndice`).
+
+### Implementaciones actuales
+
+- `apps/web/src/pages/public/{PaginaArticuloPublico,PaginaOfertaPublico,PaginaArticuloMarketplacePublico,PaginaDinamicaPublica,PaginaServicioPublico,PaginaPublicacionNegocioPublica}.tsx`
+- `apps/web/src/components/marketplace/CardVendedor.tsx` / `GaleriaArticulo.tsx` (prop `aspectMovil`)
+- `apps/web/src/components/servicios/GaleriaServicio.tsx`
+- `apps/web/src/components/negocios/publicaciones/GaleriaPublicacionNegocio.tsx` (prop `fullBleedMovil`)
+- `apps/web/src/hooks/useIniciarChatNegocio.ts`
