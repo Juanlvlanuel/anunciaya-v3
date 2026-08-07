@@ -51,6 +51,7 @@ import {
     useConfirmarPagoBoleto,
     usePosponerDinamica,
     useCancelarDinamica,
+    useEditarBorradorDinamica,
 } from '../../../hooks/queries/useDinamicas';
 import { GaleriaArticulo } from '../../../components/marketplace/GaleriaArticulo';
 import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
@@ -61,6 +62,7 @@ import {
     ModalAgregarParticipanteDinamica,
     ModalPosponerDinamica,
     ModalCancelarDinamica,
+    ModalEditarDinamica,
 } from '../../../components/dinamicas/ModalesAccionDinamica';
 import { notificar } from '../../../utils/notificaciones';
 import { formatearUltimaConexion } from '../../../utils/marketplace';
@@ -116,11 +118,13 @@ export function PaginaDinamica() {
     const confirmarPago = useConfirmarPagoBoleto();
     const posponer = usePosponerDinamica();
     const cancelar = useCancelarDinamica();
+    const editar = useEditarBorradorDinamica();
 
     const [boletoSeleccionado, setBoletoSeleccionado] = useState<number | null>(null);
     const [modalManualAbierto, setModalManualAbierto] = useState(false);
     const [modalPosponerAbierto, setModalPosponerAbierto] = useState(false);
     const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
+    const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
     const boletosScrollRef = useRef<HTMLDivElement>(null);
 
     const esOrganizador = !!usuarioActual && !!dinamica && usuarioActual.id === dinamica.organizadorUsuarioId;
@@ -228,6 +232,21 @@ export function PaginaDinamica() {
         if (r.success) {
             notificar.exito('Dinámica cancelada.');
             setModalCancelarAbierto(false);
+        } else {
+            notificar.error(r.message);
+        }
+    }
+
+    // Edición limitada (activa/pospuesta) — solo título, descripción y fotos
+    // del premio; el backend rechaza cualquier otro campo con 409 (ver
+    // `editarBorrador` en dinamicas.service.ts). "Editar borrador" (estado
+    // 'borrador') sigue usando el composer completo, no este modal.
+    async function enviarEditar(datos: { titulo: string; descripcion: string; fotosPremio: DinamicaDetallePublico['fotosPremio'] }) {
+        if (!dinamicaId) return;
+        const r = await editar.mutateAsync({ dinamicaId, payload: datos });
+        if (r.success) {
+            notificar.exito('Dinámica actualizada.');
+            setModalEditarAbierto(false);
         } else {
             notificar.error(r.message);
         }
@@ -364,6 +383,7 @@ export function PaginaDinamica() {
                                     dinamica={dinamica}
                                     aceptaParticipantes={aceptaParticipantes}
                                     onEditarBorrador={() => navigate(`/marketplace?dinamicas=1&editarDinamica=${dinamica.id}`, { replace: true })}
+                                    onEditar={() => setModalEditarAbierto(true)}
                                     onAgregarManual={() => setModalManualAbierto(true)}
                                     onPosponer={() => setModalPosponerAbierto(true)}
                                     onCancelar={() => setModalCancelarAbierto(true)}
@@ -386,6 +406,7 @@ export function PaginaDinamica() {
                                         dinamica={dinamica}
                                         aceptaParticipantes={aceptaParticipantes}
                                         onEditarBorrador={() => navigate(`/marketplace?dinamicas=1&editarDinamica=${dinamica.id}`, { replace: true })}
+                                        onEditar={() => setModalEditarAbierto(true)}
                                         onAgregarManual={() => setModalManualAbierto(true)}
                                         onPosponer={() => setModalPosponerAbierto(true)}
                                         onCancelar={() => setModalCancelarAbierto(true)}
@@ -596,6 +617,14 @@ export function PaginaDinamica() {
                 onCerrar={() => setModalCancelarAbierto(false)}
                 onConfirmar={enviarCancelar}
             />
+
+            <ModalEditarDinamica
+                abierto={modalEditarAbierto}
+                dinamica={dinamica}
+                pendiente={editar.isPending}
+                onCerrar={() => setModalEditarAbierto(false)}
+                onConfirmar={enviarEditar}
+            />
         </div>
     );
 }
@@ -658,6 +687,7 @@ interface MenuAccionesOrganizadorProps {
     dinamica: DinamicaDetallePublico;
     aceptaParticipantes: boolean;
     onEditarBorrador: () => void;
+    onEditar: () => void;
     onAgregarManual: () => void;
     onPosponer: () => void;
     onCancelar: () => void;
@@ -669,11 +699,18 @@ interface MenuAccionesOrganizadorProps {
  * `CardDinamicaMio.tsx` en "Mis Publicaciones", aquí anclado a la esquina
  * superior derecha de la card de info/precio. Solo se monta cuando
  * `esOrganizador` es `true` (ver usos), así que no hace su propio chequeo.
+ *
+ * "Editar borrador" (estado 'borrador') y "Editar" (activa/pospuesta) son
+ * acciones DISTINTAS a propósito: la primera abre el composer completo
+ * (`onEditarBorrador`, navega a `?editarDinamica=`), la segunda abre
+ * `ModalEditarDinamica` inline (`onEditar`) y solo permite tocar título,
+ * descripción y fotos — el backend bloquea el resto una vez publicada.
  */
 function MenuAccionesOrganizadorDinamica({
     dinamica,
     aceptaParticipantes,
     onEditarBorrador,
+    onEditar,
     onAgregarManual,
     onPosponer,
     onCancelar,
@@ -725,6 +762,9 @@ function MenuAccionesOrganizadorDinamica({
                     )}
                     {aceptaParticipantes && (
                         <>
+                            <ItemMenuDinamica icono={Pencil} iconColor="text-amber-600" onClick={() => disparar(onEditar)}>
+                                Editar
+                            </ItemMenuDinamica>
                             <ItemMenuDinamica icono={UserPlus} iconColor="text-blue-600" onClick={() => disparar(onAgregarManual)}>
                                 Agregar Participante
                             </ItemMenuDinamica>

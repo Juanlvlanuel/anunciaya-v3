@@ -5,20 +5,22 @@
  * el toggle de tipo está en "Servicios". Renderiza:
  *   - Grid de `CardServicioMio` con la lista filtrada por tab activo
  *   - Estado vacío / error / loading con CTAs apropiadas
- *   - Modales de confirmación para eliminar y pausar
+ *   - Modales de confirmación para pausar y eliminar (`ModalesAccionServicio.tsx`,
+ *     mismo patrón visual gradiente que Dinámicas — unificado ago-2026, antes
+ *     usaba `notificar.confirmar()` genérico)
  *
  * Carga las 2 listas en paralelo (`activa` + `pausada`) para que los
  * conteos por tab estén disponibles en el padre (callback `onConteos`).
  *
  * Servicios NO tiene "vendida" — solo `activa | pausada`. Las acciones por
- * estado son: pausar/reactivar, editar (TODO Sprint 7.3), eliminar.
+ * estado son: pausar/reactivar, editar, eliminar.
  *
  * Ubicación: apps/web/src/components/servicios/MisPublicacionesServiciosSection.tsx
  */
 
 import { useEffect, useState } from 'react';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
-import { AlertTriangle, PauseCircle, PlayCircle, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, PauseCircle, PlayCircle, Plus } from 'lucide-react';
 import {
     useCambiarEstadoPublicacionServicio,
     useEliminarPublicacionServicio,
@@ -29,6 +31,7 @@ import { notificar } from '../../utils/notificaciones';
 import { Spinner } from '../ui/Spinner';
 import type { PublicacionServicio } from '../../types/servicios';
 import { CardServicioMio } from './CardServicioMio';
+import { ModalPausarServicio, ModalEliminarServicio } from './ModalesAccionServicio';
 
 interface MisPublicacionesServiciosSectionProps {
     /** Tab seleccionado en la página padre. */
@@ -76,27 +79,28 @@ export function MisPublicacionesServiciosSection({
     const isError = queryActual.isError;
     const refetch = queryActual.refetch;
 
+    // ─── Modales de confirmación (pausar/eliminar) ───────────────────────
+    const [publicacionAPausar, setPublicacionAPausar] = useState<PublicacionServicio | null>(null);
+    const [publicacionAEliminar, setPublicacionAEliminar] = useState<PublicacionServicio | null>(null);
+
     // ─── Handlers ─────────────────────────────────────────────────────
     function handleEditar(p: PublicacionServicio) {
-        // El composer vive inline en /servicios. Redirigimos al feed
-        // con ?editar=<id>; ComposerSection lo detecta y expande el
-        // composer con los datos hidratados.
-        navegar(`/servicios?editar=${p.id}`);
+        // El composer de Servicios vive montado en la propia página de "Mis
+        // Publicaciones" (`PaginaMisPublicaciones.tsx`) — editar ya no saca
+        // al usuario de aquí, solo agrega `?editar=<id>` a la URL actual.
+        navegar(`/mis-publicaciones?editar=${p.id}`);
     }
 
-    async function handlePausar(p: PublicacionServicio) {
-        const seguro = await notificar.confirmar(
-            '¿Pausar esta publicación?',
-            'Dejará de mostrarse en el feed. Puedes reactivarla cuando quieras.',
-        );
-        if (!seguro) return;
+    async function handleConfirmarPausar() {
+        if (!publicacionAPausar) return;
         try {
             const res = await cambiarEstadoMutation.mutateAsync({
-                publicacionId: p.id,
+                publicacionId: publicacionAPausar.id,
                 estado: 'pausada',
             });
             if (res.success) {
                 notificar.exito('Publicación pausada.');
+                setPublicacionAPausar(null);
             } else {
                 notificar.error(res.message ?? 'No pudimos pausarla.');
             }
@@ -120,16 +124,13 @@ export function MisPublicacionesServiciosSection({
         }
     }
 
-    async function handleEliminar(p: PublicacionServicio) {
-        const seguro = await notificar.confirmar(
-            '¿Eliminar definitivamente?',
-            'Esta acción no se puede deshacer. La publicación dejará de existir para siempre.',
-        );
-        if (!seguro) return;
+    async function handleConfirmarEliminar() {
+        if (!publicacionAEliminar) return;
         try {
-            const res = await eliminarMutation.mutateAsync(p.id);
+            const res = await eliminarMutation.mutateAsync(publicacionAEliminar.id);
             if (res.success) {
                 notificar.exito('Publicación eliminada.');
+                setPublicacionAEliminar(null);
             } else {
                 notificar.error(res.message ?? 'No pudimos eliminarla.');
             }
@@ -145,16 +146,19 @@ export function MisPublicacionesServiciosSection({
     }
 
     // ─── Render ───────────────────────────────────────────────────────
+    // Los modales se renderizan SIEMPRE (fuera del switch de estados) —
+    // solo se abren en la rama con grid, pero deben sobrevivir aunque un
+    // refetch en curso haga parpadear a `isPending` mientras están abiertos.
+    let contenido: React.ReactNode;
+
     if (isPending) {
-        return (
+        contenido = (
             <div className="flex items-center justify-center py-20">
                 <Spinner tamanio="lg" />
             </div>
         );
-    }
-
-    if (isError) {
-        return (
+    } else if (isError) {
+        contenido = (
             <div className="flex flex-col items-center justify-center py-20 text-center">
                 <AlertTriangle className="mb-3 h-10 w-10 text-amber-500" />
                 <h3 className="text-lg font-bold text-slate-900">
@@ -173,34 +177,52 @@ export function MisPublicacionesServiciosSection({
                 </button>
             </div>
         );
-    }
-
-    if (publicaciones.length === 0) {
-        return (
-            <EstadoVacioServicios tab={tabActivo} onPublicar={irAPublicar} />
+    } else if (publicaciones.length === 0) {
+        contenido = <EstadoVacioServicios tab={tabActivo} onPublicar={irAPublicar} />;
+    } else {
+        contenido = (
+            <div
+                data-testid="grid-mis-servicios"
+                className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6"
+            >
+                {publicaciones.map((p) => (
+                    <div
+                        key={p.id}
+                        className="lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full h-full"
+                    >
+                        <CardServicioMio
+                            publicacion={p}
+                            onEditar={handleEditar}
+                            onPausar={setPublicacionAPausar}
+                            onReactivar={handleReactivar}
+                            onEliminar={setPublicacionAEliminar}
+                        />
+                    </div>
+                ))}
+            </div>
         );
     }
 
     return (
-        <div
-            data-testid="grid-mis-servicios"
-            className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6"
-        >
-            {publicaciones.map((p) => (
-                <div
-                    key={p.id}
-                    className="lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full h-full"
-                >
-                    <CardServicioMio
-                        publicacion={p}
-                        onEditar={handleEditar}
-                        onPausar={handlePausar}
-                        onReactivar={handleReactivar}
-                        onEliminar={handleEliminar}
-                    />
-                </div>
-            ))}
-        </div>
+        <>
+            {contenido}
+
+            <ModalPausarServicio
+                abierto={!!publicacionAPausar}
+                publicacion={publicacionAPausar}
+                pendiente={cambiarEstadoMutation.isPending}
+                onCerrar={() => setPublicacionAPausar(null)}
+                onConfirmar={handleConfirmarPausar}
+            />
+
+            <ModalEliminarServicio
+                abierto={!!publicacionAEliminar}
+                publicacion={publicacionAEliminar}
+                pendiente={eliminarMutation.isPending}
+                onCerrar={() => setPublicacionAEliminar(null)}
+                onConfirmar={handleConfirmarEliminar}
+            />
+        </>
     );
 }
 

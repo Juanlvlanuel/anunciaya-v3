@@ -159,8 +159,9 @@ Cumple las mismas reglas heredadas que MarketPlace (`TOKENS_GLOBALES.md` Regla 1
 
 `apps/web/src/components/dinamicas/CardDinamicaMio.tsx` — usada en "Mis Publicaciones". Mismo cuerpo visual que la compacta, más un menú "⋯" (mismo patrón que `CardArticuloMio.tsx` de MarketPlace) con:
 
-- **Posponer** y **Cancelar** — solo si `estado IN ('activa', 'pospuesta')`. El botón "⋯" ni se muestra si la Dinámica está en `en_sorteo`/`cerrada`/`cancelada` (nada que gestionar).
-- **Sin "Editar" ni "Eliminar"** — una Dinámica publicada no se edita (solo se pospone/cancela) y no hay endpoint DELETE (no aplica; se cancela, no se borra).
+- **Editar**, **Posponer** y **Cancelar** — solo si `estado IN ('activa', 'pospuesta')`. El botón "⋯" ni se muestra si la Dinámica está en `en_sorteo`/`cerrada`/`cancelada` (nada que gestionar).
+- **"Editar" es limitado post-publicación** (ago-2026) — modal propio `ModalEditarDinamica` (mismo archivo `ModalesAccionDinamica.tsx`), NO el composer completo. Solo permite tocar título, descripción y fotos del premio; boletos/precio/método de sorteo/regla de desempate/fecha límite quedan bloqueados por el backend (409) una vez publicada — cambiarlos sería injusto para quienes ya se inscribieron con esas reglas (la fecha límite tiene su propio flujo, "Posponer").
+- **Sin "Eliminar"** — no hay endpoint DELETE (no aplica; se cancela, no se borra).
 
 ### Ficha de detalle — `PaginaDinamica.tsx`
 
@@ -174,10 +175,10 @@ Rediseñada (ago-2026) para calcar el patrón de `PaginaArticuloMarketplace.tsx`
   1. Card de info: título, precio del boleto, tags densos (tipo de premio / método de sorteo / cuenta regresiva) — sin pills grandes, patrón `rounded-md` denso (Regla 13 de tokens).
   2. **Card del organizador** — mismo patrón que `CardVendedor` (MP) / `OferenteCard` (Servicios): avatar con ring, nombre en 2 líneas + `BadgeCheck`, insignia + ícono de ChatYA (solo ícono, sin fondo) en el mismo renglón, actividad ("Activa hace X") + "Ver perfil →" (a `/marketplace/usuario/:id?tab=dinamicas`) en el renglón de abajo.
   3. Trust box "Cómo funciona" (ámbar).
-- **Menú "⋯" del organizador** (kebab, esquina superior derecha de la card de info — solo si `esOrganizador`): "Agregar Part." (azul), "Posponer" (ámbar), "Cancelar Dinámica" (rojo), y "Editar borrador" si `estado='borrador'`. Reemplazó los botones inline que había antes.
+- **Menú "⋯" del organizador** (kebab, esquina superior derecha de la card de info — solo si `esOrganizador`): "Editar borrador" (compose completo) si `estado='borrador'`; si `estado IN ('activa','pospuesta')`, en vez de eso muestra "Editar" (ámbar, abre `ModalEditarDinamica` inline — limitado a título/descripción/fotos), "Agregar Part." (azul), "Posponer" (ámbar), "Cancelar Dinámica" (rojo). Mismas 2 variantes de "Editar" que en "Mis Publicaciones" (ago-2026). Reemplazó los botones inline que había antes.
 - **Grid de boletos** — ya NO es un grid que crece verticalmente: es un carrusel horizontal (`grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem]`, 5 filas fijas, columnas nuevas hacia la derecha) navegado con flechas `ChevronLeft`/`ChevronRight`, 3 estados visuales (disponible/reservado/pagado).
 - **Lista pública de participantes** — nombre (o "Sin cuenta AnunciaYA"), estado del boleto, botón "Contactar" por fila y "Confirmar pago" (solo organizador, solo `reservado`).
-- **Modales unificados** — `apps/web/src/components/dinamicas/ModalesAccionDinamica.tsx`: `ModalAgregarParticipanteDinamica`, `ModalPosponerDinamica`, `ModalCancelarDinamica`. Un solo componente compartido entre esta página y "Mis Publicaciones" (antes cada una tenía su propia copia con estilos distintos, una incluso usaba `window.confirm()` nativo). Header con gradiente color-coded por acción (azul/ámbar/rojo) + ícono en círculo, mismo patrón que `ModalConfirmarCanje.tsx` de CardYA. El campo de teléfono de "Agregar participante" usa `InputTelefono` (lada `+52` editable + formato visual `(638) 113 2658`).
+- **Modales unificados** — `apps/web/src/components/dinamicas/ModalesAccionDinamica.tsx`: `ModalAgregarParticipanteDinamica`, `ModalPosponerDinamica`, `ModalCancelarDinamica`, `ModalEditarDinamica`. Un solo componente compartido entre esta página y "Mis Publicaciones" (antes cada una tenía su propia copia con estilos distintos, una incluso usaba `window.confirm()` nativo). Header con gradiente color-coded por acción (azul/ámbar/rojo) + ícono en círculo, mismo patrón que `ModalConfirmarCanje.tsx` de CardYA. El campo de teléfono de "Agregar participante" usa `InputTelefono` (lada `+52` editable + formato visual `(638) 113 2658`). `ModalEditarDinamica` (ago-2026) reusa `useFotosUploaderDinamicas` para las fotos y las constantes `TITULO_MIN/MAX`, `DESC_MIN/MAX` de `useComposerDinamicas.ts` para la validación — sin el resto del composer (sin checklist legal, sin flujo borrador→publicar).
 
 ### Composer — crear/editar
 
@@ -199,7 +200,7 @@ Móvil: página completa estilo "Nueva publicación" de Instagram/Facebook. Desk
 - **Activas** — agrupa `activa`, `pospuesta`, `en_sorteo`.
 - **Cerradas** — agrupa `cerrada`, `cancelada`.
 
-Usa `useDinamicasDeOrganizador(usuarioId, { incluirCanceladas: true })` — a diferencia del perfil público, aquí SÍ se ven las canceladas (es el propio organizador gestionando lo suyo). Renderiza `CardDinamicaMio` con su menú "⋯" (Agregar Part. / Posponer / Cancelar, mismo componente `ModalesAccionDinamica.tsx` que la ficha de detalle). FAB dice "Organizar" en vez de "Publicar" y enruta a `/marketplace?dinamicas=1&crearDinamica=1`.
+Usa `useDinamicasDeOrganizador(usuarioId, { incluirCanceladas: true })` — a diferencia del perfil público, aquí SÍ se ven las canceladas (es el propio organizador gestionando lo suyo). Renderiza `CardDinamicaMio` con su menú "⋯" (Editar / Agregar Part. / Posponer / Cancelar, mismo componente `ModalesAccionDinamica.tsx` que la ficha de detalle). FAB dice "Organizar" en vez de "Publicar" y enruta a `/marketplace?dinamicas=1&crearDinamica=1` (crear una Dinámica nueva sigue usando el composer completo en `/marketplace`; solo "Editar" de una ya publicada quedó inline en "Mis Publicaciones" vía `ModalEditarDinamica`, sin sacar al usuario del panel — igual que "Editar" de MarketPlace y Servicios, ago-2026).
 
 ### Página pública para compartir
 
@@ -235,7 +236,7 @@ El botón "Contactar" (organizador, desde el card del feed o la ficha) abre Chat
 |---|---|---|
 | GET | `/mias` | Mis Dinámicas (todas, sin filtro de estado — usado por composer/legacy) |
 | POST | `/` | Crear borrador |
-| PUT | `/:id` | Editar borrador (solo si `estado='borrador'`) |
+| PUT | `/:id` | Editar — completo si `estado='borrador'`; limitado a título/descripción/fotosPremio si `estado IN ('activa','pospuesta')` (409 si se manda otro campo); rechazado (409) en `en_sorteo`/`cerrada`/`cancelada` |
 | POST | `/upload-imagen` | Presigned URL R2 para fotos del premio |
 | DELETE | `/foto-huerfana` | Limpieza R2 con reference count |
 | POST | `/:id/publicar` | Publicar (borrador → activa) + checklist de confirmaciones |

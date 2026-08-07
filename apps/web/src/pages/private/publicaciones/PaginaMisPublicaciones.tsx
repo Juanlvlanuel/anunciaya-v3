@@ -35,7 +35,6 @@ import {
     ShoppingBag,
     ShoppingCart,
     AlertTriangle,
-    Trash2,
     Ticket,
     XCircle,
     type LucideIcon,
@@ -55,16 +54,19 @@ type IconLike =
     | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { Spinner } from '../../../components/ui/Spinner';
-import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { CardArticuloMio } from '../../../components/marketplace/CardArticuloMio';
+import { ModalPausarArticulo, ModalMarcarVendidoArticulo, ModalEliminarArticulo } from '../../../components/marketplace/ModalesAccionArticulo';
 import { CardDinamicaMio } from '../../../components/dinamicas/CardDinamicaMio';
 import {
     ModalAgregarParticipanteDinamica,
     ModalPosponerDinamica,
     ModalCancelarDinamica,
+    ModalEditarDinamica,
 } from '../../../components/dinamicas/ModalesAccionDinamica';
+import { ComposerSection as ComposerSectionMarketplace } from '../../../components/marketplace/composer/ComposerSection';
+import { ComposerSection as ComposerSectionServicios } from '../../../components/servicios/composer/ComposerSection';
 import { MisPublicacionesServiciosSection } from '../../../components/servicios/MisPublicacionesServiciosSection';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
@@ -82,6 +84,7 @@ import {
     usePosponerDinamica,
     useCancelarDinamica,
     useAgregarParticipanteManual,
+    useEditarBorradorDinamica,
 } from '../../../hooks/queries/useDinamicas';
 import { notificar } from '../../../utils/notificaciones';
 import type { ArticuloMarketplace } from '../../../types/marketplace';
@@ -217,6 +220,8 @@ export function PaginaMisPublicaciones() {
             setTabActivo('activa');
         }
     }, [tipoActivo, tabActivo]);
+    const [articuloAPausar, setArticuloAPausar] =
+        useState<ArticuloMarketplace | null>(null);
     const [articuloAMarcarVendido, setArticuloAMarcarVendido] =
         useState<ArticuloMarketplace | null>(null);
     const [articuloAEliminar, setArticuloAEliminar] =
@@ -226,6 +231,8 @@ export function PaginaMisPublicaciones() {
     const [dinamicaACancelar, setDinamicaACancelar] =
         useState<DinamicaFeedItem | null>(null);
     const [dinamicaParaAgregar, setDinamicaParaAgregar] =
+        useState<DinamicaFeedItem | null>(null);
+    const [dinamicaAEditar, setDinamicaAEditar] =
         useState<DinamicaFeedItem | null>(null);
 
     // Conteos de Servicios (los reporta la sección via callback `onConteos`).
@@ -268,6 +275,7 @@ export function PaginaMisPublicaciones() {
     const posponerMutation = usePosponerDinamica();
     const cancelarMutation = useCancelarDinamica();
     const agregarManualMutation = useAgregarParticipanteManual();
+    const editarDinamicaMutation = useEditarBorradorDinamica();
 
     // Conteos por tab (siempre disponibles, independientes del tab activo).
     const conteoPorTab: Record<TabPublicacion, number> = {
@@ -333,17 +341,26 @@ export function PaginaMisPublicaciones() {
     const continuarBorrador = () => navegar('/marketplace?crear=1');
 
     // ─── Handlers de acciones por artículo ───────────────────────────────────
+    // El composer de MarketPlace vive montado aquí mismo (más abajo, junto al
+    // toggle `tipoActivo === 'marketplace'`) — editar ya no saca al usuario
+    // de "Mis Publicaciones", solo agrega `?editar=` a la URL actual.
     const handleEditar = (articulo: ArticuloMarketplace) => {
-        navegar(`/marketplace?editar=${articulo.id}`);
+        navegar(`/mis-publicaciones?editar=${articulo.id}`);
     };
 
-    const handlePausar = async (articulo: ArticuloMarketplace) => {
+    const handleAbrirPausar = (articulo: ArticuloMarketplace) => {
+        setArticuloAPausar(articulo);
+    };
+
+    const handleConfirmarPausar = async () => {
+        if (!articuloAPausar) return;
         try {
             await cambiarEstadoMutation.mutateAsync({
-                articuloId: articulo.id,
+                articuloId: articuloAPausar.id,
                 estado: 'pausada',
             });
             notificar.exito('Publicación pausada. Ya no aparece en el feed.');
+            setArticuloAPausar(null);
         } catch {
             notificar.error('No pudimos pausar la publicación. Intenta de nuevo.');
         }
@@ -397,6 +414,32 @@ export function PaginaMisPublicaciones() {
 
     // ─── Handlers de acciones por Dinámica ───────────────────────────────────
     const irAOrganizarDinamica = () => navegar('/marketplace?dinamicas=1&crearDinamica=1');
+
+    const handleAbrirEditarDinamica = (dinamica: DinamicaFeedItem) => {
+        setDinamicaAEditar(dinamica);
+    };
+
+    const handleConfirmarEditarDinamica = async (datos: {
+        titulo: string;
+        descripcion: string;
+        fotosPremio: DinamicaFeedItem['fotosPremio'];
+    }) => {
+        if (!dinamicaAEditar) return;
+        try {
+            const res = await editarDinamicaMutation.mutateAsync({
+                dinamicaId: dinamicaAEditar.id,
+                payload: datos,
+            });
+            if (!res.success) {
+                notificar.error(res.message);
+                return;
+            }
+            notificar.exito('Dinámica actualizada.');
+            setDinamicaAEditar(null);
+        } catch {
+            notificar.error('No pudimos guardar los cambios. Intenta de nuevo.');
+        }
+    };
 
     const handleAbrirPosponer = (dinamica: DinamicaFeedItem) => {
         setDinamicaAPosponer(dinamica);
@@ -1094,6 +1137,7 @@ export function PaginaMisPublicaciones() {
                                 >
                                     <CardDinamicaMio
                                         dinamica={d}
+                                        onEditar={handleAbrirEditarDinamica}
                                         onAgregarManual={handleAbrirAgregarManual}
                                         onPosponer={handleAbrirPosponer}
                                         onCancelar={handleAbrirCancelar}
@@ -1167,7 +1211,7 @@ export function PaginaMisPublicaciones() {
                                 <CardArticuloMio
                                     articulo={articulo}
                                     onEditar={handleEditar}
-                                    onPausar={handlePausar}
+                                    onPausar={handleAbrirPausar}
                                     onReactivar={handleReactivar}
                                     onMarcarVendido={handleAbrirMarcarVendido}
                                     onEliminar={handleAbrirEliminar}
@@ -1229,85 +1273,29 @@ export function PaginaMisPublicaciones() {
                 `}</style>
             </button>
 
-            {/* ── Modal: confirmar marcar vendido ── */}
-            <ModalAdaptativo
-                abierto={!!articuloAMarcarVendido}
-                onCerrar={() => setArticuloAMarcarVendido(null)}
-                titulo="Marcar como vendido"
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-base font-medium text-slate-700 lg:text-sm 2xl:text-base">
-                        ¿Confirmas que vendiste{' '}
-                        <span className="font-bold text-slate-900">
-                            "{articuloAMarcarVendido?.titulo}"
-                        </span>
-                        ?
-                    </p>
-                    <p className="text-sm font-medium text-slate-600 lg:text-xs 2xl:text-sm">
-                        Desaparecerá del feed público y de los guardados de otros usuarios.
-                        Permanecerá en tu historial.
-                    </p>
-                    <div className="flex items-center justify-end gap-2 pt-2">
-                        <button
-                            data-testid="btn-cancelar-vendido"
-                            onClick={() => setArticuloAMarcarVendido(null)}
-                            className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            data-testid="btn-confirmar-vendido"
-                            onClick={handleConfirmarVendido}
-                            disabled={cambiarEstadoMutation.isPending}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md lg:hover:bg-emerald-700 disabled:opacity-60"
-                        >
-                            <CheckCircle2 className="h-4 w-4" strokeWidth={2.5} />
-                            {cambiarEstadoMutation.isPending ? 'Guardando…' : 'Sí, lo vendí'}
-                        </button>
-                    </div>
-                </div>
-            </ModalAdaptativo>
+            <ModalPausarArticulo
+                abierto={!!articuloAPausar}
+                articulo={articuloAPausar}
+                pendiente={cambiarEstadoMutation.isPending}
+                onCerrar={() => setArticuloAPausar(null)}
+                onConfirmar={handleConfirmarPausar}
+            />
 
-            {/* ── Modal: confirmar eliminación ── */}
-            <ModalAdaptativo
+            <ModalMarcarVendidoArticulo
+                abierto={!!articuloAMarcarVendido}
+                articulo={articuloAMarcarVendido}
+                pendiente={cambiarEstadoMutation.isPending}
+                onCerrar={() => setArticuloAMarcarVendido(null)}
+                onConfirmar={handleConfirmarVendido}
+            />
+
+            <ModalEliminarArticulo
                 abierto={!!articuloAEliminar}
+                articulo={articuloAEliminar}
+                pendiente={eliminarMutation.isPending}
                 onCerrar={() => setArticuloAEliminar(null)}
-                titulo="Eliminar publicación"
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-base font-medium text-slate-700 lg:text-sm 2xl:text-base">
-                        ¿Eliminar{' '}
-                        <span className="font-bold text-slate-900">
-                            "{articuloAEliminar?.titulo}"
-                        </span>
-                        ?
-                    </p>
-                    <p className="text-sm font-medium text-slate-600 lg:text-xs 2xl:text-sm">
-                        Esta acción no se puede deshacer. La publicación desaparecerá de
-                        todos los listados.
-                    </p>
-                    <div className="flex items-center justify-end gap-2 pt-2">
-                        <button
-                            data-testid="btn-cancelar-eliminar"
-                            onClick={() => setArticuloAEliminar(null)}
-                            className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            data-testid="btn-confirmar-eliminar"
-                            onClick={handleConfirmarEliminar}
-                            disabled={eliminarMutation.isPending}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-md lg:hover:bg-red-700 disabled:opacity-60"
-                        >
-                            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
-                            {eliminarMutation.isPending ? 'Eliminando…' : 'Sí, eliminar'}
-                        </button>
-                    </div>
-                </div>
-            </ModalAdaptativo>
+                onConfirmar={handleConfirmarEliminar}
+            />
 
             <ModalAgregarParticipanteDinamica
                 abierto={!!dinamicaParaAgregar}
@@ -1332,6 +1320,28 @@ export function PaginaMisPublicaciones() {
                 onCerrar={() => setDinamicaACancelar(null)}
                 onConfirmar={handleConfirmarCancelar}
             />
+
+            <ModalEditarDinamica
+                abierto={!!dinamicaAEditar}
+                dinamica={dinamicaAEditar}
+                pendiente={editarDinamicaMutation.isPending}
+                onCerrar={() => setDinamicaAEditar(null)}
+                onConfirmar={handleConfirmarEditarDinamica}
+            />
+
+            {/* ════════════════════════════════════════════════════════════════
+                COMPOSERS INLINE — Editar (MP/Servicios) se abre AQUÍ MISMO,
+                sin sacar al usuario de "Mis Publicaciones". Cada composer lee
+                `?editar=<id>` de la URL ACTUAL (misma mecánica que usan en
+                /marketplace y /servicios) — por eso se montan condicionados a
+                `tipoActivo`: los dos comparten los nombres de query param
+                `crear`/`editar`, así que solo uno debe estar montado a la vez
+                para no interpretarlos ambos como si fueran suyos.
+            ════════════════════════════════════════════════════════════════ */}
+            {tipoActivo === 'marketplace' && <ComposerSectionMarketplace />}
+            {tipoActivo === 'servicios' && (
+                <ComposerSectionServicios modoServiciosDefault={null} />
+            )}
 
             {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
                 empalmarse con el FAB Publicar (abajo-derecha en móvil); en PC

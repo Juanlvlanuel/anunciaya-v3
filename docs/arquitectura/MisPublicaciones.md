@@ -1,6 +1,6 @@
 # 📦 Mis Publicaciones — Panel del Vendedor
 
-> **Última actualización:** 5 Agosto 2026 — se integró **Dinámicas** como 3er tipo de publicación (rifas/concursos organizados por el usuario).
+> **Última actualización:** 6 Agosto 2026 — "Editar" de MarketPlace y Servicios ahora abre el composer inline dentro del propio panel (ya no redirige a `/marketplace` o `/servicios`); Dinámicas ganó "Editar" limitado (título/descripción/fotos, vía `ModalEditarDinamica`).
 > **Estado:** ✅ En producción para MarketPlace y Dinámicas · UI pre-cableada para Servicios
 > **Ruta:** `/mis-publicaciones`
 > **Visibilidad:** Solo modo Personal (igual que MarketPlace y Dinámicas)
@@ -339,11 +339,11 @@ El menú "⋯" del card muestra acciones contextuales según el estado del artí
 
 ### Dinámicas
 
-`CardDinamicaMio` no tiene `Editar` ni `Eliminar` — una Dinámica publicada no se edita (solo se pospone/cancela/agrega participantes) y no hay endpoint DELETE (se cancela, no se borra; ver `docs/arquitectura/Dinamicas.md` §Backend). El menú comparte los mismos 3 modales que la ficha de detalle (`ModalesAccionDinamica.tsx`), unificados en agosto 2026.
+`CardDinamicaMio` no tiene `Eliminar` — no hay endpoint DELETE (se cancela, no se borra; ver `docs/arquitectura/Dinamicas.md` §Backend). Sí tiene `Editar` (agregado ago-2026), pero **limitado**: solo título, descripción y fotos del premio — una Dinámica publicada con gente ya inscrita no puede cambiar boletos/precio/método de sorteo/regla de desempate (el backend rechaza esos campos con 409; la fecha límite tiene su propio flujo, "Posponer"). Se abre con `ModalEditarDinamica`, no con el composer completo — mismo archivo `ModalesAccionDinamica.tsx` que los otros 3 modales, unificados con la ficha de detalle desde agosto 2026.
 
 | Estado actual | Acciones disponibles |
 |---------------|----------------------|
-| `activa` / `pospuesta` | Agregar Participante · Posponer · Cancelar |
+| `activa` / `pospuesta` | Editar (limitado) · Agregar Participante · Posponer · Cancelar |
 | `en_sorteo` / `cerrada` / `cancelada` | Ninguna — el botón "⋯" ni se renderiza |
 
 ### Transiciones de estado
@@ -367,7 +367,7 @@ El menú "⋯" del card muestra acciones contextuales según el estado del artí
 - **Pausar / Marcar vendido** usan `PATCH /articulos/:id/estado`.
 - **Re-Activar** (desde `pausada` O `vendida`) usa `POST /articulos/:id/reactivar`. El endpoint extiende `expira_at = NOW() + 30 días`, resetea `vendida_at = NULL` (cubre el caso "marqué vendido por error") y devuelve un mensaje distinto según el estado origen.
 - **Eliminar** usa `DELETE /articulos/:id` (soft delete + cleanup R2 con reference counting).
-- **Editar** navega a `/marketplace/publicar/:id` (el wizard se reusa con el artículo precargado).
+- **Editar** abre el composer inline (`ComposerSection` de MarketPlace) montado dentro de la propia página de "Mis Publicaciones" — ya no saca al usuario del panel (antes redirigía a `/marketplace?editar=:id`). Igual para Servicios, con el `ComposerSection` de Servicios. Cambio de agosto 2026 — ver §Anatomía de la página.
 
 > Las métricas (`total_vistas`, `total_mensajes`, `total_guardados`) se MANTIENEN al reactivar — son historial real del artículo y no se reinician. Los chats y preguntas Q&A existentes también se conservan.
 
@@ -750,9 +750,9 @@ Intentar unificarlas con props condicionales generaría una explosión de varian
 
 El ciclo de vida real de una Dinámica (`borrador`/`activa`/`pospuesta`/`en_sorteo`/`cerrada`/`cancelada`) no calza con `Activas/Pausadas/Vendidas`. En vez de inventar un mapeo forzado a esos 3 nombres, Dinámicas usa su propio par (`Activas`/`Cerradas`), agrupando estados afines client-side. Esto evita nombres de tab que mientan sobre lo que realmente contienen.
 
-### 10. Sin "Editar" ni "Eliminar" en Dinámicas
+### 10. Dinámicas: "Editar" limitado, sin "Eliminar" (revisado ago-2026)
 
-A diferencia de MarketPlace (donde el vendedor sí puede editar precio/fotos de una publicación activa), una Dinámica publicada **no se edita** — cambiar las reglas de una rifa a medio camino, con gente que ya tiene boletos, sería injusto para los participantes. Tampoco se "elimina" — se **cancela** (estado terminal, auditable), preservando el registro de quién participó. Por eso `CardDinamicaMio` solo ofrece Posponer/Cancelar, nunca Editar/Eliminar.
+A diferencia de MarketPlace (donde el vendedor puede editar precio/fotos de una publicación activa libremente), una Dinámica publicada con boletos vendidos **no puede cambiar sus reglas** — el backend rechaza (409) tocar boletos/precio/método de sorteo/regla de desempate una vez que `estado IN ('activa','pospuesta')`, porque sería injusto para quienes ya se inscribieron con esas reglas (la fecha límite tiene su propio flujo, "Posponer"). Sí puede editar título, descripción y fotos del premio — contenido que no afecta lo que un participante ya aceptó. Tampoco se "elimina" — se **cancela** (estado terminal, auditable), preservando el registro de quién participó. Por eso `CardDinamicaMio` ofrece Editar (limitado)/Posponer/Cancelar, nunca Eliminar.
 
 ---
 

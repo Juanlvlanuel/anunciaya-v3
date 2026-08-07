@@ -112,6 +112,20 @@ export async function crearDinamica(usuarioId: string, datos: CrearDinamicaInput
     }
 }
 
+/** Campos que solo se pueden tocar mientras la Dinámica sigue en 'borrador'
+ *  — una vez publicada, cambiarlos sería injusto para quienes ya se
+ *  inscribieron con esas reglas (boletos, precio, sorteo, fecha límite ya
+ *  tiene su propio flujo vía `posponerDinamica`). */
+const CAMPOS_SOLO_BORRADOR = [
+    'tipoPremio',
+    'metodoSorteo',
+    'numeroTotalBoletos',
+    'precioBoleto',
+    'fechaLimiteInscripcion',
+    'reglaDesempate',
+    'ciudad',
+] as const satisfies readonly (keyof EditarBorradorDinamicaInput)[];
+
 export async function editarBorrador(
     usuarioId: string,
     dinamicaId: string,
@@ -121,12 +135,28 @@ export async function editarBorrador(
         const actual = await obtenerParaEdicion(usuarioId, dinamicaId);
         if ('success' in actual) return actual;
 
-        if (actual.estado !== 'borrador') {
+        const esBorrador = actual.estado === 'borrador';
+        // Publicada pero todavía gestionable (no en_sorteo/cerrada/cancelada):
+        // edición limitada a título, descripción y fotos del premio.
+        const esPublicadaEditable = actual.estado === 'activa' || actual.estado === 'pospuesta';
+
+        if (!esBorrador && !esPublicadaEditable) {
             return {
                 success: false,
-                message: 'Solo puedes editar una Dinámica mientras está en borrador',
+                message: 'No puedes editar una Dinámica en sorteo, cerrada o cancelada',
                 code: 409,
             } satisfies RespuestaError;
+        }
+
+        if (esPublicadaEditable) {
+            const intentaCampoSoloBorrador = CAMPOS_SOLO_BORRADOR.some((campo) => datos[campo] !== undefined);
+            if (intentaCampoSoloBorrador) {
+                return {
+                    success: false,
+                    message: 'Una vez publicada solo puedes editar título, descripción y fotos del premio',
+                    code: 409,
+                } satisfies RespuestaError;
+            }
         }
 
         if (datos.titulo !== undefined || datos.descripcion !== undefined) {
@@ -141,13 +171,15 @@ export async function editarBorrador(
         if (datos.titulo !== undefined) patch.titulo = datos.titulo;
         if (datos.descripcion !== undefined) patch.descripcion = datos.descripcion;
         if (datos.fotosPremio !== undefined) patch.fotosPremio = datos.fotosPremio;
-        if (datos.tipoPremio !== undefined) patch.tipoPremio = datos.tipoPremio;
-        if (datos.metodoSorteo !== undefined) patch.metodoSorteo = datos.metodoSorteo;
-        if (datos.numeroTotalBoletos !== undefined) patch.numeroTotalBoletos = datos.numeroTotalBoletos;
-        if (datos.precioBoleto !== undefined) patch.precioBoleto = String(datos.precioBoleto);
-        if (datos.fechaLimiteInscripcion !== undefined) patch.fechaLimiteInscripcion = datos.fechaLimiteInscripcion;
-        if (datos.reglaDesempate !== undefined) patch.reglaDesempate = datos.reglaDesempate;
-        if (datos.ciudad !== undefined) patch.ciudadId = await resolverCiudadId(datos.ciudad);
+        if (esBorrador) {
+            if (datos.tipoPremio !== undefined) patch.tipoPremio = datos.tipoPremio;
+            if (datos.metodoSorteo !== undefined) patch.metodoSorteo = datos.metodoSorteo;
+            if (datos.numeroTotalBoletos !== undefined) patch.numeroTotalBoletos = datos.numeroTotalBoletos;
+            if (datos.precioBoleto !== undefined) patch.precioBoleto = String(datos.precioBoleto);
+            if (datos.fechaLimiteInscripcion !== undefined) patch.fechaLimiteInscripcion = datos.fechaLimiteInscripcion;
+            if (datos.reglaDesempate !== undefined) patch.reglaDesempate = datos.reglaDesempate;
+            if (datos.ciudad !== undefined) patch.ciudadId = await resolverCiudadId(datos.ciudad);
+        }
 
         const [fila] = await db
             .update(dinamicas)

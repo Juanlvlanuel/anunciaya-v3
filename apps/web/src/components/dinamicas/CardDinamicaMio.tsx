@@ -6,10 +6,12 @@
  * vendidos/countdown) y le agrega el menú "⋯" de acciones, igual patrón que
  * `CardArticuloMio.tsx` usa para MarketPlace.
  *
- * Acciones disponibles según estado (no hay "Editar" ni "Eliminar" — una
- * Dinámica no se edita tras publicarse ni se borra, solo se pospone o
- * cancela; backend no tiene endpoint DELETE para esto):
- *   - activa/pospuesta → Agregar Participante · Posponer · Cancelar
+ * Acciones disponibles según estado (no hay "Eliminar" — una Dinámica no se
+ * borra, solo se pospone o cancela; backend no tiene endpoint DELETE para
+ * esto). "Editar" sí existe pero es limitado: solo título, descripción y
+ * fotos del premio — boletos/precio/reglas/fecha quedan bloqueados una vez
+ * publicada (ver `editarBorrador` en dinamicas.service.ts):
+ *   - activa/pospuesta → Editar · Agregar Participante · Posponer · Cancelar
  *   - en_sorteo/cerrada/cancelada → sin acciones (estado terminal o en
  *     curso), el botón "⋯" ni se muestra — la card solo navega al detalle.
  *
@@ -18,13 +20,14 @@
 
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ImageOff, MoreVertical, Ticket, Users, CalendarClock, Ban, UserPlus, type LucideIcon } from 'lucide-react';
+import { Clock, ImageOff, MoreVertical, Pencil, Ticket, Users, CalendarClock, Ban, UserPlus, type LucideIcon } from 'lucide-react';
 import Tooltip from '../ui/Tooltip';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type { DinamicaFeedItem } from '../../types/dinamicas';
 
 interface CardDinamicaMioProps {
     dinamica: DinamicaFeedItem;
+    onEditar: (dinamica: DinamicaFeedItem) => void;
     onAgregarManual: (dinamica: DinamicaFeedItem) => void;
     onPosponer: (dinamica: DinamicaFeedItem) => void;
     onCancelar: (dinamica: DinamicaFeedItem) => void;
@@ -55,7 +58,7 @@ function formatearCuentaRegresiva(fechaLimite: string | null): string | null {
     return `${min}min`;
 }
 
-export function CardDinamicaMio({ dinamica, onAgregarManual, onPosponer, onCancelar }: CardDinamicaMioProps) {
+export function CardDinamicaMio({ dinamica, onEditar, onAgregarManual, onPosponer, onCancelar }: CardDinamicaMioProps) {
     const navigate = useNavigate();
     const [menuAbierto, setMenuAbierto] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -183,6 +186,14 @@ export function CardDinamicaMio({ dinamica, onAgregarManual, onPosponer, onCance
                     onClick={(e) => e.stopPropagation()}
                     role="menu"
                 >
+                    <BotonMenu
+                        testId={`menu-editar-dinamica-${dinamica.id}`}
+                        icono={Pencil}
+                        iconColor="text-amber-600"
+                        onClick={(e) => handleAccion(e, () => onEditar(dinamica))}
+                    >
+                        Editar
+                    </BotonMenu>
                     <BotonMenu
                         testId={`menu-agregar-participante-${dinamica.id}`}
                         icono={UserPlus}
