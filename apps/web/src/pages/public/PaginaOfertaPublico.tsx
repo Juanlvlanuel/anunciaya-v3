@@ -19,11 +19,12 @@ import {
     Loader2,
     Tag,
     Flame,
-    ExternalLink,
     Store,
     ShoppingCart,
     ArrowRight,
     Check,
+    ChevronRight,
+    BadgeCheck,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -34,10 +35,14 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 import { useOpenGraph } from '../../hooks/useOpenGraph';
 import { useAbrirWhatsApp } from '../../hooks/useAbrirWhatsApp';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 import { useAuthStore } from '../../stores/useAuthStore';
 import api from '../../services/api';
+import { formatearTiempoRelativo } from '../../utils/marketplace';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
+import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
+import { ModalImagenes } from '../../components/ui/ModalImagenes';
 
 // =============================================================================
 // TIPOS
@@ -56,8 +61,10 @@ interface OfertaPublica {
     limiteUsos?: number | null;
     usosActuales?: number;
     activo?: boolean;
+    createdAt: string;
     // Negocio
     negocioId: string;
+    negocioUsuarioId?: string | null;
     negocioNombre: string;
     logoUrl?: string | null;
     ciudad?: string | null;
@@ -66,6 +73,7 @@ interface OfertaPublica {
     // Sucursal
     sucursalId: string;
     sucursalNombre?: string | null;
+    sucursalFotoPerfil?: string | null;
     direccion?: string | null;
 }
 
@@ -200,6 +208,7 @@ export function PaginaOfertaPublico() {
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
+    const iniciarChatNegocio = useIniciarChatNegocio();
 
     // -------------------------------------------------------------------------
     // Estado
@@ -207,6 +216,8 @@ export function PaginaOfertaPublico() {
     const [oferta, setOferta] = useState<OfertaPublica | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [modalAuthAbierto, setModalAuthAbierto] = useState(false);
+    const [imagenAbierta, setImagenAbierta] = useState(false);
 
     // Usuario logueado o visitante
     const estaLogueado = !!usuario;
@@ -269,6 +280,34 @@ export function PaginaOfertaPublico() {
         if (oferta?.sucursalId) {
             navigate(`/p/negocio/${oferta.sucursalId}`);
         }
+    };
+
+    const handleChatYA = async () => {
+        if (!oferta) return;
+        if (!estaLogueado) {
+            setModalAuthAbierto(true);
+            return;
+        }
+        if (!oferta.negocioUsuarioId) return;
+        const avatarSucursal = oferta.sucursalFotoPerfil ?? oferta.logoUrl ?? null;
+        await iniciarChatNegocio({
+            usuarioId: oferta.negocioUsuarioId,
+            sucursalId: oferta.sucursalId,
+            negocioNombre: oferta.negocioNombre,
+            avatarUrl: avatarSucursal,
+            contexto: {
+                tipo: 'oferta',
+                referenciaId: oferta.ofertaId,
+                cardData: {
+                    subtipo: 'oferta',
+                    titulo: oferta.titulo,
+                    imagen: oferta.imagen ?? null,
+                    badgeTexto,
+                },
+                borradorInicial: `Hola! Me interesa esta oferta: "${oferta.titulo}"`,
+            },
+        });
+        navigate(`/negocios/${oferta.sucursalId}`);
     };
 
     const handleRegistrarse = () => {
@@ -358,14 +397,17 @@ export function PaginaOfertaPublico() {
                         <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
                             {/* ─── COLUMNA IZQUIERDA ─── */}
                             <div className="min-w-0 space-y-5 lg:space-y-6">
-                                {/* Imagen card con badges encima */}
-                                <div className="relative mx-3 overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md lg:mx-0">
-                                    <div className="relative aspect-[4/3] lg:aspect-[3/2]">
+                                {/* Imagen card con badges encima — full-bleed en móvil
+                                    (sin margen ni bordes redondeados), card bordeada
+                                    desde `lg:`. */}
+                                <div className="relative overflow-hidden bg-white lg:rounded-xl lg:border-2 lg:border-slate-300 lg:shadow-md">
+                                    <div className="group relative aspect-[4/3] lg:aspect-[3/2]">
                                         {oferta.imagen ? (
                                             <img
                                                 src={oferta.imagen}
                                                 alt={oferta.titulo}
-                                                className="h-full w-full object-cover"
+                                                onClick={() => setImagenAbierta(true)}
+                                                className="h-full w-full cursor-pointer object-cover transition-transform duration-300 lg:group-hover:scale-[1.02]"
                                             />
                                         ) : (
                                             <div className="flex h-full w-full items-center justify-center bg-slate-200">
@@ -401,7 +443,7 @@ export function PaginaOfertaPublico() {
 
                                 {/* Bloque info — SOLO móvil (en desktop va al panel sticky) */}
                                 <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:hidden">
-                                    <BloqueInfoOferta oferta={oferta} />
+                                    <BloqueInfoOferta oferta={oferta} badgeTexto={badgeTexto} />
                                 </div>
 
                                 {/* Descripción — SOLO móvil. En desktop va al
@@ -418,17 +460,15 @@ export function PaginaOfertaPublico() {
                                     </div>
                                 )}
 
-                                {/* Card del negocio — SOLO móvil */}
+                                {/* Card del negocio — SOLO móvil. Contacto (ChatYA +
+                                    WhatsApp) y "Ver negocio" viven inline en la card. */}
                                 <div className="mx-3 lg:hidden">
-                                    <CardNegocioOferta oferta={oferta} />
-                                </div>
-
-                                {/* Botones de acción — SOLO móvil */}
-                                <div className="mx-3 flex flex-col gap-3 sm:flex-row lg:hidden">
-                                    {oferta.whatsapp && (
-                                        <BotonWhatsappOferta onClick={handleWhatsApp} />
-                                    )}
-                                    <BotonVerNegocioOferta onClick={handleVerNegocio} />
+                                    <CardNegocioOferta
+                                        oferta={oferta}
+                                        onVerNegocio={handleVerNegocio}
+                                        onContactar={handleChatYA}
+                                        onWhatsapp={oferta.whatsapp ? handleWhatsApp : undefined}
+                                    />
                                 </div>
                             </div>
 
@@ -443,21 +483,16 @@ export function PaginaOfertaPublico() {
                                         Padding `p-4` unificado con las demás
                                         cards del panel (mismo patrón en MP). */}
                                     <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
-                                        <BloqueInfoOferta oferta={oferta} compacto />
-
-                                        {/* `flex flex-col` para que el `flex-1`
-                                            de los botones funcione y queden
-                                            full width apilados verticalmente. */}
-                                        <div className="mt-3 flex flex-col gap-1.5 border-t-2 border-slate-200 pt-3">
-                                            {oferta.whatsapp && (
-                                                <BotonWhatsappOferta onClick={handleWhatsApp} />
-                                            )}
-                                            <BotonVerNegocioOferta onClick={handleVerNegocio} />
-                                        </div>
+                                        <BloqueInfoOferta oferta={oferta} badgeTexto={badgeTexto} compacto />
                                     </div>
 
-                                    {/* Card del negocio — altura natural. */}
-                                    <CardNegocioOferta oferta={oferta} />
+                                    {/* Card del negocio — ChatYA + WhatsApp + "Ver negocio" inline */}
+                                    <CardNegocioOferta
+                                        oferta={oferta}
+                                        onVerNegocio={handleVerNegocio}
+                                        onContactar={handleChatYA}
+                                        onWhatsapp={oferta.whatsapp ? handleWhatsApp : undefined}
+                                    />
 
                                     {/* Descripción — flex-1 toma el espacio
                                         sobrante para que la suma de las 3
@@ -545,6 +580,22 @@ export function PaginaOfertaPublico() {
                 <FooterPublico />
             </main>
             {menuWhatsApp}
+
+            <ModalAuthRequerido
+                abierto={modalAuthAbierto}
+                onCerrar={() => setModalAuthAbierto(false)}
+                contexto={{ tipo: 'oferta', titulo: oferta.titulo }}
+                urlRetorno={`/p/oferta/${id}`}
+            />
+
+            {oferta.imagen && (
+                <ModalImagenes
+                    images={[oferta.imagen]}
+                    initialIndex={0}
+                    isOpen={imagenAbierta}
+                    onClose={() => setImagenAbierta(false)}
+                />
+            )}
         </div>
     );
 }
@@ -555,15 +606,20 @@ export function PaginaOfertaPublico() {
 
 interface BloqueInfoOfertaProps {
     oferta: OfertaPublica;
+    /** Texto del badge de descuento (ej. "20% OFF", "2x1") — equivalente
+     *  del "valor" grande que usan Producto/MarketPlace (precio), pero
+     *  Ofertas no tiene un número: usa el tipo de oferta en su lugar. */
+    badgeTexto: string;
     compacto?: boolean;
 }
 
 /**
- * Bloque info de la oferta — eyebrow Ofertas + ciudad / título / chip de
- * compra mínima si aplica. Patrón análogo a `BloqueInfo` del MarketPlace
- * público pero con identidad amber del módulo Ofertas.
+ * Bloque info de la oferta — eyebrow Ofertas + ciudad / título (negro,
+ * mismo tamaño que Producto/MarketPlace) / tipo de oferta (grande, amber —
+ * equivalente al "precio" de Producto/MP) / chip de compra mínima si
+ * aplica. Patrón unificado con `BloqueInfo` del MarketPlace público.
  */
-function BloqueInfoOferta({ oferta, compacto = false }: BloqueInfoOfertaProps) {
+function BloqueInfoOferta({ oferta, badgeTexto, compacto = false }: BloqueInfoOfertaProps) {
     return (
         <div className={compacto ? 'space-y-1.5' : 'space-y-3 lg:space-y-4'}>
             {/* Eyebrow Ofertas · Ciudad */}
@@ -587,7 +643,7 @@ function BloqueInfoOferta({ oferta, compacto = false }: BloqueInfoOfertaProps) {
                 )}
             </p>
 
-            {/* Título */}
+            {/* Título — negro, mismo tamaño que Producto/MarketPlace */}
             <h1
                 data-testid="titulo-oferta"
                 className={
@@ -598,6 +654,19 @@ function BloqueInfoOferta({ oferta, compacto = false }: BloqueInfoOfertaProps) {
             >
                 {oferta.titulo}
             </h1>
+
+            {/* Tipo de oferta — equivalente del "precio" de Producto/MP:
+                mismo tamaño grande, color temático amber de Ofertas. */}
+            <div
+                data-testid="tipo-oferta"
+                className={
+                    compacto
+                        ? 'text-2xl font-extrabold leading-none tracking-tight text-amber-700 2xl:text-3xl'
+                        : 'text-4xl font-extrabold leading-none tracking-tight text-amber-700 lg:text-5xl'
+                }
+            >
+                {badgeTexto}
+            </div>
 
             {/* Compra mínima */}
             {oferta.compraMinima && Number(oferta.compraMinima) > 0 && (
@@ -615,25 +684,36 @@ interface CardNegocioOfertaProps {
     /** Clases adicionales — útil para hacer la card flex-1 cuando vive
      *  dentro del panel derecho que distribuye altura entre 3 cards. */
     className?: string;
+    /** Navega al perfil público del negocio. */
+    onVerNegocio: () => void;
+    /** Ícono de ChatYA — mismo patrón que `CardVendedor` (MP) y
+     *  `CardOrganizadorPublico` (Dinámicas). */
+    onContactar?: () => void;
+    /** Ícono de WhatsApp — solo si el negocio tiene número registrado. */
+    onWhatsapp?: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**
- * Card del negocio que ofrece la oferta — logo + nombre + ciudad + CTA
- * "Ver negocio". Patrón análogo a `CardVendedor` del MarketPlace.
+ * Card del negocio que ofrece la oferta — logo + nombre + ciudad, con
+ * contacto (ChatYA + WhatsApp) y "Ver negocio" inline. Patrón unificado con
+ * `CardVendedor` (MarketPlace) y `CardOrganizadorPublico` (Dinámicas).
  */
-function CardNegocioOferta({ oferta, className = '' }: CardNegocioOfertaProps) {
+function CardNegocioOferta({ oferta, className = '', onVerNegocio, onContactar, onWhatsapp }: CardNegocioOfertaProps) {
+    const [avatarAbierto, setAvatarAbierto] = useState(false);
+    const actividadLabel = `Publicado ${formatearTiempoRelativo(oferta.createdAt)}`;
+
     return (
-        <div className={`rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md ${className}`}>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                Ofrecido por
-            </p>
+        <div className={`rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md ${className}`}>
             <div className="flex items-center gap-3">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 lg:h-14 lg:w-14">
+                <div
+                    className={`h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100 lg:h-16 lg:w-16 ${oferta.logoUrl ? 'cursor-pointer' : ''}`}
+                    onClick={oferta.logoUrl ? () => setAvatarAbierto(true) : undefined}
+                >
                     {oferta.logoUrl ? (
                         <img
                             src={oferta.logoUrl}
                             alt={oferta.negocioNombre}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full scale-110 object-cover"
                         />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-amber-500 to-orange-600">
@@ -644,48 +724,81 @@ function CardNegocioOferta({ oferta, className = '' }: CardNegocioOfertaProps) {
                     )}
                 </div>
                 <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-bold text-slate-900 lg:text-base">
-                        {oferta.negocioNombre}
+                    <h3 className="flex items-center gap-1 text-sm font-bold text-slate-900 lg:text-base">
+                        <span className="truncate">{oferta.negocioNombre}</span>
+                        <BadgeCheck
+                            className="h-6 w-6 shrink-0 fill-blue-500 text-white"
+                            strokeWidth={2.5}
+                            aria-label="Negocio verificado"
+                        />
                     </h3>
-                    {oferta.ciudad && (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-sm font-medium text-slate-600">
-                            <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
-                            {oferta.ciudad}
-                        </p>
-                    )}
                 </div>
             </div>
+
+            {/* Fila 1: íconos de contacto (ChatYA + WhatsApp), alineados a
+                la derecha — mismo patrón que `CardVendedor` (MP) y
+                `CardOferentePublico` (Servicios). */}
+            {(onContactar || onWhatsapp) && (
+                <div className="mt-2 flex items-center justify-end gap-3">
+                    {onContactar && (
+                        <button
+                            type="button"
+                            onClick={onContactar}
+                            aria-label="Contactar por ChatYA"
+                            className="flex shrink-0 items-center justify-center lg:cursor-pointer lg:hover:opacity-80"
+                        >
+                            <img src="/ChatYA.webp" alt="" className="h-8 w-auto object-contain" />
+                        </button>
+                    )}
+                    {onWhatsapp && (
+                        <button
+                            type="button"
+                            onClick={onWhatsapp}
+                            aria-label="Contactar por WhatsApp"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#25D366] shadow-md lg:cursor-pointer lg:hover:scale-105"
+                        >
+                            <WhatsAppIconOferta className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Fila 2: "Publicado hace X" (izquierda) + "Ver negocio"
+                (derecha) — mismo patrón que `CardVendedor` (MP). */}
+            <div className="mt-2 flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-slate-400" />
+                    {actividadLabel}
+                </div>
+                <button
+                    type="button"
+                    data-testid="btn-ver-negocio"
+                    onClick={onVerNegocio}
+                    aria-label={`Ver negocio de ${oferta.negocioNombre}`}
+                    className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-amber-700 lg:cursor-pointer lg:hover:text-amber-900 lg:hover:underline"
+                >
+                    Ver negocio
+                    <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+            </div>
+
+            {avatarAbierto && oferta.logoUrl && (
+                <ModalImagenes
+                    images={[oferta.logoUrl]}
+                    initialIndex={0}
+                    isOpen={avatarAbierto}
+                    onClose={() => setAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }
 
-interface BotonAccionProps {
-    onClick: (e: MouseEvent<HTMLButtonElement>) => void;
-}
-
-function BotonWhatsappOferta({ onClick }: BotonAccionProps) {
+function WhatsAppIconOferta({ className }: { className?: string }) {
     return (
-        <button
-            onClick={onClick}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#22C55E] to-[#15803D] px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer"
-        >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-            </svg>
-            <span>Preguntar por WhatsApp</span>
-        </button>
-    );
-}
-
-function BotonVerNegocioOferta({ onClick }: BotonAccionProps) {
-    return (
-        <button
-            onClick={onClick}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer"
-        >
-            <ExternalLink className="h-4 w-4" strokeWidth={2.5} />
-            <span>Ver negocio</span>
-        </button>
+        <svg className={`${className ?? 'h-5 w-5'} text-white`} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
     );
 }
 

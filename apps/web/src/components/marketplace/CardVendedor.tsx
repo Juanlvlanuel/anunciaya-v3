@@ -16,11 +16,17 @@ import { useState } from 'react';
 import { ChevronRight, BadgeCheck, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { VendedorArticulo } from '../../types/marketplace';
-import { formatearUltimaConexion } from '../../utils/marketplace';
+import { formatearTiempoRelativo } from '../../utils/marketplace';
 import { ModalImagenes } from '../ui/ModalImagenes';
 
 interface CardVendedorProps {
     vendedor: VendedorArticulo;
+    /** Fecha de creación del artículo — alimenta "Publicado hace X" (más
+     *  confiable que la última conexión del vendedor, que suele venir
+     *  null/desactualizada). Mismo criterio unificado en
+     *  `CardOrganizadorPublico` (Dinámicas) y `CardOferentePublico`
+     *  (Servicios). */
+    articuloCreatedAt: string;
     /** Clases adicionales — útil para sobrescribir padding desde la página
      *  pública del MarketPlace que usa cards con `p-5` para más aire. */
     className?: string;
@@ -34,14 +40,14 @@ interface CardVendedorProps {
     onContactar?: () => void;
 }
 
-export function CardVendedor({ vendedor, className = '', onContactar }: CardVendedorProps) {
+export function CardVendedor({ vendedor, articuloCreatedAt, className = '', onContactar }: CardVendedorProps) {
     const navigate = useNavigate();
     const handleVerPerfil = () => {
         navigate(`/marketplace/usuario/${vendedor.id}`);
     };
 
     const iniciales = obtenerIniciales(vendedor.nombre, vendedor.apellidos);
-    const conexionLabel = formatearUltimaConexion(vendedor.ultimaConexion);
+    const actividadLabel = `Publicado ${formatearTiempoRelativo(articuloCreatedAt)}`;
     const respondeRapido =
         vendedor.tiempoRespuestaMinutos !== null &&
         vendedor.tiempoRespuestaMinutos !== undefined &&
@@ -64,7 +70,7 @@ export function CardVendedor({ vendedor, className = '', onContactar }: CardVend
             <div className="flex items-center gap-2">
                 {/* Avatar con ring sutil */}
                 <div
-                    className={`h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200 ${vendedor.avatarUrl ? 'cursor-pointer' : ''}`}
+                    className={`h-14 w-14 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200 lg:h-16 lg:w-16 ${vendedor.avatarUrl ? 'cursor-pointer' : ''}`}
                     onClick={vendedor.avatarUrl ? () => setAvatarAbierto(true) : undefined}
                 >
                     {vendedor.avatarUrl ? (
@@ -132,20 +138,17 @@ export function CardVendedor({ vendedor, className = '', onContactar }: CardVend
                 </div>
             )}
 
-            {/* Fila: actividad (izquierda) + Ver perfil (derecha).
-                Sprint 9.3: ambos elementos en el mismo renglón con
-                `flex justify-between`. Si no hay conexionLabel, el
-                botón se mantiene a la derecha por `ml-auto`. */}
+            {/* Fila: "Publicado hace X" (izquierda) + Ver perfil (derecha),
+                en el mismo renglón — el botón queda a la derecha por
+                `ml-auto`. */}
             <div className="flex items-center gap-2">
-                {conexionLabel && (
-                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                        <span
-                            aria-hidden
-                            className="h-2 w-2 shrink-0 rounded-full bg-slate-400"
-                        />
-                        {conexionLabel}
-                    </div>
-                )}
+                <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                    <span
+                        aria-hidden
+                        className="h-2 w-2 shrink-0 rounded-full bg-slate-400"
+                    />
+                    {actividadLabel}
+                </div>
                 <button
                     type="button"
                     data-testid="btn-ver-perfil"

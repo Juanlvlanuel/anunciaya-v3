@@ -65,6 +65,9 @@ interface SeccionCatalogoProps {
   /** Página pública de negocio (/p/negocio/...): más ancho disponible
    *  (sin ColumnaIzquierda/Derecha) → 4 items en laptop en vez de 3. */
   esRutaPublica?: boolean;
+  /** Se propaga a `ModalDetalleItem`/`ModalCatalogo` — abre el modal de
+   *  auth (en vez del toast) cuando un visitante sin sesión usa ChatYA. */
+  onRequiereAuth?: () => void;
 }
 
 // =============================================================================
@@ -90,6 +93,7 @@ export function SeccionCatalogo({
   negocioNombre,
   logoUrl,
   esRutaPublica = false,
+  onRequiereAuth,
 }: SeccionCatalogoProps) {
   // ---------------------------------------------------------------------------
   // ESTADOS
@@ -275,6 +279,7 @@ export function SeccionCatalogo({
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}
         logoUrl={logoUrl}
+        onRequiereAuth={onRequiereAuth}
       />
 
       {/* ============ MODAL DETALLE ITEM ============ */}
@@ -287,6 +292,7 @@ export function SeccionCatalogo({
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}
         logoUrl={logoUrl}
+        onRequiereAuth={onRequiereAuth}
       />
     </>
   );

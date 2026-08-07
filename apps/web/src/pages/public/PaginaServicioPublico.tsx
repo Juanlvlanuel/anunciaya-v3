@@ -49,6 +49,7 @@ import {
     Briefcase,
     Store,
     BadgeCheck,
+    ChevronRight,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -62,6 +63,7 @@ import { useAbrirWhatsApp } from '../../hooks/useAbrirWhatsApp';
 import { GaleriaServicio } from '../../components/servicios/GaleriaServicio';
 import { MapaUbicacion } from '../../components/marketplace/MapaUbicacion';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
+import { ModalImagenes } from '../../components/ui/ModalImagenes';
 import { Spinner } from '../../components/ui/Spinner';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
@@ -146,6 +148,12 @@ export function PaginaServicioPublico() {
         navigate(`/servicios/${publicacionId}`);
     };
 
+    const handleVerNegocio = () => {
+        if (publicacion.sucursalId) {
+            navigate(`/p/negocio/${publicacion.sucursalId}`);
+        }
+    };
+
     return (
         <div
             data-testid="pagina-servicio-publico"
@@ -164,7 +172,7 @@ export function PaginaServicioPublico() {
                                     con `rounded-2xl + shadow-md + border-2 slate-300`
                                     en desktop — mismo patrón que el detalle privado. */}
                                 {fotoPortadaUrl && (
-                                    <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border-2 lg:border-slate-300">
+                                    <div className="relative lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border-2 lg:border-slate-300">
                                         <GaleriaServicio publicacion={publicacion} />
                                         {estadoNoActivo && (
                                             <OverlayEstadoNoActiva estado={estadoNoActivo} />
@@ -259,6 +267,7 @@ export function PaginaServicioPublico() {
                                     <CardOferentePublico
                                         publicacion={publicacion}
                                         onContactar={!noActiva ? handleEnviarMensaje : undefined}
+                                        onVerNegocio={handleVerNegocio}
                                     />
                                 </div>
 
@@ -314,6 +323,7 @@ export function PaginaServicioPublico() {
                                         publicacion={publicacion}
                                         compacto
                                         onContactar={!noActiva ? handleEnviarMensaje : undefined}
+                                        onVerNegocio={handleVerNegocio}
                                     />
 
                                     <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
@@ -518,10 +528,10 @@ interface CardOferentePublicoProps {
     /** Padding reducido para caber en el panel sticky desktop. */
     compacto?: boolean;
     /** Ícono de ChatYA (mismo patrón que `CardVendedor` de MP y
-     *  `CardOrganizadorPublico` de Dinámicas) que se renderiza debajo del
-     *  nombre. Si se omite, no aparece (caller decide). En vacantes convive
-     *  con el botón de WhatsApp del negocio, arriba. */
+     *  `CardOrganizadorPublico` de Dinámicas). Si se omite, no aparece. */
     onContactar?: () => void;
+    /** Navega al perfil público del negocio — solo aplica a vacantes. */
+    onVerNegocio?: () => void;
 }
 
 /**
@@ -550,16 +560,12 @@ function CardOferentePublico({
     publicacion,
     compacto = false,
     onContactar,
+    onVerNegocio,
 }: CardOferentePublicoProps) {
     const { oferente, tipo, titulo } = publicacion;
     const esVacante = tipo === 'vacante-empresa';
+    const navigate = useNavigate();
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
-
-    const labelTitulo = esVacante
-        ? 'Sobre el negocio'
-        : tipo === 'solicito'
-          ? 'Sobre el solicitante'
-          : 'Sobre el oferente';
 
     const nombre = esVacante
         ? oferente.negocioNombre ?? `${oferente.nombre} ${oferente.apellidos}`.trim()
@@ -584,28 +590,31 @@ function CardOferentePublico({
         ? oferente.negocioLogo ?? oferente.sucursalFotoPerfil ?? oferente.avatarUrl
         : oferente.avatarUrl;
 
+    // "Publicado hace X" — más confiable que "Activa hace X" (última
+    // conexión), que suele venir null/desactualizada en datos de prueba.
+    // Mismo criterio unificado en `CardVendedor` (MP) y
+    // `CardOrganizadorPublico` (Dinámicas).
+    const actividadLabel = `Publicado ${formatearTiempoRelativo(publicacion.createdAt)}`;
+
+    const [avatarAbierto, setAvatarAbierto] = useState(false);
+
     return (
         <div
             className={`rounded-xl border-2 border-slate-300 bg-white shadow-md ${
                 compacto ? 'p-4' : 'p-3 lg:p-4'
             }`}
         >
-            {/* Título uniforme `text-base` en ambos modos (compacto y no
-                compacto) para hacer match con los otros títulos del panel
-                — "Descripción", "Características", "Contratación segura". */}
-            <h2 className="mb-3 text-base font-bold text-slate-900">
-                {labelTitulo}
-            </h2>
             <div className="flex items-center gap-3">
                 {avatarUrl ? (
                     <img
                         src={avatarUrl}
                         alt={nombre}
-                        className="h-12 w-12 shrink-0 rounded-full border-2 border-slate-200 object-cover"
+                        onClick={() => setAvatarAbierto(true)}
+                        className="h-14 w-14 shrink-0 cursor-pointer rounded-full border-2 border-slate-200 object-cover lg:h-16 lg:w-16"
                         loading="lazy"
                     />
                 ) : (
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-slate-200 bg-slate-100">
+                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full border-2 border-slate-200 bg-slate-100 lg:h-16 lg:w-16">
                         {esVacante ? (
                             <Store className="h-5 w-5 text-slate-500" strokeWidth={2} />
                         ) : (
@@ -614,18 +623,16 @@ function CardOferentePublico({
                     </div>
                 )}
                 <div className="min-w-0 flex-1">
-                    {/* Nombre + BadgeCheck invertido cuando es vacante
-                        (negocios son entidades verificadas en la plataforma).
-                        Patrón visual idéntico al del detalle privado. */}
+                    {/* Nombre + BadgeCheck — mismo patrón que `CardVendedor`
+                        (MP) y `CardOrganizadorPublico` (Dinámicas): siempre
+                        visible, sin condicionar a vacante. */}
                     <div className="flex items-center gap-1 text-sm font-bold text-slate-900 lg:text-base">
                         <span className="truncate">{nombre}</span>
-                        {esVacante && (
-                            <BadgeCheck
-                                className="h-5 w-5 shrink-0 fill-blue-500 text-white"
-                                strokeWidth={2.5}
-                                aria-label="Empresa verificada"
-                            />
-                        )}
+                        <BadgeCheck
+                            className="h-6 w-6 shrink-0 fill-blue-500 text-white"
+                            strokeWidth={2.5}
+                            aria-label={esVacante ? 'Empresa verificada' : 'Usuario verificado'}
+                        />
                     </div>
                     {/* Sucursal (solo vacantes con >1 sucursal). Línea
                         bajo el nombre — formato "Matriz" si principal o
@@ -635,46 +642,76 @@ function CardOferentePublico({
                             {sufijoSucursal}
                         </div>
                     )}
-                    {oferente.ciudad && (
-                        <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-slate-600">
-                            <MapPin
-                                className="h-3 w-3 shrink-0 text-slate-500"
-                                strokeWidth={2.5}
-                            />
-                            {oferente.ciudad}
-                        </div>
-                    )}
                 </div>
             </div>
 
-            {/* Botón WhatsApp del negocio — solo vacantes con número
-                registrado. Es el único canal de contacto público sin
-                requerir login (ChatYA sí lo requiere). Mensaje precargado
-                hace referencia al título de la vacante. */}
-            {esVacante && oferente.sucursalWhatsapp && (
-                <button
-                    type="button"
-                    onClick={(e) => abrirWhatsApp(
-                        e,
-                        oferente.sucursalWhatsapp,
-                        oferente.sucursalWhatsappAlterno,
-                        `Hola, vi su vacante "${titulo}" en AnunciaYA. Me interesa.`,
+            {/* Fila 1: íconos de contacto (ChatYA + WhatsApp), alineados a
+                la derecha — mismo patrón que `CardVendedor` (MP) y
+                `CardOrganizadorPublico` (Dinámicas). */}
+            {(onContactar || (esVacante && oferente.sucursalWhatsapp)) && (
+                <div className="mt-3 flex items-center justify-end gap-3">
+                    {onContactar && <BotonContactoPublico onClick={onContactar} />}
+                    {esVacante && oferente.sucursalWhatsapp && (
+                        <button
+                            type="button"
+                            onClick={(e) => abrirWhatsApp(
+                                e,
+                                oferente.sucursalWhatsapp,
+                                oferente.sucursalWhatsappAlterno,
+                                `Hola, vi su vacante "${titulo}" en AnunciaYA. Me interesa.`,
+                            )}
+                            data-testid="btn-whatsapp-negocio-publico"
+                            aria-label="Contactar al negocio por WhatsApp"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#25D366] shadow-md lg:cursor-pointer lg:hover:scale-105"
+                        >
+                            <WhatsAppIcon className="h-4 w-4" />
+                        </button>
                     )}
-                    data-testid="btn-whatsapp-negocio-publico"
-                    aria-label="Contactar al negocio por WhatsApp"
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer"
-                >
-                    <WhatsAppIcon className="h-5 w-5" />
-                    WhatsApp
-                </button>
+                </div>
             )}
 
-            {/* Ícono de ChatYA — mismo patrón que `CardVendedor` (MP) y
-                `CardOrganizadorPublico` (Dinámicas): solo ícono, sin fondo
-                ni texto, dentro de la card de identidad. En vacantes convive
-                con el botón de WhatsApp de arriba. */}
-            {onContactar && <BotonContactoPublico onClick={onContactar} className="mt-3" />}
+            {/* Fila 2: actividad (izquierda) + "Ver negocio"/"Ver perfil"
+                (derecha) — mismo patrón que `CardVendedor` (MP). */}
+            <div className="mt-2 flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-slate-400" />
+                    {actividadLabel}
+                </div>
+                {esVacante && onVerNegocio && (
+                    <button
+                        type="button"
+                        data-testid="btn-ver-negocio"
+                        onClick={onVerNegocio}
+                        aria-label={`Ver negocio de ${nombre}`}
+                        className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-sky-700 lg:cursor-pointer lg:hover:text-sky-900 lg:hover:underline"
+                    >
+                        Ver negocio
+                        <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                )}
+                {!esVacante && (
+                    <button
+                        type="button"
+                        data-testid="btn-ver-perfil"
+                        onClick={() => navigate(`/marketplace/usuario/${oferente.id}`)}
+                        aria-label={`Ver perfil de ${nombre}`}
+                        className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-sky-700 lg:cursor-pointer lg:hover:text-sky-900 lg:hover:underline"
+                    >
+                        Ver perfil
+                        <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                )}
+            </div>
             {menuWhatsApp}
+
+            {avatarAbierto && avatarUrl && (
+                <ModalImagenes
+                    images={[avatarUrl]}
+                    initialIndex={0}
+                    isOpen={avatarAbierto}
+                    onClose={() => setAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }
@@ -792,7 +829,7 @@ function BotonContactoPublico({ onClick, className = '' }: BotonContactoProps) {
             data-testid="btn-enviar-mensaje-publico-servicio"
             onClick={onClick}
             aria-label="Contactar por ChatYA"
-            className={`flex w-full items-center justify-center py-1 lg:cursor-pointer lg:hover:opacity-80 ${className}`}
+            className={`flex shrink-0 items-center justify-center lg:cursor-pointer lg:hover:opacity-80 ${className}`}
         >
             <img src="/ChatYA.webp" alt="" className="h-8 w-auto object-contain" />
         </button>

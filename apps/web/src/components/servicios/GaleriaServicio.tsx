@@ -5,7 +5,8 @@
  *
  * Proporciones uniformes para los 3 tipos (`vacante-empresa`,
  * `servicio-persona`, `solicito`):
- *   - Móvil: `aspect-[16/9]` (banda horizontal compacta).
+ *   - Móvil: `aspect-[4/3]`, full-bleed (mismo criterio que Producto/
+ *     Ofertas/MarketPlace/Dinámicas — sin margen ni bordes redondeados).
  *   - Desktop: `lg:aspect-auto lg:h-64 2xl:h-72` (alto fijo 256/288px).
  *
  * Para `tipo='vacante-empresa'`: una sola imagen como hero (logo + identidad
@@ -25,7 +26,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ShieldCheck, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import type { PublicacionDetalle } from '../../types/servicios';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { fuenteThumbnail } from '../../utils/servicios';
@@ -124,87 +125,37 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
         tira.scrollTo({ left: offsetCentrado, behavior: 'smooth' });
     }, [indiceActivo]);
 
-    // ─── Vacante-empresa: identidad de marca, sin galería ─────────────────
-    // Layout estilo "hero": portada del local (sucursal) como fondo +
-    // barra inferior con gradiente oscuro que contiene logo full-rounded del
-    // negocio + nombre del negocio + sufijo de sucursal (cuando aplica).
+    // ─── Vacante-empresa: solo la foto de portada, limpia ──────────────────
+    // Sin overlays (logo/nombre/sello) — la identidad del negocio ya vive
+    // en la card "Sobre el negocio" debajo. Click abre el lightbox, mismo
+    // patrón que servicio-persona/solicito.
     // Sin portada → fallback al gradient azul original.
     if (publicacion.tipo === 'vacante-empresa') {
         const { oferente } = publicacion;
         const nombreNegocio = oferente.negocioNombre
             ?? `${oferente.nombre} ${oferente.apellidos}`.trim();
         const portada = oferente.sucursalPortada;
-        const logoEmpresa = oferente.negocioLogo
-            ?? oferente.sucursalFotoPerfil
-            ?? oferente.avatarUrl;
-        const sufijoSucursal = (oferente.totalSucursales ?? 0) > 1
-            ? (oferente.sucursalEsPrincipal ? 'Matriz' : oferente.sucursalNombre)
-            : null;
-        const iniciales = obtenerInicialesEmpresa(nombreNegocio, '');
         return (
-            <div className={`aspect-[16/9] lg:aspect-auto relative overflow-hidden ${alturaCompleta ? 'lg:h-full' : 'lg:h-64 2xl:h-72'}`}>
-                {/* Fondo: portada del local con fallback al gradient sky. */}
+            <div className={`group aspect-[4/3] lg:aspect-auto relative overflow-hidden ${alturaCompleta ? 'lg:h-full' : 'lg:h-64 2xl:h-72'}`}>
                 {portada ? (
                     <img
                         src={portada}
                         alt={nombreNegocio}
-                        className="absolute inset-0 w-full h-full object-cover"
+                        onClick={() => setLightboxAbierto(true)}
+                        className="absolute inset-0 h-full w-full cursor-pointer object-cover transition-transform duration-300 lg:group-hover:scale-[1.02]"
                     />
                 ) : (
                     <div className="absolute inset-0 bg-linear-to-br from-sky-100 to-sky-200" />
                 )}
 
-                {/* Overlay oscuro inferior para legibilidad del texto. */}
-                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/75 via-black/40 to-transparent pointer-events-none" />
-
-                {/* Sello "Empresa verificada" — premium dorado, sin texto.
-                    Sprint 9.3: movido de top-right a top-LEFT para
-                    intercambiar con el botón Bookmark (que ahora vive
-                    top-right en PaginaServicio.tsx). Tooltip nativo
-                    `title` describe el significado a quien no asocie el
-                    icono. */}
-                <div
-                    className="absolute top-3 left-3 z-10 w-10 h-10 rounded-full grid place-items-center shadow-lg ring-2 ring-white/80"
-                    style={{
-                        background:
-                            'linear-gradient(135deg, #fde047 0%, #fbbf24 45%, #d97706 100%)',
-                    }}
-                    title="Empresa verificada"
-                    aria-label="Empresa verificada"
-                >
-                    <ShieldCheck
-                        className="w-5 h-5 text-amber-950"
-                        strokeWidth={2.75}
+                {portada && (
+                    <ModalImagenes
+                        images={[portada]}
+                        initialIndex={0}
+                        isOpen={lightboxAbierto}
+                        onClose={() => setLightboxAbierto(false)}
                     />
-                </div>
-
-                {/* Barra de identidad inferior: logo + nombre + sucursal. */}
-                <div className="absolute inset-x-0 bottom-0 p-3 lg:p-4 flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white grid place-items-center text-sky-700 text-base lg:text-lg font-extrabold shadow-md ring-2 ring-white/70 overflow-hidden shrink-0">
-                        {logoEmpresa ? (
-                            <img
-                                src={logoEmpresa}
-                                alt={nombreNegocio}
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            iniciales
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base lg:text-lg font-bold text-white leading-tight truncate drop-shadow-sm">
-                            {nombreNegocio}
-                        </span>
-                        {sufijoSucursal && (
-                            <>
-                                <span className="h-4 w-px shrink-0 bg-white/50" />
-                                <span className="text-sm font-medium text-white/85 truncate drop-shadow-sm">
-                                    {sufijoSucursal}
-                                </span>
-                            </>
-                        )}
-                    </div>
-                </div>
+                )}
             </div>
         );
     }
@@ -215,7 +166,7 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
     // compacta en desktop (256px alto / 288px en 2xl) y 16:9 en móvil.
     if (fotos.length === 0) {
         return (
-            <div className="aspect-[16/9] lg:aspect-auto lg:h-64 2xl:h-72 relative bg-stripe">
+            <div className="aspect-[4/3] lg:aspect-auto lg:h-64 2xl:h-72 relative bg-stripe">
                 <div className="absolute inset-0 grid place-items-center">
                     <span className="text-slate-500/70 text-[10px] tracking-widest uppercase font-mono">
                         sin foto
@@ -226,12 +177,12 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
     }
 
     // ─── Servicio-persona / solicito: galería swipe + lightbox ─────────────
-    // Misma proporción que la vacante (banda horizontal compacta en desktop)
-    // para que los 3 tipos se vean alineados visualmente. Antes era `aspect-[4/3]`
-    // que producía una imagen demasiado alta comparada con la vacante.
+    // Misma proporción que la vacante para que los 3 tipos se vean
+    // alineados visualmente — y ahora también con Producto/Ofertas/
+    // MarketPlace/Dinámicas en móvil (unificación full-bleed).
     return (
         <>
-            <div className="aspect-[16/9] lg:aspect-auto lg:h-64 2xl:h-72 relative bg-stripe overflow-hidden">
+            <div className="aspect-[4/3] lg:aspect-auto lg:h-64 2xl:h-72 relative bg-stripe overflow-hidden">
                 {/* Carrusel: tira horizontal con scroll-snap. Funciona como
                     swipe nativo en móvil y como scroll programático con las
                     flechas en desktop. */}
@@ -250,13 +201,13 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                                 setIndiceActivo(idx);
                                 setLightboxAbierto(true);
                             }}
-                            className="snap-center w-full h-full shrink-0 relative lg:cursor-zoom-in"
+                            className="group snap-center w-full h-full shrink-0 relative cursor-pointer"
                             aria-label={`Ver foto ${idx + 1} de ${fotos.length}`}
                         >
                             <img
                                 src={fuenteThumbnail(foto)}
                                 alt={`${publicacion.titulo} — foto ${idx + 1}`}
-                                className="absolute inset-0 w-full h-full object-cover"
+                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 lg:group-hover:scale-[1.02]"
                                 loading={idx === 0 ? 'eager' : 'lazy'}
                                 draggable={false}
                             />
@@ -364,16 +315,6 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                 onClose={() => setLightboxAbierto(false)}
             />
         </>
-    );
-}
-
-function obtenerInicialesEmpresa(nombre: string, apellidos: string): string {
-    const partes = `${nombre} ${apellidos}`.trim().split(/\s+/).filter(Boolean);
-    return (
-        partes
-            .slice(0, 2)
-            .map((p) => p.charAt(0).toUpperCase())
-            .join('') || '··'
     );
 }
 

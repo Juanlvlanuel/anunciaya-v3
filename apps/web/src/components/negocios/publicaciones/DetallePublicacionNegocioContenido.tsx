@@ -39,12 +39,22 @@ const TARJETA_CLASES = 'rounded-xl border-2 border-slate-300 bg-white shadow-[0_
 
 interface DetallePublicacionNegocioContenidoProps {
     publicacionId: string;
+    /** Página pública (compartir): omite el GPS del store. Sin esto, el
+     *  query key cambia en cuanto el navegador resuelve la ubicación
+     *  (null → coords reales), lo que dispara un SEGUNDO fetch con un
+     *  loading state propio — el contenido se reemplaza por un spinner
+     *  chico y luego por el contenido real, más alto, "rebotando" el
+     *  footer. El badge de distancia tampoco tiene mucho sentido en un
+     *  link compartido con visitantes anónimos. */
+    sinGps?: boolean;
 }
 
 export function DetallePublicacionNegocioContenido({
     publicacionId,
+    sinGps = false,
 }: DetallePublicacionNegocioContenidoProps) {
-    const { latitud, longitud } = useGpsStore();
+    const gpsStore = useGpsStore();
+    const { latitud, longitud } = sinGps ? { latitud: null, longitud: null } : gpsStore;
 
     const { data: publicacion, isLoading } = usePublicacionNegocio(publicacionId, { latitud, longitud });
     useRegistrarVistaPublicacionNegocio(publicacion);

@@ -58,14 +58,23 @@ interface LayoutPublicoProps {
   
   /** Posición del banner: bottom (default), top, floating */
   posicionBanner?: 'top' | 'bottom' | 'floating';
+
+  /** Si es true, quita el padding horizontal (`px-4`) y el superior
+   *  (`pt-4`) del wrapper en móvil — para páginas que ya manejan su propio
+   *  padding interno por sección (ej. `PaginaPerfilNegocio`, que calca el
+   *  padding de la vista privada) y terminarían con doble padding si el
+   *  layout también lo aplicara. El `pb-4` se conserva para no dejar el
+   *  contenido pegado al footer. Desktop (`lg:`/`2xl:`) no se toca. */
+  sinPaddingMovil?: boolean;
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function LayoutPublico({ 
-  children, 
+export function LayoutPublico({
+  children,
+  sinPaddingMovil = false,
 }: LayoutPublicoProps) {
   const navigate = useNavigate();
 
@@ -96,7 +105,7 @@ export function LayoutPublico({
               <img
                 src="/logo-anunciaya-azul.webp"
                 alt="AnunciaYA"
-                className="h-8 lg:h-9 2xl:h-11 w-auto object-contain"
+                className="h-11 lg:h-9 2xl:h-11 w-auto object-contain"
               />
             </button>
 
@@ -143,7 +152,7 @@ export function LayoutPublico({
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 2xl:px-8 py-4 lg:py-6 2xl:py-8">
+        <div className={`max-w-7xl mx-auto ${sinPaddingMovil ? 'pt-0 pb-4' : 'px-4 py-4'} lg:px-6 lg:py-6 2xl:px-8 2xl:py-8`}>
           {children}
         </div>
 

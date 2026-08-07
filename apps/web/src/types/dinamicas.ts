@@ -127,6 +127,8 @@ export interface DinamicaDetallePublico extends Dinamica {
     boletosPagados: number;
     boletosDisponibles: number | null;
     insigniaOrganizador: InsigniaOrganizador;
+    /** Nombre de la ciudad (join con `ciudades` a partir de `ciudadId`). */
+    ciudadNombre: string | null;
 }
 
 export type EstadoBoletoDinamica = 'reservado' | 'pagado';

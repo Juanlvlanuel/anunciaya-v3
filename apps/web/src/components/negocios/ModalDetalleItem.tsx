@@ -26,6 +26,7 @@ import api from '../../services/api';
 import { useIniciarChatNegocio } from '@/hooks/useIniciarChatNegocio';
 import { useAbrirWhatsApp } from '@/hooks/useAbrirWhatsApp';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { notificar } from '@/utils/notificaciones';
 
 // =============================================================================
 // TIPOS
@@ -62,13 +63,18 @@ interface ModalDetalleItemProps {
     sucursalFotoPerfil?: string | null;
     onClose: () => void;
     openedFromModal?: boolean;
+    /** Si se pasa, se usa en vez del toast de error cuando un visitante sin
+     *  sesión intenta usar ChatYA — para mostrar el modal de auth con el
+     *  copy completo (ej. `ModalAuthRequerido` del perfil público de
+     *  negocio) en lugar de un simple aviso. */
+    onRequiereAuth?: () => void;
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
+export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false, onRequiereAuth }: ModalDetalleItemProps) {
     const iniciarChatNegocio = useIniciarChatNegocio();
     const usuario = useAuthStore((s) => s.usuario);
     const [imagenExpandida, setImagenExpandida] = useState(false);
@@ -123,6 +129,17 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
     const handleChatYA = async () => {
         if (!negocioUsuarioId) return;
         if (!item) return;
+        if (!usuario) {
+            if (onRequiereAuth) {
+                // Cerrar este modal primero — evita apilar el modal de auth
+                // encima/debajo con problemas de z-index entre modales.
+                onClose();
+                onRequiereAuth();
+                return;
+            }
+            notificar.error('Debes iniciar sesión para usar ChatYA');
+            return;
+        }
 
         // Limpiar entrada huérfana de ModalBottom en el historial
         if (history.state?._modalBottom) {

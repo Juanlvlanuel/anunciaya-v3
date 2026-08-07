@@ -441,7 +441,7 @@ export function PaginaArticuloMarketplace() {
                                 </div>
 
                                 {/* Card vendedor — padding unificado con el resto. */}
-                                <CardVendedor vendedor={articulo.vendedor} className="p-4" />
+                                <CardVendedor vendedor={articulo.vendedor} articuloCreatedAt={articulo.createdAt} className="p-4" />
 
                                 {/* Compra segura — justo debajo de los datos del vendedor. */}
                                 <CardCompraSegura />
@@ -469,7 +469,7 @@ export function PaginaArticuloMarketplace() {
                         {/* Card vendedor — SOLO en móvil (desktop ya la
                             muestra en el hero, junto al precio/CTA). */}
                         <div className="px-3 lg:hidden">
-                            <CardVendedor vendedor={articulo.vendedor} />
+                            <CardVendedor vendedor={articulo.vendedor} articuloCreatedAt={articulo.createdAt} />
                         </div>
 
                         {/* Características + Mapa — mismo renglón en desktop:

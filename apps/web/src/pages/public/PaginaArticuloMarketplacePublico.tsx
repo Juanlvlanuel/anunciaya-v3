@@ -48,7 +48,6 @@ import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
-const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useArticuloMarketplace } from '../../hooks/queries/useMarketplace';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
@@ -172,6 +171,7 @@ export function PaginaArticuloMarketplacePublico() {
                                     fotos={articulo.fotos}
                                     titulo={articulo.titulo}
                                     fotoPortadaIndex={articulo.fotoPortadaIndex}
+                                    aspectMovil="aspect-[4/3]"
                                 />
                                 {estadoNoActivo && <OverlayEstadoNoActiva estado={estadoNoActivo} />}
                             </div>
@@ -206,6 +206,7 @@ export function PaginaArticuloMarketplacePublico() {
                             <div className="px-3 lg:hidden">
                                 <CardVendedor
                                     vendedor={articulo.vendedor}
+                                    articuloCreatedAt={articulo.createdAt}
                                     onContactar={!estadoNoActivo ? handleEnviarMensaje : undefined}
                                 />
                             </div>
@@ -261,6 +262,7 @@ export function PaginaArticuloMarketplacePublico() {
                                     activo (reemplaza el botón CTA suelto). */}
                                 <CardVendedor
                                     vendedor={articulo.vendedor}
+                                    articuloCreatedAt={articulo.createdAt}
                                     className="p-4"
                                     onContactar={!estadoNoActivo ? handleEnviarMensaje : undefined}
                                 />
@@ -436,13 +438,14 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 </div>
             )}
 
-            {/* Precio gigante. En 'busco' muestra el presupuesto o "A tratar". */}
+            {/* Precio gigante — color temático de MarketPlace (teal). En
+                'busco' muestra el presupuesto o "A tratar". */}
             <div
                 data-testid="precio"
                 className={
                     compacto
-                        ? 'text-2xl font-extrabold leading-none tracking-tight text-slate-900 2xl:text-3xl'
-                        : 'text-4xl font-extrabold leading-none tracking-tight text-slate-900 lg:text-5xl'
+                        ? 'text-2xl font-extrabold leading-none tracking-tight text-teal-700 2xl:text-3xl'
+                        : 'text-4xl font-extrabold leading-none tracking-tight text-teal-700 lg:text-5xl'
                 }
             >
                 {etiquetaPrecioArticulo(articulo)}
@@ -480,15 +483,6 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 </div>
             )}
 
-            {/* Tiempo + vistas (sutil) */}
-            <div className={`flex items-center gap-2 font-medium text-slate-600 ${compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'}`}>
-                <span>{formatearTiempoRelativo(articulo.createdAt)}</span>
-                <span aria-hidden className="text-slate-400">·</span>
-                <span className="flex items-center gap-1">
-                    <Eye className="h-3.5 w-3.5" strokeWidth={2} />
-                    {articulo.totalVistas} {articulo.totalVistas === 1 ? 'vista' : 'vistas'}
-                </span>
-            </div>
         </div>
     );
 }

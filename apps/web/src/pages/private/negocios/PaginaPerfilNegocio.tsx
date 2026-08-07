@@ -1112,9 +1112,10 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             Patrón unificado cross-módulo. */}
                         {saveBubble}
 
-                        {/* Botón Volver (oculto en modo preview, y en full-page móvil donde el
-                            header fijo estilo Negocios ya trae su propia flecha). */}
-                        {!esModoPreview && !(esFullPage && esMobileGaleria) && (
+                        {/* Botón Volver (oculto en modo preview, en full-page móvil donde el
+                            header fijo estilo Negocios ya trae su propia flecha, y en la ruta
+                            pública — un visitante sin sesión no tiene un "volver" con sentido). */}
+                        {!esModoPreview && !esRutaPublica && !(esFullPage && esMobileGaleria) && (
                             <div className="pointer-events-auto absolute top-14 @5xl:top-4 left-5 @[96rem]:left-7.5">
                                 <Tooltip text="Volver" position="bottom">
                                     <button
@@ -1493,6 +1494,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     negocioNombre={negocio?.negocioNombre}
                                     negocioUsuarioId={negocio?.usuarioId}
                                     esRutaPublica={esRutaPublica}
+                                    onRequiereAuth={() => { setAccionAuthRequerida('chat'); setModalAuthAbierto(true); }}
                                 />
                             </div>
                         )}
@@ -1509,6 +1511,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     negocioNombre={negocio?.negocioNombre}
                                     logoUrl={negocio?.logoUrl}
                                     esRutaPublica={esRutaPublica}
+                                    onRequiereAuth={() => { setAccionAuthRequerida('chat'); setModalAuthAbierto(true); }}
                                 />
                             </div>
                         )}
@@ -2546,7 +2549,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     // Ruta pública → LayoutPublico. Full-page privada → app-shell móvil (header fijo
     // + scroll interno). Embebido (ChatYA/preview) → Fragment sin app-shell.
     return esRutaPublica ? (
-        <LayoutPublico>
+        <LayoutPublico sinPaddingMovil>
             {contenidoPrincipal}
         </LayoutPublico>
     ) : esFullPage ? (

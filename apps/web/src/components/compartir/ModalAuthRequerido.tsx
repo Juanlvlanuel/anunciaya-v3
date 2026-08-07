@@ -36,6 +36,7 @@ import {
     Ticket,
     Check,
     Sparkles,
+    Store,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
@@ -57,7 +58,9 @@ export type TipoPublicacionAuth =
     | 'servicio'
     | 'oferta'
     | 'articulo'
-    | 'dinamica';
+    | 'producto'
+    | 'dinamica'
+    | 'publicacion';
 
 interface ContextoAuth {
     /** Tipo de publicación que motivó el modal. Determina copy + color del
@@ -135,7 +138,7 @@ const CONFIG_TIPO: Record<
         titulo: string;
         descripcionBase: (titulo?: string) => string;
         gradient: string;
-        accent: 'sky' | 'amber' | 'emerald' | 'rose' | 'teal';
+        accent: 'sky' | 'amber' | 'emerald' | 'rose' | 'teal' | 'blue';
     }
 > = {
     vacante: {
@@ -155,8 +158,8 @@ const CONFIG_TIPO: Record<
             titulo
                 ? `Inicia sesión para responder a "${titulo}".`
                 : 'Inicia sesión para responder a esta solicitud.',
-        gradient: 'from-amber-500 to-amber-600',
-        accent: 'amber',
+        gradient: 'from-sky-500 to-sky-700',
+        accent: 'sky',
     },
     servicio: {
         Icono: Wrench,
@@ -175,8 +178,8 @@ const CONFIG_TIPO: Record<
             titulo
                 ? `Inicia sesión para guardar "${titulo}" y canjearla cuando quieras.`
                 : 'Inicia sesión para guardar y canjear ofertas.',
-        gradient: 'from-rose-500 to-rose-700',
-        accent: 'rose',
+        gradient: 'from-amber-500 to-amber-600',
+        accent: 'amber',
     },
     articulo: {
         Icono: ShoppingBag,
@@ -187,6 +190,26 @@ const CONFIG_TIPO: Record<
                 : 'Inicia sesión para contactar al vendedor.',
         gradient: 'from-teal-500 to-teal-700',
         accent: 'teal',
+    },
+    producto: {
+        Icono: ShoppingBag,
+        titulo: '¡Habla con el negocio!',
+        descripcionBase: (titulo) =>
+            titulo
+                ? `Inicia sesión para contactar al negocio sobre "${titulo}".`
+                : 'Inicia sesión para contactar al negocio.',
+        gradient: 'from-blue-500 to-blue-700',
+        accent: 'blue',
+    },
+    publicacion: {
+        Icono: Store,
+        titulo: '¡Habla con el negocio!',
+        descripcionBase: (titulo) =>
+            titulo
+                ? `Inicia sesión para contactar a "${titulo}".`
+                : 'Inicia sesión para contactar al negocio.',
+        gradient: 'from-blue-500 to-blue-700',
+        accent: 'blue',
     },
     dinamica: {
         Icono: Ticket,

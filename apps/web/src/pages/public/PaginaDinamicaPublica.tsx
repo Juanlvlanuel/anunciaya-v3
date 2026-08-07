@@ -47,10 +47,11 @@ import { useDinamica, useBoletosDinamica } from '../../hooks/queries/useDinamica
 import { useOpenGraph } from '../../hooks/useOpenGraph';
 import { GaleriaArticulo } from '../../components/marketplace/GaleriaArticulo';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
+import { ModalImagenes } from '../../components/ui/ModalImagenes';
 import { Spinner } from '../../components/ui/Spinner';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
-import { formatearUltimaConexion } from '../../utils/marketplace';
+import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type { DinamicaDetallePublico } from '../../types/dinamicas';
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
@@ -142,7 +143,7 @@ export function PaginaDinamicaPublica() {
                         <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
                             {/* ─── COLUMNA IZQUIERDA (full width móvil) ─────── */}
                             <div className="min-w-0 space-y-5 lg:mt-8 lg:space-y-6">
-                                <GaleriaArticulo fotos={dinamica.fotosPremio} titulo={dinamica.titulo} ajusteImagen="cover" />
+                                <GaleriaArticulo fotos={dinamica.fotosPremio} titulo={dinamica.titulo} ajusteImagen="cover" aspectMovil="aspect-[4/3]" />
 
                                 {/* Bloque info — SOLO móvil. En desktop va en col-derecha */}
                                 <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md lg:hidden">
@@ -154,9 +155,10 @@ export function PaginaDinamicaPublica() {
                                     <CardOrganizadorPublico dinamica={dinamica} onContactar={requerirAuth} />
                                 </div>
 
-                                {/* Descripción */}
+                                {/* Descripción — SOLO móvil. En desktop va en col-derecha,
+                                    abajo del card del organizador. */}
                                 {dinamica.descripcion && (
-                                    <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                                    <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:hidden">
                                         <h2 className="mb-2 text-base font-bold text-slate-900">Descripción</h2>
                                         <p className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700">
                                             {dinamica.descripcion}
@@ -271,9 +273,21 @@ export function PaginaDinamicaPublica() {
                             <div className="hidden min-w-0 lg:-mt-12 lg:flex lg:flex-col">
                                 <div className="sticky top-10 flex flex-col gap-2">
                                     <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
-                                        <BloqueInfoPublico dinamica={dinamica} cuentaRegresiva={cuentaRegresiva} />
+                                        <BloqueInfoPublico dinamica={dinamica} cuentaRegresiva={cuentaRegresiva} compacto />
                                     </div>
                                     <CardOrganizadorPublico dinamica={dinamica} onContactar={requerirAuth} />
+
+                                    {/* Descripción — SOLO desktop, abajo del card del
+                                        organizador (en móvil ya vive ahí en el flujo). */}
+                                    {dinamica.descripcion && (
+                                        <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+                                            <h2 className="mb-2 text-base font-bold text-slate-900">Descripción</h2>
+                                            <p className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700">
+                                                {dinamica.descripcion}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <CardComoFunciona />
                                 </div>
                             </div>
@@ -346,20 +360,68 @@ export function PaginaDinamicaPublica() {
 interface BloqueInfoPublicoProps {
     dinamica: DinamicaDetallePublico;
     cuentaRegresiva: string | null;
+    /** Reduce paddings y tamaños para caber en el panel sticky desktop —
+     *  mismo patrón que `BloqueInfo` (MP) y `BloqueInfoArticulo` (Producto). */
+    compacto?: boolean;
 }
 
 /** Calca `BloqueInfoDinamica` de la ficha privada — título + precio del
- *  boleto + tags densos de datos clave. */
-function BloqueInfoPublico({ dinamica, cuentaRegresiva }: BloqueInfoPublicoProps) {
+ *  boleto + tags densos de datos clave. Tamaños unificados con Producto/
+ *  MarketPlace: título negro, precio del boleto grande en color temático. */
+function BloqueInfoPublico({ dinamica, cuentaRegresiva, compacto = false }: BloqueInfoPublicoProps) {
     return (
-        <div className="space-y-2.5">
-            <h1 className="text-xl font-extrabold leading-snug text-slate-900 lg:text-lg">{dinamica.titulo}</h1>
+        <div className={compacto ? 'space-y-1.5' : 'space-y-3 lg:space-y-4'}>
+            {/* Eyebrow Dinámicas · Ciudad — mismo patrón que MarketPlace/
+                Ofertas/Producto (label del módulo + ícono de ubicación). */}
+            <p
+                className={`flex flex-wrap items-center gap-1.5 font-bold uppercase tracking-wide ${
+                    compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'
+                }`}
+            >
+                <span className="text-amber-700">Dinámicas</span>
+                {dinamica.ciudadNombre && (
+                    <>
+                        <span aria-hidden className="text-slate-400">·</span>
+                        <span className="inline-flex items-center gap-1 text-slate-700">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
+                            {dinamica.ciudadNombre}
+                        </span>
+                    </>
+                )}
+            </p>
 
+            {/* Título — negro, mismo tamaño que Producto/MarketPlace/Ofertas */}
+            <h1
+                className={
+                    compacto
+                        ? 'text-sm font-bold leading-tight text-slate-900 2xl:text-base'
+                        : 'text-xl font-bold leading-tight text-slate-900 lg:text-2xl 2xl:text-3xl'
+                }
+            >
+                {dinamica.titulo}
+            </h1>
+
+            {/* Precio del boleto — equivalente del "precio" de Producto/MP:
+                mismo tamaño grande, color temático amber de Dinámicas. */}
             {dinamica.precioBoleto && (
-                <p className="text-2xl font-extrabold leading-tight text-amber-700 lg:text-xl">
+                <div
+                    className={
+                        compacto
+                            ? 'text-2xl font-extrabold leading-none tracking-tight text-amber-700 2xl:text-3xl'
+                            : 'text-4xl font-extrabold leading-none tracking-tight text-amber-700 lg:text-5xl'
+                    }
+                >
                     ${Number(dinamica.precioBoleto).toLocaleString('es-MX')}
-                    <span className="ml-1.5 text-sm font-bold text-amber-700/80">por boleto</span>
-                </p>
+                    <span
+                        className={
+                            compacto
+                                ? 'ml-1.5 text-lg font-semibold text-amber-700/80 2xl:text-xl'
+                                : 'ml-2 text-2xl font-semibold text-amber-700/80 lg:text-3xl'
+                        }
+                    >
+                        por boleto
+                    </span>
+                </div>
             )}
 
             <div className="flex flex-wrap items-center gap-1.5">
@@ -396,12 +458,20 @@ interface CardOrganizadorPublicoProps {
  *  explícito antes de intentar abrir ChatYA. */
 function CardOrganizadorPublico({ dinamica, onContactar }: CardOrganizadorPublicoProps) {
     const navigate = useNavigate();
-    const conexionLabel = formatearUltimaConexion(dinamica.organizador.ultimaConexion ?? null);
+    // "Publicado hace X" — más confiable que "Activa hace X" (última
+    // conexión), que suele venir null/desactualizada en datos de prueba.
+    // Mismo criterio unificado en `CardVendedor` (MP) y
+    // `CardOferentePublico` (Servicios).
+    const actividadLabel = `Publicado ${formatearTiempoRelativo(dinamica.createdAt)}`;
+    const [avatarAbierto, setAvatarAbierto] = useState(false);
 
     return (
-        <div className="flex w-full flex-col gap-2 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md">
+        <div className="flex w-full flex-col gap-2 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
             <div className="flex items-center gap-2">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                <div
+                    className={`h-14 w-14 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200 lg:h-16 lg:w-16 ${dinamica.organizador.avatarUrl ? 'cursor-pointer' : ''}`}
+                    onClick={dinamica.organizador.avatarUrl ? () => setAvatarAbierto(true) : undefined}
+                >
                     {dinamica.organizador.avatarUrl ? (
                         <img
                             src={dinamica.organizador.avatarUrl}
@@ -445,12 +515,10 @@ function CardOrganizadorPublico({ dinamica, onContactar }: CardOrganizadorPublic
             </div>
 
             <div className="flex items-center gap-2">
-                {conexionLabel && (
-                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-slate-400" />
-                        {conexionLabel}
-                    </div>
-                )}
+                <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-slate-400" />
+                    {actividadLabel}
+                </div>
                 <button
                     type="button"
                     onClick={() => navigate(`/marketplace/usuario/${dinamica.organizador.id}?tab=dinamicas`)}
@@ -461,6 +529,15 @@ function CardOrganizadorPublico({ dinamica, onContactar }: CardOrganizadorPublic
                     <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
             </div>
+
+            {avatarAbierto && dinamica.organizador.avatarUrl && (
+                <ModalImagenes
+                    images={[dinamica.organizador.avatarUrl]}
+                    initialIndex={0}
+                    isOpen={avatarAbierto}
+                    onClose={() => setAvatarAbierto(false)}
+                />
+            )}
         </div>
     );
 }

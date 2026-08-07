@@ -45,6 +45,9 @@ interface SeccionOfertasProps {
     /** Página pública de negocio (/p/negocio/...): más ancho disponible
      *  (sin ColumnaIzquierda/Derecha) → 3 ofertas en laptop en vez de 2. */
     esRutaPublica?: boolean;
+    /** Se propaga a `ModalOfertaDetalle`/`ModalOfertas` — abre el modal de
+     *  auth (en vez del toast) cuando un visitante sin sesión usa ChatYA. */
+    onRequiereAuth?: () => void;
 }
 
 // =============================================================================
@@ -59,7 +62,7 @@ const getId = (oferta: Oferta): string => {
 // COMPONENTE PRINCIPAL: SeccionOfertas
 // =============================================================================
 
-export default function SeccionOfertas({ ofertas, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, className = '', esRutaPublica = false }: SeccionOfertasProps) {
+export default function SeccionOfertas({ ofertas, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, className = '', esRutaPublica = false, onRequiereAuth }: SeccionOfertasProps) {
     const [modalAbierto, setModalAbierto] = useState(false);
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<Oferta | null>(null);
     const { esMobile, esDesktop } = useBreakpoint();
@@ -277,6 +280,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, whatsappAlterno, neg
                 whatsappAlterno={whatsappAlterno ?? undefined}
                 negocioNombre={negocioNombre}
                 negocioUsuarioId={negocioUsuarioId}
+                onRequiereAuth={onRequiereAuth}
             />
 
             {/* Modal de detalle de oferta */}
@@ -287,6 +291,7 @@ export default function SeccionOfertas({ ofertas, whatsapp, whatsappAlterno, neg
                 negocioNombre={negocioNombre}
                 negocioUsuarioId={negocioUsuarioId}
                 onClose={() => setOfertaSeleccionada(null)}
+                onRequiereAuth={onRequiereAuth}
             />
         </>
     );

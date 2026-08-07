@@ -81,6 +81,9 @@ interface ModalCatalogoProps {
   /** Logo/foto de perfil del negocio. Se propaga al ModalDetalleItem
    *  para que el chat temporal muestre el avatar del negocio. */
   logoUrl?: string | null;
+  /** Se propaga a `ModalDetalleItem` — abre el modal de auth (en vez del
+   *  toast) cuando un visitante sin sesión usa ChatYA. */
+  onRequiereAuth?: () => void;
 }
 
 // =============================================================================
@@ -469,6 +472,7 @@ export function ModalCatalogo({
   sucursalId,
   negocioNombre,
   logoUrl,
+  onRequiereAuth,
 }: ModalCatalogoProps) {
   const { esMobile } = useBreakpoint();
 
@@ -628,6 +632,7 @@ export function ModalCatalogo({
           logoUrl={logoUrl}
           onClose={() => setItemSeleccionado(null)}
           openedFromModal={true}
+          onRequiereAuth={onRequiereAuth}
         />
       </>
     );
@@ -693,6 +698,7 @@ export function ModalCatalogo({
         logoUrl={logoUrl}
         onClose={() => setItemSeleccionado(null)}
         openedFromModal={true}
+        onRequiereAuth={onRequiereAuth}
       />
     </>
   );

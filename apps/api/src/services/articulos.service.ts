@@ -178,16 +178,19 @@ export async function obtenerArticuloDetalle(
                 a.destacado,
                 a.requiere_cita as "requiereCita",
                 a.duracion_estimada as "duracionEstimada",
-                
+                a.created_at as "createdAt",
+
                 -- Datos del negocio
                 n.id as "negocioId",
+                n.usuario_id as "negocioUsuarioId",
                 n.nombre as "negocioNombre",
                 n.logo_url as "negocioLogoUrl",
                 n.sitio_web as "negocioSitioWeb",
-                
+
                 -- Datos de la sucursal principal
                 s.id as "sucursalId",
                 s.nombre as "sucursalNombre",
+                s.foto_perfil as "sucursalFotoPerfil",
                 cd.nombre AS ciudad,
                 s.direccion,
                 s.whatsapp as "negocioWhatsapp",
@@ -226,13 +229,16 @@ export async function obtenerArticuloDetalle(
                 destacado: row.destacado,
                 requiereCita: row.requiereCita,
                 duracionEstimada: row.duracionEstimada,
+                createdAt: row.createdAt,
                 negocio: {
                     id: row.negocioId,
+                    usuarioId: row.negocioUsuarioId,
                     nombre: row.negocioNombre,
                     logoUrl: row.negocioLogoUrl,
                     sitioWeb: row.negocioSitioWeb,
                     sucursalId: row.sucursalId,
                     sucursalNombre: row.sucursalNombre,
+                    sucursalFotoPerfil: row.sucursalFotoPerfil,
                     ciudad: row.ciudad,
                     direccion: row.direccion,
                     whatsapp: row.negocioWhatsapp,

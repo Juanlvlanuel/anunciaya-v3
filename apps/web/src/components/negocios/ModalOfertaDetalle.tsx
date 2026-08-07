@@ -95,6 +95,11 @@ interface ModalOfertaDetalleProps {
     negocioNombre?: string;
     negocioUsuarioId?: string | null;
     onClose: () => void;
+    /** Si se pasa, se usa en vez del toast de error cuando un visitante sin
+     *  sesión intenta usar ChatYA — para mostrar el modal de auth con el
+     *  copy completo (ej. `ModalAuthRequerido` del perfil público de
+     *  negocio) en lugar de un simple aviso. */
+    onRequiereAuth?: () => void;
 }
 
 // =============================================================================
@@ -267,7 +272,7 @@ const CONFIG_TIPO: Record<Oferta['tipo'], ConfigTipo> = {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalOfertaDetalle({ oferta, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, onClose }: ModalOfertaDetalleProps) {
+export function ModalOfertaDetalle({ oferta, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, onClose, onRequiereAuth }: ModalOfertaDetalleProps) {
     const { usuario } = useAuthStore();
     const iniciarChatNegocio = useIniciarChatNegocio();
     const navigate = useNavigate();
@@ -431,6 +436,13 @@ export function ModalOfertaDetalle({ oferta, whatsapp, whatsappAlterno, negocioN
 
     const handleChatYA = async () => {
         if (!usuario) {
+            if (onRequiereAuth) {
+                // Cerrar este modal primero — evita apilar el modal de auth
+                // encima/debajo con problemas de z-index entre modales.
+                onClose();
+                onRequiereAuth();
+                return;
+            }
             notificar.error('Debes iniciar sesión para usar ChatYA');
             return;
         }

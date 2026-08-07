@@ -41,6 +41,9 @@ interface ModalOfertasProps {
     whatsappAlterno?: string;
     negocioNombre?: string;
     negocioUsuarioId?: string | null;
+    /** Se propaga a `ModalOfertaDetalle` — abre el modal de auth (en vez del
+     *  toast) cuando un visitante sin sesión usa ChatYA. */
+    onRequiereAuth?: () => void;
 }
 
 // =============================================================================
@@ -98,7 +101,7 @@ const ContenidoOfertas = ({ ofertas, onClickOferta, esMobile }: ContenidoOfertas
 // COMPONENTE PRINCIPAL: ModalOfertas
 // =============================================================================
 
-export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId }: ModalOfertasProps) {
+export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, whatsappAlterno, negocioNombre, negocioUsuarioId, onRequiereAuth }: ModalOfertasProps) {
     const { esMobile } = useBreakpoint();
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<Oferta | null>(null);
 
@@ -197,6 +200,7 @@ export default function ModalOfertas({ isOpen, onClose, ofertas, whatsapp, whats
                     whatsappAlterno={whatsappAlterno}
                     negocioNombre={negocioNombre}
                     negocioUsuarioId={negocioUsuarioId}
+                    onRequiereAuth={onRequiereAuth}
                 />
             )}
         </>

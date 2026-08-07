@@ -22,11 +22,17 @@ interface GaleriaPublicacionNegocioProps {
     fotos: ArchivoFoto[];
     /** Índice de portada (foto que se muestra primero). */
     fotoPortadaIndex?: number;
+    /** Página pública (compartir): foto a ancho completo en móvil, sin
+     *  margen ni bordes redondeados — mismo criterio unificado que
+     *  Producto/Ofertas/MarketPlace/Dinámicas/Servicios. Default `false`
+     *  (comportamiento histórico: card redondeada, usado en la app privada). */
+    fullBleedMovil?: boolean;
 }
 
 export function GaleriaPublicacionNegocio({
     fotos,
     fotoPortadaIndex = 0,
+    fullBleedMovil = false,
 }: GaleriaPublicacionNegocioProps) {
     // Reordenar para que la portada sea la primera.
     const fotosOrdenadas = (() => {
@@ -145,7 +151,7 @@ export function GaleriaPublicacionNegocio({
         return (
             <div
                 data-testid="galeria-negocio-publicacion-vacia"
-                className="flex aspect-square w-full items-center justify-center rounded-xl bg-slate-100"
+                className={`flex ${fullBleedMovil ? 'aspect-[4/3]' : 'aspect-square rounded-xl'} w-full items-center justify-center bg-slate-100 lg:aspect-square lg:rounded-xl`}
             >
                 <ImageOff className="h-16 w-16 text-slate-400" strokeWidth={1.5} />
             </div>
@@ -160,7 +166,7 @@ export function GaleriaPublicacionNegocio({
             <div className="relative lg:hidden">
                 <div
                     data-testid="carrusel-negocio-movil"
-                    className="relative aspect-square w-full overflow-hidden rounded-xl bg-slate-100 touch-pan-y"
+                    className={`relative ${fullBleedMovil ? 'aspect-[4/3]' : 'aspect-square rounded-xl'} w-full overflow-hidden bg-slate-100 touch-pan-y`}
                     onClick={handleTapFotoMovil}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -232,12 +238,12 @@ export function GaleriaPublicacionNegocio({
                     data-testid="img-principal-negocio"
                     onClick={() => abrirLightbox(indiceActual)}
                     aria-label="Ver imagen ampliada"
-                    className="group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-slate-100"
+                    className="group relative flex h-[380px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-slate-100 lg:h-[460px] 2xl:h-[560px]"
                 >
                     <img
                         src={fuenteThumbnail(fotosOrdenadas[indiceActual])}
                         alt={`Foto ${indiceActual + 1}`}
-                        className="h-full max-h-[480px] w-full object-contain transition-transform group-hover:scale-[1.02] 2xl:max-h-[560px]"
+                        className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]"
                     />
                     {fotosOrdenadas[indiceActual].tipo === 'video' && (
                         <Play

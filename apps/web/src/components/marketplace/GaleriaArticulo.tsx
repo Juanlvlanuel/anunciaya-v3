@@ -42,6 +42,13 @@ interface GaleriaArticuloProps {
      * recortando lo que sobre, sin importar la relación de aspecto original.
      */
     ajusteImagen?: 'contain' | 'cover';
+    /**
+     * Aspect-ratio de la foto principal en móvil. Default `'aspect-square'`
+     * (comportamiento histórico, usado por las páginas privadas de
+     * MarketPlace/Dinámicas — no lo tocan). Las páginas PÚBLICAS pasan
+     * `'aspect-[4/3]'` para unificar con Producto/Ofertas/Servicios.
+     */
+    aspectMovil?: string;
 }
 
 export function GaleriaArticulo({
@@ -49,6 +56,7 @@ export function GaleriaArticulo({
     titulo,
     fotoPortadaIndex = 0,
     ajusteImagen = 'contain',
+    aspectMovil = 'aspect-square',
 }: GaleriaArticuloProps) {
     // Reordenar para que la portada sea la primera
     const fotosOrdenadas = (() => {
@@ -146,7 +154,7 @@ export function GaleriaArticulo({
         return (
             <div
                 data-testid="galeria-marketplace-vacia"
-                className="flex aspect-square w-full items-center justify-center bg-slate-100 lg:aspect-[4/3] lg:rounded-xl"
+                className={`flex ${aspectMovil} w-full items-center justify-center bg-slate-100 lg:aspect-[4/3] lg:rounded-xl`}
             >
                 <ImageOff className="h-16 w-16 text-slate-400" strokeWidth={1.5} />
             </div>
@@ -161,14 +169,14 @@ export function GaleriaArticulo({
             <div className="relative lg:hidden">
                 <div
                     ref={carruselMovilRef}
-                    className="flex aspect-square w-full snap-x snap-mandatory overflow-x-auto bg-slate-100 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    className={`flex ${aspectMovil} w-full snap-x snap-mandatory overflow-x-auto bg-slate-100 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
                 >
                     {fotosOrdenadas.map((foto, idx) => (
                         <button
                             key={`${foto.url}-${idx}`}
                             data-testid={`slide-${idx}`}
                             onClick={() => abrirLightbox(idx)}
-                            className="relative aspect-square w-full shrink-0 snap-center cursor-pointer"
+                            className={`relative ${aspectMovil} w-full shrink-0 snap-center cursor-pointer`}
                         >
                             <img
                                 src={fuenteThumbnail(foto)}

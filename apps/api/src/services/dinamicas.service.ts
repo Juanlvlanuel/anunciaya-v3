@@ -23,7 +23,7 @@
 
 import { and, desc, eq, count, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { dinamicas, dinamicaBoletos, usuarios } from '../db/schemas/schema.js';
+import { dinamicas, dinamicaBoletos, usuarios, ciudades } from '../db/schemas/schema.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
@@ -346,9 +346,11 @@ export async function obtenerDinamicaPublica(dinamicaId: string) {
                 organizadorApellidos: usuarios.apellidos,
                 organizadorAvatarUrl: usuarios.avatarUrl,
                 organizadorUltimaConexion: usuarios.ultimaConexion,
+                ciudadNombre: ciudades.nombre,
             })
             .from(dinamicas)
             .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
+            .leftJoin(ciudades, eq(ciudades.id, dinamicas.ciudadId))
             .where(eq(dinamicas.id, dinamicaId))
             .limit(1);
 
@@ -370,6 +372,7 @@ export async function obtenerDinamicaPublica(dinamicaId: string) {
             success: true as const,
             data: {
                 ...fila.dinamica,
+                ciudadNombre: fila.ciudadNombre,
                 organizador: {
                     id: fila.organizadorId,
                     nombre: fila.organizadorNombre,
