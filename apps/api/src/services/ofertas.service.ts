@@ -32,6 +32,7 @@ import { emitirAUsuario } from '../socket.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
 import { clasificarCirculacion } from '../utils/estadoNegocio.js';
+import { urlReferenciadaEnChat } from './negocioManagement.service.js';
 
 // =============================================================================
 // GENERAR URL DE UPLOAD PARA IMAGEN DE OFERTA (R2)
@@ -907,11 +908,27 @@ export async function actualizarOferta(
         .where(eq(ofertas.id, ofertaId))
         .returning();
 
-      // 3.1 Limpiar imagen anterior de R2 si fue reemplazada o eliminada.
+      // 3.1 Si cambió la foto, propagar la URL nueva a las cards de chat que
+      // ya existan (subtipo `oferta_negocio`) — así se actualizan solas en
+      // vez de quedarse mostrando la foto vieja. Los cupones YA emitidos
+      // (tipo 'cupon') NO se tocan: son un recibo histórico de lo que se
+      // entregó, se quedan con la foto de cuando se reclamaron.
+      if (datos.imagen !== undefined && datos.imagen !== ofertaExistente.imagen) {
+        await tx.execute(sql`
+          UPDATE chat_mensajes
+          SET contenido = jsonb_set(contenido::jsonb, '{fotoUrl}', to_jsonb(${datos.imagen}::text))::text
+          WHERE tipo = 'sistema'
+            AND contenido::jsonb->>'subtipo' = 'oferta_negocio'
+            AND contenido::jsonb->>'ofertaId' = ${ofertaId}
+        `);
+      }
+
+      // 3.2 Limpiar imagen anterior de R2 si fue reemplazada o eliminada.
       // CRÍTICO: verificar reference-count antes de borrar — la misma URL puede
-      // estar compartida con otra oferta (al duplicarse) o estar referenciada
-      // dentro de contenido JSON de chat_mensajes tipo 'cupon'. Sin este check,
-      // editar la imagen de una oferta rompería las otras.
+      // estar compartida con otra oferta (al duplicarse) o seguir referenciada
+      // dentro de un chat (cupón ya entregado, o una card `oferta_negocio` que
+      // por alguna razón no se haya propagado arriba). Sin este check, editar
+      // la imagen de una oferta rompería esas referencias.
       if (
         datos.imagen !== undefined &&
         ofertaExistente.imagen &&
@@ -931,16 +948,8 @@ export async function actualizarOferta(
               return;
             }
 
-            // También puede estar embebida en chat_mensajes tipo 'cupon' (JSON con campo `imagen`)
-            const mensajesCupon = await db.execute(sql`
-              SELECT COUNT(*)::int AS total
-              FROM chat_mensajes
-              WHERE tipo = 'cupon'
-                AND contenido::jsonb->>'imagen' = ${urlAnterior}
-            `);
-            const totalMensajes = Number((mensajesCupon.rows[0] as Record<string, unknown>)?.total ?? 0);
-            if (totalMensajes > 0) {
-              console.log(`ℹ️ Imagen de oferta conservada (usada en ${totalMensajes} mensaje/s cupón): ${urlAnterior}`);
+            if (await urlReferenciadaEnChat(urlAnterior)) {
+              console.log(`ℹ️ Imagen de oferta conservada (usada en algún chat): ${urlAnterior}`);
               return;
             }
 
@@ -1142,6 +1151,9 @@ export async function eliminarOferta(
       // 9. Eliminar imagen de R2 con reference-count (evita romper otras
       // ofertas que compartan URL por fallback del clonado).
       // Los chat_mensajes tipo 'cupon' de esta oferta ya se borraron en paso 5.
+      // Las cards `oferta_negocio` en otras conversaciones (de cuando la
+      // oferta seguía viva) NO se tocan — se quedan como recuerdo histórico,
+      // así que la foto se conserva mientras alguna de esas cards la muestre.
       if (imagenUrl && esUrlR2(imagenUrl)) {
         (async () => {
           try {
@@ -1150,11 +1162,17 @@ export async function eliminarOferta(
               .from(ofertas)
               .where(eq(ofertas.imagen, imagenUrl));
 
-            if (total === 0) {
-              await eliminarArchivo(imagenUrl);
-            } else {
+            if (total > 0) {
               console.log(`ℹ️ Imagen de oferta conservada (usada por ${total} oferta/s): ${imagenUrl}`);
+              return;
             }
+
+            if (await urlReferenciadaEnChat(imagenUrl)) {
+              console.log(`ℹ️ Imagen de oferta conservada (usada en algún chat): ${imagenUrl}`);
+              return;
+            }
+
+            await eliminarArchivo(imagenUrl);
           } catch (err) {
             console.error('Error eliminando imagen de oferta:', err);
           }

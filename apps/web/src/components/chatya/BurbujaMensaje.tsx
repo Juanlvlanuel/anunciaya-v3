@@ -2036,15 +2036,27 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                         </div>
                       </div>
 
-                      {/* Botón con brillo */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); window.location.href = datos.accionUrl || '/mis-cupones'; }}
-                        className="cupon-btn-shine w-full py-2.5 lg:py-2 2xl:py-2.5 flex items-center justify-center gap-1.5 font-bold cursor-pointer"
-                        style={{ background: 'linear-gradient(135deg, #064e3b, #065f46)', color: '#a7f3d0' }}
-                      >
-                        <Ticket className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
-                        <span className="text-base lg:text-sm 2xl:text-base">Reclamar cupón</span>
-                      </button>
+                      {/* Botón con brillo — solo interactivo para quien lo RECIBE.
+                          El emisor (esMio) ve el mismo cupón que envió, sin acción:
+                          "reclamar" no aplica a su propio mensaje saliente. */}
+                      {esMio ? (
+                        <div
+                          className="w-full py-2.5 lg:py-2 2xl:py-2.5 flex items-center justify-center gap-1.5 font-bold"
+                          style={{ background: '#e2e8f0', color: '#64748b' }}
+                        >
+                          <Ticket className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
+                          <span className="text-base lg:text-sm 2xl:text-base">Cupón enviado</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); window.location.href = datos.accionUrl || '/mis-cupones'; }}
+                          className="cupon-btn-shine w-full py-2.5 lg:py-2 2xl:py-2.5 flex items-center justify-center gap-1.5 font-bold cursor-pointer"
+                          style={{ background: 'linear-gradient(135deg, #064e3b, #065f46)', color: '#a7f3d0' }}
+                        >
+                          <Ticket className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
+                          <span className="text-base lg:text-sm 2xl:text-base">Reclamar cupón</span>
+                        </button>
+                      )}
                     </div>
                     <div className={`flex justify-end mt-1 ${esMio ? 'text-white/70' : 'text-white/55'}`}>
                       <span className="text-[11px]">{hora}</span>

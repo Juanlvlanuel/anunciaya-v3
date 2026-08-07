@@ -17,6 +17,7 @@ import { sql, eq, and, ne, or } from 'drizzle-orm';
 import { db } from '../db';
 import { articulos, articuloSucursales } from '../db/schemas/schema';
 import { generarPresignedUrl, eliminarArchivo, duplicarArchivo } from './r2.service.js';
+import { urlReferenciadaEnChat } from './negocioManagement.service.js';
 
 /**
  * Cuenta cuántos artículos del negocio siguen referenciando una URL de imagen,
@@ -52,7 +53,12 @@ async function imagenEsUsadaPorOtroArticulo(
         .from(articulos)
         .where(and(...condiciones));
 
-    return total > 0;
+    if (total > 0) return true;
+
+    // También protege la foto mientras alguna card de chat (subtipo
+    // `articulo_negocio`) la siga mostrando — se conserva como recuerdo
+    // histórico aunque el artículo se haya editado o eliminado.
+    return urlReferenciadaEnChat(url);
 }
 
 
@@ -505,6 +511,19 @@ export async function actualizarArticulo(
                 .set(datosActualizar)
                 .where(eq(articulos.id, articuloId))
                 .returning();
+
+            // 3.1 Si cambió la foto, propagar la URL nueva a las cards de chat
+            // que ya existan (subtipo `articulo_negocio`) — así se actualizan
+            // solas en vez de quedarse mostrando la foto vieja.
+            if (imagenAEliminar) {
+                await tx.execute(sql`
+                    UPDATE chat_mensajes
+                    SET contenido = jsonb_set(contenido::jsonb, '{fotoUrl}', to_jsonb(${datosArticulo.imagenPrincipal ?? null}::text))::text
+                    WHERE tipo = 'sistema'
+                        AND contenido::jsonb->>'subtipo' = 'articulo_negocio'
+                        AND contenido::jsonb->>'articuloId' = ${articuloId}
+                `);
+            }
 
             return {
                 success: true,

@@ -44,6 +44,7 @@ import { ModalDetalleItem } from '../negocios/ModalDetalleItem';
 import type { Oferta } from '../negocios/OfertaCard';
 import { obtenerDetalleOferta } from '../../services/ofertasService';
 import { obtenerDetalleArticulo } from '../../services/articulosService';
+import { notificar } from '../../utils/notificaciones';
 
 // Tipo del item que ModalDetalleItem espera (subset)
 interface ItemDetalle {
@@ -157,7 +158,10 @@ export function ChatOverlay() {
       if (!ofertaId) return;
       try {
         const respuesta = await obtenerDetalleOferta(ofertaId);
-        if (!respuesta.success || !respuesta.data) return;
+        if (!respuesta.success || !respuesta.data) {
+          notificar.error('Esta oferta ya no está disponible');
+          return;
+        }
         const o = respuesta.data;
         setDetalleOferta({
           oferta: {
@@ -184,6 +188,7 @@ export function ChatOverlay() {
         });
       } catch (error) {
         console.error('[ChatOverlay] Error fetch detalle oferta:', error);
+        notificar.error('Esta oferta ya no está disponible');
       }
     };
     window.addEventListener('chatya:abrir-detalle-oferta', handler);
@@ -196,7 +201,10 @@ export function ChatOverlay() {
       if (!articuloId) return;
       try {
         const respuesta = await obtenerDetalleArticulo(articuloId);
-        if (!respuesta.success || !respuesta.data) return;
+        if (!respuesta.success || !respuesta.data) {
+          notificar.error('Este artículo ya no está disponible');
+          return;
+        }
         const a = respuesta.data;
         setDetalleArticulo({
           item: {
@@ -221,6 +229,7 @@ export function ChatOverlay() {
         });
       } catch (error) {
         console.error('[ChatOverlay] Error fetch detalle articulo:', error);
+        notificar.error('Este artículo ya no está disponible');
       }
     };
     window.addEventListener('chatya:abrir-detalle-articulo', handler);

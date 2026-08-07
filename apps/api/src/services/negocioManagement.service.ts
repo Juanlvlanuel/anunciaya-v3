@@ -33,6 +33,7 @@ import {
     usuarios,
     recompensas,
     notificaciones,
+    chatMensajes,
 } from '../db/schemas/schema';
 import type {
     UbicacionInput,
@@ -776,6 +777,27 @@ export async function eliminarImagenSiHuerfana(
     } catch (error) {
         console.error('Error en eliminarImagenSiHuerfana:', error);
     }
+}
+
+/**
+ * ¿Alguna card de chat (oferta_negocio, articulo_negocio, cupón, etc.) todavía
+ * muestra esta URL? Barrido genérico por texto sobre `chat_mensajes.contenido`
+ * — cubre cualquier subtipo con foto embebida sin tener que enumerar cada
+ * clave JSON una por una (y sin filtrar por `eliminado`, igual que el
+ * reconcile de R2, porque un mensaje "borrado" sigue existiendo en BD).
+ *
+ * Se usa para NO borrar de R2 una imagen mientras algún chat la siga
+ * referenciando — la card se queda como recuerdo histórico de la
+ * conversación aunque la oferta/artículo original ya no exista.
+ *
+ * @param url - URL de la imagen a verificar
+ */
+export async function urlReferenciadaEnChat(url: string): Promise<boolean> {
+    const [{ total }] = await db
+        .select({ total: sql<number>`COUNT(*)::int` })
+        .from(chatMensajes)
+        .where(sql`${chatMensajes.contenido} LIKE ${`%${url}%`}`);
+    return total > 0;
 }
 
 // =============================================================================
