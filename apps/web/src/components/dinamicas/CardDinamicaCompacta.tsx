@@ -17,6 +17,9 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Clock, ImageOff, Ticket } from 'lucide-react';
+import { Icon, ICONOS } from '@/config/iconos';
+import { useGuardados } from '../../hooks/useGuardados';
+import { useSaveBubble } from '../../hooks/useSaveBubble';
 import type { DinamicaFeedItem } from '../../types/dinamicas';
 
 interface CardDinamicaCompactaProps {
@@ -45,6 +48,18 @@ function formatearCuentaRegresiva(fechaLimite: string | null): string | null {
 
 export function CardDinamicaCompacta({ dinamica }: CardDinamicaCompactaProps) {
     const navigate = useNavigate();
+    const { guardado, loading, toggleGuardado } = useGuardados({
+        entityType: 'dinamica',
+        entityId: dinamica.id,
+        initialGuardado: dinamica.guardado,
+    });
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
+
+    const handleClickGuardar = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        triggerSaveBubble(e, guardado ? 'unsave' : 'save');
+        toggleGuardado();
+    };
 
     const portada = dinamica.fotosPremio.find((f) => f.tipo === 'imagen') ?? dinamica.fotosPremio[0];
     const portadaUrl = portada?.tipo === 'video' ? portada.posterUrl : portada?.url;
@@ -72,9 +87,33 @@ export function CardDinamicaCompacta({ dinamica }: CardDinamicaCompactaProps) {
                         <ImageOff className="h-8 w-8" strokeWidth={1.5} />
                     </div>
                 )}
-                <span className={`absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm ${estado.clase}`}>
+                <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm ${estado.clase}`}>
                     {estado.texto}
                 </span>
+
+                {/* Botón guardar — esquina sup-der, mismo patrón glass que
+                    `CardArticulo.tsx` (MarketPlace) para coherencia visual
+                    entre los 2 tipos de card del perfil. */}
+                <button
+                    data-testid={`btn-guardar-dinamica-${dinamica.id}`}
+                    onClick={handleClickGuardar}
+                    disabled={loading}
+                    aria-label={guardado ? 'Quitar de guardados' : 'Guardar Dinámica'}
+                    aria-pressed={guardado}
+                    className={`absolute right-2 top-2 flex w-[38px] h-[38px] cursor-pointer items-center justify-center rounded-full backdrop-blur-[10px] overflow-visible disabled:opacity-50 ${
+                        guardado ? 'border-2 border-amber-500 bg-white' : 'border border-white/10 bg-black/25'
+                    }`}
+                >
+                    {guardado && (
+                        <span
+                            aria-hidden
+                            className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                            style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                        />
+                    )}
+                    <Icon icon={ICONOS.guardar} className="h-5 w-5" style={{ color: guardado ? '#f59e0b' : 'white' }} />
+                </button>
+                {saveBubble}
             </div>
 
             <div className="flex min-w-0 flex-col gap-1 px-3 py-2.5">

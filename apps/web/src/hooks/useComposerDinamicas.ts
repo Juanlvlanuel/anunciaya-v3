@@ -59,6 +59,9 @@ export interface ComposerDinamicasDraft {
     metodoSorteo: MetodoSorteo | null;
     /** String para permitir input vacío; se convierte a number al publicar. */
     numeroTotalBoletos: string;
+    /** Número con el que arranca la numeración — default '1' (mismo
+     *  comportamiento histórico). El final se calcula solo, no se pide. */
+    numeroBoletoInicial: string;
     precioBoleto: string;
     /** ISO datetime string, o '' si no se ha elegido. */
     fechaLimiteInscripcion: string;
@@ -86,6 +89,7 @@ const DRAFT_INICIAL: ComposerDinamicasDraft = {
     tipoPremio: null,
     metodoSorteo: null,
     numeroTotalBoletos: '',
+    numeroBoletoInicial: '1',
     precioBoleto: '',
     fechaLimiteInscripcion: '',
     reglaDesempate: null,
@@ -159,6 +163,7 @@ export function draftEstaIntacto(d: ComposerDinamicasDraft): boolean {
         d.tipoPremio === null &&
         d.metodoSorteo === null &&
         d.numeroTotalBoletos === '' &&
+        d.numeroBoletoInicial === '1' &&
         d.precioBoleto === '' &&
         d.fechaLimiteInscripcion === '' &&
         d.reglaDesempate === null &&
@@ -180,6 +185,7 @@ export type CampoErrorComposerDinamica =
     | 'tipoPremio'
     | 'metodoSorteo'
     | 'numeroTotalBoletos'
+    | 'numeroBoletoInicial'
     | 'precioBoleto'
     | 'fechaLimiteInscripcion'
     | 'ciudad';
@@ -225,6 +231,10 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         errores.numeroTotalBoletos = 'Escribe el número total de boletos.';
     }
 
+    if (parseEnteroPositivo(d.numeroBoletoInicial) === null) {
+        errores.numeroBoletoInicial = 'Escribe con qué número arrancan los boletos.';
+    }
+
     if (parseDecimalPositivo(d.precioBoleto) === null) {
         errores.precioBoleto = 'Escribe el precio por boleto (no puede ser $0).';
     }
@@ -246,6 +256,7 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         'tipoPremio',
         'metodoSorteo',
         'numeroTotalBoletos',
+        'numeroBoletoInicial',
         'precioBoleto',
         'fechaLimiteInscripcion',
         'ciudad',

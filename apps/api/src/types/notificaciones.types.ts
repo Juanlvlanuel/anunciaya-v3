@@ -80,7 +80,16 @@ export type TipoNotificacion =
   /** Al organizador y a los participantes cuando se pospone la fecha límite. */
   | 'dinamica_pospuesta'
   /** A los participantes cuando se anuncia el resultado del sorteo. */
-  | 'dinamica_resultado';
+  | 'dinamica_resultado'
+  /** Al participante (con cuenta AY) cuando el organizador confirma que ya
+   *  recibió su pago — no aplica a participantes manuales "Sin cuenta AY". */
+  | 'dinamica_pago_confirmado'
+  /** Al participante (con cuenta AY) cuando el organizador reasigna su
+   *  boleto a otro número. */
+  | 'dinamica_boleto_reasignado'
+  /** Al participante (con cuenta AY) cuando el organizador libera su
+   *  boleto — pierde su lugar, el número vuelve a estar disponible. */
+  | 'dinamica_boleto_liberado';
 
 // Idem ReferenciaTipo: 'dinamica' reincorporado en Fase 1 (agosto 2026).
 export type ReferenciaTipo =

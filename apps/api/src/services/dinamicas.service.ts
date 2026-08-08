@@ -21,7 +21,7 @@
  * controller solo mapea a status HTTP, cero lógica de negocio ahí.
  */
 
-import { and, desc, eq, count, sql } from 'drizzle-orm';
+import { and, desc, eq, count, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { dinamicas, dinamicaBoletos, usuarios, ciudades } from '../db/schemas/schema.js';
 import { crearNotificacion } from './notificaciones.service.js';
@@ -97,6 +97,7 @@ export async function crearDinamica(usuarioId: string, datos: CrearDinamicaInput
                 tipoPremio: datos.tipoPremio,
                 metodoSorteo: datos.metodoSorteo,
                 numeroTotalBoletos: datos.numeroTotalBoletos,
+                numeroBoletoInicial: datos.numeroBoletoInicial ?? 1,
                 precioBoleto: datos.precioBoleto !== undefined ? String(datos.precioBoleto) : null,
                 ciudadId,
                 fechaLimiteInscripcion: datos.fechaLimiteInscripcion,
@@ -120,6 +121,7 @@ const CAMPOS_SOLO_BORRADOR = [
     'tipoPremio',
     'metodoSorteo',
     'numeroTotalBoletos',
+    'numeroBoletoInicial',
     'precioBoleto',
     'fechaLimiteInscripcion',
     'reglaDesempate',
@@ -175,6 +177,7 @@ export async function editarBorrador(
             if (datos.tipoPremio !== undefined) patch.tipoPremio = datos.tipoPremio;
             if (datos.metodoSorteo !== undefined) patch.metodoSorteo = datos.metodoSorteo;
             if (datos.numeroTotalBoletos !== undefined) patch.numeroTotalBoletos = datos.numeroTotalBoletos;
+            if (datos.numeroBoletoInicial !== undefined) patch.numeroBoletoInicial = datos.numeroBoletoInicial;
             if (datos.precioBoleto !== undefined) patch.precioBoleto = String(datos.precioBoleto);
             if (datos.fechaLimiteInscripcion !== undefined) patch.fechaLimiteInscripcion = datos.fechaLimiteInscripcion;
             if (datos.reglaDesempate !== undefined) patch.reglaDesempate = datos.reglaDesempate;
@@ -300,6 +303,20 @@ export async function cancelarDinamica(usuarioId: string, dinamicaId: string) {
 // =============================================================================
 // LECTURA
 // =============================================================================
+
+/** Rango real de números de boleto de una Dinámica — el organizador elige
+ *  el inicio al crear (`numeroBoletoInicial`, default 1); el final se
+ *  calcula siempre a partir del total, nunca se guarda como columna aparte.
+ *  `null` si la Dinámica todavía no tiene `numeroTotalBoletos` (borrador
+ *  incompleto). */
+function rangoBoletos(dinamica: {
+    numeroTotalBoletos: number | null;
+    numeroBoletoInicial: number;
+}): { inicio: number; fin: number } | null {
+    if (!dinamica.numeroTotalBoletos) return null;
+    const inicio = dinamica.numeroBoletoInicial;
+    return { inicio, fin: inicio + dinamica.numeroTotalBoletos - 1 };
+}
 
 /** Trae la Dinámica validando que pertenece al usuario — helper interno de
  *  las mutaciones (editar/publicar/posponer/cancelar), no un endpoint. */
@@ -797,7 +814,8 @@ export async function reservarBoletoPublico(usuarioId: string, dinamicaId: strin
         if (dinamica.estado !== 'activa' && dinamica.estado !== 'pospuesta') {
             return { success: false, message: 'Esta Dinámica no está aceptando participantes', code: 409 } satisfies RespuestaError;
         }
-        if (!dinamica.numeroTotalBoletos || numeroBoleto < 1 || numeroBoleto > dinamica.numeroTotalBoletos) {
+        const rango = rangoBoletos(dinamica);
+        if (!rango || numeroBoleto < rango.inicio || numeroBoleto > rango.fin) {
             return { success: false, message: 'Número de boleto fuera de rango', code: 400 } satisfies RespuestaError;
         }
         if (dinamica.fechaLimiteInscripcion && new Date(dinamica.fechaLimiteInscripcion).getTime() < Date.now()) {
@@ -816,8 +834,11 @@ export async function reservarBoletoPublico(usuarioId: string, dinamicaId: strin
     }
 }
 
-/** El organizador registra a alguien sin cuenta AY — entra directo en
- *  `pagado` (ya cobró por fuera antes de registrarlo, ver Contexto_Dinamicas.md). */
+/** El organizador registra a alguien sin cuenta AY — por default entra
+ *  directo en `pagado` (ya cobró por fuera antes de registrarlo, ver
+ *  Contexto_Dinamicas.md); si `datos.estado === 'reservado'`, entra igual
+ *  que una reserva normal (con su ventana de 24h — la libera el mismo cron
+ *  si nadie confirma el pago). */
 export async function agregarParticipanteManual(
     organizadorUsuarioId: string,
     dinamicaId: string,
@@ -830,11 +851,16 @@ export async function agregarParticipanteManual(
         if (actual.estado !== 'activa' && actual.estado !== 'pospuesta') {
             return { success: false, message: 'Esta Dinámica no está aceptando participantes', code: 409 } satisfies RespuestaError;
         }
-        if (!actual.numeroTotalBoletos || datos.numeroBoleto < 1 || datos.numeroBoleto > actual.numeroTotalBoletos) {
+        const rango = rangoBoletos(actual);
+        if (!rango || datos.numeroBoleto < rango.inicio || datos.numeroBoleto > rango.fin) {
             return { success: false, message: 'Número de boleto fuera de rango', code: 400 } satisfies RespuestaError;
         }
 
-        const ahora = new Date().toISOString();
+        const ahora = new Date();
+        const reservadoExpiraEn =
+            datos.estado === 'reservado'
+                ? new Date(ahora.getTime() + HORAS_EXPIRACION_RESERVA * 60 * 60 * 1000)
+                : ahora;
         const [fila] = await db
             .insert(dinamicaBoletos)
             .values({
@@ -842,10 +868,10 @@ export async function agregarParticipanteManual(
                 numeroBoleto: datos.numeroBoleto,
                 nombreManual: datos.nombreManual,
                 telefonoManual: datos.telefonoManual,
-                estado: 'pagado',
-                reservadoEn: ahora,
-                reservadoExpiraEn: ahora,
-                pagadoEn: ahora,
+                estado: datos.estado,
+                reservadoEn: ahora.toISOString(),
+                reservadoExpiraEn: reservadoExpiraEn.toISOString(),
+                pagadoEn: datos.estado === 'pagado' ? ahora.toISOString() : null,
             })
             .returning();
 
@@ -861,7 +887,10 @@ export async function agregarParticipanteManual(
 
 /** El organizador confirma que un boleto reservado ya se pagó (fuera de la
  *  app) — valida que quien llama es el organizador antes de delegar en
- *  `confirmarPagoBoleto`. */
+ *  `confirmarPagoBoleto`. Si el boleto pertenece a un usuario con cuenta AY
+ *  (se reservó solo, no fue alta manual), le avisa por notificación
+ *  best-effort — los participantes "Sin cuenta AY" no tienen usuario al que
+ *  notificar dentro de la app. */
 export async function confirmarPagoBoletoOrganizador(
     organizadorUsuarioId: string,
     dinamicaId: string,
@@ -876,19 +905,158 @@ export async function confirmarPagoBoletoOrganizador(
             return { success: false, message: 'Boleto no encontrado', code: 404 } satisfies RespuestaError;
         }
 
-        return await confirmarPagoBoleto(boletoId);
+        const resultado = await confirmarPagoBoleto(boletoId);
+        if (!resultado.success) return resultado;
+
+        if (boleto.usuarioId) {
+            notificarPagoBoletoConfirmado(boleto.usuarioId, dinamicaId, actual.titulo, boleto.numeroBoleto).catch(() => undefined);
+        }
+
+        return resultado;
     } catch (error) {
         console.error('Error en confirmarPagoBoletoOrganizador:', error);
         return { success: false, message: 'Error al confirmar el pago del boleto', code: 500 } satisfies RespuestaError;
     }
 }
 
+/** El organizador libera un boleto (`reservado` o `pagado`) — lo borra y el
+ *  número vuelve a estar `disponible` de inmediato, sin esperar el cron de
+ *  24h (que solo libera `reservado` vencidos). Cubre: participante se
+ *  arrepintió, alta manual por error, boleto duplicado. Si el boleto tenía
+ *  `usuarioId`, avisa al participante por notificación — pierde su lugar. */
+export async function liberarBoleto(
+    organizadorUsuarioId: string,
+    dinamicaId: string,
+    boletoId: string,
+) {
+    try {
+        const actual = await obtenerParaEdicion(organizadorUsuarioId, dinamicaId);
+        if ('success' in actual) return actual;
+
+        const [boleto] = await db.select().from(dinamicaBoletos).where(eq(dinamicaBoletos.id, boletoId)).limit(1);
+        if (!boleto || boleto.dinamicaId !== dinamicaId) {
+            return { success: false, message: 'Boleto no encontrado', code: 404 } satisfies RespuestaError;
+        }
+
+        await db.delete(dinamicaBoletos).where(eq(dinamicaBoletos.id, boletoId));
+
+        if (boleto.usuarioId) {
+            notificarBoletoLiberado(boleto.usuarioId, dinamicaId, actual.titulo, boleto.numeroBoleto).catch(() => undefined);
+        }
+
+        return { success: true as const, data: { numeroBoleto: boleto.numeroBoleto } };
+    } catch (error) {
+        console.error('Error en liberarBoleto:', error);
+        return { success: false, message: 'Error al liberar el boleto', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** El organizador corrige nombre/teléfono — y opcionalmente reasigna el
+ *  número de boleto en el mismo paso, sin pasar por "Liberar" + "Agregar" —
+ *  de un participante "Sin cuenta AY" dado de alta manualmente. Solo aplica
+ *  a boletos manuales (sin `usuarioId`) — el registro de alguien con cuenta
+ *  AnunciaYA es suyo, no se edita desde aquí. */
+export async function editarParticipanteManual(
+    organizadorUsuarioId: string,
+    dinamicaId: string,
+    boletoId: string,
+    datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string },
+) {
+    try {
+        const actual = await obtenerParaEdicion(organizadorUsuarioId, dinamicaId);
+        if ('success' in actual) return actual;
+
+        const [boleto] = await db.select().from(dinamicaBoletos).where(eq(dinamicaBoletos.id, boletoId)).limit(1);
+        if (!boleto || boleto.dinamicaId !== dinamicaId) {
+            return { success: false, message: 'Boleto no encontrado', code: 404 } satisfies RespuestaError;
+        }
+        if (boleto.usuarioId) {
+            return {
+                success: false,
+                message: 'Este boleto pertenece a un usuario con cuenta AnunciaYA — no se puede editar desde aquí',
+                code: 409,
+            } satisfies RespuestaError;
+        }
+        const rango = rangoBoletos(actual);
+        if (!rango || datos.numeroBoleto < rango.inicio || datos.numeroBoleto > rango.fin) {
+            return { success: false, message: 'Número de boleto fuera de rango', code: 400 } satisfies RespuestaError;
+        }
+
+        const [fila] = await db
+            .update(dinamicaBoletos)
+            .set({ numeroBoleto: datos.numeroBoleto, nombreManual: datos.nombreManual, telefonoManual: datos.telefonoManual })
+            .where(eq(dinamicaBoletos.id, boletoId))
+            .returning();
+
+        return { success: true as const, data: fila };
+    } catch (error) {
+        if (esErrorBoletoDuplicado(error)) {
+            return { success: false, message: 'Ese número de boleto ya fue tomado', code: 409 } satisfies RespuestaError;
+        }
+        console.error('Error en editarParticipanteManual:', error);
+        return { success: false, message: 'Error al editar el participante', code: 500 } satisfies RespuestaError;
+    }
+}
+
+/** El organizador reasigna el número de un boleto CON cuenta AnunciaYA — a
+ *  diferencia de `editarParticipanteManual`, aquí no se toca nombre/teléfono
+ *  (son del usuario, no del organizador) y SÍ aplica cuando `usuarioId`
+ *  existe. Best-effort: avisa al participante por notificación. */
+export async function reasignarBoleto(
+    organizadorUsuarioId: string,
+    dinamicaId: string,
+    boletoId: string,
+    nuevoNumero: number,
+) {
+    try {
+        const actual = await obtenerParaEdicion(organizadorUsuarioId, dinamicaId);
+        if ('success' in actual) return actual;
+
+        const [boleto] = await db.select().from(dinamicaBoletos).where(eq(dinamicaBoletos.id, boletoId)).limit(1);
+        if (!boleto || boleto.dinamicaId !== dinamicaId) {
+            return { success: false, message: 'Boleto no encontrado', code: 404 } satisfies RespuestaError;
+        }
+        const rango = rangoBoletos(actual);
+        if (!rango || nuevoNumero < rango.inicio || nuevoNumero > rango.fin) {
+            return { success: false, message: 'Número de boleto fuera de rango', code: 400 } satisfies RespuestaError;
+        }
+
+        const numeroAnterior = boleto.numeroBoleto;
+        if (nuevoNumero === numeroAnterior) {
+            return { success: true as const, data: boleto };
+        }
+
+        const [fila] = await db
+            .update(dinamicaBoletos)
+            .set({ numeroBoleto: nuevoNumero })
+            .where(eq(dinamicaBoletos.id, boletoId))
+            .returning();
+
+        if (boleto.usuarioId) {
+            notificarBoletoReasignado(boleto.usuarioId, dinamicaId, actual.titulo, numeroAnterior, nuevoNumero).catch(() => undefined);
+        }
+
+        return { success: true as const, data: fila };
+    } catch (error) {
+        if (esErrorBoletoDuplicado(error)) {
+            return { success: false, message: 'Ese número de boleto ya fue tomado', code: 409 } satisfies RespuestaError;
+        }
+        console.error('Error en reasignarBoleto:', error);
+        return { success: false, message: 'Error al reasignar el boleto', code: 500 } satisfies RespuestaError;
+    }
+}
+
 /** Lista pública de participantes (transparencia, ver Contexto_Dinamicas.md)
- *  — sin teléfono. Incluye `id/nombre/apellidos/avatarUrl` de los que tienen
- *  cuenta AY: son justo los campos que pide `useIniciarChatDirectoPersona`
- *  en el frontend para el botón "Contactar" (visible a cualquiera que vea
- *  la lista, no solo al organizador). */
-export async function listarBoletosPublico(dinamicaId: string) {
+ *  — sin teléfono para cualquier solicitante. Incluye `id/nombre/apellidos/
+ *  avatarUrl` de los que tienen cuenta AY: son justo los campos que pide
+ *  `useIniciarChatDirectoPersona` en el frontend para el botón "Contactar"
+ *  (visible a cualquiera que vea la lista, no solo al organizador).
+ *
+ *  `usuarioSolicitanteId` (opcional, viene del token si lo hay) — cuando
+ *  coincide con el organizador de la Dinámica, cada boleto manual incluye
+ *  también `telefonoManual` (necesario para hidratar
+ *  `ModalEditarParticipante`); para cualquier otro solicitante se omite. */
+export async function listarBoletosPublico(dinamicaId: string, usuarioSolicitanteId?: string) {
     try {
         const filas = await db
             .select({
@@ -896,15 +1064,20 @@ export async function listarBoletosPublico(dinamicaId: string) {
                 numeroBoleto: dinamicaBoletos.numeroBoleto,
                 estado: dinamicaBoletos.estado,
                 nombreManual: dinamicaBoletos.nombreManual,
+                telefonoManual: dinamicaBoletos.telefonoManual,
                 usuarioId: usuarios.id,
                 usuarioNombre: usuarios.nombre,
                 usuarioApellidos: usuarios.apellidos,
                 usuarioAvatarUrl: usuarios.avatarUrl,
+                organizadorUsuarioId: dinamicas.organizadorUsuarioId,
             })
             .from(dinamicaBoletos)
+            .innerJoin(dinamicas, eq(dinamicas.id, dinamicaBoletos.dinamicaId))
             .leftJoin(usuarios, eq(usuarios.id, dinamicaBoletos.usuarioId))
             .where(eq(dinamicaBoletos.dinamicaId, dinamicaId))
             .orderBy(dinamicaBoletos.numeroBoleto);
+
+        const esOrganizador = !!usuarioSolicitanteId && filas[0]?.organizadorUsuarioId === usuarioSolicitanteId;
 
         const boletos = filas.map((f) => ({
             id: f.id,
@@ -914,6 +1087,7 @@ export async function listarBoletosPublico(dinamicaId: string) {
                 ? { id: f.usuarioId, nombre: f.usuarioNombre, apellidos: f.usuarioApellidos, avatarUrl: f.usuarioAvatarUrl }
                 : null,
             nombreManual: f.usuarioId ? null : f.nombreManual,
+            ...(esOrganizador ? { telefonoManual: f.usuarioId ? null : f.telefonoManual } : {}),
         }));
 
         return { success: true as const, data: boletos };
@@ -951,6 +1125,90 @@ export async function notificarDinamicaPospuesta(
         tipo: 'dinamica_pospuesta',
         titulo: 'Dinámica pospuesta',
         mensaje: `"${titulo}" se pospuso — nueva fecha límite: ${new Date(nuevaFecha).toLocaleDateString('es-MX')}.`,
+        referenciaId: dinamicaId,
+        referenciaTipo: 'dinamica',
+    }).catch(() => undefined);
+}
+
+/** A cada participante con cuenta AY (boletos `reservado`/`pagado` con
+ *  `usuarioId`) cuando se pospone la fecha límite — el organizador ya recibe
+ *  la suya aparte vía `notificarDinamicaPospuesta`. Los participantes "Sin
+ *  cuenta AY" no tienen usuario al que notificar dentro de la app; se
+ *  enteran por ChatYA/teléfono directo con el organizador. */
+export async function notificarParticipantesDinamicaPospuesta(
+    dinamicaId: string,
+    titulo: string,
+    nuevaFecha: string,
+) {
+    try {
+        const filas = await db
+            .select({ usuarioId: dinamicaBoletos.usuarioId })
+            .from(dinamicaBoletos)
+            .where(and(eq(dinamicaBoletos.dinamicaId, dinamicaId), isNotNull(dinamicaBoletos.usuarioId)));
+
+        const usuarioIds = [...new Set(filas.map((f) => f.usuarioId as string))];
+
+        await Promise.all(
+            usuarioIds.map((usuarioId) => notificarDinamicaPospuesta(usuarioId, dinamicaId, titulo, nuevaFecha)),
+        );
+    } catch (error) {
+        console.error('Error en notificarParticipantesDinamicaPospuesta:', error);
+    }
+}
+
+/** Al participante (con cuenta AY) cuando el organizador confirma que ya
+ *  recibió su pago del boleto. */
+export async function notificarPagoBoletoConfirmado(
+    usuarioId: string,
+    dinamicaId: string,
+    titulo: string,
+    numeroBoleto: number,
+) {
+    return crearNotificacion({
+        usuarioId,
+        modo: 'personal',
+        tipo: 'dinamica_pago_confirmado',
+        titulo: 'Pago confirmado',
+        mensaje: `El organizador de "${titulo}" confirmó tu pago del boleto #${numeroBoleto}.`,
+        referenciaId: dinamicaId,
+        referenciaTipo: 'dinamica',
+    }).catch(() => undefined);
+}
+
+/** Al participante (con cuenta AY) cuando el organizador reasigna su boleto
+ *  a otro número. */
+export async function notificarBoletoReasignado(
+    usuarioId: string,
+    dinamicaId: string,
+    titulo: string,
+    numeroAnterior: number,
+    numeroNuevo: number,
+) {
+    return crearNotificacion({
+        usuarioId,
+        modo: 'personal',
+        tipo: 'dinamica_boleto_reasignado',
+        titulo: 'Tu boleto cambió de número',
+        mensaje: `El organizador de "${titulo}" reasignó tu boleto: pasaste del #${numeroAnterior} al #${numeroNuevo}.`,
+        referenciaId: dinamicaId,
+        referenciaTipo: 'dinamica',
+    }).catch(() => undefined);
+}
+
+/** Al participante (con cuenta AY) cuando el organizador libera su boleto —
+ *  pierde su lugar, el número vuelve a estar disponible de inmediato. */
+export async function notificarBoletoLiberado(
+    usuarioId: string,
+    dinamicaId: string,
+    titulo: string,
+    numeroBoleto: number,
+) {
+    return crearNotificacion({
+        usuarioId,
+        modo: 'personal',
+        tipo: 'dinamica_boleto_liberado',
+        titulo: 'Tu boleto fue liberado',
+        mensaje: `El organizador de "${titulo}" liberó tu boleto #${numeroBoleto} — ya no está a tu nombre.`,
         referenciaId: dinamicaId,
         referenciaTipo: 'dinamica',
     }).catch(() => undefined);

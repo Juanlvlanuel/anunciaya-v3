@@ -178,7 +178,7 @@ export function PaginaDinamicaPublica() {
                                                 ref={boletosScrollRef}
                                                 className="grid grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                                             >
-                                                {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => i + 1).map((numero) => {
+                                                {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => dinamica.numeroBoletoInicial + i).map((numero) => {
                                                     const boleto = mapaBoletos.get(numero);
                                                     const estado = boleto?.estado ?? 'disponible';
                                                     return (

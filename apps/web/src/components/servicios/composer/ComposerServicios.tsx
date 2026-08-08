@@ -86,6 +86,7 @@ import { notificar } from '../../../utils/notificaciones';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useBloqueoAutoReloadStore } from '../../../stores/useBloqueoAutoReloadStore';
+import { useComposerPrefillStore } from '../../../stores/composerPrefillStore';
 import { Spinner } from '../../ui/Spinner';
 import type {
     CategoriaClasificado,
@@ -218,6 +219,28 @@ export function ComposerServicios({
         hidratadoRef.current = true;
         hidratarDesdePublicacion(publicacionAlDraft(publicacion));
     }, [esEdicion, publicacion, hidratarDesdePublicacion]);
+
+    // ─── Prefill del Asistente Coyo (FAB global) ─────────────────────
+    // Mismo patrón que `ComposerMarketplace.tsx`: se consume (lee + limpia)
+    // al montar, nunca en edición, y limpia también al desmontar como red
+    // de seguridad para que un borrador viejo nunca se filtre a una
+    // creación manual posterior.
+    useEffect(() => {
+        if (esEdicion) return;
+        const prefill = useComposerPrefillStore.getState().consumirServicios();
+        if (prefill) {
+            actualizar({
+                ...(prefill.titulo ? { titulo: prefill.titulo.slice(0, TITULO_MAX) } : {}),
+                ...(prefill.descripcion ? { descripcion: prefill.descripcion } : {}),
+                ...(prefill.presupuesto !== undefined
+                    ? { budgetMin: String(prefill.presupuesto), budgetMax: String(prefill.presupuesto) }
+                    : {}),
+            });
+        }
+        return () => {
+            useComposerPrefillStore.getState().consumirServicios();
+        };
+    }, [esEdicion, actualizar]);
 
     // ─── Panel único abierto (revelado progresivo, siempre inline) ──
     const [seccionAbierta, setSeccionAbierta] = useState<SeccionAbierta>(null);

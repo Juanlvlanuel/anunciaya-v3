@@ -57,6 +57,14 @@ const campoNumeroTotalBoletos = z
     .int('El número total de boletos debe ser un entero')
     .positive('El número total de boletos debe ser mayor a cero');
 
+/** Número con el que arranca la numeración (default 1 si no se manda) — el
+ *  organizador puede elegir empezar en cualquier número; el final se
+ *  calcula siempre como `numeroBoletoInicial + numeroTotalBoletos - 1`. */
+const campoNumeroBoletoInicial = z
+    .number({ message: 'El número de boleto inicial debe ser un número' })
+    .int('El número de boleto inicial debe ser un entero')
+    .positive('El número de boleto inicial debe ser mayor a cero');
+
 /** No puede ser $0 — una Dinámica gratuita no filtra participación real. */
 const campoPrecioBoleto = z
     .number({ message: 'El precio del boleto debe ser un número' })
@@ -130,6 +138,7 @@ export const crearDinamicaSchema = z
         tipoPremio: campoTipoPremio.optional(),
         metodoSorteo: campoMetodoSorteo.optional(),
         numeroTotalBoletos: campoNumeroTotalBoletos.optional(),
+        numeroBoletoInicial: campoNumeroBoletoInicial.optional(),
         precioBoleto: campoPrecioBoleto.optional(),
         fechaLimiteInscripcion: campoFechaLimiteInscripcion.optional(),
         reglaDesempate: campoReglaDesempate.optional(),
@@ -148,6 +157,7 @@ export const editarBorradorDinamicaSchema = z
         tipoPremio: campoTipoPremio.optional(),
         metodoSorteo: campoMetodoSorteo.optional(),
         numeroTotalBoletos: campoNumeroTotalBoletos.optional(),
+        numeroBoletoInicial: campoNumeroBoletoInicial.optional(),
         precioBoleto: campoPrecioBoleto.optional(),
         fechaLimiteInscripcion: campoFechaLimiteInscripcion.optional(),
         reglaDesempate: campoReglaDesempate.optional(),
@@ -205,9 +215,45 @@ export const agregarParticipanteManualSchema = z.object({
         .trim()
         .min(1, 'El teléfono es obligatorio')
         .max(20, 'El teléfono no puede exceder 20 caracteres'),
+    /** Default 'pagado' (comportamiento histórico: el organizador ya cobró
+     *  por fuera antes de registrar) — 'reservado' cubre el caso de alguien
+     *  que ya apartó el número pero todavía no paga. */
+    estado: z.enum(['reservado', 'pagado']).default('pagado'),
 });
 
 export type AgregarParticipanteManualInput = z.infer<typeof agregarParticipanteManualSchema>;
+
+export const editarParticipanteManualSchema = z.object({
+    numeroBoleto: z
+        .number({ message: 'El número de boleto debe ser un número' })
+        .int('El número de boleto debe ser un entero')
+        .positive('El número de boleto debe ser mayor a cero'),
+    nombreManual: z
+        .string()
+        .trim()
+        .min(1, 'El nombre es obligatorio')
+        .max(100, 'El nombre no puede exceder 100 caracteres'),
+    telefonoManual: z
+        .string()
+        .trim()
+        .min(1, 'El teléfono es obligatorio')
+        .max(20, 'El teléfono no puede exceder 20 caracteres'),
+});
+
+export type EditarParticipanteManualInput = z.infer<typeof editarParticipanteManualSchema>;
+
+/** Reasignar el número de un boleto CON cuenta AnunciaYA (el nombre/teléfono
+ *  son del usuario, no se editan desde aquí — solo el número). Para
+ *  participantes manuales "Sin cuenta AY" se usa `editarParticipanteManualSchema`,
+ *  que ya incluye el número junto con nombre/teléfono. */
+export const reasignarBoletoSchema = z.object({
+    numeroBoleto: z
+        .number({ message: 'El número de boleto debe ser un número' })
+        .int('El número de boleto debe ser un entero')
+        .positive('El número de boleto debe ser mayor a cero'),
+});
+
+export type ReasignarBoletoInput = z.infer<typeof reasignarBoletoSchema>;
 
 // =============================================================================
 // SUBIDA DE IMÁGENES (Fase 2) — mismo patrón que uploadImagenSchema de MP

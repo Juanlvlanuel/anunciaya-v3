@@ -35,6 +35,14 @@ interface InputTelefonoProps {
 	 * histórico: dígitos corridos, sin paréntesis ni espacios).
 	 */
 	formatoVisual?: boolean;
+	/**
+	 * `'azul'` (default) — borde + sombra interior + halo azul al enfocar,
+	 * comportamiento histórico usado en Mi Perfil/Business Studio/Sucursales.
+	 * `'neutro'` — mismo estilo de foco que `Input.tsx` (borde slate, sin
+	 * sombra ni ring) para modales donde el resto de los campos usan ese
+	 * tono y el azul desentona. Opt-in por pantalla, no cambia el default.
+	 */
+	variante?: 'azul' | 'neutro';
 }
 
 /** "6381234658" → "(638) 123 4658" — agrupado progresivo mientras se escribe. */
@@ -51,7 +59,11 @@ function formatearVisualNumero(digitos: string): string {
 
 // Borde + sombra interior + halo azul al enfocar. El inset va en className (no en style inline)
 // para que NO tape el ring del foco de Tailwind, así el highlight queda igual al de los demás inputs.
-const BORDE_FOCO = 'border-2 border-slate-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] transition-colors focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-300';
+const BORDE_FOCO_AZUL = 'border-2 border-slate-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] transition-colors focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-300';
+
+// Mismo foco que `Input.tsx` (borde slate, sin sombra ni ring) — para
+// modales donde el resto de los campos usa ese tono neutro.
+const BORDE_FOCO_NEUTRO = 'border-2 border-slate-300 transition-colors focus-within:border-slate-500';
 
 /**
  * Divide un string de teléfono en lada + número.
@@ -87,8 +99,18 @@ export function InputTelefono({
 	claseAlto = 'h-10 lg:h-9 2xl:h-10',
 	claseTexto = 'text-sm lg:text-xs 2xl:text-sm',
 	formatoVisual = false,
+	variante = 'azul',
 }: InputTelefonoProps) {
 	const { lada, numero } = normalizarTelefono(value);
+	const bordeFoco = variante === 'neutro' ? BORDE_FOCO_NEUTRO : BORDE_FOCO_AZUL;
+	// `Input.tsx` usa fondo slate-100 en reposo → blanco al enfocar; el
+	// contenedor de estos campos era blanco fijo (parte del look azul).
+	// En 'neutro' igualamos ese comportamiento para que no se note el
+	// cambio de fondo como otra diferencia más.
+	const fondoContenedor = variante === 'neutro' ? 'bg-slate-100 focus-within:bg-white' : 'bg-white';
+	// `Input.tsx` usa `rounded-xl` — en 'azul' se mantiene `rounded-lg`
+	// (look histórico) para no alterar las pantallas que ya lo usan.
+	const radio = variante === 'neutro' ? 'rounded-xl' : 'rounded-lg';
 
 	// Mientras el usuario está borrando/reescribiendo la lada, el campo puede
 	// pasar transitoriamente por "" o "+" — estados que `normalizarTelefono`
@@ -104,7 +126,7 @@ export function InputTelefono({
 		<div className="flex gap-1.5 min-w-0">
 			{/* Lada — angosta para dar más espacio al número */}
 			<div
-				className={`flex items-center justify-center w-12 lg:w-11 2xl:w-12 ${claseAlto} bg-white rounded-lg px-1 shrink-0 overflow-hidden ${BORDE_FOCO}`}
+				className={`flex items-center justify-center w-12 lg:w-11 2xl:w-12 ${claseAlto} ${fondoContenedor} ${radio} px-1 shrink-0 overflow-hidden ${bordeFoco}`}
 			>
 				<input
 					id={`${prefijo}-lada`}
@@ -140,7 +162,7 @@ export function InputTelefono({
 
 			{/* Número de 10 dígitos — ocupa el espacio restante */}
 			<div
-				className={`flex items-center ${claseAlto} bg-white rounded-lg px-3 flex-1 min-w-0 overflow-hidden ${BORDE_FOCO}`}
+				className={`flex items-center ${claseAlto} ${fondoContenedor} ${radio} px-3 flex-1 min-w-0 overflow-hidden ${bordeFoco}`}
 			>
 				<input
 					id={`${prefijo}-numero`}

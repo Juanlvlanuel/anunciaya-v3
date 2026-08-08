@@ -22,7 +22,7 @@
  * Ubicación: apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
@@ -85,6 +85,7 @@ import {
     useCancelarDinamica,
     useAgregarParticipanteManual,
     useEditarBorradorDinamica,
+    useBoletosDinamica,
 } from '../../../hooks/queries/useDinamicas';
 import { notificar } from '../../../utils/notificaciones';
 import type { ArticuloMarketplace } from '../../../types/marketplace';
@@ -277,6 +278,20 @@ export function PaginaMisPublicaciones() {
     const agregarManualMutation = useAgregarParticipanteManual();
     const editarDinamicaMutation = useEditarBorradorDinamica();
 
+    // Boletos de la Dinámica seleccionada en el modal "Agregar Participante"
+    // — se carga solo cuando el modal está abierto (`dinamicaParaAgregar` no
+    // es null), a diferencia de `PaginaDinamica.tsx` que ya trae los boletos
+    // cargados de por sí. Alimenta la validación en vivo del número de
+    // boleto (mismo prop `numerosOcupados` que en la ficha de detalle).
+    const { data: boletosParaAgregar = [] } = useBoletosDinamica(dinamicaParaAgregar?.id ?? null);
+    const numerosOcupadosParaAgregar = useMemo(() => {
+        const set = new Set<number>();
+        for (const b of boletosParaAgregar) {
+            if (b.estado === 'reservado' || b.estado === 'pagado') set.add(b.numeroBoleto);
+        }
+        return set;
+    }, [boletosParaAgregar]);
+
     // Conteos por tab (siempre disponibles, independientes del tab activo).
     const conteoPorTab: Record<TabPublicacion, number> = {
         activa: queryActiva.data?.paginacion.total ?? 0,
@@ -457,6 +472,7 @@ export function PaginaMisPublicaciones() {
         numeroBoleto: number;
         nombreManual: string;
         telefonoManual: string;
+        estado: 'reservado' | 'pagado';
     }) => {
         if (!dinamicaParaAgregar) return;
         try {
@@ -1301,6 +1317,7 @@ export function PaginaMisPublicaciones() {
                 abierto={!!dinamicaParaAgregar}
                 dinamica={dinamicaParaAgregar}
                 pendiente={agregarManualMutation.isPending}
+                numerosOcupados={numerosOcupadosParaAgregar}
                 onCerrar={() => setDinamicaParaAgregar(null)}
                 onConfirmar={handleConfirmarAgregarManual}
             />

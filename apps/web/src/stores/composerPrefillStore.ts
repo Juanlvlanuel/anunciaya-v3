@@ -1,15 +1,16 @@
 /**
  * composerPrefillStore.ts
  * =========================
- * Puente efímero entre el Asistente Coyo (FAB global) y el composer de
- * MarketPlace: cuando Coyo arma un borrador (capacidad
- * `crear_publicacion_marketplace`), lo deja aquí antes de navegar a
- * `/marketplace?crear=vendo|busco`; `ComposerMarketplace` lo consume al
- * montar.
+ * Puente efímero entre el Asistente Coyo (FAB global) y los composers de
+ * MarketPlace/Servicios: cuando Coyo arma un borrador (capacidades
+ * `crear_publicacion_marketplace` / `crear_publicacion_servicio`), lo deja
+ * aquí antes de navegar a `/marketplace?crear=vendo|busco` o
+ * `/servicios?crear=ofrezco|solicito`; el composer correspondiente lo
+ * consume al montar.
  *
  * Estado de UI puro (no viene del servidor) — Zustand, no React Query.
  *
- * `consumir()` lee Y limpia en el mismo paso — el composer lo llama
+ * `consumir*()` lee Y limpia en el mismo paso — el composer lo llama
  * INMEDIATAMENTE al montar (no espera a que el usuario aplique nada) y
  * limpia también al desmontar como red de seguridad, para que datos viejos
  * del asistente nunca se filtren a una creación manual posterior.
@@ -26,19 +27,37 @@ export interface PrefillMarketplace {
     categoriaId?: number | null;
 }
 
+export interface PrefillServicios {
+    titulo?: string;
+    descripcion?: string;
+    /** Un solo número que el usuario dio — se usa como budgetMin y budgetMax. */
+    presupuesto?: number;
+}
+
 interface ComposerPrefillState {
-    pendiente: PrefillMarketplace | null;
+    pendienteMarketplace: PrefillMarketplace | null;
+    pendienteServicios: PrefillServicios | null;
     setPrefillMarketplace: (datos: PrefillMarketplace) => void;
-    /** Lee el prefill pendiente y lo limpia en el mismo paso. `null` si no hay nada. */
-    consumir: () => PrefillMarketplace | null;
+    setPrefillServicios: (datos: PrefillServicios) => void;
+    /** Lee el prefill pendiente de MarketPlace y lo limpia en el mismo paso. `null` si no hay nada. */
+    consumirMarketplace: () => PrefillMarketplace | null;
+    /** Lee el prefill pendiente de Servicios y lo limpia en el mismo paso. `null` si no hay nada. */
+    consumirServicios: () => PrefillServicios | null;
 }
 
 export const useComposerPrefillStore = create<ComposerPrefillState>((set, get) => ({
-    pendiente: null,
-    setPrefillMarketplace: (datos) => set({ pendiente: datos }),
-    consumir: () => {
-        const datos = get().pendiente;
-        if (datos) set({ pendiente: null });
+    pendienteMarketplace: null,
+    pendienteServicios: null,
+    setPrefillMarketplace: (datos) => set({ pendienteMarketplace: datos }),
+    setPrefillServicios: (datos) => set({ pendienteServicios: datos }),
+    consumirMarketplace: () => {
+        const datos = get().pendienteMarketplace;
+        if (datos) set({ pendienteMarketplace: null });
+        return datos;
+    },
+    consumirServicios: () => {
+        const datos = get().pendienteServicios;
+        if (datos) set({ pendienteServicios: null });
         return datos;
     },
 }));

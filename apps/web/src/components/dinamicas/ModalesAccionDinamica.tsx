@@ -29,6 +29,8 @@ import {
     Loader2,
     Pencil,
     Play,
+    Repeat,
+    RotateCcw,
     Ticket,
     Trash2,
     User,
@@ -36,6 +38,7 @@ import {
 } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { Input } from '../ui/Input';
+import { CustomSelect } from '../ui/CustomSelect';
 import { InputTelefono, normalizarTelefono } from '../ui/InputTelefono';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import {
@@ -78,15 +81,32 @@ interface ModalAgregarParticipanteDinamicaProps {
      *  desde el menú "⋯" sin número en mente). El campo llega bloqueado
      *  para que quede claro que corresponde a ESE recuadro. */
     numeroBoletoInicial?: number | null;
+    /** Números ya ocupados (reservados o pagados) — cuando se pasa, valida
+     *  en vivo mientras se escribe (no solo al fallar el submit contra el
+     *  backend). Si el modal se abre desde "Mis Publicaciones" sin la lista
+     *  de boletos cargada, se omite y el backend sigue siendo la defensa
+     *  real (UNIQUE de la tabla). */
+    numerosOcupados?: Set<number>;
     onCerrar: () => void;
-    onConfirmar: (datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string }) => void;
+    onConfirmar: (datos: {
+        numeroBoleto: number;
+        nombreManual: string;
+        telefonoManual: string;
+        estado: 'reservado' | 'pagado';
+    }) => void;
 }
+
+const OPCIONES_ESTADO_MANUAL = [
+    { value: 'pagado' as const, label: 'Pagado' },
+    { value: 'reservado' as const, label: 'Reservado' },
+];
 
 export function ModalAgregarParticipanteDinamica({
     abierto,
     dinamica,
     pendiente,
     numeroBoletoInicial,
+    numerosOcupados,
     onCerrar,
     onConfirmar,
 }: ModalAgregarParticipanteDinamicaProps) {
@@ -95,6 +115,10 @@ export function ModalAgregarParticipanteDinamica({
     // "+52" por defecto — mismo formato de guardado que `InputTelefono` usa
     // en el resto de la app ("+52 6381234658"), no solo los 10 dígitos.
     const [telefonoManual, setTelefonoManual] = useState('+52');
+    // 'pagado' por defecto (comportamiento histórico: el organizador ya
+    // cobró por fuera) — 'reservado' cubre a alguien que ya apartó el
+    // número pero todavía no paga.
+    const [estado, setEstado] = useState<'reservado' | 'pagado'>('pagado');
 
     // Limpiar el form cada vez que el modal se ABRE (no al fallar un envío,
     // así el usuario no pierde lo que ya escribió si el backend rechaza).
@@ -103,6 +127,7 @@ export function ModalAgregarParticipanteDinamica({
             setNumeroBoleto(numeroBoletoInicial ? String(numeroBoletoInicial) : '');
             setNombreManual('');
             setTelefonoManual('+52');
+            setEstado('pagado');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [abierto]);
@@ -112,13 +137,21 @@ export function ModalAgregarParticipanteDinamica({
     const digitosTelefono = normalizarTelefono(telefonoManual).numero;
     const telefonoCompleto = digitosTelefono.length === 10;
 
+    // Un número pre-seleccionado desde el grid (`numeroBoletoInicial`) ya
+    // se sabe disponible en el momento del click — no hace falta re-validar
+    // (además el campo queda deshabilitado, no se puede tocar). Solo se
+    // valida cuando el organizador escribe el número a mano.
+    const numeroIngresado = Number(numeroBoleto);
+    const numeroOcupado =
+        !numeroBoletoInicial && !!numerosOcupados && numeroIngresado > 0 && numerosOcupados.has(numeroIngresado);
+
     const handleConfirmar = () => {
         const numero = Number(numeroBoleto);
-        if (!numero || !nombreManual.trim() || !telefonoCompleto) return;
-        onConfirmar({ numeroBoleto: numero, nombreManual: nombreManual.trim(), telefonoManual: telefonoManual.trim() });
+        if (!numero || !nombreManual.trim() || !telefonoCompleto || numeroOcupado) return;
+        onConfirmar({ numeroBoleto: numero, nombreManual: nombreManual.trim(), telefonoManual: telefonoManual.trim(), estado });
     };
 
-    const formIncompleto = !Number(numeroBoleto) || !nombreManual.trim() || !telefonoCompleto;
+    const formIncompleto = !Number(numeroBoleto) || !nombreManual.trim() || !telefonoCompleto || numeroOcupado;
 
     return (
         <ModalAdaptativo
@@ -152,6 +185,8 @@ export function ModalAgregarParticipanteDinamica({
                             onChange={(e) => setNumeroBoleto(e.target.value)}
                             placeholder="Ej. 42"
                             disabled={!!numeroBoletoInicial}
+                            isValid={numeroOcupado ? false : null}
+                            error={numeroOcupado ? 'Ese número ya está ocupado' : undefined}
                             ayuda={numeroBoletoInicial ? 'Elegiste este boleto desde el grid.' : undefined}
                             className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
@@ -172,14 +207,31 @@ export function ModalAgregarParticipanteDinamica({
                                 value={telefonoManual}
                                 onChange={setTelefonoManual}
                                 formatoVisual
-                                claseAlto="h-11 lg:h-10 2xl:h-11"
+                                variante="neutro"
+                                claseAlto="py-2.5"
                                 claseTexto="text-base lg:text-sm 2xl:text-base"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1.5 block text-sm font-semibold text-slate-600 lg:text-xs 2xl:text-sm">
+                                Estado
+                            </label>
+                            <CustomSelect
+                                testId="agregar-participante-estado"
+                                value={estado}
+                                onChange={setEstado}
+                                options={OPCIONES_ESTADO_MANUAL}
+                                claseControl="px-3.5 py-2.5 !rounded-xl"
+                                claseActivo="border-slate-500"
+                                portal
                             />
                         </div>
                     </div>
 
                     <AvisoContextualModal tono="azul">
-                        El boleto queda pagado de inmediato — úsalo solo si ya cobraste por fuera de la app.
+                        {estado === 'pagado'
+                            ? 'El boleto queda pagado de inmediato — úsalo solo si ya cobraste por fuera de la app.'
+                            : 'El boleto queda reservado — si nadie confirma el pago en 24h, el número vuelve a estar disponible.'}
                     </AvisoContextualModal>
 
                     <BotonesAccionModal
@@ -204,10 +256,25 @@ export function ModalAgregarParticipanteDinamica({
 
 interface ModalPosponerDinamicaProps {
     abierto: boolean;
-    dinamica: DinamicaParaModal | null;
+    dinamica: (DinamicaParaModal & { fechaLimiteInscripcion: string | null }) | null;
     pendiente: boolean;
     onCerrar: () => void;
     onConfirmar: (nuevaFechaLimiteInscripcionISO: string) => void;
+}
+
+/** `datetime-local` no acepta un ISO con zona — necesita `YYYY-MM-DDTHH:mm`
+ *  en hora LOCAL, tanto para el `min` (no se puede escribir un valor pasado)
+ *  como para inicializar el campo. */
+function aInputLocalDatetime(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatearFechaLegible(iso: string): string {
+    const fecha = new Date(iso);
+    const fechaTexto = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const horaTexto = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${fechaTexto}, ${horaTexto}`;
 }
 
 export function ModalPosponerDinamica({
@@ -225,8 +292,14 @@ export function ModalPosponerDinamica({
 
     if (!dinamica) return null;
 
+    // No se puede posponer a una fecha ya pasada — mismo criterio que el
+    // backend (`campoFechaLimiteInscripcion` exige fecha futura), aquí
+    // además bloquea el picker nativo vía `min`.
+    const ahoraLocal = aInputLocalDatetime(new Date());
+    const fechaPasada = !!fecha && fecha <= ahoraLocal;
+
     const handleConfirmar = () => {
-        if (!fecha) return;
+        if (!fecha || fechaPasada) return;
         onConfirmar(new Date(fecha).toISOString());
     };
 
@@ -253,6 +326,12 @@ export function ModalPosponerDinamica({
                 <div className="flex-1 overflow-y-auto p-5 lg:p-4 2xl:p-5">
                     <ResumenDinamica dinamica={dinamica} />
 
+                    {dinamica.fechaLimiteInscripcion && (
+                        <p className="mt-2 text-sm font-medium text-slate-500">
+                            Fecha actual: <span className="font-semibold text-slate-700">{formatearFechaLegible(dinamica.fechaLimiteInscripcion)}</span>
+                        </p>
+                    )}
+
                     <div className="mt-4 lg:mt-3 2xl:mt-4">
                         <Input
                             label="Nueva fecha y hora límite"
@@ -260,6 +339,9 @@ export function ModalPosponerDinamica({
                             icono={<CalendarClock className="h-4 w-4" />}
                             value={fecha}
                             onChange={(e) => setFecha(e.target.value)}
+                            min={ahoraLocal}
+                            isValid={fechaPasada ? false : null}
+                            error={fechaPasada ? 'Elige una fecha y hora futura' : undefined}
                         />
                     </div>
 
@@ -271,7 +353,7 @@ export function ModalPosponerDinamica({
                         onCerrar={onCerrar}
                         onConfirmar={handleConfirmar}
                         pendiente={pendiente}
-                        deshabilitado={!fecha}
+                        deshabilitado={!fecha || fechaPasada}
                         textoConfirmar="Confirmar"
                         textoPendiente="Posponiendo…"
                         colorBase="#f59e0b"
@@ -554,6 +636,316 @@ export function ModalEditarDinamica({
                 isOpen={indiceImagenAbierta !== null}
                 onClose={() => setIndiceImagenAbierta(null)}
             />
+        </ModalAdaptativo>
+    );
+}
+
+// =============================================================================
+// MODAL 5 — LIBERAR BOLETO (vuelve a disponible)
+// =============================================================================
+
+/** Shape mínimo para acciones sobre UN boleto puntual (liberar/editar) —
+ *  `nombreMostrado` ya viene resuelto por el caller (usuario.nombre+apellidos
+ *  o nombreManual), así este modal no necesita saber si tiene cuenta AY. */
+export interface BoletoParaLiberar {
+    numeroBoleto: number;
+    nombreMostrado: string;
+}
+
+interface ModalLiberarBoletoProps {
+    abierto: boolean;
+    boleto: BoletoParaLiberar | null;
+    pendiente: boolean;
+    onCerrar: () => void;
+    onConfirmar: () => void;
+}
+
+export function ModalLiberarBoleto({ abierto, boleto, pendiente, onCerrar, onConfirmar }: ModalLiberarBoletoProps) {
+    if (!boleto) return null;
+
+    return (
+        <ModalAdaptativo
+            abierto={abierto}
+            onCerrar={onCerrar}
+            ancho="sm"
+            mostrarHeader={false}
+            paddingContenido="none"
+            sinScrollInterno
+            alturaMaxima="xl"
+            colorHandle="rgba(255,255,255,0.4)"
+            headerOscuro
+            className="max-w-xs lg:max-w-sm 2xl:max-w-md"
+        >
+            <div className="flex max-h-[85vh] flex-col lg:max-h-[75vh] 2xl:max-h-[75vh]">
+                <HeaderAccionGradiente
+                    icono={RotateCcw}
+                    titulo="Liberar boleto"
+                    subtitulo={`Boleto #${boleto.numeroBoleto}`}
+                    gradiente={GRADIENTE_ROJO}
+                />
+                <div className="flex-1 overflow-y-auto p-5 lg:p-4 2xl:p-5">
+                    <ResumenAccionModal icono={Ticket} texto={`#${boleto.numeroBoleto} · ${boleto.nombreMostrado}`} />
+
+                    <AvisoContextualModal tono="rojo">
+                        El boleto vuelve a estar disponible de inmediato. Úsalo si el participante se arrepintió,
+                        hubo un error al registrarlo, o quieres reasignarlo a alguien más.
+                    </AvisoContextualModal>
+
+                    <BotonesAccionModal
+                        onCerrar={onCerrar}
+                        onConfirmar={onConfirmar}
+                        pendiente={pendiente}
+                        textoConfirmar="Sí, liberar"
+                        textoPendiente="Liberando…"
+                        colorBase="#dc2626"
+                        colorOscuro="#b91c1c"
+                    />
+                </div>
+            </div>
+        </ModalAdaptativo>
+    );
+}
+
+// =============================================================================
+// MODAL 6 — EDITAR PARTICIPANTE MANUAL (nombre/teléfono, sin cuenta AY)
+// =============================================================================
+
+export interface BoletoParaEditarParticipante {
+    numeroBoleto: number;
+    nombreManual: string;
+    telefonoManual: string;
+}
+
+interface ModalEditarParticipanteProps {
+    abierto: boolean;
+    boleto: BoletoParaEditarParticipante | null;
+    pendiente: boolean;
+    /** Números ya ocupados por OTROS boletos (reservados o pagados) — igual
+     *  que en `ModalAgregarParticipanteDinamica`. El propio número actual del
+     *  boleto que se está editando puede seguir tecleado sin marcarse como
+     *  "ocupado" (ver `numeroOcupado` abajo). */
+    numerosOcupados?: Set<number>;
+    onCerrar: () => void;
+    onConfirmar: (datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string }) => void;
+}
+
+export function ModalEditarParticipante({
+    abierto,
+    boleto,
+    pendiente,
+    numerosOcupados,
+    onCerrar,
+    onConfirmar,
+}: ModalEditarParticipanteProps) {
+    const [numeroBoleto, setNumeroBoleto] = useState('');
+    const [nombreManual, setNombreManual] = useState('');
+    const [telefonoManual, setTelefonoManual] = useState('+52');
+
+    useEffect(() => {
+        if (abierto && boleto) {
+            setNumeroBoleto(String(boleto.numeroBoleto));
+            setNombreManual(boleto.nombreManual);
+            setTelefonoManual(boleto.telefonoManual || '+52');
+        }
+    }, [abierto, boleto]);
+
+    if (!boleto) return null;
+
+    const digitosTelefono = normalizarTelefono(telefonoManual).numero;
+    const telefonoCompleto = digitosTelefono.length === 10;
+
+    // El número original del boleto no cuenta como "ocupado" frente a sí
+    // mismo — solo se marca error si se escribe un número DISTINTO que ya
+    // esté tomado por otro boleto.
+    const numeroIngresado = Number(numeroBoleto);
+    const numeroOcupado =
+        !!numerosOcupados && numeroIngresado > 0 && numeroIngresado !== boleto.numeroBoleto && numerosOcupados.has(numeroIngresado);
+
+    const formIncompleto = !numeroIngresado || !nombreManual.trim() || !telefonoCompleto || numeroOcupado;
+
+    const handleConfirmar = () => {
+        if (formIncompleto) return;
+        onConfirmar({ numeroBoleto: numeroIngresado, nombreManual: nombreManual.trim(), telefonoManual: telefonoManual.trim() });
+    };
+
+    return (
+        <ModalAdaptativo
+            abierto={abierto}
+            onCerrar={onCerrar}
+            ancho="sm"
+            mostrarHeader={false}
+            paddingContenido="none"
+            sinScrollInterno
+            alturaMaxima="xl"
+            colorHandle="rgba(255,255,255,0.4)"
+            headerOscuro
+            className="max-w-xs lg:max-w-sm 2xl:max-w-md"
+        >
+            <div className="flex max-h-[85vh] flex-col lg:max-h-[75vh] 2xl:max-h-[75vh]">
+                <HeaderAccionGradiente
+                    icono={Pencil}
+                    titulo="Editar participante"
+                    subtitulo="Sin cuenta AnunciaYA"
+                    gradiente={GRADIENTE_AZUL}
+                />
+                <div className="flex-1 overflow-y-auto p-5 lg:p-4 2xl:p-5">
+                    <div className="space-y-3 lg:space-y-2.5 2xl:space-y-3">
+                        <Input
+                            label="Número de boleto"
+                            type="number"
+                            icono={<Ticket className="h-4 w-4" />}
+                            value={numeroBoleto}
+                            onChange={(e) => setNumeroBoleto(e.target.value)}
+                            placeholder="Ej. 42"
+                            isValid={numeroOcupado ? false : null}
+                            error={numeroOcupado ? 'Ese número ya está ocupado' : undefined}
+                            ayuda="Cámbialo para reasignar el boleto a otro número."
+                            className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <Input
+                            label="Nombre completo"
+                            type="text"
+                            icono={<User className="h-4 w-4" />}
+                            value={nombreManual}
+                            onChange={(e) => setNombreManual(e.target.value)}
+                            placeholder="Nombre del participante"
+                        />
+                        <div>
+                            <label className="mb-1.5 block text-sm font-semibold text-slate-600 lg:text-xs 2xl:text-sm">
+                                Teléfono
+                            </label>
+                            <InputTelefono
+                                prefijo="editar-participante"
+                                value={telefonoManual}
+                                onChange={setTelefonoManual}
+                                formatoVisual
+                                variante="neutro"
+                                claseAlto="py-2.5"
+                                claseTexto="text-base lg:text-sm 2xl:text-base"
+                            />
+                        </div>
+                    </div>
+
+                    <AvisoContextualModal tono="azul">
+                        Solo puedes editar participantes sin cuenta AnunciaYA — el registro de alguien con cuenta es
+                        suyo.
+                    </AvisoContextualModal>
+
+                    <BotonesAccionModal
+                        onCerrar={onCerrar}
+                        onConfirmar={handleConfirmar}
+                        pendiente={pendiente}
+                        deshabilitado={formIncompleto}
+                        textoConfirmar="Guardar cambios"
+                        textoPendiente="Guardando…"
+                        colorBase="#2563eb"
+                        colorOscuro="#1d4ed8"
+                    />
+                </div>
+            </div>
+        </ModalAdaptativo>
+    );
+}
+
+// =============================================================================
+// MODAL 7 — REASIGNAR BOLETO (usuario CON cuenta AnunciaYA — solo el número)
+// =============================================================================
+
+/** A diferencia de `BoletoParaEditarParticipante`, aquí `nombreMostrado` es
+ *  de un usuario CON cuenta — no se edita nombre/teléfono, solo el número. */
+export interface BoletoParaReasignar {
+    numeroBoleto: number;
+    nombreMostrado: string;
+}
+
+interface ModalReasignarBoletoProps {
+    abierto: boolean;
+    boleto: BoletoParaReasignar | null;
+    pendiente: boolean;
+    numerosOcupados?: Set<number>;
+    onCerrar: () => void;
+    onConfirmar: (numeroBoleto: number) => void;
+}
+
+export function ModalReasignarBoleto({
+    abierto,
+    boleto,
+    pendiente,
+    numerosOcupados,
+    onCerrar,
+    onConfirmar,
+}: ModalReasignarBoletoProps) {
+    const [numeroBoleto, setNumeroBoleto] = useState('');
+
+    useEffect(() => {
+        if (abierto && boleto) setNumeroBoleto(String(boleto.numeroBoleto));
+    }, [abierto, boleto]);
+
+    if (!boleto) return null;
+
+    const numeroIngresado = Number(numeroBoleto);
+    const numeroOcupado =
+        !!numerosOcupados && numeroIngresado > 0 && numeroIngresado !== boleto.numeroBoleto && numerosOcupados.has(numeroIngresado);
+    const formIncompleto = !numeroIngresado || numeroOcupado;
+
+    const handleConfirmar = () => {
+        if (formIncompleto) return;
+        onConfirmar(numeroIngresado);
+    };
+
+    return (
+        <ModalAdaptativo
+            abierto={abierto}
+            onCerrar={onCerrar}
+            ancho="sm"
+            mostrarHeader={false}
+            paddingContenido="none"
+            sinScrollInterno
+            alturaMaxima="xl"
+            colorHandle="rgba(255,255,255,0.4)"
+            headerOscuro
+            className="max-w-xs lg:max-w-sm 2xl:max-w-md"
+        >
+            <div className="flex max-h-[85vh] flex-col lg:max-h-[75vh] 2xl:max-h-[75vh]">
+                <HeaderAccionGradiente
+                    icono={Repeat}
+                    titulo="Reasignar boleto"
+                    subtitulo={boleto.nombreMostrado}
+                    gradiente={GRADIENTE_AZUL}
+                />
+                <div className="flex-1 overflow-y-auto p-5 lg:p-4 2xl:p-5">
+                    <ResumenAccionModal icono={Ticket} texto={`Boleto actual: #${boleto.numeroBoleto}`} />
+
+                    <div className="mt-4 lg:mt-3 2xl:mt-4">
+                        <Input
+                            label="Nuevo número de boleto"
+                            type="number"
+                            icono={<Ticket className="h-4 w-4" />}
+                            value={numeroBoleto}
+                            onChange={(e) => setNumeroBoleto(e.target.value)}
+                            placeholder="Ej. 42"
+                            isValid={numeroOcupado ? false : null}
+                            error={numeroOcupado ? 'Ese número ya está ocupado' : undefined}
+                            className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                    </div>
+
+                    <AvisoContextualModal tono="azul">
+                        Le avisamos a {boleto.nombreMostrado} por notificación que su boleto cambió de número.
+                    </AvisoContextualModal>
+
+                    <BotonesAccionModal
+                        onCerrar={onCerrar}
+                        onConfirmar={handleConfirmar}
+                        pendiente={pendiente}
+                        deshabilitado={formIncompleto}
+                        textoConfirmar="Reasignar"
+                        textoPendiente="Reasignando…"
+                        colorBase="#2563eb"
+                        colorOscuro="#1d4ed8"
+                    />
+                </div>
+            </div>
         </ModalAdaptativo>
     );
 }

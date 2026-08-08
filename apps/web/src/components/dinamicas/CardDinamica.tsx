@@ -121,7 +121,7 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
     return (
         <article
             data-testid={`card-dinamica-${dinamica.id}`}
-            className="w-full overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)]"
+            className="w-full overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:max-w-[94%]"
         >
             {/* Card vertical — foto arriba, contenido abajo, en todos los
                 breakpoints (mismo patrón que `CardDinamicaMio.tsx` de "Mis

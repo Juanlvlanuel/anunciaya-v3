@@ -23,17 +23,23 @@ import {
     AlertCircle,
     Ban,
     BadgeCheck,
+    Calendar,
     CalendarClock,
     ChevronLeft,
     ChevronRight,
-    Clock,
+    CircleCheck,
     FileText,
     Flag,
+    Gift,
     Loader2,
     MapPin,
     MoreVertical,
     Pencil,
+    Repeat,
+    RotateCcw,
+    Search,
     ShieldCheck,
+    Shuffle,
     Ticket,
     UserCheck,
     UserPlus,
@@ -55,6 +61,9 @@ import {
     useBoletosDinamica,
     useReservarBoleto,
     useAgregarParticipanteManual,
+    useEditarParticipanteManual,
+    useReasignarBoleto,
+    useLiberarBoleto,
     useConfirmarPagoBoleto,
     usePosponerDinamica,
     useCancelarDinamica,
@@ -76,6 +85,9 @@ import {
     ModalPosponerDinamica,
     ModalCancelarDinamica,
     ModalEditarDinamica,
+    ModalLiberarBoleto,
+    ModalEditarParticipante,
+    ModalReasignarBoleto,
 } from '../../../components/dinamicas/ModalesAccionDinamica';
 import { notificar } from '../../../utils/notificaciones';
 import { formatearUltimaConexion } from '../../../utils/marketplace';
@@ -104,14 +116,11 @@ function obtenerIniciales(nombre: string, apellidos: string): string {
 
 function formatearCuentaRegresiva(fechaLimite: string | null): string | null {
     if (!fechaLimite) return null;
-    const restante = new Date(fechaLimite).getTime() - Date.now();
-    if (restante <= 0) return 'Inscripción cerrada';
-    const dias = Math.floor(restante / (24 * 60 * 60 * 1000));
-    if (dias >= 1) return `Cierra en ${dias} día${dias === 1 ? '' : 's'}`;
-    const horas = Math.floor(restante / (60 * 60 * 1000));
-    if (horas >= 1) return `Cierra en ${horas}h`;
-    const min = Math.floor(restante / (60 * 1000));
-    return `Cierra en ${min}min`;
+    const fecha = new Date(fechaLimite);
+    if (fecha.getTime() <= Date.now()) return 'Inscripción cerrada';
+    const fechaTexto = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const horaTexto = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `Fecha: ${fechaTexto}, ${horaTexto}`;
 }
 
 export function PaginaDinamica() {
@@ -128,6 +137,9 @@ export function PaginaDinamica() {
 
     const reservarBoleto = useReservarBoleto();
     const agregarManual = useAgregarParticipanteManual();
+    const editarParticipante = useEditarParticipanteManual();
+    const reasignarBoleto = useReasignarBoleto();
+    const liberarBoleto = useLiberarBoleto();
     const confirmarPago = useConfirmarPagoBoleto();
     const posponer = usePosponerDinamica();
     const cancelar = useCancelarDinamica();
@@ -148,6 +160,10 @@ export function PaginaDinamica() {
     const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
     const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
     const [modalParticipantesAbierto, setModalParticipantesAbierto] = useState(false);
+    const [modalMisBoletosAbierto, setModalMisBoletosAbierto] = useState(false);
+    const [boletoParaLiberar, setBoletoParaLiberar] = useState<BoletoDinamica | null>(null);
+    const [boletoParaEditar, setBoletoParaEditar] = useState<BoletoDinamica | null>(null);
+    const [boletoParaReasignar, setBoletoParaReasignar] = useState<BoletoDinamica | null>(null);
     const boletosScrollRef = useRef<HTMLDivElement>(null);
 
     const esOrganizador = !!usuarioActual && !!dinamica && usuarioActual.id === dinamica.organizadorUsuarioId;
@@ -158,9 +174,28 @@ export function PaginaDinamica() {
         return mapa;
     }, [boletos]);
 
+    // Números ya tomados (reservados o pagados) — valida en vivo el campo
+    // "Número de boleto" del modal Agregar Participante mientras se escribe.
+    const numerosOcupados = useMemo(() => {
+        const set = new Set<number>();
+        for (const b of boletos) {
+            if (b.estado === 'reservado' || b.estado === 'pagado') set.add(b.numeroBoleto);
+        }
+        return set;
+    }, [boletos]);
+
     const participantesVisibles = useMemo(
         () => boletos.filter((b) => b.estado === 'pagado' || b.estado === 'reservado'),
         [boletos],
+    );
+
+    // Boletos del usuario actual (viendo como participante, no organizador —
+    // el organizador nunca tiene un boleto propio, `reservarBoletoPublico`
+    // lo bloquea con 403). Alimenta el botón "Mis boletos", a un lado de
+    // "Participantes".
+    const misBoletos = useMemo(
+        () => (usuarioActual ? participantesVisibles.filter((b) => b.usuario?.id === usuarioActual.id) : []),
+        [participantesVisibles, usuarioActual],
     );
 
     if (isLoading) {
@@ -233,7 +268,12 @@ export function PaginaDinamica() {
         }
     }
 
-    async function enviarParticipanteManual(datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string }) {
+    async function enviarParticipanteManual(datos: {
+        numeroBoleto: number;
+        nombreManual: string;
+        telefonoManual: string;
+        estado: 'reservado' | 'pagado';
+    }) {
         if (!dinamicaId) return;
         const r = await agregarManual.mutateAsync({ dinamicaId, ...datos });
         if (r.success) {
@@ -250,6 +290,39 @@ export function PaginaDinamica() {
         const r = await confirmarPago.mutateAsync({ dinamicaId, boletoId });
         if (r.success) notificar.exito('Pago confirmado.');
         else notificar.error(r.message);
+    }
+
+    async function confirmarLiberarBoleto() {
+        if (!dinamicaId || !boletoParaLiberar) return;
+        const r = await liberarBoleto.mutateAsync({ dinamicaId, boletoId: boletoParaLiberar.id });
+        if (r.success) {
+            notificar.exito(`Boleto #${boletoParaLiberar.numeroBoleto} liberado.`);
+            setBoletoParaLiberar(null);
+        } else {
+            notificar.error(r.message);
+        }
+    }
+
+    async function confirmarEditarParticipante(datos: { numeroBoleto: number; nombreManual: string; telefonoManual: string }) {
+        if (!dinamicaId || !boletoParaEditar) return;
+        const r = await editarParticipante.mutateAsync({ dinamicaId, boletoId: boletoParaEditar.id, ...datos });
+        if (r.success) {
+            notificar.exito('Participante actualizado.');
+            setBoletoParaEditar(null);
+        } else {
+            notificar.error(r.message);
+        }
+    }
+
+    async function confirmarReasignarBoleto(numeroBoleto: number) {
+        if (!dinamicaId || !boletoParaReasignar) return;
+        const r = await reasignarBoleto.mutateAsync({ dinamicaId, boletoId: boletoParaReasignar.id, numeroBoleto });
+        if (r.success) {
+            notificar.exito(`Boleto reasignado a #${numeroBoleto}.`);
+            setBoletoParaReasignar(null);
+        } else {
+            notificar.error(r.message);
+        }
     }
 
     async function enviarPosponer(nuevaFechaLimiteInscripcionISO: string) {
@@ -472,16 +545,33 @@ export function PaginaDinamica() {
 
                 {/* ─── RESTO DEL CONTENIDO — ancho completo ─── */}
                 <div className="min-w-0 space-y-5 lg:space-y-6 mt-5 lg:mt-6">
-                    {/* Descripción */}
+                    {/* Descripción — la fecha límite va como columna a la
+                        derecha del header, mismo patrón ícono+título que
+                        "Descripción" pero alineada a la derecha. */}
                     {dinamica.descripcion && (
                         <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:p-4">
-                            <h2 className="mb-2 flex items-center gap-1.5 text-base font-bold text-slate-900">
-                                <FileText className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
-                                Descripción
-                            </h2>
-                            <p className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700">
-                                {dinamica.descripcion}
-                            </p>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <h2 className="mb-2 flex items-center gap-1.5 text-base font-bold text-slate-900">
+                                        <FileText className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+                                        Descripción
+                                    </h2>
+                                    <p className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700">
+                                        {dinamica.descripcion}
+                                    </p>
+                                </div>
+                                {cuentaRegresiva && (
+                                    <div className="shrink-0 text-right">
+                                        <h2 className="mb-2 flex items-center justify-end gap-1.5 text-base font-bold text-slate-900">
+                                            Fecha
+                                            <Calendar className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+                                        </h2>
+                                        <p className="whitespace-nowrap text-sm font-semibold text-amber-700">
+                                            {cuentaRegresiva.replace(/^Fecha: /, '')}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -510,7 +600,7 @@ export function PaginaDinamica() {
                                     ref={boletosScrollRef}
                                     className="grid grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                                 >
-                                    {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => i + 1).map((numero) => {
+                                    {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => dinamica.numeroBoletoInicial + i).map((numero) => {
                                         const boleto = mapaBoletos.get(numero);
                                         const estado = boleto?.estado ?? 'disponible';
                                         // El organizador no puede reservarse boletos de su
@@ -585,21 +675,41 @@ export function PaginaDinamica() {
                         botón que abre `ModalListaParticipantes` con la lista
                         completa (fullscreen en móvil, modal centrado en
                         desktop); así la ficha no crece verticalmente sin
-                        límite (hasta 200 boletos posibles). */}
+                        límite (hasta 200 boletos posibles). "Mis boletos" (a
+                        un lado, solo si el usuario actual tiene boletos
+                        propios) abre el mismo modal filtrado a los suyos. */}
                     {participantesVisibles.length > 0 && (
-                        <button
-                            type="button"
-                            data-testid="btn-abrir-participantes"
-                            onClick={() => setModalParticipantesAbierto(true)}
-                            className="mx-3 flex w-[calc(100%-1.5rem)] items-center justify-between rounded-xl border-2 border-slate-300 bg-white p-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:mx-0 lg:w-full lg:cursor-pointer lg:p-4 lg:hover:border-amber-400"
-                        >
-                            <span className="flex items-center gap-1.5 text-base font-bold text-slate-900">
-                                <Users className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
-                                Participantes
-                                <span className="text-sm font-semibold text-slate-500">({participantesVisibles.length})</span>
-                            </span>
-                            <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={2.5} />
-                        </button>
+                        <div className="mx-3 flex gap-2.5 lg:mx-0">
+                            <button
+                                type="button"
+                                data-testid="btn-abrir-participantes"
+                                onClick={() => setModalParticipantesAbierto(true)}
+                                className="flex flex-1 items-center justify-between rounded-xl border-2 border-slate-300 bg-white p-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:cursor-pointer lg:p-4 lg:hover:border-amber-400"
+                            >
+                                <span className="flex items-center gap-1.5 text-base font-bold text-slate-900">
+                                    <Users className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+                                    Participantes
+                                    <span className="text-sm font-semibold text-slate-500">({participantesVisibles.length})</span>
+                                </span>
+                                <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={2.5} />
+                            </button>
+
+                            {misBoletos.length > 0 && (
+                                <button
+                                    type="button"
+                                    data-testid="btn-abrir-mis-boletos"
+                                    onClick={() => setModalMisBoletosAbierto(true)}
+                                    className="flex flex-1 items-center justify-between rounded-xl border-2 border-slate-300 bg-white p-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:cursor-pointer lg:p-4 lg:hover:border-amber-400"
+                                >
+                                    <span className="flex items-center gap-1.5 text-base font-bold text-slate-900">
+                                        <Ticket className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
+                                        Mis boletos
+                                        <span className="text-sm font-semibold text-slate-500">({misBoletos.length})</span>
+                                    </span>
+                                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={2.5} />
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -651,6 +761,7 @@ export function PaginaDinamica() {
                 dinamica={dinamica}
                 pendiente={agregarManual.isPending}
                 numeroBoletoInicial={numeroBoletoParaAgregar}
+                numerosOcupados={numerosOcupados}
                 onCerrar={() => {
                     setModalManualAbierto(false);
                     setNumeroBoletoParaAgregar(null);
@@ -690,6 +801,75 @@ export function PaginaDinamica() {
                 usuarioActualId={usuarioActual?.id}
                 onContactar={abrirChatCon}
                 onConfirmarPago={confirmarPagoDe}
+                onLiberar={setBoletoParaLiberar}
+                onEditar={setBoletoParaEditar}
+                onReasignar={setBoletoParaReasignar}
+            />
+
+            <ModalListaParticipantes
+                abierto={modalMisBoletosAbierto}
+                onCerrar={() => setModalMisBoletosAbierto(false)}
+                participantes={misBoletos}
+                esOrganizador={false}
+                usuarioActualId={usuarioActual?.id}
+                onContactar={abrirChatCon}
+                onConfirmarPago={confirmarPagoDe}
+                onLiberar={setBoletoParaLiberar}
+                onEditar={setBoletoParaEditar}
+                onReasignar={setBoletoParaReasignar}
+                titulo="Mis boletos"
+                subtitulo={`${misBoletos.length} tuyos en esta Dinámica`}
+                compacto
+            />
+
+            <ModalLiberarBoleto
+                abierto={boletoParaLiberar !== null}
+                boleto={
+                    boletoParaLiberar
+                        ? {
+                              numeroBoleto: boletoParaLiberar.numeroBoleto,
+                              nombreMostrado: boletoParaLiberar.usuario
+                                  ? `${boletoParaLiberar.usuario.nombre} ${boletoParaLiberar.usuario.apellidos}`
+                                  : (boletoParaLiberar.nombreManual ?? 'Sin cuenta AnunciaYA'),
+                          }
+                        : null
+                }
+                pendiente={liberarBoleto.isPending}
+                onCerrar={() => setBoletoParaLiberar(null)}
+                onConfirmar={confirmarLiberarBoleto}
+            />
+
+            <ModalEditarParticipante
+                abierto={boletoParaEditar !== null}
+                boleto={
+                    boletoParaEditar
+                        ? {
+                              numeroBoleto: boletoParaEditar.numeroBoleto,
+                              nombreManual: boletoParaEditar.nombreManual ?? '',
+                              telefonoManual: boletoParaEditar.telefonoManual ?? '',
+                          }
+                        : null
+                }
+                pendiente={editarParticipante.isPending}
+                numerosOcupados={numerosOcupados}
+                onCerrar={() => setBoletoParaEditar(null)}
+                onConfirmar={confirmarEditarParticipante}
+            />
+
+            <ModalReasignarBoleto
+                abierto={boletoParaReasignar !== null}
+                boleto={
+                    boletoParaReasignar?.usuario
+                        ? {
+                              numeroBoleto: boletoParaReasignar.numeroBoleto,
+                              nombreMostrado: `${boletoParaReasignar.usuario.nombre} ${boletoParaReasignar.usuario.apellidos}`,
+                          }
+                        : null
+                }
+                pendiente={reasignarBoleto.isPending}
+                numerosOcupados={numerosOcupados}
+                onCerrar={() => setBoletoParaReasignar(null)}
+                onConfirmar={confirmarReasignarBoleto}
             />
         </div>
     );
@@ -724,25 +904,28 @@ function BloqueInfoDinamica({ dinamica, cuentaRegresiva, conReservaKebab }: Bloq
                 </p>
             )}
 
-            {/* Etiquetas densas tipo tag (rounded-md, no pill-full) — mismo
-                patrón que `CuerpoPublicacionServicio.tsx` (modalidad/categoría/
-                urgente), evita el "panel de stats de videojuego" (Regla 13). */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            {/* Lista en filas separadas por línea divisoria — sin fondos
+                apilados (Regla 13), jerarquía por peso e ícono, color
+                neutro para los datos descriptivos y el único acento (ámbar)
+                reservado para la fecha, que es el dato accionable. */}
+            <div className="divide-y divide-slate-200 border-t border-b border-slate-200 text-sm font-medium text-slate-600">
                 {dinamica.tipoPremio && (
-                    <span className="inline-flex items-center rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                    <div className="flex items-center gap-1.5 py-2">
+                        <Gift className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
                         {ETIQUETA_TIPO_PREMIO[dinamica.tipoPremio]}
-                    </span>
+                    </div>
                 )}
                 {dinamica.metodoSorteo && (
-                    <span className="inline-flex items-center rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                    <div className="flex items-center gap-1.5 py-2">
+                        <Shuffle className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
                         {ETIQUETA_METODO[dinamica.metodoSorteo]}
-                    </span>
+                    </div>
                 )}
                 {cuentaRegresiva && (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-800">
-                        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    <div className="flex items-center gap-1.5 py-2 font-semibold text-amber-700">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
                         {cuentaRegresiva}
-                    </span>
+                    </div>
                 )}
             </div>
         </div>
@@ -1033,15 +1216,64 @@ interface FilaParticipanteProps {
     usuarioActualId: string | undefined;
     onContactar: (usuario: OrganizadorDinamica) => void;
     onConfirmarPago: (boletoId: string) => void;
+    onEditar: (boleto: BoletoDinamica) => void;
+    onReasignar: (boleto: BoletoDinamica) => void;
+    onLiberar: (boleto: BoletoDinamica) => void;
+    /** "Mis boletos" — normalmente 1-2 filas, un poco más de aire por fila
+     *  se nota y no cuesta nada (a diferencia de "Participantes", donde
+     *  puede haber hasta 200). */
+    compacto?: boolean;
 }
 
-function FilaParticipante({ boleto, esOrganizador, usuarioActualId, onContactar, onConfirmarPago }: FilaParticipanteProps) {
+function FilaParticipante({
+    boleto,
+    esOrganizador,
+    usuarioActualId,
+    onContactar,
+    onConfirmarPago,
+    onEditar,
+    onReasignar,
+    onLiberar,
+    compacto = false,
+}: FilaParticipanteProps) {
+    // Fila del propio usuario (viendo la lista como participante, no como
+    // organizador) — se resalta en ámbar para que se ubique de un vistazo
+    // entre el resto, en vez de tener que leer nombre por nombre.
+    const esPropia = !!usuarioActualId && boleto.usuario?.id === usuarioActualId;
+
     return (
-        <div className="flex items-center gap-2.5 px-3 py-2.5">
-            <span className="w-8 shrink-0 text-xs font-bold text-slate-600">#{boleto.numeroBoleto}</span>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
-                {boleto.usuario ? `${boleto.usuario.nombre} ${boleto.usuario.apellidos}` : `${boleto.nombreManual} · Sin cuenta AnunciaYA`}
+        <div className={`flex items-center gap-2 ${compacto ? 'px-4 py-3.5' : 'px-3 py-2.5'} ${esPropia ? 'bg-amber-50' : ''}`}>
+            <span className={`w-8 shrink-0 text-xs font-bold ${esPropia ? 'text-amber-800' : 'text-slate-600'}`}>
+                #{boleto.numeroBoleto}
             </span>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span className={`min-w-0 truncate text-sm font-medium ${esPropia ? 'text-amber-900' : 'text-slate-800'}`}>
+                    {boleto.usuario ? (
+                        `${boleto.usuario.nombre} ${boleto.usuario.apellidos}`
+                    ) : (
+                        <>
+                            {boleto.nombreManual} <span className="text-blue-700">· Sin cuenta AnunciaYA</span>
+                        </>
+                    )}
+                    {esPropia && <span className="ml-1 font-bold text-amber-700">(Tú)</span>}
+                </span>
+                {/* Solo el organizador puede contactar a un participante
+                    desde aquí — la lista es pública para transparencia
+                    (verificar quién participa), pero eso no autoriza a que
+                    cualquier visitante le escriba directo a la gente. */}
+                {esOrganizador && boleto.usuario && usuarioActualId !== boleto.usuario.id && (
+                    <Tooltip text="Contactar por ChatYA" position="top">
+                        <button
+                            type="button"
+                            onClick={() => onContactar(boleto.usuario!)}
+                            aria-label="Contactar por ChatYA"
+                            className="flex shrink-0 items-center justify-center rounded-full p-0.5 transition-transform duration-200 active:opacity-70 lg:cursor-pointer lg:hover:scale-110"
+                        >
+                            <img src="/ChatYA.webp" alt="" className="h-7 w-auto object-contain" />
+                        </button>
+                    </Tooltip>
+                )}
+            </div>
             {/* Para el organizador, cuando está "reservado" el botón
                 "Confirmar pago" ya comunica el estado — mostrar también la
                 badge "Reservado" ahí es redundante. Para cualquier otra
@@ -1057,27 +1289,60 @@ function FilaParticipante({ boleto, esOrganizador, usuarioActualId, onContactar,
                     {boleto.estado === 'pagado' ? 'Pagado' : 'Reservado'}
                 </span>
             )}
-            {/* Solo el organizador puede contactar a un participante desde
-                aquí — la lista es pública para transparencia (verificar
-                quién participa), pero eso no autoriza a que cualquier
-                visitante le escriba directo a la gente. */}
-            {esOrganizador && boleto.usuario && usuarioActualId !== boleto.usuario.id && (
-                <button
-                    type="button"
-                    onClick={() => onContactar(boleto.usuario!)}
-                    aria-label="Contactar por ChatYA"
-                    className="flex shrink-0 items-center justify-center rounded-full p-1 transition-transform duration-200 active:opacity-70 lg:cursor-pointer lg:hover:scale-110"
-                >
-                    <img src="/ChatYA.webp" alt="" className="h-7 w-auto object-contain" />
-                </button>
+            {/* "Editar" solo aplica a participantes "Sin cuenta AY" (el
+                organizador los dio de alta a mano, puede corregir nombre y
+                teléfono además del número); "Reasignar" es su equivalente
+                para usuarios CON cuenta AY — solo cambia el número, nunca
+                nombre/teléfono (son del usuario) y le avisa por
+                notificación. "Liberar" aplica a cualquier boleto de la
+                lista — deshacer un registro con o sin cuenta. */}
+            {esOrganizador && !boleto.usuario && (
+                <Tooltip text="Editar participante" position="top">
+                    <button
+                        type="button"
+                        onClick={() => onEditar(boleto)}
+                        aria-label="Editar participante"
+                        className="flex shrink-0 items-center justify-center rounded-full p-1.5 text-amber-600 lg:cursor-pointer lg:hover:bg-amber-100"
+                    >
+                        <Pencil className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                </Tooltip>
+            )}
+            {esOrganizador && boleto.usuario && (
+                <Tooltip text="Reasignar boleto" position="top">
+                    <button
+                        type="button"
+                        onClick={() => onReasignar(boleto)}
+                        aria-label="Reasignar boleto"
+                        className="flex shrink-0 items-center justify-center rounded-full p-1.5 text-blue-600 lg:cursor-pointer lg:hover:bg-blue-100"
+                    >
+                        <Repeat className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                </Tooltip>
+            )}
+            {esOrganizador && (
+                <Tooltip text="Liberar boleto" position="top">
+                    <button
+                        type="button"
+                        onClick={() => onLiberar(boleto)}
+                        aria-label="Liberar boleto"
+                        className="flex shrink-0 items-center justify-center rounded-full p-1.5 text-red-600 lg:cursor-pointer lg:hover:bg-red-100"
+                    >
+                        <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                </Tooltip>
             )}
             {esOrganizador && boleto.estado === 'reservado' && (
-                <button
-                    onClick={() => onConfirmarPago(boleto.id)}
-                    className="shrink-0 rounded-full bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
-                >
-                    Confirmar pago
-                </button>
+                <Tooltip text="Confirmar pago" position="top">
+                    <button
+                        type="button"
+                        onClick={() => onConfirmarPago(boleto.id)}
+                        aria-label="Confirmar pago"
+                        className="flex shrink-0 items-center justify-center rounded-full p-1.5 text-emerald-600 lg:cursor-pointer lg:hover:bg-emerald-100"
+                    >
+                        <CircleCheck className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                </Tooltip>
             )}
         </div>
     );
@@ -1098,6 +1363,21 @@ interface ModalListaParticipantesProps {
     usuarioActualId: string | undefined;
     onContactar: (usuario: OrganizadorDinamica) => void;
     onConfirmarPago: (boletoId: string) => void;
+    onEditar: (boleto: BoletoDinamica) => void;
+    onReasignar: (boleto: BoletoDinamica) => void;
+    onLiberar: (boleto: BoletoDinamica) => void;
+    /** "Participantes" (default, lista completa) o "Mis boletos" (filtrada a
+     *  los del usuario actual, abierta desde su propio botón). */
+    titulo?: string;
+    /** Texto bajo el título — default deriva de `titulo` + el conteo. */
+    subtitulo?: string;
+    /** "Mis boletos" — normalmente 1 o poquísimos boletos, un modal a pantalla
+     *  completa/altura fija se ve vacío y exagerado. En `compacto` el modal
+     *  se ajusta al contenido (sin el alto fijo `h-[80vh]`) y en móvil usa el
+     *  mismo `ModalAdaptativo` centrado que desktop en vez de la página
+     *  fullscreen — la lista de Participantes (potencialmente 200 filas)
+     *  sigue usando el modo completo por default. */
+    compacto?: boolean;
 }
 
 function ModalListaParticipantes({
@@ -1108,17 +1388,34 @@ function ModalListaParticipantes({
     usuarioActualId,
     onContactar,
     onConfirmarPago,
+    onEditar,
+    onReasignar,
+    onLiberar,
+    titulo = 'Participantes',
+    subtitulo,
+    compacto = false,
 }: ModalListaParticipantesProps) {
     const { esMobile } = useBreakpoint();
     const portalTarget = usePortalTarget();
     const esContenido = portalTarget !== document.body;
+    const [busqueda, setBusqueda] = useState('');
 
-    const abiertoMovil = abierto && esMobile;
+    // `compacto` (ej. "Mis boletos") nunca usa la página fullscreen de
+    // móvil — siempre el `ModalAdaptativo` centrado, que ya maneja su
+    // propio bloqueo de scroll y back nativo.
+    const usaFullscreenMovil = esMobile && !compacto;
+    const abiertoMovil = abierto && usaFullscreenMovil;
     useBackNativo({
         abierto: abiertoMovil,
         onCerrar,
         discriminador: '_dinamicaListaParticipantes',
     });
+
+    // Limpiar la búsqueda cada vez que el modal se ABRE — no debe arrastrar
+    // el filtro de la última vez que se usó.
+    useEffect(() => {
+        if (abierto) setBusqueda('');
+    }, [abierto]);
 
     // Bloquear scroll del body mientras la página completa está abierta —
     // mismo mecanismo que `ComposerSection.tsx`.
@@ -1140,20 +1437,64 @@ function ModalListaParticipantes({
         };
     }, [abiertoMovil, esContenido]);
 
+    // Buscador — solo el organizador lo ve (necesita ubicar rápido a alguien
+    // entre muchos boletos para gestionarlo); busca por número exacto/parcial
+    // o por nombre (con o sin cuenta AY).
+    const consulta = busqueda.trim().toLowerCase();
+    const participantesFiltrados = useMemo(() => {
+        if (!esOrganizador || !consulta) return participantes;
+        return participantes.filter((b) => {
+            const nombre = b.usuario ? `${b.usuario.nombre} ${b.usuario.apellidos}` : (b.nombreManual ?? '');
+            return String(b.numeroBoleto).includes(consulta) || nombre.toLowerCase().includes(consulta);
+        });
+    }, [participantes, esOrganizador, consulta]);
+
     const lista = (
         <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="divide-y divide-slate-200">
-                {participantes.map((b) => (
-                    <FilaParticipante
-                        key={b.id}
-                        boleto={b}
-                        esOrganizador={esOrganizador}
-                        usuarioActualId={usuarioActualId}
-                        onContactar={onContactar}
-                        onConfirmarPago={onConfirmarPago}
-                    />
-                ))}
-            </div>
+            {esOrganizador && (
+                <div className="sticky top-0 z-10 border-b border-slate-200 bg-white p-3">
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={2.5} />
+                        <input
+                            type="text"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                            placeholder="Buscar por número o nombre..."
+                            className="w-full rounded-full border-2 border-slate-300 bg-slate-100 py-2 pl-9 pr-9 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-500 focus:border-amber-500 focus:bg-white"
+                        />
+                        {busqueda && (
+                            <button
+                                type="button"
+                                onClick={() => setBusqueda('')}
+                                aria-label="Limpiar búsqueda"
+                                className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 lg:cursor-pointer lg:hover:bg-slate-300 lg:hover:text-slate-700"
+                            >
+                                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+            {participantesFiltrados.length === 0 ? (
+                <p className="p-6 text-center text-sm font-medium text-slate-500">Nadie coincide con "{busqueda}".</p>
+            ) : (
+                <div className={`divide-y divide-slate-200 ${compacto ? 'py-1' : ''}`}>
+                    {participantesFiltrados.map((b) => (
+                        <FilaParticipante
+                            key={b.id}
+                            boleto={b}
+                            esOrganizador={esOrganizador}
+                            usuarioActualId={usuarioActualId}
+                            compacto={compacto}
+                            onContactar={onContactar}
+                            onConfirmarPago={onConfirmarPago}
+                            onEditar={onEditar}
+                            onReasignar={onReasignar}
+                            onLiberar={onLiberar}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 
@@ -1161,9 +1502,10 @@ function ModalListaParticipantes({
         <div className="relative shrink-0">
             <HeaderAccionGradiente
                 icono={Users}
-                titulo="Participantes"
-                subtitulo={`${participantes.length} en esta Dinámica`}
+                titulo={titulo}
+                subtitulo={subtitulo ?? `${participantes.length} en esta Dinámica`}
                 gradiente={GRADIENTE_DINAMICAS}
+                compacto={compacto}
             />
             <button
                 type="button"
@@ -1176,7 +1518,7 @@ function ModalListaParticipantes({
         </div>
     );
 
-    if (esMobile) {
+    if (usaFullscreenMovil) {
         if (!abierto) return null;
         return createPortal(
             <div
@@ -1200,13 +1542,17 @@ function ModalListaParticipantes({
             paddingContenido="none"
             sinScrollInterno
             alturaMaxima="xl"
-            discriminador="_dinamicaListaParticipantes"
-            className="h-[80vh] max-w-xs lg:max-w-sm 2xl:max-w-md"
+            discriminador={compacto ? '_dinamicaMisBoletos' : '_dinamicaListaParticipantes'}
+            className={compacto ? 'max-w-xs lg:max-w-sm 2xl:max-w-md' : 'h-[80vh] max-w-sm lg:max-w-lg 2xl:max-w-xl'}
         >
-            {/* `h-full` (no `max-h`) — el modal siempre ocupa el mismo alto
-                fijo, tenga 1 participante o 200, en vez de encogerse al
-                tamaño del contenido. */}
-            <div className="flex h-full flex-col">
+            {/* Modo completo ("Participantes"): `h-full` (no `max-h`) — el
+                modal siempre ocupa el mismo alto fijo, tenga 1 participante
+                o 200, en vez de encogerse al tamaño del contenido. Modo
+                `compacto` ("Mis boletos"): se ajusta al contenido pero con
+                un piso (`min-h`) para que no se vea aplastado con 1-2
+                boletos, y un tope (`max-h-[60vh]`) + scroll propio por si
+                acaso son varios. */}
+            <div className={compacto ? 'flex max-h-[60vh] min-h-[260px] flex-col' : 'flex h-full flex-col'}>
                 {header}
                 {lista}
             </div>

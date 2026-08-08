@@ -35,6 +35,7 @@ import {
     ChevronDown,
     Gift,
     Dices,
+    Hash,
     Ticket,
     CalendarClock,
     Scale,
@@ -48,6 +49,7 @@ import {
     TITULO_MAX,
     DESC_MIN,
     DESC_MAX,
+    parseEnteroPositivo,
 } from '../../../hooks/useComposerDinamicas';
 import { useFotosUploaderDinamicas, MAX_FOTOS_COMPOSER_DINAMICA } from '../../../hooks/useFotosUploaderDinamicas';
 import { DatePicker } from '../../ui/DatePicker';
@@ -142,6 +144,7 @@ function dinamicaAlDraft(d: Dinamica): Partial<ComposerDinamicasDraft> {
         tipoPremio: d.tipoPremio,
         metodoSorteo: d.metodoSorteo,
         numeroTotalBoletos: d.numeroTotalBoletos !== null ? String(d.numeroTotalBoletos) : '',
+        numeroBoletoInicial: String(d.numeroBoletoInicial),
         precioBoleto: d.precioBoleto ?? '',
         fechaLimiteInscripcion: d.fechaLimiteInscripcion ?? '',
         reglaDesempate: d.reglaDesempate,
@@ -322,6 +325,7 @@ export function ComposerDinamicas({
             tipoPremio: draft.tipoPremio ?? undefined,
             metodoSorteo: draft.metodoSorteo ?? undefined,
             numeroTotalBoletos: draft.numeroTotalBoletos ? Number(draft.numeroTotalBoletos) : undefined,
+            numeroBoletoInicial: draft.numeroBoletoInicial ? Number(draft.numeroBoletoInicial) : undefined,
             precioBoleto: draft.precioBoleto ? Number(draft.precioBoleto) : undefined,
             fechaLimiteInscripcion: draft.fechaLimiteInscripcion || undefined,
             reglaDesempate: draft.reglaDesempate ?? undefined,
@@ -343,6 +347,7 @@ export function ComposerDinamicas({
             ['tipoPremio', 'tipoPremio'],
             ['metodoSorteo', 'metodoSorteo'],
             ['numeroTotalBoletos', 'boletos'],
+            ['numeroBoletoInicial', 'boletos'],
             ['precioBoleto', 'boletos'],
             ['fechaLimiteInscripcion', 'fecha'],
         ];
@@ -741,6 +746,18 @@ export function ComposerDinamicas({
                             <PanelWrapper titulo="Boletos">
                                 <div className="flex items-center gap-2">
                                     <div className="relative w-44 shrink-0">
+                                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" strokeWidth={2} />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            data-testid="composer-dinamicas-numero-boleto-inicial"
+                                            value={draft.numeroBoletoInicial}
+                                            onChange={(e) => actualizar({ numeroBoletoInicial: e.target.value.replace(/[^\d]/g, '') })}
+                                            placeholder="Empieza en"
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white pl-9 pr-3 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 font-semibold outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="relative w-44 shrink-0">
                                         <Ticket className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" strokeWidth={2} />
                                         <input
                                             type="text"
@@ -752,6 +769,21 @@ export function ComposerDinamicas({
                                             className="w-full rounded-full border-2 border-amber-400 bg-white pl-9 pr-3 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 font-semibold outline-none tabular-nums"
                                         />
                                     </div>
+                                </div>
+                                {/* El número final se calcula solo — inicio + total - 1 —
+                                    no se pide, solo se muestra como confirmación. */}
+                                {parseEnteroPositivo(draft.numeroBoletoInicial) !== null &&
+                                    parseEnteroPositivo(draft.numeroTotalBoletos) !== null && (
+                                        <p className="mt-2 text-[13px] font-semibold text-amber-800">
+                                            Boletos del #{draft.numeroBoletoInicial} al #
+                                            {Number(draft.numeroBoletoInicial) + Number(draft.numeroTotalBoletos) - 1}
+                                        </p>
+                                    )}
+                                {intentoEnvio && errores.numeroBoletoInicial && (
+                                    <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroBoletoInicial}</p>
+                                )}
+
+                                <div className="mt-3 flex items-center gap-2">
                                     <div className="relative w-40 shrink-0">
                                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-[15px]">$</span>
                                         <input

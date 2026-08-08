@@ -24,8 +24,12 @@ import {
     listarBoletosPublico,
     reservarBoletoPublico,
     agregarParticipanteManual,
+    editarParticipanteManual,
+    reasignarBoleto,
+    liberarBoleto,
     confirmarPagoBoletoOrganizador,
     notificarDinamicaPospuesta,
+    notificarParticipantesDinamicaPospuesta,
     generarUrlUploadImagenDinamica,
     eliminarFotoDinamicaSiHuerfana,
 } from '../services/dinamicas.service.js';
@@ -38,6 +42,8 @@ import {
     uploadImagenDinamicaSchema,
     reservarBoletoSchema,
     agregarParticipanteManualSchema,
+    editarParticipanteManualSchema,
+    reasignarBoletoSchema,
     formatearErroresZod,
 } from '../validations/dinamicas.schema.js';
 
@@ -149,6 +155,11 @@ export async function postPosponerDinamica(req: Request, res: Response) {
         resultado.data.titulo,
         validacion.data.nuevaFechaLimiteInscripcion,
     );
+    notificarParticipantesDinamicaPospuesta(
+        resultado.data.id,
+        resultado.data.titulo,
+        validacion.data.nuevaFechaLimiteInscripcion,
+    );
 
     return res.json(resultado);
 }
@@ -247,6 +258,71 @@ export async function postConfirmarPagoBoleto(req: Request, res: Response) {
     return res.json(resultado);
 }
 
+/** PUT /api/dinamicas/:id/boletos/:boletoId — solo el organizador, solo boletos manuales (body: nombreManual, telefonoManual) */
+export async function putEditarParticipanteManual(req: Request, res: Response) {
+    const usuarioId = exigirUsuarioId(req, res);
+    if (!usuarioId) return;
+
+    const validacion = editarParticipanteManualSchema.safeParse(req.body);
+    if (!validacion.success) {
+        return res.status(400).json({
+            success: false,
+            message: 'Datos inválidos',
+            errores: formatearErroresZod(validacion.error),
+        });
+    }
+
+    const resultado = await editarParticipanteManual(
+        usuarioId,
+        req.params.id as string,
+        req.params.boletoId as string,
+        validacion.data,
+    );
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** POST /api/dinamicas/:id/boletos/:boletoId/reasignar — solo el organizador,
+ *  boletos CON cuenta AnunciaYA (body: numeroBoleto) */
+export async function postReasignarBoleto(req: Request, res: Response) {
+    const usuarioId = exigirUsuarioId(req, res);
+    if (!usuarioId) return;
+
+    const validacion = reasignarBoletoSchema.safeParse(req.body);
+    if (!validacion.success) {
+        return res.status(400).json({
+            success: false,
+            message: 'Datos inválidos',
+            errores: formatearErroresZod(validacion.error),
+        });
+    }
+
+    const resultado = await reasignarBoleto(
+        usuarioId,
+        req.params.id as string,
+        req.params.boletoId as string,
+        validacion.data.numeroBoleto,
+    );
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** POST /api/dinamicas/:id/boletos/:boletoId/liberar — solo el organizador */
+export async function postLiberarBoleto(req: Request, res: Response) {
+    const usuarioId = exigirUsuarioId(req, res);
+    if (!usuarioId) return;
+
+    const resultado = await liberarBoleto(usuarioId, req.params.id as string, req.params.boletoId as string);
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
 /** POST /api/dinamicas/:id/boletos/reservar — requiere sesión (body: numeroBoleto) */
 export async function postReservarBoleto(req: Request, res: Response) {
     const usuarioId = exigirUsuarioId(req, res);
@@ -331,7 +407,7 @@ export async function getDinamica(req: Request, res: Response) {
 
 /** GET /api/dinamicas/:id/boletos — lista pública de participantes (sin teléfono) */
 export async function getBoletosDinamica(req: Request, res: Response) {
-    const resultado = await listarBoletosPublico(req.params.id as string);
+    const resultado = await listarBoletosPublico(req.params.id as string, req.usuario?.usuarioId);
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }

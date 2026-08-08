@@ -1,8 +1,8 @@
 # 🎟️ Dinámicas — Rifas y Concursos P2P entre Usuarios
 
 > **Última actualización:** 7 Agosto 2026
-> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción (incl. página pública para compartir, chat con contexto por ChatYA y guardar en "Mis Guardados"), Fase 4 (motor de sorteo) y Fase 5 (tarjeta compartible) pendientes.
-> **Versión:** 0.3.1 (Fase 3 + pulido visual y chat/compartir)
+> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción (incl. página pública para compartir, chat con contexto por ChatYA, guardar en "Mis Guardados" y gestión avanzada de boletos — liberar/editar/reasignar), Fase 4 (motor de sorteo) y Fase 5 (tarjeta compartible) pendientes.
+> **Versión:** 0.3.2 (Fase 3 + gestión avanzada de boletos y notificaciones)
 > **Doc de planeación original:** `docs/kit-dinamicas/Contexto_Dinamicas.md` (decisiones de producto previas a construir; este documento es la referencia técnica viva de lo ya construido — se va actualizando fase por fase).
 
 > **Identidad visual:** Ámbar (`#f59e0b → #d97706`) — distingue a Dinámicas de MarketPlace (teal) dentro del mismo módulo compartido.
@@ -24,10 +24,11 @@
    - [Chat con contexto — ChatYA](#chat-con-contexto--chatya)
 8. [Backend — Endpoints](#backend--endpoints)
 9. [Base de Datos](#base-de-datos)
-10. [Cron Jobs](#cron-jobs)
-11. [Assets — Cartas de lotería mexicana](#assets--cartas-de-lotería-mexicana)
-12. [Estado por fase](#estado-por-fase)
-13. [Decisiones y pendientes abiertos](#decisiones-y-pendientes-abiertos)
+10. [Notificaciones](#-notificaciones)
+11. [Cron Jobs](#cron-jobs)
+12. [Assets — Cartas de lotería mexicana](#assets--cartas-de-lotería-mexicana)
+13. [Estado por fase](#estado-por-fase)
+14. [Decisiones y pendientes abiertos](#decisiones-y-pendientes-abiertos)
 
 ---
 
@@ -94,11 +95,28 @@ Un borrador solo exige **título + ciudad** (mismo patrón "borrador parcial" qu
 ### 2 formas de entrar un participante
 
 1. **Reserva propia** (`POST /:id/boletos/reservar`) — cualquier usuario logueado (que **no** sea el organizador — 403 si lo es, ver abajo) reserva un número disponible. Dispara automáticamente un mensaje de ChatYA al organizador (best-effort, `contextoTipo: 'directo'` — no se agregó un tipo nuevo al catálogo de conversaciones para esto); el mensaje incluye número de boleto y precio, no solo el título de la Dinámica (ago-2026).
-2. **Alta manual del organizador** (`POST /:id/boletos/manual`) — para participantes "Sin cuenta AY". Entra directo en `pagado` (el organizador ya cobró por fuera antes de registrarlo) — requiere `nombreManual` + `telefonoManual`.
+2. **Alta manual del organizador** (`POST /:id/boletos/manual`) — para participantes "Sin cuenta AY". Requiere `nombreManual` + `telefonoManual` + `numeroBoleto`, y un **dropdown de estado** (`CustomSelect`, ago-2026): **Pagado** (default — el organizador ya cobró por fuera antes de registrarlo, entra directo con `pagadoEn`) o **Reservado** (alguien ya apartó el número pero no ha pagado — entra con la misma ventana de 24h que una reserva normal, el cron la libera igual si nadie confirma). El aviso contextual del modal cambia de texto según la opción elegida.
 
 **El organizador no puede reservarse un boleto a sí mismo** (`reservarBoletoPublico` rechaza con 403 — no tendría sentido "cobrarse" por su propia rifa). En el grid de boletos de la ficha, si quien mira es el organizador, hacer click en un número disponible **no** abre el modal de reserva — abre directo "Agregar Participante" con ese número pre-llenado (ago-2026), porque para el organizador la única forma válida de llenar un boleto es la alta manual.
 
+**Validación en vivo del número de boleto** (ago-2026) — tanto "Agregar Participante" como "Editar participante"/"Reasignar boleto" reciben `numerosOcupados` (un `Set<number>` derivado de los boletos ya cargados) y marcan el campo en rojo ("Ese número ya está ocupado") mientras se escribe, sin esperar el rechazo del backend. En `PaginaDinamica.tsx` los boletos ya están cargados de por sí; en `PaginaMisPublicaciones.tsx` (que no los tenía) se agregó un `useBoletosDinamica(dinamicaId)` propio, activado solo mientras el modal está abierto.
+
 La condición de carrera (dos personas reservando el mismo número al mismo tiempo) la resuelve el `UNIQUE (dinamica_id, numero_boleto)` de la tabla, no un lock aplicativo — `esErrorBoletoDuplicado()` (`dinamicas/errores.ts`) traduce el código Postgres `23505` a un mensaje de dominio legible.
+
+### Gestión de un boleto ya asignado (organizador)
+
+Desde la lista de participantes (`ModalListaParticipantes`), cada fila expone acciones distintas según si el boleto tiene cuenta AnunciaYA o es manual:
+
+| Acción | Endpoint | Aplica a | Qué hace |
+|---|---|---|---|
+| **Editar participante** | `PUT /:id/boletos/:boletoId` | Solo boletos manuales (`!usuarioId`) | Corrige nombre, teléfono **y** número de boleto en un solo paso — antes solo tocaba nombre/teléfono; el número se sumó para no obligar a pasar por "Liberar" + "Agregar" cuando solo hay que corregir el número. |
+| **Reasignar boleto** | `POST /:id/boletos/:boletoId/reasignar` | Solo boletos CON cuenta AY (`usuarioId` presente) | Cambia únicamente el número — nombre/teléfono son del usuario, no se tocan desde aquí. Avisa al participante por notificación (`dinamica_boleto_reasignado`, ver `Notificaciones.md`). |
+| **Liberar boleto** | `POST /:id/boletos/:boletoId/liberar` | Cualquier boleto (`reservado` o `pagado`, con o sin cuenta) | Borra la fila — el número vuelve a estar disponible de inmediato, sin esperar el cron de 24h. Cubre: participante se arrepintió, error al registrar, o se quiere reasignar el número a alguien más. |
+| **Confirmar pago** | `POST /:id/boletos/:boletoId/confirmar-pago` | Boletos `reservado` | Marca `pagado`. Si el boleto tiene `usuarioId`, avisa al participante por notificación (`dinamica_pago_confirmado`). |
+
+Los 3 primeros son mutuamente excluyentes por fila (nunca se muestran "Editar" y "Reasignar" a la vez — dependen de si `boleto.usuario` existe); "Liberar" y "Confirmar pago" pueden convivir con cualquiera de los dos. Los 4 iconos son icon-only con `Tooltip` (componente compartido, `apps/web/src/components/ui/Tooltip.tsx`) — sin texto visible, para que la fila quepa en móvil.
+
+**Reasignar ≠ Liberar+Agregar:** antes de esto, mover a alguien de cuenta AY del boleto #15 al #26 exigía liberar el #15 y volver a capturarlo con "Agregar Participante" — pero esa acción es solo para manuales. "Reasignar" es la que cubre ese caso para gente con cuenta.
 
 ---
 
@@ -174,13 +192,14 @@ Rediseñada (ago-2026) para calcar el patrón de `PaginaArticuloMarketplace.tsx`
 
 - **Header dark sticky:** ícono+"Detalle"+título truncado, botones **Compartir** (`DropdownCompartir`, apunta a la página pública `/p/dinamica/:id`) y **Guardar** (bookmark) a la derecha.
 - **Hero 2 columnas** (`lg:grid-cols-[3fr_2fr]`): galería (`GaleriaArticulo` con `ajusteImagen="cover"` — rellena el área sin importar la relación de aspecto) a la izquierda; columna derecha con 3 cards apiladas (`sticky`, no scrollean con el resto):
-  1. Card de info: título, precio del boleto, tags densos (tipo de premio / método de sorteo / cuenta regresiva) — sin pills grandes, patrón `rounded-md` denso (Regla 13 de tokens).
+  1. Card de info: título, precio del boleto, datos clave en **filas separadas por línea divisoria** (tipo de premio / método de sorteo / fecha límite) — ago-2026, reemplazó los tags apilados en 2 tonos (slate+amber) del diseño anterior por una lista densa: ícono neutro (`Gift`/`Shuffle`, gris) + texto para los datos descriptivos, acento ámbar (`Calendar`) reservado solo para la fecha (el dato accionable). La fecha muestra el valor **exacto** ("15 ago, 10:00 a.m.") en vez de cuenta regresiva relativa ("Cierra en 7 días") — más fácil de recordar/anotar que un conteo que cambia solo.
   2. **Card del organizador** — mismo patrón que `CardVendedor` (MP) / `OferenteCard` (Servicios): avatar con ring, nombre en 2 líneas + `BadgeCheck`, insignia + ícono de ChatYA (solo ícono, sin fondo) en el mismo renglón, actividad ("Activa hace X") + "Ver perfil →" (a `/marketplace/usuario/:id?tab=dinamicas`) en el renglón de abajo.
   3. Trust box "Cómo funciona" (ámbar).
 - **Menú "⋯" del organizador** (kebab, esquina superior derecha de la card de info — solo si `esOrganizador`): "Editar borrador" (compose completo) si `estado='borrador'`; si `estado IN ('activa','pospuesta')`, en vez de eso muestra "Editar" (ámbar, abre `ModalEditarDinamica` inline — limitado a título/descripción/fotos), "Agregar Part." (azul), "Posponer" (ámbar), "Cancelar Dinámica" (rojo). Mismas 2 variantes de "Editar" que en "Mis Publicaciones" (ago-2026). Reemplazó los botones inline que había antes.
+- **Descripción** — su header ahora es una fila `justify-between` (ago-2026): "Descripción" (ícono+título) a la izquierda como siempre, y a la derecha el mismo patrón ícono+título pero para "Fecha" (`Calendar` ámbar), con el valor exacto justo debajo alineado a la derecha — la fecha límite queda visible en 2 lugares de la ficha (aquí y en la card de info) a propósito, es el dato que más se pregunta.
 - **Grid de boletos** — ya NO es un grid que crece verticalmente: es un carrusel horizontal (`grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem]`, 5 filas fijas, columnas nuevas hacia la derecha) navegado con flechas `ChevronLeft`/`ChevronRight`, 3 estados visuales (disponible/reservado/pagado). Click en uno disponible: participante normal → modal "Reservar boleto"; organizador → modal "Agregar Participante" con el número pre-llenado (ver §Boletos y participación).
-- **Participantes** (ago-2026, rediseñado 2 veces) — ya no hay preview inline de filas: toda la sección es un solo botón ("Participantes (N) →") que abre `ModalListaParticipantes` (fullscreen en móvil, centrado en desktop, header con gradiente igual al resto de modales de acción) con la lista completa. Cada fila: nombre (o "Sin cuenta AnunciaYA"), badge de estado (oculta si el organizador ve un boleto `reservado` — el botón "Confirmar pago" ya comunica eso, la badge sería redundante), botón "Contactar" con logo de ChatYA (**solo visible para el organizador** — la lista sigue siendo pública para transparencia/auditoría, pero contactar a un participante desde ahí no está abierto a cualquier visitante) y "Confirmar pago" (solo organizador, solo `reservado`).
-- **Modales unificados** — `apps/web/src/components/dinamicas/ModalesAccionDinamica.tsx`: `ModalAgregarParticipanteDinamica`, `ModalPosponerDinamica`, `ModalCancelarDinamica`, `ModalEditarDinamica`, más el modal "Reservar boleto" (dentro de `PaginaDinamica.tsx`) y `ModalListaParticipantes`, todos con el mismo header con gradiente color-coded por acción + ícono en círculo (patrón `ModalConfirmarCanje.tsx` de CardYA). Antes cada acción tenía su propia copia con estilos distintos, una incluso usaba `window.confirm()` nativo. El campo de teléfono de "Agregar participante" usa `InputTelefono` (lada `+52` editable + formato visual `(638) 113 2658`). `ModalEditarDinamica` reusa `useFotosUploaderDinamicas` para las fotos y las constantes `TITULO_MIN/MAX`, `DESC_MIN/MAX` de `useComposerDinamicas.ts` para la validación — sin el resto del composer (sin checklist legal, sin flujo borrador→publicar).
+- **Participantes** (ago-2026, rediseñado varias veces) — ya no hay preview inline de filas: toda la sección es un solo botón ("Participantes (N) →") que abre `ModalListaParticipantes` (fullscreen en móvil, centrado en desktop `max-w-lg`/`2xl:max-w-xl`, header con gradiente igual al resto de modales de acción) con la lista completa. Cada fila: número + nombre (o "{nombre} · Sin cuenta AnunciaYA" en azul `blue-700`) **con el ícono de ChatYA pegado al nombre** (no en el cluster de acciones a la derecha — solo visible para el organizador, con `Tooltip`), badge de estado (oculta si el organizador ve un boleto `reservado` — el botón "Confirmar pago" ya comunica eso), y a la derecha un cluster de botones **icon-only con `Tooltip`** (sin texto, para que la fila quepa en móvil): "Editar" (manual) / "Reasignar" (con cuenta) / "Liberar" (cualquiera) / "Confirmar pago" (`reservado`) — ver tabla completa en §Gestión de un boleto ya asignado.
+- **Modales unificados** — `apps/web/src/components/dinamicas/ModalesAccionDinamica.tsx`: `ModalAgregarParticipanteDinamica`, `ModalPosponerDinamica`, `ModalCancelarDinamica`, `ModalEditarDinamica`, `ModalLiberarBoleto`, `ModalEditarParticipante`, `ModalReasignarBoleto`, más el modal "Reservar boleto" (dentro de `PaginaDinamica.tsx`) y `ModalListaParticipantes`, todos con el mismo header con gradiente color-coded por acción + ícono en círculo (patrón `ModalConfirmarCanje.tsx` de CardYA). Antes cada acción tenía su propia copia con estilos distintos, una incluso usaba `window.confirm()` nativo. El campo de teléfono de "Agregar participante"/"Editar participante" usa `InputTelefono` (lada `+52` editable + formato visual `(638) 113 2658`). `ModalEditarDinamica` reusa `useFotosUploaderDinamicas` para las fotos y las constantes `TITULO_MIN/MAX`, `DESC_MIN/MAX` de `useComposerDinamicas.ts` para la validación — sin el resto del composer (sin checklist legal, sin flujo borrador→publicar). `ModalEditarParticipante` y `ModalReasignarBoleto` comparten la tonalidad azul de `ModalAgregarParticipanteDinamica` (mismo tipo de acción — dar de alta/corregir un registro, no destructiva); `ModalLiberarBoleto` usa rojo (destructiva). `ModalPosponerDinamica` (ago-2026) muestra la fecha límite actual como referencia y bloquea con `min` + validación en vivo cualquier fecha ya pasada (mismo criterio que el backend, que la rechaza con 400).
 
 ### Composer — crear/editar
 
@@ -245,8 +264,11 @@ El botón "Contactar" (organizador, desde el card del feed o la ficha) abre Chat
 | POST | `/:id/posponer` | Posponer (nueva `fechaLimiteInscripcion`) |
 | POST | `/:id/cancelar` | Cancelar |
 | POST | `/:id/boletos/reservar` | Reservar boleto propio |
-| POST | `/:id/boletos/manual` | Alta manual (solo organizador) |
-| POST | `/:id/boletos/:boletoId/confirmar-pago` | Confirmar pago (solo organizador) |
+| POST | `/:id/boletos/manual` | Alta manual (solo organizador) — body incluye `estado: 'reservado'\|'pagado'` |
+| PUT | `/:id/boletos/:boletoId` | Editar participante manual — nombre/teléfono/número (solo organizador, solo boletos sin `usuarioId`) |
+| POST | `/:id/boletos/:boletoId/reasignar` | Reasignar número de un boleto CON cuenta AY (solo organizador) — dispara `dinamica_boleto_reasignado` |
+| POST | `/:id/boletos/:boletoId/liberar` | Liberar boleto — borra la fila, el número vuelve a disponible (solo organizador) |
+| POST | `/:id/boletos/:boletoId/confirmar-pago` | Confirmar pago (solo organizador) — si el boleto tiene `usuarioId`, dispara `dinamica_pago_confirmado` |
 
 ### Públicos (`verificarTokenOpcional`)
 
@@ -279,6 +301,22 @@ Tabla ya creada (Fase 1) pero **sin uso todavía** — reservada para cuando el 
 
 ---
 
+## 🔔 Notificaciones
+
+Catálogo completo, iconos/colores y patrón general en `docs/arquitectura/Notificaciones.md`. Todos los tipos de Dinámicas son `modo: 'personal'`, `referenciaTipo: 'dinamica'`, `referenciaId: dinamicaId` (deep-link a `/marketplace/dinamica/:id`), y todas las funciones que las disparan viven en `dinamicas.service.ts` junto a la acción que las origina, en modo best-effort (`.catch(() => undefined)` — nunca rompen el flujo principal).
+
+| Tipo | A quién | Cuándo | Función |
+|---|---|---|---|
+| `dinamica_pospuesta` | Al **organizador** | Al posponer, sobre su propia acción | `notificarDinamicaPospuesta()` |
+| `dinamica_pospuesta` | A **cada participante con cuenta AY** (`usuarioId` en su boleto) | Al posponer — antes (bug, corregido ago-2026) solo le llegaba al organizador, nunca a quienes ya tenían boleto | `notificarParticipantesDinamicaPospuesta()` — consulta todos los `usuarioId` distintos de `dinamica_boletos` para esa Dinámica y llama `notificarDinamicaPospuesta()` por cada uno en paralelo |
+| `dinamica_pago_confirmado` | Al participante (solo si tiene `usuarioId`) | El organizador confirma su pago (`confirmar-pago`) | `notificarPagoBoletoConfirmado()` — los participantes "Sin cuenta AY" no tienen usuario al que notificar dentro de la app |
+| `dinamica_boleto_reasignado` | Al participante (solo si tiene `usuarioId`) | El organizador reasigna su número (`reasignar`) | `notificarBoletoReasignado()` — incluye número anterior y nuevo en el mensaje |
+| `dinamica_resultado` | A los participantes | Se anuncia el ganador del sorteo | **Fase 4 (pendiente)** — el tipo ya existe en el catálogo pero no se dispara todavía (no hay motor de sorteo) |
+
+**Migraciones del CHECK `notificaciones_tipo_check`:** `2026-08-03-notificaciones-dinamicas.sql` (agrega `dinamica_pospuesta`/`dinamica_resultado`), `2026-08-07-notificaciones-dinamica-pago-confirmado.sql`, `2026-08-07-notificaciones-dinamica-boleto-reasignado.sql`.
+
+---
+
 ## ⏰ Cron Jobs
 
 **Archivo:** `apps/api/src/cron/dinamicas-expiracion.cron.ts`
@@ -307,7 +345,7 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 |---|---|---|
 | **Fase 1** | Backend: ciclo de vida, CRUD de borrador, transiciones de estado, boletos (funciones internas sin endpoint) | ✅ Completa |
 | **Fase 2** | Moderación de texto reducida, checklist legal al publicar, fotos de evidencia del premio en R2, composer de creación/edición | ✅ Completa |
-| **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados**, **guardar en "Mis Guardados"** | ✅ Completa |
+| **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados**, **guardar en "Mis Guardados"**, **gestión avanzada de boletos** (liberar / editar participante manual / reasignar boleto con cuenta AY, cada uno con su notificación) | ✅ Completa |
 | **Fase 4** | Motor de sorteo: tómbola clásica animada, lotería carta única, lotería tabla completa (con sincronización en tiempo real) + 3 pantallas de resultado | 🔜 Pendiente — no ha empezado. Las 54 cartas de lotería ya están listas como preparación. |
 | **Fase 5** | Tarjeta compartible (imagen de resultado para redes sociales) | 🔜 Pendiente |
 

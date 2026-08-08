@@ -75,7 +75,13 @@ export type TipoNotificacion =
   /** Al organizador y a los participantes cuando se pospone la fecha límite. */
   | 'dinamica_pospuesta'
   /** A los participantes cuando se anuncia el resultado del sorteo. */
-  | 'dinamica_resultado';
+  | 'dinamica_resultado'
+  /** Al participante (con cuenta AY) cuando el organizador confirma su pago. */
+  | 'dinamica_pago_confirmado'
+  /** Al participante (con cuenta AY) cuando el organizador reasigna su boleto a otro número. */
+  | 'dinamica_boleto_reasignado'
+  /** Al participante (con cuenta AY) cuando el organizador libera su boleto. */
+  | 'dinamica_boleto_liberado';
 
 export type ReferenciaTipo =
   | 'transaccion'

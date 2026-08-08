@@ -253,6 +253,10 @@ mensaje: `${nombreCliente} ganó ${puntos} puntos`,
 | `servicios_nueva_pregunta` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
 | `servicios_pregunta_respondida` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
 | `sistema` | ChartUp | Slate | `#64748b → #475569` |
+| `dinamica_pospuesta` | Clock (familia `pendiente`) | Azul | `#1d4ed8 → #3b82f6` |
+| `dinamica_boleto_reasignado` | Clock (familia `pendiente`) | Azul | `#1d4ed8 → #3b82f6` |
+| `dinamica_pago_confirmado` | Gift (familia `entregado`) | Verde esmeralda | `#10b981 → #059669` |
+| `dinamica_resultado` | Gift (familia `entregado`) | Verde esmeralda | `#10b981 → #059669` |
 
 > **Familias visuales:** El frontend mapea los tipos a 6 familias (`compra`, `entregado`, `pendiente`, `resena`, `alerta`, `sistema`) en `TIPO_A_FAMILIA`. Los tipos no registrados caen a familia `sistema` por fallback (`?? 'sistema'`). Hoy todos los tipos relacionados con MP/Servicios (broadcast + Q&A) caen al fallback — pendiente diseñar familias propias.
 
@@ -514,6 +518,22 @@ Avisos **personales** al dueño sobre el ciclo de su pago manual de membresía. 
 >
 > **Familia visual:** `membresia` (tile índigo `#4f46e5→#4338ca` + glifo dinero). Migración del CHECK: `docs/migraciones/2026-07-09-notificaciones-tipos-pago-membresia.sql` (agrega `pago_rechazado/aprobado/anulado`; `membresia_en_gracia` ya estaba).
 
+#### Dinámicas (rifas/concursos P2P — agosto 2026)
+
+Doc completo del módulo: `docs/arquitectura/Dinamicas.md` §Notificaciones. Todas en `modo: 'personal'`, `referenciaTipo: 'dinamica'`, `referenciaId: dinamicaId` → deep-link a `/marketplace/dinamica/:id`. Todos los helpers viven en `apps/api/src/services/dinamicas.service.ts` y se llaman best-effort (`.catch(() => undefined)`).
+
+| # | Tipo | Título | Mensaje | Servicio | Contexto |
+|---|------|--------|---------|----------|----------|
+| 26 | `dinamica_pospuesta` | `Dinámica pospuesta` | `"{titulo}" se pospuso — nueva fecha límite: {fecha}.` | dinamicas (`notificarDinamicaPospuesta`) | Al organizador, sobre su propia acción de posponer |
+| 27 | `dinamica_pospuesta` | `Dinámica pospuesta` | `"{titulo}" se pospuso — nueva fecha límite: {fecha}.` | dinamicas (`notificarParticipantesDinamicaPospuesta`) | A cada participante **con cuenta AY** que ya tenía boleto — antes de agosto 2026 esta notificación solo llegaba al organizador (bug corregido: se agregó una consulta a todos los `usuarioId` distintos en `dinamica_boletos` de esa Dinámica) |
+| 28 | `dinamica_pago_confirmado` | `Pago confirmado` | `El organizador de "{titulo}" confirmó tu pago del boleto #{numero}.` | dinamicas (`notificarPagoBoletoConfirmado`) | El organizador confirma el pago de un boleto `reservado` — solo si el boleto tiene `usuarioId` (los participantes "Sin cuenta AY" no tienen a quién notificar) |
+| 29 | `dinamica_boleto_reasignado` | `Tu boleto cambió de número` | `El organizador de "{titulo}" reasignó tu boleto: pasaste del #{anterior} al #{nuevo}.` | dinamicas (`notificarBoletoReasignado`) | El organizador reasigna el número de un boleto CON cuenta AY (acción "Reasignar boleto", distinta de "Editar participante" que es solo para manuales) |
+| 30 | `dinamica_resultado` | — | — | dinamicas | **Fase 4 (pendiente)** — tipo ya reservado en el catálogo, sin disparador todavía (no existe motor de sorteo) |
+
+> **Migraciones del CHECK:** `2026-08-03-notificaciones-dinamicas.sql` (agrega `dinamica_pospuesta`/`dinamica_resultado` + `referencia_tipo: 'dinamica'`), `2026-08-07-notificaciones-dinamica-pago-confirmado.sql`, `2026-08-07-notificaciones-dinamica-boleto-reasignado.sql`.
+>
+> **Familia visual:** `pendiente` (azul, glifo reloj) para `dinamica_pospuesta`/`dinamica_boleto_reasignado`; `entregado` (verde, glifo trofeo) para `dinamica_pago_confirmado`/`dinamica_resultado` — ver tabla de iconos/colores más abajo.
+
 ---
 
 ### Comerciales (al dueño/empleado)
@@ -626,6 +646,7 @@ El frontend aplica transformaciones automáticas para notificaciones existentes 
 | `apps/api/src/services/alertas.service.ts` | 1 | Alerta de seguridad — `notificarAlertaAlta()`: severidad ALTA → notif `alerta_seguridad` con `referenciaTipo: 'alerta'` (dueño + empleados vía `notificarNegocioCompleto`) |
 | `apps/api/src/services/marketplace/preguntas.ts` | 2 | Nueva pregunta (al vendedor) + pregunta respondida (al comprador) — `referenciaTipo: 'marketplace'`, `.catch()` silencioso |
 | `apps/api/src/services/servicios/preguntas.ts` | 2 | Nueva pregunta (al oferente/prestador) + pregunta respondida (al usuario) — `referenciaTipo: 'servicio'`, `.catch()` silencioso |
+| `apps/api/src/services/dinamicas.service.ts` | 4 | Dinámica pospuesta (organizador + cada participante con cuenta AY), pago confirmado, boleto reasignado — `referenciaTipo: 'dinamica'`, `.catch()` silencioso. Doc del módulo: `docs/arquitectura/Dinamicas.md` §Notificaciones |
 | `apps/web/src/components/layout/PanelNotificaciones.tsx` | — | Renderizado frontend (IconoNotificacion, ContenidoItem, 5 modos, expansión inline) |
 | `apps/web/src/components/layout/MainLayout.tsx` | — | `useEffect` que recarga notificaciones al entrar/salir de `/business-studio/*` |
 | `apps/web/src/types/notificaciones.ts` | — | Tipos TypeScript frontend (incluye `sucursalId`) |

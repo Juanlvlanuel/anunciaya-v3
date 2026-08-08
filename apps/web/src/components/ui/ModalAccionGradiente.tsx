@@ -42,23 +42,47 @@ interface HeaderAccionGradienteProps {
     titulo: string;
     subtitulo: string;
     gradiente: string;
+    /** Versión reducida — para modales que normalmente muestran poco
+     *  contenido (ej. "Mis boletos", casi siempre 1-2 filas), donde el
+     *  header grande de las confirmaciones (Posponer/Cancelar/etc.) se ve
+     *  desproporcionado y tosco. Recorta el padding vertical, el círculo del
+     *  ícono y el tamaño de letra — mismo layout, menos peso visual. */
+    compacto?: boolean;
 }
 
-export function HeaderAccionGradiente({ icono: Icono, titulo, subtitulo, gradiente }: HeaderAccionGradienteProps) {
+export function HeaderAccionGradiente({ icono: Icono, titulo, subtitulo, gradiente, compacto = false }: HeaderAccionGradienteProps) {
     return (
         <div
-            className="relative shrink-0 overflow-hidden px-5 pb-4 pt-8 lg:rounded-t-2xl lg:px-4 lg:py-4 2xl:rounded-t-2xl 2xl:px-5 2xl:py-5"
+            className={
+                compacto
+                    ? 'relative shrink-0 overflow-hidden px-4 py-3.5 lg:rounded-t-2xl 2xl:rounded-t-2xl'
+                    : 'relative shrink-0 overflow-hidden px-5 pb-4 pt-8 lg:rounded-t-2xl lg:px-4 lg:py-4 2xl:rounded-t-2xl 2xl:px-5 2xl:py-5'
+            }
             style={{ background: gradiente }}
         >
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/10" />
-            <div className="absolute -bottom-4 -left-4 h-14 w-14 rounded-full bg-white/10" />
-            <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/30 bg-white/15 lg:h-9 lg:w-9 2xl:h-11 2xl:w-11">
-                    <Icono className="h-5 w-5 text-white lg:h-4 lg:w-4 2xl:h-5 2xl:w-5" strokeWidth={2.5} />
+            <div className={`absolute -right-6 -top-6 rounded-full bg-white/10 ${compacto ? 'h-14 w-14' : 'h-20 w-20'}`} />
+            <div className={`absolute -bottom-4 -left-4 rounded-full bg-white/10 ${compacto ? 'h-10 w-10' : 'h-14 w-14'}`} />
+            <div className={`relative flex items-center ${compacto ? 'gap-2.5' : 'gap-3 lg:gap-2.5 2xl:gap-3'}`}>
+                <div
+                    className={
+                        compacto
+                            ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/30 bg-white/15'
+                            : 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/30 bg-white/15 lg:h-9 lg:w-9 2xl:h-11 2xl:w-11'
+                    }
+                >
+                    <Icono className={compacto ? 'h-4 w-4 text-white' : 'h-5 w-5 text-white lg:h-4 lg:w-4 2xl:h-5 2xl:w-5'} strokeWidth={2.5} />
                 </div>
                 <div className="min-w-0">
-                    <h2 className="truncate text-xl font-bold text-white lg:text-lg 2xl:text-xl">{titulo}</h2>
-                    <p className="truncate text-sm font-bold tracking-wide text-white/70 lg:text-[11px] 2xl:text-sm">
+                    <h2 className={compacto ? 'truncate text-base font-bold text-white' : 'truncate text-xl font-bold text-white lg:text-lg 2xl:text-xl'}>
+                        {titulo}
+                    </h2>
+                    <p
+                        className={
+                            compacto
+                                ? 'truncate text-xs font-bold tracking-wide text-white/70'
+                                : 'truncate text-sm font-bold tracking-wide text-white/70 lg:text-[11px] 2xl:text-sm'
+                        }
+                    >
                         {subtitulo}
                     </p>
                 </div>

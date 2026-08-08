@@ -258,16 +258,86 @@ export function useReservarBoleto() {
     });
 }
 
-/** El organizador registra a alguien sin cuenta AY — entra directo pagado. */
+/** El organizador registra a alguien sin cuenta AY — por default entra
+ *  directo pagado; `estado: 'reservado'` cubre el caso de alguien que ya
+ *  apartó el número pero todavía no paga. */
 export function useAgregarParticipanteManual() {
     const queryClient = useQueryClient();
     return useMutation<
         RespuestaBoleto,
         unknown,
-        { dinamicaId: string; numeroBoleto: number; nombreManual: string; telefonoManual: string }
+        {
+            dinamicaId: string;
+            numeroBoleto: number;
+            nombreManual: string;
+            telefonoManual: string;
+            estado: 'reservado' | 'pagado';
+        }
     >({
         mutationFn: async ({ dinamicaId, ...payload }) => {
             const response = await api.post<RespuestaBoleto>(`/dinamicas/${dinamicaId}/boletos/manual`, payload);
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
+        },
+    });
+}
+
+/** El organizador corrige nombre/teléfono — y opcionalmente reasigna el
+ *  número de boleto en el mismo paso — de un participante "Sin cuenta AY"
+ *  dado de alta manualmente. Solo aplica a boletos manuales (el backend
+ *  rechaza si el boleto pertenece a un usuario con cuenta). */
+export function useEditarParticipanteManual() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        RespuestaBoleto,
+        unknown,
+        { dinamicaId: string; boletoId: string; numeroBoleto: number; nombreManual: string; telefonoManual: string }
+    >({
+        mutationFn: async ({ dinamicaId, boletoId, ...payload }) => {
+            const response = await api.put<RespuestaBoleto>(
+                `/dinamicas/${dinamicaId}/boletos/${boletoId}`,
+                payload,
+            );
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
+        },
+    });
+}
+
+/** El organizador reasigna el número de un boleto CON cuenta AnunciaYA — a
+ *  diferencia de `useEditarParticipanteManual`, no toca nombre/teléfono (son
+ *  del usuario, no del organizador). El backend le avisa al participante por
+ *  notificación. */
+export function useReasignarBoleto() {
+    const queryClient = useQueryClient();
+    return useMutation<RespuestaBoleto, unknown, { dinamicaId: string; boletoId: string; numeroBoleto: number }>({
+        mutationFn: async ({ dinamicaId, boletoId, numeroBoleto }) => {
+            const response = await api.post<RespuestaBoleto>(
+                `/dinamicas/${dinamicaId}/boletos/${boletoId}/reasignar`,
+                { numeroBoleto },
+            );
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) invalidarDinamicaYBoletos(queryClient, vars.dinamicaId);
+        },
+    });
+}
+
+/** El organizador libera un boleto (reservado o pagado) — lo borra y el
+ *  número vuelve a estar disponible de inmediato, sin esperar el cron de
+ *  24h. */
+export function useLiberarBoleto() {
+    const queryClient = useQueryClient();
+    return useMutation<RespuestaBoleto, unknown, { dinamicaId: string; boletoId: string }>({
+        mutationFn: async ({ dinamicaId, boletoId }) => {
+            const response = await api.post<RespuestaBoleto>(
+                `/dinamicas/${dinamicaId}/boletos/${boletoId}/liberar`,
+            );
             return response.data;
         },
         onSuccess: (data, vars) => {

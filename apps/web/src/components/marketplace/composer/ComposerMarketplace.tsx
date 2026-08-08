@@ -362,7 +362,7 @@ export function ComposerMarketplace({
     // esperando la próxima vez que alguien abra el composer a mano.
     useEffect(() => {
         if (esEdicion) return;
-        const prefill = useComposerPrefillStore.getState().consumir();
+        const prefill = useComposerPrefillStore.getState().consumirMarketplace();
         if (prefill) {
             actualizar({
                 ...(prefill.titulo ? { titulo: prefill.titulo.slice(0, TITULO_MAX) } : {}),
@@ -372,7 +372,7 @@ export function ComposerMarketplace({
             });
         }
         return () => {
-            useComposerPrefillStore.getState().consumir();
+            useComposerPrefillStore.getState().consumirMarketplace();
         };
     }, [esEdicion, actualizar]);
 

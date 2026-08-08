@@ -305,6 +305,8 @@ export const useUiStore = create<UiState>((set) => ({
         '_dropdownCompartir',
         '_modalOfertaDetalle',
         '_modalDetalleItem',
+        '_dinamicaListaParticipantes',
+        '_dinamicaMisBoletos',
       ] as const;
       for (const llave of llaves) {
         if (llave in estadoActual) cuentaMarcas++;

@@ -145,6 +145,9 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   // 'pendiente' (azul, glifo reloj) — encaja con "cambió una fecha, entérate".
   dinamica_pospuesta: 'pendiente',
   dinamica_resultado: 'entregado',
+  dinamica_pago_confirmado: 'entregado',
+  dinamica_boleto_reasignado: 'pendiente',
+  dinamica_boleto_liberado: 'alerta',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {

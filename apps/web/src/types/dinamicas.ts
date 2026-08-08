@@ -40,6 +40,9 @@ export interface Dinamica {
     tipoPremio: TipoPremio | null;
     metodoSorteo: MetodoSorteo | null;
     numeroTotalBoletos: number | null;
+    /** Número con el que arranca la numeración de boletos (default 1) — el
+     *  final se calcula siempre como `numeroBoletoInicial + numeroTotalBoletos - 1`. */
+    numeroBoletoInicial: number;
     precioBoleto: string | null;
     ciudadId: string | null;
     fechaLimiteInscripcion: string | null;
@@ -67,6 +70,7 @@ export interface CrearDinamicaPayload {
     tipoPremio?: TipoPremio;
     metodoSorteo?: MetodoSorteo;
     numeroTotalBoletos?: number;
+    numeroBoletoInicial?: number;
     precioBoleto?: number;
     fechaLimiteInscripcion?: string;
     reglaDesempate?: ReglaDesempate;
@@ -151,6 +155,9 @@ export interface BoletoDinamica {
     usuario: OrganizadorDinamica | null;
     /** Nombre del participante "Sin cuenta AY" — null si sí tiene cuenta. */
     nombreManual: string | null;
+    /** Solo presente cuando quien pide la lista es el organizador — lo
+     *  necesita `ModalEditarParticipante` para hidratar el teléfono. */
+    telefonoManual?: string | null;
 }
 
 /** Dinámicas organizadas por un usuario específico + su insignia

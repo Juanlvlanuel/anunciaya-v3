@@ -27,6 +27,9 @@
  *   POST   /:id/cancelar
  *   POST   /:id/boletos/reservar
  *   POST   /:id/boletos/manual                 (solo el organizador — validado en el service)
+ *   PUT    /:id/boletos/:boletoId               (solo el organizador, solo boletos manuales — corrige nombre/teléfono)
+ *   POST   /:id/boletos/:boletoId/reasignar      (solo el organizador, solo boletos CON cuenta AY — reasigna el número)
+ *   POST   /:id/boletos/:boletoId/liberar        (solo el organizador — borra el boleto, vuelve a disponible)
  *   POST   /:id/boletos/:boletoId/confirmar-pago (solo el organizador — validado en el service)
  *
  * NO en esta fase: el motor de sorteo (elegir ganador, semilla, hash) es Fase 4.
@@ -46,6 +49,9 @@ import {
     getBoletosDinamica,
     postReservarBoleto,
     postAgregarParticipanteManual,
+    putEditarParticipanteManual,
+    postReasignarBoleto,
+    postLiberarBoleto,
     postConfirmarPagoBoleto,
     postUploadImagen,
     deleteFotoDinamicaHuerfana,
@@ -67,6 +73,9 @@ router.post('/:id/posponer', verificarToken, requiereModoPersonal, postPosponerD
 router.post('/:id/cancelar', verificarToken, requiereModoPersonal, postCancelarDinamica);
 router.post('/:id/boletos/reservar', verificarToken, requiereModoPersonal, postReservarBoleto);
 router.post('/:id/boletos/manual', verificarToken, requiereModoPersonal, postAgregarParticipanteManual);
+router.put('/:id/boletos/:boletoId', verificarToken, requiereModoPersonal, putEditarParticipanteManual);
+router.post('/:id/boletos/:boletoId/reasignar', verificarToken, requiereModoPersonal, postReasignarBoleto);
+router.post('/:id/boletos/:boletoId/liberar', verificarToken, requiereModoPersonal, postLiberarBoleto);
 router.post('/:id/boletos/:boletoId/confirmar-pago', verificarToken, requiereModoPersonal, postConfirmarPagoBoleto);
 
 // ─── Público ─────────────────────────────────────────────────────────────
