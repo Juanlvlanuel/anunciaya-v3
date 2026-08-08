@@ -31,44 +31,49 @@ import {
     AlertCircle,
     ArrowRight,
     BadgeCheck,
+    Calendar,
     Check,
     ChevronLeft,
     ChevronRight,
-    Clock,
     Flag,
+    Gift,
     MapPin,
     ShieldCheck,
+    Shuffle,
     Ticket,
     UserCheck,
     Users,
+    X,
 } from 'lucide-react';
 
 import { useDinamica, useBoletosDinamica } from '../../hooks/queries/useDinamicas';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
 import { GaleriaArticulo } from '../../components/marketplace/GaleriaArticulo';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
+import { ModalAdaptativo } from '../../components/ui/ModalAdaptativo';
 import { ModalImagenes } from '../../components/ui/ModalImagenes';
+import { HeaderAccionGradiente } from '../../components/ui/ModalAccionGradiente';
+import Tooltip from '../../components/ui/Tooltip';
 import { Spinner } from '../../components/ui/Spinner';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
-import type { DinamicaDetallePublico } from '../../types/dinamicas';
+import type { BoletoDinamica, DinamicaDetallePublico } from '../../types/dinamicas';
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 const ETIQUETA_TIPO_PREMIO: Record<string, string> = { fisico: 'Premio físico', efectivo: 'Premio en efectivo' };
 const ETIQUETA_METODO: Record<string, string> = { tombola: 'Tómbola clásica', carta_unica: 'Lotería — carta única', tabla_completa: 'Lotería — tabla completa' };
 const ETIQUETA_INSIGNIA: Record<string, string> = { nuevo: 'Organizador nuevo', activo: 'Organizador activo', confiable: 'Organizador confiable' };
 
+/** Fecha exacta (no cuenta regresiva relativa) — mismo criterio que la
+ *  ficha privada (`PaginaDinamica.tsx`), ago-2026. */
 function formatearCuentaRegresiva(fechaLimite: string | null): string | null {
     if (!fechaLimite) return null;
-    const restante = new Date(fechaLimite).getTime() - Date.now();
-    if (restante <= 0) return 'Inscripción cerrada';
-    const dias = Math.floor(restante / (24 * 60 * 60 * 1000));
-    if (dias >= 1) return `Cierra en ${dias}d`;
-    const horas = Math.floor(restante / (60 * 60 * 1000));
-    if (horas >= 1) return `Cierra en ${horas}h`;
-    const min = Math.floor(restante / (60 * 1000));
-    return `Cierra en ${min}min`;
+    const fecha = new Date(fechaLimite);
+    if (fecha.getTime() <= Date.now()) return 'Inscripción cerrada';
+    const fechaTexto = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const horaTexto = fecha.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `Fecha: ${fechaTexto}, ${horaTexto}`;
 }
 
 function obtenerIniciales(nombre: string, apellidos: string): string {
@@ -87,6 +92,7 @@ export function PaginaDinamicaPublica() {
     const { data: dinamica, isLoading, isError } = useDinamica(dinamicaId ?? null);
     const { data: boletos = [] } = useBoletosDinamica(dinamicaId ?? null);
     const [modalAuthAbierto, setModalAuthAbierto] = useState(false);
+    const [modalParticipantesAbierto, setModalParticipantesAbierto] = useState(false);
     const boletosScrollRef = useRef<HTMLDivElement>(null);
 
     const fotoPortada = dinamica?.fotosPremio.find((f) => f.tipo === 'imagen') ?? dinamica?.fotosPremio[0];
@@ -123,6 +129,7 @@ export function PaginaDinamicaPublica() {
     const cuentaRegresiva = formatearCuentaRegresiva(dinamica.fechaLimiteInscripcion);
     const aceptaParticipantes = dinamica.estado === 'activa' || dinamica.estado === 'pospuesta';
     const mapaBoletos = new Map(boletos.map((b) => [b.numeroBoleto, b]));
+    const participantesVisibles = boletos.filter((b) => b.estado === 'pagado' || b.estado === 'reservado');
 
     function desplazarBoletos(direccion: 1 | -1) {
         const el = boletosScrollRef.current;
@@ -231,41 +238,24 @@ export function PaginaDinamicaPublica() {
                                     </div>
                                 )}
 
-                                {/* Participantes — lista pública, Contactar pide login */}
-                                {boletos.length > 0 && (
-                                    <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                                        <h2 className="mb-3 flex items-center gap-1.5 text-base font-bold text-slate-900">
+                                {/* Participantes — sin preview inline (mismo patrón que la
+                                    ficha privada, ago-2026): botón que abre la lista
+                                    completa en un modal, así la página no crece sin
+                                    límite. "Contactar" pide login. */}
+                                {participantesVisibles.length > 0 && (
+                                    <button
+                                        type="button"
+                                        data-testid="btn-abrir-participantes-publico"
+                                        onClick={() => setModalParticipantesAbierto(true)}
+                                        className="mx-3 flex w-[calc(100%-1.5rem)] items-center justify-between rounded-xl border-2 border-slate-300 bg-white p-3 text-left shadow-md lg:mx-0 lg:w-full lg:cursor-pointer lg:p-4 lg:hover:border-amber-400"
+                                    >
+                                        <span className="flex items-center gap-1.5 text-base font-bold text-slate-900">
                                             <Users className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
                                             Participantes
-                                        </h2>
-                                        <div className="divide-y divide-slate-200 rounded-lg border border-slate-200">
-                                            {boletos
-                                                .filter((b) => b.estado === 'pagado' || b.estado === 'reservado')
-                                                .map((b) => (
-                                                    <div key={b.id} className="flex items-center gap-2.5 px-3 py-2.5">
-                                                        <span className="w-8 shrink-0 text-xs font-bold text-slate-600">#{b.numeroBoleto}</span>
-                                                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
-                                                            {b.usuario ? `${b.usuario.nombre} ${b.usuario.apellidos}` : `${b.nombreManual} · Sin cuenta AnunciaYA`}
-                                                        </span>
-                                                        <span
-                                                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                                                b.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                                                            }`}
-                                                        >
-                                                            {b.estado === 'pagado' ? 'Pagado' : 'Reservado'}
-                                                        </span>
-                                                        {b.usuario && (
-                                                            <button
-                                                                onClick={requerirAuth}
-                                                                className="shrink-0 rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 lg:cursor-pointer lg:hover:bg-slate-300"
-                                                            >
-                                                                Contactar
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    </div>
+                                            <span className="text-sm font-semibold text-slate-500">({participantesVisibles.length})</span>
+                                        </span>
+                                        <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={2.5} />
+                                    </button>
                                 )}
                             </div>
 
@@ -349,6 +339,13 @@ export function PaginaDinamicaPublica() {
                 contexto={{ tipo: 'dinamica', titulo: dinamica.titulo }}
                 urlRetorno={`/marketplace/dinamica/${dinamicaId}`}
             />
+
+            <ModalListaParticipantesPublico
+                abierto={modalParticipantesAbierto}
+                onCerrar={() => setModalParticipantesAbierto(false)}
+                participantes={participantesVisibles}
+                onContactar={requerirAuth}
+            />
         </div>
     );
 }
@@ -424,22 +421,28 @@ function BloqueInfoPublico({ dinamica, cuentaRegresiva, compacto = false }: Bloq
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            {/* Lista en filas separadas por línea divisoria — mismo patrón que
+                `BloqueInfoDinamica` de la ficha privada (ago-2026): sin
+                fondos apilados, ícono neutro para los datos descriptivos y
+                el único acento (ámbar) reservado para la fecha. */}
+            <div className="divide-y divide-slate-200 border-t border-b border-slate-200 text-sm font-medium text-slate-600">
                 {dinamica.tipoPremio && (
-                    <span className="inline-flex items-center rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                    <div className="flex items-center gap-1.5 py-2">
+                        <Gift className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
                         {ETIQUETA_TIPO_PREMIO[dinamica.tipoPremio]}
-                    </span>
+                    </div>
                 )}
                 {dinamica.metodoSorteo && (
-                    <span className="inline-flex items-center rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                    <div className="flex items-center gap-1.5 py-2">
+                        <Shuffle className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.5} />
                         {ETIQUETA_METODO[dinamica.metodoSorteo]}
-                    </span>
+                    </div>
                 )}
                 {cuentaRegresiva && (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-800">
-                        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    <div className="flex items-center gap-1.5 py-2 font-semibold text-amber-700">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
                         {cuentaRegresiva}
-                    </span>
+                    </div>
                 )}
             </div>
         </div>
@@ -539,6 +542,104 @@ function CardOrganizadorPublico({ dinamica, onContactar }: CardOrganizadorPublic
                 />
             )}
         </div>
+    );
+}
+
+// =============================================================================
+// PARTICIPANTES — botón + modal (mismo patrón que la ficha privada, sin
+// acciones de organizador ni resaltado de "fila propia" — aquí nunca hay
+// sesión). "Contactar" siempre pide login.
+// =============================================================================
+
+interface FilaParticipantePublicoProps {
+    boleto: BoletoDinamica;
+    onContactar: () => void;
+}
+
+function FilaParticipantePublico({ boleto, onContactar }: FilaParticipantePublicoProps) {
+    return (
+        <div className="flex items-center gap-2 px-3 py-2.5">
+            <span className="w-8 shrink-0 text-xs font-bold text-slate-600">#{boleto.numeroBoleto}</span>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span className="min-w-0 truncate text-sm font-medium text-slate-800">
+                    {boleto.usuario ? (
+                        `${boleto.usuario.nombre} ${boleto.usuario.apellidos}`
+                    ) : (
+                        <>
+                            {boleto.nombreManual} <span className="text-blue-700">· Sin cuenta AnunciaYA</span>
+                        </>
+                    )}
+                </span>
+                {boleto.usuario && (
+                    <Tooltip text="Contactar por ChatYA" position="top">
+                        <button
+                            type="button"
+                            onClick={onContactar}
+                            aria-label="Contactar por ChatYA"
+                            className="flex shrink-0 items-center justify-center rounded-full p-0.5 transition-transform duration-200 active:opacity-70 lg:cursor-pointer lg:hover:scale-110"
+                        >
+                            <img src="/ChatYA.webp" alt="" className="h-7 w-auto object-contain" />
+                        </button>
+                    </Tooltip>
+                )}
+            </div>
+            <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    boleto.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                }`}
+            >
+                {boleto.estado === 'pagado' ? 'Pagado' : 'Reservado'}
+            </span>
+        </div>
+    );
+}
+
+interface ModalListaParticipantesPublicoProps {
+    abierto: boolean;
+    onCerrar: () => void;
+    participantes: BoletoDinamica[];
+    onContactar: () => void;
+}
+
+function ModalListaParticipantesPublico({ abierto, onCerrar, participantes, onContactar }: ModalListaParticipantesPublicoProps) {
+    return (
+        <ModalAdaptativo
+            abierto={abierto}
+            onCerrar={onCerrar}
+            ancho="md"
+            mostrarHeader={false}
+            paddingContenido="none"
+            sinScrollInterno
+            alturaMaxima="xl"
+            discriminador="_dinamicaListaParticipantesPublico"
+            className="h-[80vh] max-w-sm lg:max-w-lg 2xl:max-w-xl"
+        >
+            <div className="flex h-full flex-col">
+                <div className="relative shrink-0">
+                    <HeaderAccionGradiente
+                        icono={Users}
+                        titulo="Participantes"
+                        subtitulo={`${participantes.length} en esta Dinámica`}
+                        gradiente={GRADIENTE_DINAMICAS}
+                    />
+                    <button
+                        type="button"
+                        onClick={onCerrar}
+                        aria-label="Cerrar"
+                        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-white lg:cursor-pointer lg:hover:bg-white/15"
+                    >
+                        <X className="h-5 w-5" strokeWidth={2.5} />
+                    </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="divide-y divide-slate-200">
+                        {participantes.map((b) => (
+                            <FilaParticipantePublico key={b.id} boleto={b} onContactar={onContactar} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </ModalAdaptativo>
     );
 }
 
