@@ -182,7 +182,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
     {
         nombre: 'crear_publicacion_marketplace',
         descripcion:
-            'Arma el borrador de una publicación de MarketPlace PERSONAL (vender o buscar un artículo entre vecinos) para que el usuario la revise y publique él mismo. El formulario EXIGE título, descripción, categoría y (si modo="vendo") precio para poder publicar. ORDEN DE LAS PREGUNTAS (importante): primero necesitas saber QUÉ es el artículo — si el usuario todavía no lo dijo (ej. "quiero vender algo"), pregúntale SOLO eso primero; nunca preguntes categoría ni nada más en ese mismo mensaje, sería prematuro. UNA VEZ que sepas qué es el artículo, la categoría CASI SIEMPRE es deducible por ti mismo sin preguntar (ej. "mi iPhone 12" → Electrónica, "mi sofá" → Muebles, "mis tenis" → Ropa) — complétala tú en silencio; pregúntala solo en el caso raro de que el artículo sea genuinamente ambiguo (ej. "un aparato", "una cosa"). Precio (si modo="vendo") sí pregúntalo siempre que falte. Además, si el usuario solo dio el nombre del artículo sin ninguna característica (estado, marca, motivo de venta, etc.), pregúntale AL MENOS un dato útil para escribir una buena descripción — MODO CONSULTOR, una pregunta a la vez, combinando lo que falte en la menor cantidad de preguntas posible. Con todo eso, redacta tú un título corto y atractivo (mejóralo, no repitas literal las palabras del usuario) y una descripción breve y natural — nunca inventes características que el usuario no mencionó. FOTOS: si el usuario adjuntó una foto con el botón de cámara del chat, verás en la conversación que ya se analizó automáticamente (título/descripción/categoría/condición detectados) — esa foto SÍ queda incluida en el borrador, no necesitas mencionarlo ni pedirla de nuevo. Si NO adjuntó ninguna, no prometas poder agregarla tú — puedes sugerirle usar el botón de cámara del chat, o subirla después en el formulario. NO la uses si el usuario pide agregar un producto a SU CATÁLOGO de negocio (Business Studio) — eso es otra cosa, usa navegar_a_destino(business_studio_catalogo).',
+            'Arma el borrador de una publicación de MarketPlace PERSONAL (vender o buscar un artículo entre vecinos) para que el usuario la revise y publique él mismo. El formulario EXIGE título, descripción, categoría y (si modo="vendo") precio para poder publicar — LA CATEGORÍA ES OBLIGATORIA EN AMBOS MODOS ("vendo" Y "busco"), no la olvides cuando modo="busco" solo porque no hay foto que analizar (en "busco" nunca hay foto, el artículo aún no lo tiene el usuario — la categoría de todos modos se deduce del NOMBRE del artículo). ORDEN DE LAS PREGUNTAS (importante): primero necesitas saber QUÉ es el artículo — si el usuario todavía no lo dijo (ej. "quiero vender algo" / "busco algo"), pregúntale SOLO eso primero; nunca preguntes categoría ni nada más en ese mismo mensaje, sería prematuro. UNA VEZ que sepas qué es el artículo, la categoría CASI SIEMPRE es deducible por ti mismo sin preguntar, sea que lo vendan o lo busquen (ej. "mi iPhone 12" / "busco un iPhone" → Electrónica, "mi sofá" / "ando buscando un sofá" → Muebles, "mis tenis" / "busco tenis del 8" → Ropa) — complétala tú en silencio; pregúntala solo en el caso raro de que el artículo sea genuinamente ambiguo (ej. "un aparato", "una cosa"). Precio (si modo="vendo") sí pregúntalo siempre que falte. Además, si el usuario solo dio el nombre del artículo sin ninguna característica (estado, marca, motivo de venta, etc.), pregúntale AL MENOS un dato útil para escribir una buena descripción — MODO CONSULTOR, una pregunta a la vez, combinando lo que falte en la menor cantidad de preguntas posible. Con todo eso, redacta tú un título corto y atractivo (mejóralo, no repitas literal las palabras del usuario) y una descripción breve y natural — nunca inventes características que el usuario no mencionó. FOTOS: si el usuario adjuntó una foto con el botón de cámara del chat, verás en la conversación que ya se analizó automáticamente (título/descripción/categoría/condición detectados) — esa foto SÍ queda incluida en el borrador, no necesitas mencionarlo ni pedirla de nuevo. Si NO adjuntó ninguna, no prometas poder agregarla tú — puedes sugerirle usar el botón de cámara del chat, o subirla después en el formulario. NO la uses si el usuario pide agregar un producto a SU CATÁLOGO de negocio (Business Studio) — eso es otra cosa, usa navegar_a_destino(business_studio_catalogo).',
         parametros: [
             {
                 nombre: 'modo',
@@ -206,7 +206,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
             {
                 nombre: 'categoria',
                 tipo: 'string',
-                descripcion: 'Nombre de la categoría del artículo tal como la dirías en español (ej. "Muebles", "Electrónica", "Ropa") — el backend la empareja contra el catálogo real de MarketPlace',
+                descripcion: 'Nombre de la categoría del artículo tal como la dirías en español (ej. "Muebles", "Electrónica", "Ropa") — el backend la empareja contra el catálogo real de MarketPlace. Aplica IGUAL en modo="vendo" y modo="busco" — no la omitas en "busco" solo porque no hay foto, decídela por el nombre del artículo.',
                 obligatorio: false,
             },
             {
@@ -220,7 +220,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
     {
         nombre: 'crear_publicacion_servicio',
         descripcion:
-            'Arma el borrador de una publicación de Servicios (Ofrezco un servicio/oficio o busco empleo, o Solicito contratar/necesito ayuda) para que el usuario la revise y publique él mismo. Requiere el modo y un título corto. ANTES de ejecutarla, si el usuario solo dio el nombre del servicio (ej. "ofrezco clases de guitarra") sin ninguna característica más, pregúntale AL MENOS un dato útil para la descripción (experiencia, zona donde atiende, horarios, qué incluye, etc. — MODO CONSULTOR, una pregunta a la vez) antes de armar el borrador; si ya te dio detalle suficiente en su mensaje, no hace falta preguntar más y puedes ejecutar directo. LÍMITE REAL (no la sobre-prometas): NUNCA puedes agregar fotos — eso lo sube el usuario en el formulario.',
+            'Arma el borrador de una publicación de Servicios (Ofrezco un servicio/oficio o busco empleo, o Solicito contratar/necesito ayuda) para que el usuario la revise y publique él mismo. Requiere el modo y un título corto. ORDEN: primero necesitas saber QUÉ servicio es — si el usuario todavía no lo dijo (ej. "quiero ofrecer algo"), pregúntale SOLO eso, nada más en ese mismo mensaje. Ya sabiendo qué es, si falta algún detalle para una buena descripción (experiencia, zona donde atiende, horarios, qué incluye, etc.), pregúntale AL MENOS uno — MODO CONSULTOR, combinando lo que falte en la menor cantidad de preguntas posible; si ya te dio detalle suficiente, ejecuta directo. LÍMITE REAL (no la sobre-prometas): este flujo de Servicios NO tiene botón de cámara todavía — nunca prometas agregar una foto tú, siempre la sube el usuario en el formulario.',
         parametros: [
             {
                 nombre: 'modo',
@@ -232,13 +232,13 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
             {
                 nombre: 'descripcionServicio',
                 tipo: 'string',
-                descripcion: 'Lo que el usuario dijo que ofrece o necesita, en pocas palabras — se usa como TÍTULO corto',
+                descripcion: 'Título corto y atractivo para la publicación, redactado por ti (no una copia literal de lo que dijo el usuario) — máximo ~80 caracteres',
                 obligatorio: true,
             },
             {
                 nombre: 'descripcion',
                 tipo: 'string',
-                descripcion: 'Descripción breve (2-4 frases) redactada por ti a partir de lo que el usuario contó en la conversación (experiencia, zona, horarios, qué incluye, etc.). Solo inclúyela si el usuario dio algo de detalle más allá del título — nunca inventes datos que no mencionó.',
+                descripcion: 'Descripción de 3-6 frases, redactada por ti EN TONO NATURAL Y HABLADO (como si el vecino la platicara, NUNCA en viñetas ni lenguaje de catálogo) a partir de lo que el usuario contó en la conversación (experiencia, zona, horarios, qué incluye, etc.) — entre más detalle real tengas, más completa debe quedar. Nunca inventes datos que no mencionó.',
                 obligatorio: false,
             },
             {
@@ -246,6 +246,13 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
                 tipo: 'number',
                 descripcion: 'Tarifa o presupuesto en pesos mexicanos, solo si el usuario ya lo mencionó',
                 obligatorio: false,
+            },
+            {
+                nombre: 'categoria',
+                tipo: 'string',
+                descripcion: 'SOLO aplica cuando modo="solicito" (Clasificados) — nunca la envíes si modo="ofrezco". Elígela de la lista cerrada según lo que el usuario necesita (ej. "necesito un plomero"/"se me descompuso el A/C" → hogar; "busco niñera"/"cuidador de mi abuela" → cuidados; "necesito fotógrafo para mi boda" → eventos; "busco estilista a domicilio" → belleza-bienestar; "busco trabajo"/"busco empleado" → empleo; si no calza claro en ninguna → otros). Es opcional para publicar — decídela tú sin preguntar, casi siempre es deducible; si de plano no calza en ninguna, usa "otros" en vez de preguntar.',
+                obligatorio: false,
+                enumValues: ['hogar', 'cuidados', 'eventos', 'belleza-bienestar', 'empleo', 'otros'],
             },
         ],
     },
