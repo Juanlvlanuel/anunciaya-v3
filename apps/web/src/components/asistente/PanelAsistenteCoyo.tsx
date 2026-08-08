@@ -574,7 +574,7 @@ export function PanelAsistenteCoyo() {
                                     <Camera className="h-5 w-5" />
                                 </button>
                                 {menuFotoAbierto && (
-                                    <div className="absolute bottom-full right-0 mb-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                    <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                                         <button
                                             type="button"
                                             data-testid="asistente-foto-tomar"
