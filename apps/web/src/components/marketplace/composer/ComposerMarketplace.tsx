@@ -369,7 +369,14 @@ export function ComposerMarketplace({
                 ...(prefill.descripcion ? { descripcion: prefill.descripcion.slice(0, DESC_MAX) } : {}),
                 ...(prefill.precio !== undefined ? { precio: String(prefill.precio) } : {}),
                 ...(prefill.categoriaId ? { categoriaId: prefill.categoriaId } : {}),
+                ...(prefill.condicion !== undefined ? { condicion: prefill.condicion } : {}),
+                ...(prefill.fotos && prefill.fotos.length > 0 ? { fotos: prefill.fotos } : {}),
             });
+            // Las fotos ya vienen subidas a R2 (adjuntadas desde el chat de
+            // Coyo) — se registran aquí para que el cleanup de "descartar
+            // publicación" (limpiarFotosHuerfanasDeSesion) también las cubra
+            // si el usuario cierra el composer sin publicar.
+            prefill.fotos?.forEach((f) => urlsSubidasEnSesion.current.add(f.url));
         }
         return () => {
             useComposerPrefillStore.getState().consumirMarketplace();

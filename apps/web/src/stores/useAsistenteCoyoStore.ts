@@ -25,11 +25,17 @@ export interface MensajeAsistenteCoyo {
     /** true si este turno del usuario se originó por voz (dispara TTS en la respuesta de Coyo). */
     origenVoz?: boolean;
     /** Si viene, el mensaje de Coyo muestra un botón "Revisar y publicar". Los datos se aplican al composer SOLO al hacer click (no antes) — evita que un borrador nunca confirmado quede pendiente para una próxima creación manual sin relación. */
-    accionPublicarMarketplace?: { ruta: string; titulo?: string; precio?: number };
+    accionPublicarMarketplace?: { ruta: string; titulo?: string; descripcion?: string; categoriaId?: number; precio?: number };
+    /** Mismo patrón que `accionPublicarMarketplace`, para el composer de Servicios. */
+    accionPublicarServicio?: { ruta: string; titulo?: string; descripcion?: string; presupuesto?: number };
     /** Burbuja de audio (mensaje de voz del usuario) — igual patrón visual que ChatYA: onda + reproducir. `audioUrl` es un blob URL, solo vive mientras dure la pestaña — NUNCA se persiste a localStorage (no se sube el audio a ningún lado, igual que en el backend). Tras recargar la página, el mensaje vuelve a mostrarse como texto simple. */
     audioUrl?: string;
     audioWaveform?: number[];
     audioDuracion?: number;
+    /** Foto adjuntada por el usuario (botón de cámara) — a diferencia de `audioUrl`, esta SÍ es una URL pública de R2 (no un blob local), así que persiste normal en localStorage sin necesitar limpieza especial. */
+    imagenUrl?: string;
+    /** `true` en mensajes de error de Coyo (falló la red o la IA) — habilita el botón "Reintentar" cuando este es el ÚLTIMO mensaje del chat. */
+    esError?: boolean;
 }
 
 interface AsistenteCoyoState {

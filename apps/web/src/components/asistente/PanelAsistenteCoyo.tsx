@@ -1,10 +1,11 @@
 /**
  * PanelAsistenteCoyo.tsx
  * =========================
- * Panel de chat del Asistente Coyo (FAB global) — Fase 1: navegar a una
- * sección, armar el borrador de una publicación de MarketPlace, o responder
- * preguntas normales (mismo buscador del Home). Texto o voz; historial
- * persistido en `localStorage` (useAsistenteCoyoStore) con botón de vaciar.
+ * Panel de chat del Asistente Coyo (FAB global): navega a una sección,
+ * arma el borrador de una publicación de MarketPlace o Servicios, o
+ * responde preguntas normales (mismo buscador del Home) y sobre la propia
+ * app. Texto o voz; historial persistido en `localStorage`
+ * (useAsistenteCoyoStore) con botón de vaciar.
  *
  * Regla de oro: NUNCA publica nada solo. Una acción de "crear publicación"
  * solo dejar armado el borrador — el usuario da el último "Publicar" en el
@@ -15,13 +16,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Loader2, Mic, Pause, Play, Send, Trash2, Volume2, VolumeX, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, Loader2, Mic, Pause, Play, Send, Trash2, Volume2, VolumeX, X } from 'lucide-react';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useAsistenteCoyoStore, type MensajeAsistenteCoyo } from '../../stores/useAsistenteCoyoStore';
-import { useComposerPrefillStore } from '../../stores/composerPrefillStore';
+import { useComposerPrefillStore, type PrefillMarketplace } from '../../stores/composerPrefillStore';
 import {
     useInterpretarAsistente,
     type InterpretarAsistentePayload,
@@ -30,8 +31,11 @@ import {
 } from '../../hooks/queries/useAsistente';
 import { useAudioChat } from '../../hooks/useAudioChat';
 import { useVozCoyo } from '../../hooks/useVozCoyo';
+import { useFotosUploaderMarketplace } from '../../hooks/useFotosUploaderMarketplace';
+import { useCategoriasMarketplace, useEliminarFotoMarketplaceHuerfana, useSugerirArticuloIA } from '../../hooks/queries/useMarketplace';
 import { FILTRO_CONTORNO_COYO } from '../../config/estilosCoyo';
 import { AnimacionBasuraAudio } from '../ui/AnimacionBasuraAudio';
+import type { ArchivoFoto } from '../../types/archivoFoto';
 
 /** Formatea segundos como "0:0X" / "X:XX" — mismo formato que ChatYA. */
 function formatearDuracion(segundos: number): string {
@@ -81,6 +85,99 @@ export function PanelAsistenteCoyo() {
     const [texto, setTexto] = useState('');
     const [animacionBasura, setAnimacionBasura] = useState(false);
     const listaRef = useRef<HTMLDivElement>(null);
+
+    /** Último turno que falló (red o IA) — se guarda solo en memoria (nunca en
+     *  el store persistido: si era de voz, tendría el audio en base64, y ese
+     *  dato nunca se persiste, ver política de privacidad de audio). Habilita
+     *  el botón "Reintentar" en el último mensaje de error del chat. */
+    const [turnoFallido, setTurnoFallido] = useState<{
+        payload: { texto?: string; audioBase64?: string; audioMimeType?: InterpretarAsistentePayload['audioMimeType'] };
+        origenVoz: boolean;
+    } | null>(null);
+
+    // ─── Foto adjunta (MarketPlace) ────────────────────────────────────
+    // Análogo al uploader del composer: sube a R2, optimiza, trackea
+    // huérfanas. Aquí solo se usa para 0-N fotos "pendientes" que se
+    // adjuntan al borrador cuando el usuario da "Revisar y publicar" — el
+    // `categoriaId`/`condicion` que detecta la IA de la foto es más preciso
+    // que lo que Gemini podría adivinar solo por texto, así que se guarda
+    // aparte y GANA sobre lo que la conversación devuelva.
+    const [menuFotoAbierto, setMenuFotoAbierto] = useState(false);
+    const [fotosAdjuntas, setFotosAdjuntas] = useState<ArchivoFoto[]>([]);
+    const [categoriaIdFoto, setCategoriaIdFoto] = useState<number | null>(null);
+    const [condicionFoto, setCondicionFoto] = useState<PrefillMarketplace['condicion']>(undefined);
+    const urlsFotoCoyoRef = useRef<Set<string>>(new Set());
+    const menuFotoRef = useRef<HTMLDivElement>(null);
+    const sugerirArticuloMutation = useSugerirArticuloIA();
+    const eliminarFotoHuerfanaMutation = useEliminarFotoMarketplaceHuerfana();
+    const { data: categoriasMP = [] } = useCategoriasMarketplace();
+
+    function handleCambioFotosCoyo(nuevas: ArchivoFoto[]) {
+        const anteriores = new Set(fotosAdjuntas.map((f) => f.url));
+        const agregadas = nuevas.filter((f) => !anteriores.has(f.url));
+        setFotosAdjuntas(nuevas);
+        agregadas.forEach((foto) => {
+            if (foto.tipo === 'imagen') {
+                analizarFotoYEnviar(foto);
+            } else {
+                // Video: sin análisis IA (sugerirDatosArticulo es solo fotos) — se adjunta igual, sin sugerencias.
+                const resumen = '[Video adjunto] Quiero vender este artículo — pregúntame lo que necesites.';
+                agregarMensaje({ rol: 'usuario', texto: resumen, imagenUrl: foto.posterUrl ?? foto.url });
+                enviarTurno({ texto: resumen }, false);
+            }
+        });
+    }
+
+    const fotosUploader = useFotosUploaderMarketplace({
+        fotos: fotosAdjuntas,
+        onCambioFotos: handleCambioFotosCoyo,
+        urlsSubidasEnSesion: urlsFotoCoyoRef,
+    });
+
+    // Cierra el menú "Tomar foto / Elegir de galería" al hacer click fuera.
+    useEffect(() => {
+        if (!menuFotoAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (menuFotoRef.current && !menuFotoRef.current.contains(e.target as Node)) {
+                setMenuFotoAbierto(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [menuFotoAbierto]);
+
+    /**
+     * Analiza la foto y RECIÉN entonces agrega el mensaje del usuario — el
+     * `texto` del mensaje ES el resumen del análisis (no un texto genérico),
+     * porque `construirHistorial()` arma el contexto de turnos futuros leyendo
+     * `mensajes[].texto`. Si el resumen no quedara ahí, Coyo perdería los
+     * datos detectados (título/descripción/categoría) en cuanto el usuario
+     * respondiera el siguiente turno (ej. el precio) — ver bug detectado en
+     * pruebas. La burbuja igual muestra la imagen, no el texto (JSX de abajo).
+     */
+    function analizarFotoYEnviar(foto: ArchivoFoto) {
+        sugerirArticuloMutation.mutate(foto.url, {
+            onSuccess: (data) => {
+                let resumen: string;
+                if (data.success) {
+                    const { titulo, descripcion, condicion, categoriaId } = data.data;
+                    setCategoriaIdFoto(categoriaId);
+                    setCondicionFoto(condicion);
+                    const categoriaNombre = categoriasMP.find((c) => c.id === categoriaId)?.nombre;
+                    resumen = `[Foto adjunta] La IA detectó automáticamente en la imagen: título "${titulo}", descripción "${descripcion}"${condicion ? `, condición ${condicion}` : ''}${categoriaNombre ? `, categoría ${categoriaNombre}` : ''}. Quiero vender este artículo — no preguntes por esos datos, solo lo que falte.`;
+                } else {
+                    resumen = '[Foto adjunta] Quiero vender este artículo — no se distinguieron detalles claros en la foto, pregúntame lo que necesites.';
+                }
+                agregarMensaje({ rol: 'usuario', texto: resumen, imagenUrl: foto.url });
+                enviarTurno({ texto: resumen }, false);
+            },
+            onError: () => {
+                const resumen = '[Foto adjunta] Quiero vender este artículo — pregúntame lo que necesites.';
+                agregarMensaje({ rol: 'usuario', texto: resumen, imagenUrl: foto.url });
+                enviarTurno({ texto: resumen }, false);
+            },
+        });
+    }
 
     const { esMobile } = useBreakpoint();
     const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
@@ -143,7 +240,24 @@ export function PanelAsistenteCoyo() {
                     accionPublicarMarketplace: {
                         ruta: resultado.ruta,
                         titulo: resultado.descripcionArticulo,
+                        descripcion: resultado.descripcion,
+                        categoriaId: resultado.categoriaId,
                         precio: resultado.precio,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_servicio': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y publiques.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarServicio: {
+                        ruta: resultado.ruta,
+                        titulo: resultado.descripcionServicio,
+                        descripcion: resultado.descripcion,
+                        presupuesto: resultado.presupuesto,
                     },
                 });
                 if (origenVoz) hablar(respuesta);
@@ -170,16 +284,24 @@ export function PanelAsistenteCoyo() {
             {
                 onSuccess: (data) => {
                     if (data.success) {
+                        setTurnoFallido(null);
                         procesarResultado(data.resultado, origenVoz);
                     } else {
-                        agregarMensaje({ rol: 'coyo', texto: 'Ahorita no puedo ayudarte, ¿lo intentamos de nuevo?' });
+                        setTurnoFallido({ payload: payloadTurno, origenVoz });
+                        agregarMensaje({ rol: 'coyo', texto: 'Ahorita no puedo ayudarte, ¿lo intentamos de nuevo?', esError: true });
                     }
                 },
                 onError: () => {
-                    agregarMensaje({ rol: 'coyo', texto: 'Se me fue la señal, ¿lo intentas de nuevo en un momento?' });
+                    setTurnoFallido({ payload: payloadTurno, origenVoz });
+                    agregarMensaje({ rol: 'coyo', texto: 'Se me fue la señal, ¿lo intentas de nuevo en un momento?', esError: true });
                 },
             },
         );
+    }
+
+    function handleReintentar() {
+        if (!turnoFallido) return;
+        enviarTurno(turnoFallido.payload, turnoFallido.origenVoz);
     }
 
     function handleEnviarTexto() {
@@ -230,21 +352,51 @@ export function PanelAsistenteCoyo() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [audioChat.audioListo]);
 
-    /** Revoca los object URLs de audio antes de vaciar — si no, quedan colgados en memoria del navegador. */
+    /** Revoca los object URLs de audio y limpia fotos huérfanas antes de vaciar. */
     function handleVaciarChat() {
         useAsistenteCoyoStore.getState().mensajes.forEach((m) => {
             if (m.audioUrl) URL.revokeObjectURL(m.audioUrl);
         });
+        if (urlsFotoCoyoRef.current.size > 0) {
+            Array.from(urlsFotoCoyoRef.current).forEach((url) => eliminarFotoHuerfanaMutation.mutate(url));
+            urlsFotoCoyoRef.current.clear();
+        }
+        setFotosAdjuntas([]);
+        setCategoriaIdFoto(null);
+        setCondicionFoto(undefined);
+        setTurnoFallido(null);
         vaciarChat();
     }
 
     function handleClickPublicar(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarMarketplace']>) {
         useComposerPrefillStore.getState().setPrefillMarketplace({
             titulo: accion.titulo,
+            descripcion: accion.descripcion,
+            // El dato de la foto (más preciso que lo que Gemini adivinó por
+            // texto) gana si existe.
+            categoriaId: categoriaIdFoto ?? accion.categoriaId,
+            condicion: condicionFoto,
             precio: accion.precio,
+            fotos: fotosAdjuntas.length > 0 ? fotosAdjuntas : undefined,
         });
+        // El composer toma posesión de las fotos desde aquí (su propio
+        // cleanup de "descartar publicación" ya las cubre) — Coyo deja de
+        // rastrearlas para no intentar borrarlas también.
+        urlsFotoCoyoRef.current.clear();
+        setFotosAdjuntas([]);
+        setCategoriaIdFoto(null);
+        setCondicionFoto(undefined);
         // No se cierra: mismo criterio que "navegar" — el usuario decide
         // cuándo cerrar, con la "X".
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarServicio(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarServicio']>) {
+        useComposerPrefillStore.getState().setPrefillServicios({
+            titulo: accion.titulo,
+            descripcion: accion.descripcion,
+            presupuesto: accion.presupuesto,
+        });
         navigate(accion.ruta);
     }
 
@@ -301,7 +453,7 @@ export function PanelAsistenteCoyo() {
                             Pregúntame algo de tu ciudad, o dime qué quieres hacer — por ejemplo &ldquo;quiero vender mi bicicleta en 800&rdquo;.
                         </p>
                     )}
-                    {mensajes.map((m) => (
+                    {mensajes.map((m, i) => (
                         <div key={m.id} className={`flex ${m.rol === 'usuario' ? 'justify-end' : 'justify-start'}`}>
                             <div
                                 data-testid={`asistente-mensaje-${m.rol}`}
@@ -311,7 +463,14 @@ export function PanelAsistenteCoyo() {
                                         : 'border border-amber-200 bg-amber-50 text-slate-800'
                                 }`}
                             >
-                                {m.audioUrl ? (
+                                {m.imagenUrl ? (
+                                    <img
+                                        src={m.imagenUrl}
+                                        alt="Foto adjunta"
+                                        data-testid="asistente-imagen-adjunta"
+                                        className="max-h-48 w-full rounded-lg object-cover"
+                                    />
+                                ) : m.audioUrl ? (
                                     <BurbujaAudioCoyo url={m.audioUrl} waveform={m.audioWaveform ?? []} duracion={m.audioDuracion ?? 0} />
                                 ) : (
                                     m.texto
@@ -326,10 +485,31 @@ export function PanelAsistenteCoyo() {
                                         Revisar y publicar
                                     </button>
                                 )}
+                                {m.accionPublicarServicio && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-servicio"
+                                        onClick={() => handleClickPublicarServicio(m.accionPublicarServicio!)}
+                                        className="mt-2 block w-full rounded-full bg-sky-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-sky-700"
+                                    >
+                                        Revisar y publicar
+                                    </button>
+                                )}
+                                {m.esError && i === mensajes.length - 1 && turnoFallido && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-reintentar"
+                                        onClick={handleReintentar}
+                                        disabled={interpretarMutation.isPending}
+                                        className="mt-2 block w-full rounded-full border border-amber-300 bg-white px-3 py-1.5 text-center text-[13px] font-semibold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50 lg:cursor-pointer lg:hover:bg-amber-100"
+                                    >
+                                        Reintentar
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}
-                    {interpretarMutation.isPending && (
+                    {(interpretarMutation.isPending || fotosUploader.subiendo || sugerirArticuloMutation.isPending) && (
                         <div className="flex justify-start">
                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-2">
                                 <Loader2 className="h-4 w-4 animate-spin text-amber-700" />
@@ -383,6 +563,45 @@ export function PanelAsistenteCoyo() {
                         </>
                     ) : (
                         <>
+                            <div className="relative shrink-0" ref={menuFotoRef}>
+                                <button
+                                    type="button"
+                                    data-testid="asistente-btn-foto"
+                                    aria-label="Adjuntar foto"
+                                    onClick={() => setMenuFotoAbierto((v) => !v)}
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200"
+                                >
+                                    <Camera className="h-5 w-5" />
+                                </button>
+                                {menuFotoAbierto && (
+                                    <div className="absolute bottom-full right-0 mb-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                        <button
+                                            type="button"
+                                            data-testid="asistente-foto-tomar"
+                                            onClick={() => {
+                                                setMenuFotoAbierto(false);
+                                                fotosUploader.abrirCamara();
+                                            }}
+                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-slate-700 lg:cursor-pointer lg:hover:bg-slate-50"
+                                        >
+                                            <Camera className="h-4 w-4" /> Tomar foto
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-testid="asistente-foto-galeria"
+                                            onClick={() => {
+                                                setMenuFotoAbierto(false);
+                                                fotosUploader.abrirGaleria();
+                                            }}
+                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-slate-700 lg:cursor-pointer lg:hover:bg-slate-50"
+                                        >
+                                            <ImageIcon className="h-4 w-4" /> Elegir de galería
+                                        </button>
+                                    </div>
+                                )}
+                                <input {...fotosUploader.inputCamaraProps} />
+                                <input {...fotosUploader.inputGaleriaProps} />
+                            </div>
                             <input
                                 type="text"
                                 data-testid="asistente-input-texto"

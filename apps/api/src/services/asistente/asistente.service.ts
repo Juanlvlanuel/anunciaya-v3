@@ -25,7 +25,8 @@ import {
 } from '../coyo/coyoIA.service.js';
 import { buscarEnTodaLaApp, type ResultadoBusquedaUnificada } from '../coyo/buscadorUnificado.js';
 import { listarSucursalesCercanas } from '../negocios.service.js';
-import { resolverDestino } from './capacidades.js';
+import { obtenerCategoriasMarketplace } from '../marketplace/categorias.js';
+import { resolverDestino, destinoRequierePersonal } from './capacidades.js';
 
 // =============================================================================
 // TIPOS
@@ -40,7 +41,18 @@ export type ResultadoAsistenteFrontend =
           ruta: string;
           modo: 'vendo' | 'busco';
           descripcionArticulo: string;
+          descripcion?: string;
+          categoriaId?: number;
           precio?: number;
+          mensaje?: string;
+      }
+    | {
+          tipo: 'prefill_servicio';
+          ruta: string;
+          modo: 'ofrezco' | 'solicito';
+          descripcionServicio: string;
+          descripcion?: string;
+          presupuesto?: number;
           mensaje?: string;
       };
 
@@ -67,6 +79,8 @@ const TEXTO_DESTINO_DESCONOCIDO =
     'No encontré esa sección, ¿me dices con otras palabras a dónde quieres ir?';
 const TEXTO_NEGOCIO_NO_ENCONTRADO =
     'No encontré ningún negocio con ese nombre por aquí — ¿me dices si lo escribiste bien o me das más pistas?';
+const TEXTO_REQUIERE_MODO_PERSONAL =
+    'Esa sección solo está disponible en modo Personal — estás en modo comercial (Business Studio) ahorita. Cambia de modo desde tu perfil y vuelve a pedírmelo.';
 
 // =============================================================================
 // buscar_informacion — mismas piezas que "Pregúntale a Peñasco", sin BD
@@ -144,6 +158,23 @@ async function resolverPerfilNegocio(
 }
 
 // =============================================================================
+// crear_publicacion_marketplace — empareja el nombre de categoría (texto
+// libre que dio Gemini) contra el catálogo real de MarketPlace
+// =============================================================================
+
+async function resolverCategoriaMarketplace(nombreCategoria: string): Promise<number | undefined> {
+    const nombre = nombreCategoria.trim().toLowerCase();
+    if (!nombre) return undefined;
+    const categorias = await obtenerCategoriasMarketplace();
+    const exacta = categorias.find((c) => c.nombre.toLowerCase() === nombre);
+    if (exacta) return exacta.id;
+    const parcial = categorias.find(
+        (c) => c.nombre.toLowerCase().includes(nombre) || nombre.includes(c.nombre.toLowerCase()),
+    );
+    return parcial?.id;
+}
+
+// =============================================================================
 // FUNCIÓN PRINCIPAL — un turno completo del asistente
 // =============================================================================
 
@@ -175,6 +206,9 @@ export async function ejecutarPeticionAsistente(
             const destino = typeof data.parametros.destino === 'string' ? data.parametros.destino : '';
             const ruta = resolverDestino(destino);
             if (!ruta) return { tipo: 'pregunta', texto: TEXTO_DESTINO_DESCONOCIDO };
+            if (contextoApp.modoComercial && destinoRequierePersonal(destino)) {
+                return { tipo: 'pregunta', texto: TEXTO_REQUIERE_MODO_PERSONAL };
+            }
             return { tipo: 'navegar', ruta, mensaje: data.mensaje };
         }
         case 'navegar_a_perfil_negocio': {
@@ -188,11 +222,21 @@ export async function ejecutarPeticionAsistente(
             return resultado;
         }
         case 'crear_publicacion_marketplace': {
+            if (contextoApp.modoComercial) {
+                return { tipo: 'pregunta', texto: TEXTO_REQUIERE_MODO_PERSONAL };
+            }
             const modo = data.parametros.modo === 'busco' ? 'busco' : 'vendo';
             const descripcionArticulo =
                 typeof data.parametros.descripcionArticulo === 'string'
                     ? data.parametros.descripcionArticulo
                     : '';
+            const descripcion =
+                typeof data.parametros.descripcion === 'string' ? data.parametros.descripcion : undefined;
+            const categoriaTexto =
+                typeof data.parametros.categoria === 'string' ? data.parametros.categoria : '';
+            const categoriaId = categoriaTexto
+                ? await resolverCategoriaMarketplace(categoriaTexto)
+                : undefined;
             const precio =
                 typeof data.parametros.precio === 'number' ? data.parametros.precio : undefined;
             return {
@@ -200,7 +244,32 @@ export async function ejecutarPeticionAsistente(
                 ruta: modo === 'busco' ? '/marketplace?crear=busco' : '/marketplace?crear=vendo',
                 modo,
                 descripcionArticulo,
+                descripcion,
+                categoriaId,
                 precio,
+                mensaje: data.mensaje,
+            };
+        }
+        case 'crear_publicacion_servicio': {
+            if (contextoApp.modoComercial) {
+                return { tipo: 'pregunta', texto: TEXTO_REQUIERE_MODO_PERSONAL };
+            }
+            const modo = data.parametros.modo === 'solicito' ? 'solicito' : 'ofrezco';
+            const descripcionServicio =
+                typeof data.parametros.descripcionServicio === 'string'
+                    ? data.parametros.descripcionServicio
+                    : '';
+            const descripcion =
+                typeof data.parametros.descripcion === 'string' ? data.parametros.descripcion : undefined;
+            const presupuesto =
+                typeof data.parametros.presupuesto === 'number' ? data.parametros.presupuesto : undefined;
+            return {
+                tipo: 'prefill_servicio',
+                ruta: `/servicios?crear=${modo}`,
+                modo,
+                descripcionServicio,
+                descripcion,
+                presupuesto,
                 mensaje: data.mensaje,
             };
         }

@@ -19,12 +19,17 @@
  */
 
 import { create } from 'zustand';
+import type { ArchivoFoto } from '../types/archivoFoto';
 
 export interface PrefillMarketplace {
     titulo?: string;
     descripcion?: string;
     precio?: number;
     categoriaId?: number | null;
+    /** Condición sugerida por la IA a partir de la foto — 4 valores válidos de `campoCondicion`, o `null`. */
+    condicion?: 'nuevo' | 'seminuevo' | 'usado' | 'para_reparar' | null;
+    /** Fotos ya subidas a R2 (adjuntadas desde el chat de Coyo) — el composer las aplica directo a `draft.fotos`. */
+    fotos?: ArchivoFoto[];
 }
 
 export interface PrefillServicios {

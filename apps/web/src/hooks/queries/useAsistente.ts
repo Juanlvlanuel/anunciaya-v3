@@ -30,7 +30,18 @@ export type ResultadoAsistente =
           ruta: string;
           modo: 'vendo' | 'busco';
           descripcionArticulo: string;
+          descripcion?: string;
+          categoriaId?: number;
           precio?: number;
+          mensaje?: string;
+      }
+    | {
+          tipo: 'prefill_servicio';
+          ruta: string;
+          modo: 'ofrezco' | 'solicito';
+          descripcionServicio: string;
+          descripcion?: string;
+          presupuesto?: number;
           mensaje?: string;
       };
 

@@ -34,14 +34,29 @@ export interface Capacidad {
 // DESTINOS NAVEGABLES — lista cerrada, nunca URLs libres generadas por Gemini
 // =============================================================================
 
-export const DESTINOS_NAVEGABLES: Record<string, { ruta: string; descripcion: string }> = {
+export interface DestinoNavegable {
+    ruta: string;
+    descripcion: string;
+    /**
+     * `true` si la ruta está bloqueada por completo en modo comercial
+     * (`ModoPersonalEstrictoGuard.tsx` — política de negocio: MarketPlace y
+     * Servicios son P2P, un negocio formal usa Catálogo/BS Vacantes en su
+     * lugar). El guard NO auto-cambia de modo: si Coyo navega ahí estando
+     * el usuario en modo comercial, el guard lo rebota a /inicio con un
+     * toast — Coyo debe detectarlo ANTES de navegar y explicarlo, no dejar
+     * que el usuario choque contra el guard sin saber por qué.
+     */
+    soloModoPersonal?: boolean;
+}
+
+export const DESTINOS_NAVEGABLES: Record<string, DestinoNavegable> = {
     inicio: {
         ruta: '/inicio',
         descripcion: 'Home — "Pregúntale a tu ciudad", feed de preguntas de la comunidad',
     },
     mi_perfil: {
         ruta: '/perfil',
-        descripcion: 'Datos personales: nombre, foto de perfil/avatar, teléfono, fecha de nacimiento, ciudad',
+        descripcion: 'El perfil PERSONAL DEL USUARIO (sus propios datos: nombre, foto/avatar, teléfono, fecha de nacimiento, ciudad). NUNCA uses este destino si el usuario menciona el nombre de un NEGOCIO — eso es navegar_a_perfil_negocio, una función distinta.',
     },
     seguridad: {
         ruta: '/perfil?tab=seguridad',
@@ -54,10 +69,12 @@ export const DESTINOS_NAVEGABLES: Record<string, { ruta: string; descripcion: st
     marketplace_crear_vendo: {
         ruta: '/marketplace?crear=vendo',
         descripcion: 'Formulario para vender un artículo en MarketPlace',
+        soloModoPersonal: true,
     },
     marketplace_crear_busco: {
         ruta: '/marketplace?crear=busco',
         descripcion: 'Formulario para publicar que se busca comprar un artículo',
+        soloModoPersonal: true,
     },
     negocios: {
         ruta: '/negocios',
@@ -66,6 +83,7 @@ export const DESTINOS_NAVEGABLES: Record<string, { ruta: string; descripcion: st
     marketplace: {
         ruta: '/marketplace',
         descripcion: 'Feed de compra-venta entre vecinos',
+        soloModoPersonal: true,
     },
     ofertas: {
         ruta: '/ofertas',
@@ -74,6 +92,7 @@ export const DESTINOS_NAVEGABLES: Record<string, { ruta: string; descripcion: st
     servicios: {
         ruta: '/servicios',
         descripcion: 'Oficios, servicios profesionales y vacantes de empleo',
+        soloModoPersonal: true,
     },
     cardya: {
         ruta: '/cardya',
@@ -118,6 +137,16 @@ export function resolverDestino(nombreDestino: string): string | null {
     return DESTINOS_NAVEGABLES[nombreDestino]?.ruta ?? null;
 }
 
+/**
+ * `true` si el destino solo es accesible en modo Personal — `ModoPersonalEstrictoGuard`
+ * lo bloquea por completo en modo comercial (redirige a /inicio + toast, SIN cambiar
+ * de modo). Se usa para que Coyo lo detecte ANTES de navegar y lo explique, en vez
+ * de anunciar "ahí te dejo" y que el guard rebote al usuario en silencio.
+ */
+export function destinoRequierePersonal(nombreDestino: string): boolean {
+    return DESTINOS_NAVEGABLES[nombreDestino]?.soloModoPersonal === true;
+}
+
 // =============================================================================
 // CATÁLOGO DE CAPACIDADES — Fase 1 (MarketPlace)
 // =============================================================================
@@ -126,7 +155,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
     {
         nombre: 'navegar_a_destino',
         descripcion:
-            'Lleva al usuario a una sección puntual de SU CUENTA cuando pide ir, abrir o cambiar algo concreto — incluye tanto pedidos directos ("llévame a...", "abre...") COMO dudas de "cómo hago algo" cuando ese "algo" corresponde a un destino real (ej. "¿cómo cambio mi contraseña?", "¿dónde veo mi membresía?", "quiero vender algo" → llama la función, no solo expliques en texto). NO la uses para preguntas de "qué es"/"para qué sirve" (esas se responden en texto con la información de AnunciaYA) ni para buscar negocios/artículos reales (para eso usa buscar_informacion).',
+            'Lleva al usuario a una sección puntual de SU PROPIA CUENTA cuando pide ir, abrir o cambiar algo concreto — incluye tanto pedidos directos ("llévame a...", "abre...") COMO dudas de "cómo hago algo" cuando ese "algo" corresponde a un destino real (ej. "¿cómo cambio mi contraseña?", "¿dónde veo mi membresía?", "quiero vender algo" → llama la función, no solo expliques en texto). NO la uses para preguntas de "qué es"/"para qué sirve" (esas se responden en texto con la información de AnunciaYA), ni para buscar negocios/artículos reales (para eso usa buscar_informacion). IMPORTANTE — NO la confundas con navegar_a_perfil_negocio: si el usuario menciona el NOMBRE de un negocio (ej. "el perfil de Taquería El Güero", "la página de la Panadería Tijuana"), SIEMPRE es navegar_a_perfil_negocio, NUNCA destino=mi_perfil (ese es solo el perfil personal del propio usuario).',
         parametros: [
             {
                 nombre: 'destino',
@@ -140,7 +169,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
     {
         nombre: 'navegar_a_perfil_negocio',
         descripcion:
-            'Lleva al usuario al perfil de UN NEGOCIO ESPECÍFICO por nombre (ej. "llévame al perfil de Taqueria El Guero", "abre la página de la Panadería Tijuana"). Distinta de navegar_a_destino (que es solo para secciones fijas de la cuenta del usuario, no negocios). El backend busca el negocio real por el nombre que des — si no lo encuentra, se lo dice al usuario.',
+            'Lleva al usuario al perfil de UN NEGOCIO ESPECÍFICO por nombre (ej. "llévame al perfil de Taqueria El Guero", "abre la página de la Panadería Tijuana", "quiero ver el perfil de [nombre]"). SIEMPRE que el usuario mencione el nombre propio de un negocio junto con "perfil"/"página"/"ficha", usa ESTA función — nunca navegar_a_destino(mi_perfil), que es solo el perfil PERSONAL del usuario que está hablando contigo, no de un negocio. El backend busca el negocio real por el nombre que des — si no lo encuentra, se lo dice al usuario.',
         parametros: [
             {
                 nombre: 'nombreNegocio',
@@ -153,7 +182,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
     {
         nombre: 'crear_publicacion_marketplace',
         descripcion:
-            'Arma el borrador de una publicación de MarketPlace PERSONAL (vender o buscar un artículo entre vecinos) para que el usuario la revise y publique él mismo. Requiere el modo y una descripción de lo que quiere vender/buscar. NUNCA la ejecutes si falta el modo o no hay ninguna descripción del artículo — en ese caso pregunta primero. LÍMITE REAL (no la sobre-prometas): solo deja listo un TÍTULO corto y el precio si lo dieron — NUNCA puede agregar fotos ni escribir una descripción larga por su cuenta; eso lo completa el usuario en el formulario. NO la uses si el usuario pide agregar un producto a SU CATÁLOGO de negocio (Business Studio) — eso es otra cosa, usa navegar_a_destino(business_studio_catalogo).',
+            'Arma el borrador de una publicación de MarketPlace PERSONAL (vender o buscar un artículo entre vecinos) para que el usuario la revise y publique él mismo. El formulario EXIGE título, descripción, categoría y (si modo="vendo") precio para poder publicar — trátalos como obligatorios en la práctica: si modo="vendo" y no te dieron precio, PREGÚNTALO antes de ejecutar (no lo dejes en blanco). Igual con la categoría: si no es obvia por lo que describieron, pregúntala (ej. "¿en qué categoría lo pondrías: Muebles, Electrónica, Ropa, Deportes, Hogar...?"); si ya es obvia (ej. "vendo mi iPhone 12" → Electrónica), complétala tú sin preguntar. Además, si el usuario solo dio el nombre del artículo sin ninguna característica (estado, marca, motivo de venta, etc.), pregúntale AL MENOS un dato útil para escribir una buena descripción — MODO CONSULTOR, una pregunta a la vez, combinando lo que falte en la menor cantidad de preguntas posible. Con todo eso, redacta tú un título corto y atractivo (mejóralo, no repitas literal las palabras del usuario) y una descripción breve y natural — nunca inventes características que el usuario no mencionó. FOTOS: si el usuario adjuntó una foto con el botón de cámara del chat, verás en la conversación que ya se analizó automáticamente (título/descripción/categoría/condición detectados) — esa foto SÍ queda incluida en el borrador, no necesitas mencionarlo ni pedirla de nuevo. Si NO adjuntó ninguna, no prometas poder agregarla tú — puedes sugerirle usar el botón de cámara del chat, o subirla después en el formulario. NO la uses si el usuario pide agregar un producto a SU CATÁLOGO de negocio (Business Studio) — eso es otra cosa, usa navegar_a_destino(business_studio_catalogo).',
         parametros: [
             {
                 nombre: 'modo',
@@ -165,13 +194,57 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
             {
                 nombre: 'descripcionArticulo',
                 tipo: 'string',
-                descripcion: 'Lo que el usuario dijo que quiere vender o buscar, en pocas palabras — se usa como TÍTULO corto de la publicación, no como descripción larga',
+                descripcion: 'Título corto y atractivo para la publicación, redactado por ti (no una copia literal de lo que dijo el usuario) — máximo ~80 caracteres',
                 obligatorio: true,
+            },
+            {
+                nombre: 'descripcion',
+                tipo: 'string',
+                descripcion: 'Descripción de 3-6 frases, redactada por ti EN TONO NATURAL Y HABLADO (como si el vecino la estuviera platicando, NUNCA en viñetas ni lenguaje de catálogo/publicidad) — junta TODO lo que sepas: si hay foto analizada, incluye marca/color/componentes visibles; combínalo con lo que el usuario contó en la conversación (estado, motivo de venta, para qué sirve, accesorios, etc.). Entre más detalle real tengas, más completa debe quedar — no te quedes corto si ya te dieron o detectaron varios datos. Nunca inventes ni agregues un dato que no viene de la foto analizada ni de lo que el usuario dijo.',
+                obligatorio: false,
+            },
+            {
+                nombre: 'categoria',
+                tipo: 'string',
+                descripcion: 'Nombre de la categoría del artículo tal como la dirías en español (ej. "Muebles", "Electrónica", "Ropa") — el backend la empareja contra el catálogo real de MarketPlace',
+                obligatorio: false,
             },
             {
                 nombre: 'precio',
                 tipo: 'number',
-                descripcion: 'Precio en pesos mexicanos, solo si el usuario ya lo mencionó',
+                descripcion: 'Precio en pesos mexicanos — obligatorio en la práctica si modo="vendo"',
+                obligatorio: false,
+            },
+        ],
+    },
+    {
+        nombre: 'crear_publicacion_servicio',
+        descripcion:
+            'Arma el borrador de una publicación de Servicios (Ofrezco un servicio/oficio o busco empleo, o Solicito contratar/necesito ayuda) para que el usuario la revise y publique él mismo. Requiere el modo y un título corto. ANTES de ejecutarla, si el usuario solo dio el nombre del servicio (ej. "ofrezco clases de guitarra") sin ninguna característica más, pregúntale AL MENOS un dato útil para la descripción (experiencia, zona donde atiende, horarios, qué incluye, etc. — MODO CONSULTOR, una pregunta a la vez) antes de armar el borrador; si ya te dio detalle suficiente en su mensaje, no hace falta preguntar más y puedes ejecutar directo. LÍMITE REAL (no la sobre-prometas): NUNCA puedes agregar fotos — eso lo sube el usuario en el formulario.',
+        parametros: [
+            {
+                nombre: 'modo',
+                tipo: 'string',
+                descripcion: '"ofrezco" si el usuario tiene un servicio que dar o busca empleo, "solicito" si necesita contratar/le urge un servicio',
+                obligatorio: true,
+                enumValues: ['ofrezco', 'solicito'],
+            },
+            {
+                nombre: 'descripcionServicio',
+                tipo: 'string',
+                descripcion: 'Lo que el usuario dijo que ofrece o necesita, en pocas palabras — se usa como TÍTULO corto',
+                obligatorio: true,
+            },
+            {
+                nombre: 'descripcion',
+                tipo: 'string',
+                descripcion: 'Descripción breve (2-4 frases) redactada por ti a partir de lo que el usuario contó en la conversación (experiencia, zona, horarios, qué incluye, etc.). Solo inclúyela si el usuario dio algo de detalle más allá del título — nunca inventes datos que no mencionó.',
+                obligatorio: false,
+            },
+            {
+                nombre: 'presupuesto',
+                tipo: 'number',
+                descripcion: 'Tarifa o presupuesto en pesos mexicanos, solo si el usuario ya lo mencionó',
                 obligatorio: false,
             },
         ],
