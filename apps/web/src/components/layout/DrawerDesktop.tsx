@@ -616,4 +616,62 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
   );
 }
 
+// =============================================================================
+// WRAPPER ANCLADO — se monta desde `MainLayout` (no anidado en `Navbar`) para
+// que el popover no quede atrapado en el stacking context del header
+// (`z-50`) y pueda mostrarse por encima de overlays globales como el
+// Asistente Coyo (`z-[60]`). Mismo patrón que `PanelNotificaciones.PanelDesktop`:
+// posición calculada en vivo desde el botón real (marcado con
+// `data-avatar-drawer-boton`), recalculada en resize.
+// =============================================================================
+
+function calcularPosicionDrawerDesktop(): { top: number; right: number } | null {
+  const btn = document.querySelector<HTMLElement>('button[data-avatar-drawer-boton="true"]');
+  if (!btn) return null;
+  const rect = btn.getBoundingClientRect();
+  return {
+    top: rect.bottom + 8,
+    right: Math.max(8, window.innerWidth - rect.right),
+  };
+}
+
+interface DrawerDesktopAncladoProps {
+  onClose: () => void;
+}
+
+export function DrawerDesktopAnclado({ onClose }: DrawerDesktopAncladoProps) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [posicion, setPosicion] = useState(() => calcularPosicionDrawerDesktop());
+
+  useEffect(() => {
+    const recalcular = () => setPosicion(calcularPosicionDrawerDesktop());
+    window.addEventListener('resize', recalcular);
+    return () => window.removeEventListener('resize', recalcular);
+  }, []);
+
+  // Click fuera cierra (ignora el propio botón de avatar del Navbar)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('button[data-avatar-drawer-boton="true"]')) return;
+      if (wrapRef.current && !wrapRef.current.contains(target)) onClose();
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onClose]);
+
+  if (!posicion) return null;
+
+  return (
+    <div ref={wrapRef} className="fixed z-75" style={{ top: posicion.top, right: posicion.right }}>
+      <DrawerDesktop onClose={onClose} />
+    </div>
+  );
+}
+
 export default DrawerDesktop;

@@ -44,7 +44,6 @@ import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useEsCiudadUnica } from '../../hooks/queries/useCiudades';
-import { DrawerDesktop } from './DrawerDesktop';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -137,10 +136,8 @@ export const Navbar = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   // ESTADO LOCAL Y REFS
   // ─────────────────────────────────────────────────────────────────────────────
-  const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [buscadorExpandido, setBuscadorExpandido] = useState(false);
   const [inputVisible, setInputVisible] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const buscadorRef = useRef<HTMLDivElement>(null);
   const inputBuscadorRef = useRef<HTMLInputElement>(null);
 
@@ -174,25 +171,6 @@ export const Navbar = () => {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // EFFECT: Cerrar dropdown al hacer click en cualquier parte fuera
-  // ─────────────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!dropdownAbierto) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownAbierto(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [dropdownAbierto]);
-
-  // ─────────────────────────────────────────────────────────────────────────────
   // EFFECT: Cerrar buscador al hacer click fuera
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -220,6 +198,7 @@ export const Navbar = () => {
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
   const toggleChatYA = useUiStore((state) => state.toggleChatYA);
   const toggleAsistenteCoyo = useUiStore((state) => state.toggleAsistenteCoyo);
+  const toggleAvatarDrawer = useUiStore((state) => state.toggleAvatarDrawer);
   // GPS Store
   const ciudad = useGpsStore((state) => state.ciudad);
   const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);
@@ -756,10 +735,15 @@ export const Navbar = () => {
                 )}
               </button>
 
-              {/* Avatar con Dropdown — círculo glass alineado con el resto */}
-              <div className="relative" ref={dropdownRef}>
+              {/* Avatar con Dropdown — círculo glass alineado con el resto.
+                  El popover (DrawerDesktopAnclado) se monta desde MainLayout,
+                  no aquí — ver comentario ahí sobre por qué (stacking context
+                  del header). */}
+              <div className="relative">
                 <button
-                  onClick={() => setDropdownAbierto(!dropdownAbierto)}
+                  data-testid="nav-avatar-boton"
+                  data-avatar-drawer-boton="true"
+                  onClick={toggleAvatarDrawer}
                   className="
                     w-7 h-7 lg:w-10 lg:h-10 2xl:w-10 2xl:h-10
                     bg-white/10 hover:bg-white/20
@@ -785,15 +769,6 @@ export const Navbar = () => {
                     usuarioInicial
                   )}
                 </button>
-
-                {/* Drawer Desktop — popover de perfil (ver DrawerDesktop.tsx).
-                    Wrapper absolute para anclarlo al avatar; el componente
-                    interno tiene su propia animación de entrada. */}
-                {dropdownAbierto && (
-                  <div className="absolute right-0 top-full mt-2 z-40">
-                    <DrawerDesktop onClose={() => setDropdownAbierto(false)} />
-                  </div>
-                )}
               </div>
             </div>
           </div>

@@ -32,6 +32,7 @@ import { MobileHeader } from './MobileHeader';
 import { Navbar } from './Navbar';
 import { BottomNav } from './BottomNav';
 import { MenuDrawer } from './MenuDrawer';
+import { DrawerDesktopAnclado } from './DrawerDesktop';
 import { ModalUbicacion } from './ModalUbicacion';
 import { ChatOverlay } from './ChatOverlay';
 import { PanelAsistenteCoyo } from '../asistente/PanelAsistenteCoyo';
@@ -122,6 +123,8 @@ export function MainLayout() {
 
   const menuDrawerAbierto = useUiStore((state) => state.menuDrawerAbierto);
   const cerrarMenuDrawer = useUiStore((state) => state.cerrarMenuDrawer);
+  const avatarDrawerAbierto = useUiStore((state) => state.avatarDrawerAbierto);
+  const cerrarAvatarDrawer = useUiStore((state) => state.cerrarAvatarDrawer);
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
 
   const modalUbicacionAbierto = useUiStore((state) => state.modalUbicacionAbierto);
@@ -514,6 +517,9 @@ export function MainLayout() {
           <ChatOverlay />
           <PanelAsistenteCoyo />
           <PanelNotificaciones />
+          {esDesktop && avatarDrawerAbierto && (
+            <DrawerDesktopAnclado onClose={cerrarAvatarDrawer} />
+          )}
           <ModalPagoPublicidad />
           <BannerActivarPush />
 

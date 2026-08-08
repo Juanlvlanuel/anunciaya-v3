@@ -50,6 +50,12 @@ interface UiState {
   // Estado - Menu Drawer (móvil)
   menuDrawerAbierto: boolean;
 
+  // Estado - Drawer de perfil (desktop, popover del avatar en el Navbar).
+  // Se monta desde `MainLayout` (no anidado en Navbar) para que su z-index
+  // no quede atrapado en el stacking context del header — mismo patrón que
+  // `PanelNotificaciones`.
+  avatarDrawerAbierto: boolean;
+
   // Estado - Asistente Coyo (FAB global)
   asistenteCoyoAbierto: boolean;
 
@@ -110,6 +116,11 @@ interface UiState {
   cerrarMenuDrawer: () => void;
   toggleMenuDrawer: () => void;
 
+  // Acciones - Drawer de perfil (desktop)
+  abrirAvatarDrawer: () => void;
+  cerrarAvatarDrawer: () => void;
+  toggleAvatarDrawer: () => void;
+
   // Acciones - Asistente Coyo
   abrirAsistenteCoyo: () => void;
   cerrarAsistenteCoyo: () => void;
@@ -150,6 +161,7 @@ export const useUiStore = create<UiState>((set) => ({
   datos2FA: null,
   modalUbicacionAbierto: false,
   menuDrawerAbierto: false,
+  avatarDrawerAbierto: false,
   asistenteCoyoAbierto: false,
   chatYAAbierto: false,
   chatYAMinimizado: false,
@@ -254,6 +266,22 @@ export const useUiStore = create<UiState>((set) => ({
 
   toggleMenuDrawer: () => {
     set((state) => ({ menuDrawerAbierto: !state.menuDrawerAbierto }));
+  },
+
+  // ---------------------------------------------------------------------------
+  // ACCIONES: Drawer de perfil (desktop)
+  // ---------------------------------------------------------------------------
+
+  abrirAvatarDrawer: () => {
+    set({ avatarDrawerAbierto: true });
+  },
+
+  cerrarAvatarDrawer: () => {
+    set({ avatarDrawerAbierto: false });
+  },
+
+  toggleAvatarDrawer: () => {
+    set((state) => ({ avatarDrawerAbierto: !state.avatarDrawerAbierto }));
   },
 
   // ---------------------------------------------------------------------------
@@ -449,6 +477,7 @@ export const useUiStore = create<UiState>((set) => ({
       modalLoginAbierto: false,
       modalUbicacionAbierto: false,
       menuDrawerAbierto: false,
+      avatarDrawerAbierto: false,
       asistenteCoyoAbierto: false,
       chatYAAbierto: false,
       chatYAMinimizado: false,
