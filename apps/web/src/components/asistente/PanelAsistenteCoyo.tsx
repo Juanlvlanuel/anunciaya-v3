@@ -68,6 +68,7 @@ export function PanelAsistenteCoyo() {
     const silenciado = useAsistenteCoyoStore((s) => s.silenciado);
     const hidratarDesdeStorage = useAsistenteCoyoStore((s) => s.hidratarDesdeStorage);
     const agregarMensaje = useAsistenteCoyoStore((s) => s.agregarMensaje);
+    const actualizarMensaje = useAsistenteCoyoStore((s) => s.actualizarMensaje);
     const vaciarChat = useAsistenteCoyoStore((s) => s.vaciarChat);
     const toggleSilenciado = useAsistenteCoyoStore((s) => s.toggleSilenciado);
 
@@ -147,15 +148,19 @@ export function PanelAsistenteCoyo() {
     }, [menuFotoAbierto]);
 
     /**
-     * Analiza la foto y RECIÉN entonces agrega el mensaje del usuario — el
-     * `texto` del mensaje ES el resumen del análisis (no un texto genérico),
-     * porque `construirHistorial()` arma el contexto de turnos futuros leyendo
-     * `mensajes[].texto`. Si el resumen no quedara ahí, Coyo perdería los
-     * datos detectados (título/descripción/categoría) en cuanto el usuario
-     * respondiera el siguiente turno (ej. el precio) — ver bug detectado en
-     * pruebas. La burbuja igual muestra la imagen, no el texto (JSX de abajo).
+     * Muestra la burbuja de la foto AL INSTANTE (apenas termina de subirse a
+     * R2 — no espera al análisis de Gemini, que es lo más lento del proceso).
+     * El texto del mensaje arranca genérico y se RELLENA después, cuando el
+     * análisis responde, con `actualizarMensaje` — la burbuja no se ve
+     * afectada (muestra la imagen, no el texto, ver JSX de abajo) pero el
+     * texto real SÍ debe quedar ahí antes del siguiente turno, porque
+     * `construirHistorial()` arma el contexto leyendo `mensajes[].texto` — si
+     * se quedara con el genérico, Coyo perdería los datos detectados
+     * (título/descripción/categoría) en cuanto el usuario respondiera el
+     * siguiente turno (ej. el precio) — ver bug detectado en pruebas.
      */
     function analizarFotoYEnviar(foto: ArchivoFoto) {
+        const idMensaje = agregarMensaje({ rol: 'usuario', texto: '📷 Foto adjunta', imagenUrl: foto.url });
         sugerirArticuloMutation.mutate(foto.url, {
             onSuccess: (data) => {
                 let resumen: string;
@@ -168,12 +173,12 @@ export function PanelAsistenteCoyo() {
                 } else {
                     resumen = '[Foto adjunta] Quiero vender este artículo — no se distinguieron detalles claros en la foto, pregúntame lo que necesites.';
                 }
-                agregarMensaje({ rol: 'usuario', texto: resumen, imagenUrl: foto.url });
+                actualizarMensaje(idMensaje, { texto: resumen });
                 enviarTurno({ texto: resumen }, false);
             },
             onError: () => {
                 const resumen = '[Foto adjunta] Quiero vender este artículo — pregúntame lo que necesites.';
-                agregarMensaje({ rol: 'usuario', texto: resumen, imagenUrl: foto.url });
+                actualizarMensaje(idMensaje, { texto: resumen });
                 enviarTurno({ texto: resumen }, false);
             },
         });
@@ -457,10 +462,10 @@ export function PanelAsistenteCoyo() {
                         <div key={m.id} className={`flex ${m.rol === 'usuario' ? 'justify-end' : 'justify-start'}`}>
                             <div
                                 data-testid={`asistente-mensaje-${m.rol}`}
-                                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-[14px] leading-snug ${
+                                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-[14px] font-medium leading-snug ${
                                     m.rol === 'usuario'
                                         ? 'bg-slate-800 text-white'
-                                        : 'border border-amber-200 bg-amber-50 text-slate-800'
+                                        : 'border border-amber-300 bg-amber-50 text-slate-800'
                                 }`}
                             >
                                 {m.imagenUrl ? (
@@ -569,12 +574,12 @@ export function PanelAsistenteCoyo() {
                                     data-testid="asistente-btn-foto"
                                     aria-label="Adjuntar foto"
                                     onClick={() => setMenuFotoAbierto((v) => !v)}
-                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200"
+                                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-700 lg:h-11 lg:w-11 lg:cursor-pointer lg:hover:bg-slate-300"
                                 >
-                                    <Camera className="h-5 w-5" />
+                                    <Camera className="h-6 w-6 lg:h-5 lg:w-5" />
                                 </button>
                                 {menuFotoAbierto && (
-                                    <div className="absolute bottom-full left-0 mb-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                    <div className="absolute bottom-full left-0 mb-2 w-56 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-lg lg:w-44">
                                         <button
                                             type="button"
                                             data-testid="asistente-foto-tomar"
@@ -582,9 +587,9 @@ export function PanelAsistenteCoyo() {
                                                 setMenuFotoAbierto(false);
                                                 fotosUploader.abrirCamara();
                                             }}
-                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-slate-700 lg:cursor-pointer lg:hover:bg-slate-50"
+                                            className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-[15px] font-medium text-slate-700 lg:gap-2 lg:px-3 lg:py-2.5 lg:text-[13px] lg:cursor-pointer lg:hover:bg-slate-50"
                                         >
-                                            <Camera className="h-4 w-4" /> Tomar foto
+                                            <Camera className="h-5 w-5 lg:h-4 lg:w-4" /> Tomar foto
                                         </button>
                                         <button
                                             type="button"
@@ -593,9 +598,9 @@ export function PanelAsistenteCoyo() {
                                                 setMenuFotoAbierto(false);
                                                 fotosUploader.abrirGaleria();
                                             }}
-                                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-slate-700 lg:cursor-pointer lg:hover:bg-slate-50"
+                                            className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-[15px] font-medium text-slate-700 lg:gap-2 lg:px-3 lg:py-2.5 lg:text-[13px] lg:cursor-pointer lg:hover:bg-slate-50"
                                         >
-                                            <ImageIcon className="h-4 w-4" /> Elegir de galería
+                                            <ImageIcon className="h-5 w-5 lg:h-4 lg:w-4" /> Elegir de galería
                                         </button>
                                     </div>
                                 )}
@@ -611,26 +616,22 @@ export function PanelAsistenteCoyo() {
                                     if (e.key === 'Enter') handleEnviarTexto();
                                 }}
                                 placeholder="Escribe o graba tu mensaje"
-                                className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-[14px] text-slate-800 outline-none placeholder:text-slate-400"
+                                className="min-w-0 flex-1 rounded-full border border-slate-300 bg-slate-50 px-4 py-3 text-[15px] font-medium text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400 lg:px-3.5 lg:py-2 lg:text-[14px]"
                             />
+                            {/* Un solo botón mic/enviar (como WhatsApp): mic por default, cambia a enviar en cuanto hay texto. */}
                             <button
                                 type="button"
-                                data-testid="asistente-btn-mic"
-                                aria-label="Grabar mensaje de voz"
-                                onClick={handleClickMic}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200"
+                                data-testid={texto.trim() ? 'asistente-btn-enviar' : 'asistente-btn-mic'}
+                                aria-label={texto.trim() ? 'Enviar' : 'Grabar mensaje de voz'}
+                                onClick={texto.trim() ? handleEnviarTexto : handleClickMic}
+                                disabled={!!texto.trim() && interpretarMutation.isPending}
+                                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40 lg:h-11 lg:w-11 lg:cursor-pointer ${
+                                    texto.trim()
+                                        ? 'bg-amber-600 text-white lg:hover:bg-amber-700'
+                                        : 'bg-slate-200 text-slate-700 lg:hover:bg-slate-300'
+                                }`}
                             >
-                                <Mic className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                data-testid="asistente-btn-enviar"
-                                aria-label="Enviar"
-                                onClick={handleEnviarTexto}
-                                disabled={!texto.trim() || interpretarMutation.isPending}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white disabled:cursor-not-allowed disabled:opacity-40 lg:cursor-pointer lg:hover:bg-amber-700"
-                            >
-                                <Send className="h-5 w-5" />
+                                {texto.trim() ? <Send className="h-6 w-6 lg:h-5 lg:w-5" /> : <Mic className="h-6 w-6 lg:h-5 lg:w-5" />}
                             </button>
                         </>
                     )}

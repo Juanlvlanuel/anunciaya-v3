@@ -43,7 +43,10 @@ interface AsistenteCoyoState {
     silenciado: boolean;
     hidratado: boolean;
     hidratarDesdeStorage: () => void;
-    agregarMensaje: (mensaje: Omit<MensajeAsistenteCoyo, 'id' | 'timestamp'>) => void;
+    /** Devuelve el `id` del mensaje creado — permite actualizarlo después (ver `actualizarMensaje`), ej. para mostrar una foto al instante y rellenar el texto real cuando termine de analizarse. */
+    agregarMensaje: (mensaje: Omit<MensajeAsistenteCoyo, 'id' | 'timestamp'>) => string;
+    /** Actualiza campos de un mensaje ya agregado (por id) — no cambia su posición ni timestamp. */
+    actualizarMensaje: (id: string, cambios: Partial<Omit<MensajeAsistenteCoyo, 'id' | 'timestamp'>>) => void;
     vaciarChat: () => void;
     toggleSilenciado: () => void;
 }
@@ -103,13 +106,23 @@ export const useAsistenteCoyoStore = create<AsistenteCoyoState>((set, get) => ({
     },
 
     agregarMensaje: (mensaje) => {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         set((state) => {
             const nuevo: MensajeAsistenteCoyo = {
                 ...mensaje,
-                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                id,
                 timestamp: Date.now(),
             };
             const mensajes = [...state.mensajes, nuevo];
+            guardarMensajes(mensajes);
+            return { mensajes };
+        });
+        return id;
+    },
+
+    actualizarMensaje: (id, cambios) => {
+        set((state) => {
+            const mensajes = state.mensajes.map((m) => (m.id === id ? { ...m, ...cambios } : m));
             guardarMensajes(mensajes);
             return { mensajes };
         });
