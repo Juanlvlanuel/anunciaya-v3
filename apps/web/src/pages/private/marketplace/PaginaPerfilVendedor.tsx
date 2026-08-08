@@ -178,6 +178,11 @@ export function PaginaPerfilVendedor() {
         searchParams.get('tab') === 'dinamicas' ? 'dinamicas' : 'marketplace',
     );
     const [subFiltroMP, setSubFiltroMP] = useState<'activa' | 'vendida'>('activa');
+    // Sub-filtro del grupo Dinámicas — mismo patrón que subFiltroMP, pero
+    // client-side: a diferencia de MP (server-side por `subFiltroMP`), acá
+    // ya tenemos las Dinámicas completas en una sola query (sin paginar por
+    // estado), así que separar Activas/Cerradas es un filter() local.
+    const [subFiltroDinamicas, setSubFiltroDinamicas] = useState<'activa' | 'cerrada'>('activa');
     const [accionBloqueoEnCurso, setAccionBloqueoEnCurso] = useState(false);
     const [accionContactoEnCurso, setAccionContactoEnCurso] = useState(false);
 
@@ -206,6 +211,13 @@ export function PaginaPerfilVendedor() {
         (dinamicasOrganizador.dinamicas.length > 0 ||
             dinamicasOrganizador.insignia.completadas > 0 ||
             dinamicasOrganizador.insignia.canceladas > 0);
+
+    // "Activas" agrupa todo lo que sigue en curso (activa/pospuesta/en_sorteo);
+    // "Cerradas" es solo lo ya resuelto. `cancelada` nunca llega a esta lista
+    // (ver `listarDinamicasDeOrganizador` sin `incluirCanceladas`).
+    const dinamicasActivas = dinamicasOrganizador?.dinamicas.filter((d) => d.estado !== 'cerrada') ?? [];
+    const dinamicasCerradas = dinamicasOrganizador?.dinamicas.filter((d) => d.estado === 'cerrada') ?? [];
+    const dinamicasFiltradas = subFiltroDinamicas === 'activa' ? dinamicasActivas : dinamicasCerradas;
 
     // Si la persona NO tiene publicaciones/ventas pero sí organiza
     // Dinámicas, el grupo por defecto ('marketplace') no existiría — cambia
@@ -559,22 +571,43 @@ export function PaginaPerfilVendedor() {
                                 </div>
                             )}
 
+                            {grupoActivo === 'dinamicas' && (
+                                <div className="mt-3 flex items-center gap-2">
+                                    <ChipSubFiltro
+                                        activo={subFiltroDinamicas === 'activa'}
+                                        label="Activas"
+                                        count={dinamicasActivas.length}
+                                        onClick={() => setSubFiltroDinamicas('activa')}
+                                        testId="subfiltro-dinamicas-activas"
+                                    />
+                                    <ChipSubFiltro
+                                        activo={subFiltroDinamicas === 'cerrada'}
+                                        label="Cerradas"
+                                        count={dinamicasCerradas.length}
+                                        onClick={() => setSubFiltroDinamicas('cerrada')}
+                                        testId="subfiltro-dinamicas-cerradas"
+                                    />
+                                </div>
+                            )}
+
                             <div className="mt-4 lg:mt-2">
                                 {grupoActivo === 'dinamicas' ? (
                                     cargandoDinamicas && !dinamicasOrganizador ? (
                                         <div className="flex min-h-40 items-center justify-center">
                                             <Spinner tamanio="md" />
                                         </div>
-                                    ) : !dinamicasOrganizador || dinamicasOrganizador.dinamicas.length === 0 ? (
+                                    ) : dinamicasFiltradas.length === 0 ? (
                                         <p className="py-16 text-center text-base text-slate-600">
-                                            No hay Dinámicas activas en este momento.
+                                            {subFiltroDinamicas === 'activa'
+                                                ? 'No hay Dinámicas activas en este momento.'
+                                                : 'Todavía no hay Dinámicas cerradas.'}
                                         </p>
                                     ) : (
                                         <div
                                             data-testid="grid-dinamicas"
                                             className="grid grid-cols-2 items-start gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4"
                                         >
-                                            {dinamicasOrganizador.dinamicas.map((d) => (
+                                            {dinamicasFiltradas.map((d) => (
                                                 <CardDinamicaCompacta key={d.id} dinamica={d} />
                                             ))}
                                         </div>

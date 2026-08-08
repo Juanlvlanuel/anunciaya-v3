@@ -21,6 +21,7 @@ import { describe, it, expect } from 'vitest';
 import { puedeTransicionar, TRANSICIONES_VALIDAS, type EstadoDinamica } from '../services/dinamicas/estados';
 import { esErrorBoletoDuplicado } from '../services/dinamicas/errores';
 import { validarTextoDinamica } from '../services/dinamicas/filtros';
+import { ejecutarSorteo, calcularHashVerificacion, type BoletoParaSorteo } from '../services/dinamicas/sorteo';
 import {
     crearDinamicaSchema,
     editarBorradorDinamicaSchema,
@@ -430,5 +431,96 @@ describe('agregarParticipanteManualSchema', () => {
             telefonoManual: '6381234567',
         });
         expect(r.success).toBe(false);
+    });
+});
+
+// =============================================================================
+// 7. MOTOR DE SORTEO (Fase 4.1)
+// =============================================================================
+
+describe('ejecutarSorteo — determinismo y reglas de cascada', () => {
+    const pool: BoletoParaSorteo[] = Array.from({ length: 20 }, (_, i) => ({
+        id: `boleto-${i + 1}`,
+        numeroBoleto: i + 1,
+    }));
+    const SEMILLA_FIJA = 'semilla-de-prueba-reproducible';
+
+    it('es reproducible: misma semilla + mismo pool → mismo resultado', () => {
+        const r1 = ejecutarSorteo(pool, SEMILLA_FIJA, 5, 3);
+        const r2 = ejecutarSorteo(pool, SEMILLA_FIJA, 5, 3);
+        expect(r1.intentos.map((i) => i.boleto.numeroBoleto)).toEqual(
+            r2.intentos.map((i) => i.boleto.numeroBoleto)
+        );
+        expect(r1.ganadores.map((g) => g.boleto.numeroBoleto)).toEqual(
+            r2.ganadores.map((g) => g.boleto.numeroBoleto)
+        );
+    });
+
+    it('produce exactamente N intentos sin boletos repetidos', () => {
+        const r = ejecutarSorteo(pool, SEMILLA_FIJA, 8, 2);
+        expect(r.intentos).toHaveLength(8);
+        const numeros = r.intentos.map((i) => i.boleto.numeroBoleto);
+        expect(new Set(numeros).size).toBe(8);
+    });
+
+    it('marca ganadores solo en los últimos K intentos, en orden inverso (cascada)', () => {
+        const r = ejecutarSorteo(pool, SEMILLA_FIJA, 5, 3);
+        expect(r.ganadores).toHaveLength(3);
+        // intento 5 (el último) es el 1er lugar (premio grande, revelado al final)
+        expect(r.intentos[4].esGanador).toBe(true);
+        expect(r.intentos[4].lugar).toBe(1);
+        // intento 4 es el 2do lugar
+        expect(r.intentos[3].esGanador).toBe(true);
+        expect(r.intentos[3].lugar).toBe(2);
+        // intento 3 es el 3er lugar
+        expect(r.intentos[2].esGanador).toBe(true);
+        expect(r.intentos[2].lugar).toBe(3);
+        // los primeros 2 intentos NO son ganadores
+        expect(r.intentos[0].esGanador).toBe(false);
+        expect(r.intentos[1].esGanador).toBe(false);
+        // ganadores[] viene ordenado por lugar ascendente (1ro, 2do, 3ro)
+        expect(r.ganadores.map((g) => g.lugar)).toEqual([1, 2, 3]);
+    });
+
+    it('con K=1 solo hay un ganador y es el último intento', () => {
+        const r = ejecutarSorteo(pool, SEMILLA_FIJA, 6, 1);
+        expect(r.ganadores).toHaveLength(1);
+        expect(r.ganadores[0].numeroIntento).toBe(6);
+        expect(r.ganadores[0].lugar).toBe(1);
+    });
+
+    it('RECHAZA numeroIntentos mayor al tamaño del pool', () => {
+        expect(() => ejecutarSorteo(pool, SEMILLA_FIJA, 999, 1)).toThrow();
+    });
+
+    it('RECHAZA numeroLugares mayor a numeroIntentos', () => {
+        expect(() => ejecutarSorteo(pool, SEMILLA_FIJA, 3, 5)).toThrow();
+    });
+
+    it('semillas distintas producen resultados distintos (con probabilidad práctica)', () => {
+        const r1 = ejecutarSorteo(pool, 'semilla-a', 5, 1);
+        const r2 = ejecutarSorteo(pool, 'semilla-b', 5, 1);
+        expect(r1.ganadores[0].boleto.numeroBoleto).not.toBe(r2.ganadores[0].boleto.numeroBoleto);
+    });
+});
+
+describe('calcularHashVerificacion — auditable por cualquiera', () => {
+    const pool: BoletoParaSorteo[] = Array.from({ length: 10 }, (_, i) => ({
+        id: `boleto-${i + 1}`,
+        numeroBoleto: i + 1,
+    }));
+
+    it('el mismo sorteo produce siempre el mismo hash', () => {
+        const r = ejecutarSorteo(pool, 'semilla-hash-test', 4, 2);
+        const hash1 = calcularHashVerificacion('dinamica-123', 'semilla-hash-test', r.intentos);
+        const hash2 = calcularHashVerificacion('dinamica-123', 'semilla-hash-test', r.intentos);
+        expect(hash1).toBe(hash2);
+    });
+
+    it('cambiar la dinamicaId cambia el hash (no se puede reusar entre rifas)', () => {
+        const r = ejecutarSorteo(pool, 'semilla-hash-test', 4, 2);
+        const hashA = calcularHashVerificacion('dinamica-A', 'semilla-hash-test', r.intentos);
+        const hashB = calcularHashVerificacion('dinamica-B', 'semilla-hash-test', r.intentos);
+        expect(hashA).not.toBe(hashB);
     });
 });

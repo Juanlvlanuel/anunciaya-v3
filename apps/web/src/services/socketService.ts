@@ -175,6 +175,42 @@ export function conectarSocket(): void {
 }
 
 /**
+ * Conecta al servidor de Socket.io SIN exigir sesión — para visitantes
+ * anónimos de la sala en vivo de Dinámicas (Fase 4.1) desde la ficha
+ * pública (`PaginaDinamicaPublica.tsx`). El backend (`socket.ts`) acepta
+ * conexiones sin token como invitado, en modo lectura.
+ *
+ * Si el usuario SÍ tiene sesión, sigue usando `conectarSocket()` (ya se
+ * llama desde el layout autenticado con el token completo) — esta función
+ * es solo el camino de invitado, comparte el mismo socket singleton.
+ */
+export function conectarSocketInvitado(): void {
+  if (socket && (socket.connected || socket.active)) {
+    return;
+  }
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
+
+  socket = io(SOCKET_URL, {
+    transports: ['websocket', 'polling'],
+    withCredentials: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000,
+  });
+
+  for (const { evento, callback } of listenersPendientes) {
+    socket.on(evento, callback);
+  }
+
+  socket.on('disconnect', () => { });
+}
+
+/**
  * Escucha un evento del servidor.
  *
  * Si el socket ya existe: registra el listener directamente.

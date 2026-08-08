@@ -40,6 +40,7 @@ import {
     CalendarClock,
     Scale,
     Copy,
+    Trophy,
 } from 'lucide-react';
 import {
     useComposerDinamicas,
@@ -148,6 +149,8 @@ function dinamicaAlDraft(d: Dinamica): Partial<ComposerDinamicasDraft> {
         precioBoleto: d.precioBoleto ?? '',
         fechaLimiteInscripcion: d.fechaLimiteInscripcion ?? '',
         reglaDesempate: d.reglaDesempate,
+        numeroLugaresGanadores: String(d.numeroLugaresGanadores),
+        numeroIntentosSorteo: d.numeroIntentosSorteo !== null ? String(d.numeroIntentosSorteo) : '',
     };
 }
 
@@ -329,6 +332,8 @@ export function ComposerDinamicas({
             precioBoleto: draft.precioBoleto ? Number(draft.precioBoleto) : undefined,
             fechaLimiteInscripcion: draft.fechaLimiteInscripcion || undefined,
             reglaDesempate: draft.reglaDesempate ?? undefined,
+            numeroLugaresGanadores: draft.numeroLugaresGanadores ? Number(draft.numeroLugaresGanadores) : undefined,
+            numeroIntentosSorteo: draft.numeroIntentosSorteo ? Number(draft.numeroIntentosSorteo) : undefined,
         };
     }
 
@@ -744,9 +749,12 @@ export function ComposerDinamicas({
                     {seccionAbierta === 'boletos' && (
                         <div className="mt-3">
                             <PanelWrapper titulo="Boletos">
-                                <div className="flex items-center gap-2">
-                                    <div className="relative w-44 shrink-0">
-                                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" strokeWidth={2} />
+                                {/* Los 3 en la misma línea siempre — en móvil se reparten el
+                                    ancho a partes iguales (`flex-1`) para no desbordar el
+                                    composer; en `lg:` recuperan su ancho fijo original. */}
+                                <div className="flex items-center gap-1.5 lg:gap-2">
+                                    <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
+                                        <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
                                         <input
                                             type="text"
                                             inputMode="numeric"
@@ -754,11 +762,11 @@ export function ComposerDinamicas({
                                             value={draft.numeroBoletoInicial}
                                             onChange={(e) => actualizar({ numeroBoletoInicial: e.target.value.replace(/[^\d]/g, '') })}
                                             placeholder="Empieza en"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white pl-9 pr-3 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 font-semibold outline-none tabular-nums"
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
                                         />
                                     </div>
-                                    <div className="relative w-44 shrink-0">
-                                        <Ticket className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" strokeWidth={2} />
+                                    <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
+                                        <Ticket className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
                                         <input
                                             type="text"
                                             inputMode="numeric"
@@ -766,7 +774,19 @@ export function ComposerDinamicas({
                                             value={draft.numeroTotalBoletos}
                                             onChange={(e) => actualizar({ numeroTotalBoletos: e.target.value.replace(/[^\d]/g, '') })}
                                             placeholder="Total"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white pl-9 pr-3 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 font-semibold outline-none tabular-nums"
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                        />
+                                    </div>
+                                    <div className="relative min-w-0 flex-1 lg:w-40 lg:flex-none lg:shrink-0">
+                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-500 lg:left-3.5 lg:text-[15px]">$</span>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            data-testid="composer-dinamicas-precio-boleto"
+                                            value={draft.precioBoleto}
+                                            onChange={(e) => actualizar({ precioBoleto: e.target.value.replace(/[^\d.]/g, '') })}
+                                            placeholder="Precio"
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-6 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-8 lg:pr-3 lg:text-[15px]"
                                         />
                                     </div>
                                 </div>
@@ -782,24 +802,48 @@ export function ComposerDinamicas({
                                 {intentoEnvio && errores.numeroBoletoInicial && (
                                     <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroBoletoInicial}</p>
                                 )}
-
-                                <div className="mt-3 flex items-center gap-2">
-                                    <div className="relative w-40 shrink-0">
-                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-[15px]">$</span>
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            data-testid="composer-dinamicas-precio-boleto"
-                                            value={draft.precioBoleto}
-                                            onChange={(e) => actualizar({ precioBoleto: e.target.value.replace(/[^\d.]/g, '') })}
-                                            placeholder="Precio"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white pl-8 pr-3 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 font-semibold outline-none tabular-nums"
-                                        />
-                                    </div>
-                                </div>
                                 {intentoEnvio && errores.precioBoleto && (
                                     <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.precioBoleto}</p>
                                 )}
+
+                                {/* Sorteo: lugares premiados (K) + a qué intento sale el
+                                    ganador (N), en cascada — el intento N es el 1er lugar
+                                    (premio grande, se revela al final), N-1 el 2do, etc. */}
+                                <div className="mt-4 border-t border-slate-200 pt-3">
+                                    <p className="mb-2 text-[13px] font-bold text-amber-800">Sorteo</p>
+                                    <div className="flex items-center gap-1.5 lg:gap-2">
+                                        <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
+                                            <Trophy className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                data-testid="composer-dinamicas-numero-lugares-ganadores"
+                                                value={draft.numeroLugaresGanadores}
+                                                onChange={(e) => actualizar({ numeroLugaresGanadores: e.target.value.replace(/[^\d]/g, '') })}
+                                                placeholder="Lugares premiados"
+                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                            />
+                                        </div>
+                                        <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
+                                            <Dices className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                data-testid="composer-dinamicas-numero-intentos-sorteo"
+                                                value={draft.numeroIntentosSorteo}
+                                                onChange={(e) => actualizar({ numeroIntentosSorteo: e.target.value.replace(/[^\d]/g, '') })}
+                                                placeholder="Sale en el intento #"
+                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                            />
+                                        </div>
+                                    </div>
+                                    {intentoEnvio && errores.numeroLugaresGanadores && (
+                                        <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroLugaresGanadores}</p>
+                                    )}
+                                    {intentoEnvio && errores.numeroIntentosSorteo && (
+                                        <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroIntentosSorteo}</p>
+                                    )}
+                                </div>
                             </PanelWrapper>
                         </div>
                     )}
@@ -927,7 +971,13 @@ export function ComposerDinamicas({
                         Icono={Ticket}
                         label="Boletos"
                         activo={!!draft.numeroTotalBoletos && !!draft.precioBoleto}
-                        error={intentoEnvio && (!!errores.numeroTotalBoletos || !!errores.precioBoleto)}
+                        error={
+                            intentoEnvio &&
+                            (!!errores.numeroTotalBoletos ||
+                                !!errores.precioBoleto ||
+                                !!errores.numeroLugaresGanadores ||
+                                !!errores.numeroIntentosSorteo)
+                        }
                         abierto={seccionAbierta === 'boletos'}
                         onClick={() => setSeccionAbierta((s) => (s === 'boletos' ? null : 'boletos'))}
                     />

@@ -32,6 +32,7 @@ import PaginaArticuloPublico from '../pages/public/PaginaArticuloPublico';
 import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
 import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMarketplacePublico';
 import PaginaDinamicaPublica from '../pages/public/PaginaDinamicaPublica';
+import PaginaSalaDinamicaPublica from '../pages/public/PaginaSalaDinamicaPublica';
 import PaginaPublicacionNegocioPublica from '../pages/public/PaginaPublicacionNegocioPublica';
 import PaginaServicioPublico from '../pages/public/PaginaServicioPublico';
 import PaginaTutorialPublico from '../pages/public/PaginaTutorialPublico';
@@ -101,6 +102,7 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticuloMarketplace';
 import PaginaDinamica from '../pages/private/marketplace/PaginaDinamica';
+import PaginaSalaDinamica from '../pages/private/marketplace/PaginaSalaDinamica';
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
 import PaginaServicios from '../pages/private/servicios/PaginaServicios';
 import PaginaServicio from '../pages/private/servicios/PaginaServicio';
@@ -230,6 +232,10 @@ const router = createBrowserRouter([
         element: <PaginaDinamicaPublica />,
       },
       {
+        path: '/p/dinamica/:dinamicaId/sala',
+        element: <PaginaSalaDinamicaPublica />,
+      },
+      {
         path: '/p/negocio-post/:publicacionId',
         element: <PaginaPublicacionNegocioPublica />,
       },
@@ -355,6 +361,14 @@ const router = createBrowserRouter([
             element: (
               <ModoPersonalEstrictoGuard>
                 <PaginaDinamica />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          {
+            path: '/marketplace/dinamica/:dinamicaId/sala',
+            element: (
+              <ModoPersonalEstrictoGuard>
+                <PaginaSalaDinamica />
               </ModoPersonalEstrictoGuard>
             ),
           },

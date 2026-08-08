@@ -67,6 +67,13 @@ export interface ComposerDinamicasDraft {
     fechaLimiteInscripcion: string;
     /** Solo relevante si metodoSorteo === 'tabla_completa'. */
     reglaDesempate: ReglaDesempate | null;
+    /** K = cuántos lugares premiados hay — default '1' (mismo criterio que
+     *  numeroBoletoInicial: casi siempre es 1, se pide solo si cambia). */
+    numeroLugaresGanadores: string;
+    /** N = a qué intento (bola sin reemplazo) sale cada lugar, en cascada
+     *  — el intento N es el 1er lugar, N-1 el 2do, etc. Sin default: cada
+     *  rifa tiene un total de boletos distinto. */
+    numeroIntentosSorteo: string;
 
     // Ciudad — viene del GPS, se siembra automáticamente (mismo patrón que
     // MarketPlace/Servicios). Filtra el feed hiperlocal (Fase 3).
@@ -89,10 +96,16 @@ const DRAFT_INICIAL: ComposerDinamicasDraft = {
     tipoPremio: null,
     metodoSorteo: null,
     numeroTotalBoletos: '',
-    numeroBoletoInicial: '1',
+    // Vacíos por default (no '1') — aunque casi siempre valen 1, un input
+    // pre-llenado tapa el placeholder y no se entiende de qué se trata a
+    // simple vista. Se quedan opcionales en la validación de abajo: vacío
+    // = válido, el backend aplica su default de 1 igual.
+    numeroBoletoInicial: '',
     precioBoleto: '',
     fechaLimiteInscripcion: '',
     reglaDesempate: null,
+    numeroLugaresGanadores: '',
+    numeroIntentosSorteo: '',
     ciudad: null,
     confirmaciones: {
         premioReal: false,
@@ -163,10 +176,12 @@ export function draftEstaIntacto(d: ComposerDinamicasDraft): boolean {
         d.tipoPremio === null &&
         d.metodoSorteo === null &&
         d.numeroTotalBoletos === '' &&
-        d.numeroBoletoInicial === '1' &&
+        d.numeroBoletoInicial === '' &&
         d.precioBoleto === '' &&
         d.fechaLimiteInscripcion === '' &&
         d.reglaDesempate === null &&
+        d.numeroLugaresGanadores === '' &&
+        d.numeroIntentosSorteo === '' &&
         d.ciudad === null &&
         !d.confirmaciones.premioReal &&
         !d.confirmaciones.pagoFueraApp &&
@@ -188,6 +203,8 @@ export type CampoErrorComposerDinamica =
     | 'numeroBoletoInicial'
     | 'precioBoleto'
     | 'fechaLimiteInscripcion'
+    | 'numeroLugaresGanadores'
+    | 'numeroIntentosSorteo'
     | 'ciudad';
 
 export type ErroresComposerDinamica = Partial<Record<CampoErrorComposerDinamica, string>>;
@@ -231,8 +248,10 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         errores.numeroTotalBoletos = 'Escribe el número total de boletos.';
     }
 
-    if (parseEnteroPositivo(d.numeroBoletoInicial) === null) {
-        errores.numeroBoletoInicial = 'Escribe con qué número arrancan los boletos.';
+    // Vacío = válido (el backend lo deja en su default de 1) — solo error
+    // si el usuario escribió algo y no es un entero positivo.
+    if (d.numeroBoletoInicial !== '' && parseEnteroPositivo(d.numeroBoletoInicial) === null) {
+        errores.numeroBoletoInicial = 'El número inicial debe ser mayor a 0.';
     }
 
     if (parseDecimalPositivo(d.precioBoleto) === null) {
@@ -243,6 +262,30 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         errores.fechaLimiteInscripcion = 'Elige la fecha límite de inscripción.';
     } else if (new Date(d.fechaLimiteInscripcion).getTime() <= Date.now()) {
         errores.fechaLimiteInscripcion = 'La fecha límite debe ser futura.';
+    }
+
+    // K/N del sorteo — cruzado contra numeroTotalBoletos, espejo de
+    // `validarConfigSorteo` en `validations/dinamicas.schema.ts` (backend).
+    // K (lugares) vacío = válido, el backend lo deja en su default de 1 —
+    // se usa 1 aquí solo para las comparaciones cruzadas de abajo.
+    const totalBoletos = parseEnteroPositivo(d.numeroTotalBoletos);
+    const lugares = d.numeroLugaresGanadores === '' ? 1 : parseEnteroPositivo(d.numeroLugaresGanadores);
+    const intentos = parseEnteroPositivo(d.numeroIntentosSorteo);
+
+    if (lugares === null) {
+        errores.numeroLugaresGanadores = 'El número de lugares premiados debe ser mayor a 0.';
+    } else if (totalBoletos !== null && lugares > totalBoletos) {
+        errores.numeroLugaresGanadores = 'No puede haber más lugares premiados que boletos totales.';
+    }
+
+    if (intentos === null) {
+        errores.numeroIntentosSorteo = 'Escribe a qué intento sale el ganador.';
+    } else {
+        if (lugares !== null && intentos < lugares) {
+            errores.numeroIntentosSorteo = 'El número de intentos no puede ser menor a los lugares premiados.';
+        } else if (totalBoletos !== null && intentos > totalBoletos) {
+            errores.numeroIntentosSorteo = 'El número de intentos no puede exceder el total de boletos.';
+        }
     }
 
     if (!d.ciudad) {
@@ -259,6 +302,8 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         'numeroBoletoInicial',
         'precioBoleto',
         'fechaLimiteInscripcion',
+        'numeroLugaresGanadores',
+        'numeroIntentosSorteo',
         'ciudad',
     ];
     let mensajeBoton: string | null = null;

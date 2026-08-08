@@ -121,12 +121,12 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
     return (
         <article
             data-testid={`card-dinamica-${dinamica.id}`}
-            className="w-full overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:max-w-[94%]"
+            className="w-full overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:max-w-md 2xl:max-w-[94%]"
         >
             {/* Card vertical — foto arriba, contenido abajo, en todos los
-                breakpoints (mismo patrón que `CardDinamicaMio.tsx` de "Mis
-                Publicaciones"). Piensa en grid de 2 cards por fila, no en
-                una card ancha ocupando todo el contenedor. */}
+                breakpoints. La foto usa una proporción más panorámica
+                (`aspect-2/1`, más ancha que las 16:9 de `aspect-video`) para
+                que se sienta menos "cuadrada" dentro de la card angosta. */}
 
             {/* Portada — clickeable (va al detalle, como la galería de MP).
                 El estado va superpuesto arriba a la derecha (sólido +
@@ -139,7 +139,7 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
                     type="button"
                     onClick={irAlDetalle}
                     aria-label="Ver Dinámica"
-                    className="relative block aspect-video w-full bg-slate-200 lg:cursor-pointer"
+                    className="relative block aspect-2/1 w-full bg-slate-200 lg:cursor-pointer"
                 >
                     {portadaUrl ? (
                         <img src={portadaUrl} alt={dinamica.titulo} className="block h-full w-full object-cover" />

@@ -119,6 +119,75 @@ function validarReglaDesempateCondMetodo(
     }
 }
 
+/** K = cuántos lugares premiados hay. Default 1 en BD — aquí opcional para
+ *  no romper el patrón laxo de borrador. */
+const campoNumeroLugaresGanadores = z
+    .number({ message: 'El número de lugares premiados debe ser un número' })
+    .int('El número de lugares premiados debe ser un entero')
+    .positive('Debe haber al menos 1 lugar premiado');
+
+/** N = a qué intento (bola sin reemplazo) sale cada lugar, en cascada — el
+ *  intento N es el 1er lugar, N-1 el 2do, etc. (confirmado con el usuario:
+ *  un solo número de intentos que aplica en cascada a todos los lugares). */
+const campoNumeroIntentosSorteo = z
+    .number({ message: 'El número de intentos del sorteo debe ser un número' })
+    .int('El número de intentos del sorteo debe ser un entero')
+    .positive('El número de intentos debe ser mayor a cero');
+
+/** Cruza K y N contra `numeroTotalBoletos` y entre sí — mismo criterio que
+ *  `validarReglaDesempateCondMetodo`: un CHECK de BD no puede condicionar
+ *  sobre `numeroTotalBoletos`, que es nullable en borrador. */
+function validarConfigSorteo(
+    data: {
+        numeroLugaresGanadores?: number;
+        numeroIntentosSorteo?: number;
+        numeroTotalBoletos?: number;
+    },
+    ctx: z.RefinementCtx,
+) {
+    const K = data.numeroLugaresGanadores;
+    const N = data.numeroIntentosSorteo;
+    const total = data.numeroTotalBoletos;
+
+    if (K !== undefined && N !== undefined && N < K) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['numeroIntentosSorteo'],
+            message: 'El número de intentos no puede ser menor al número de lugares premiados',
+        });
+    }
+    if (total !== undefined) {
+        if (K !== undefined && K > total) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['numeroLugaresGanadores'],
+                message: 'No puede haber más lugares premiados que boletos totales',
+            });
+        }
+        if (N !== undefined && N > total) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['numeroIntentosSorteo'],
+                message: 'El número de intentos no puede exceder el total de boletos',
+            });
+        }
+    }
+}
+
+function validarSorteoDinamica(
+    data: {
+        reglaDesempate?: string | null;
+        metodoSorteo?: string | null;
+        numeroLugaresGanadores?: number;
+        numeroIntentosSorteo?: number;
+        numeroTotalBoletos?: number;
+    },
+    ctx: z.RefinementCtx,
+) {
+    validarReglaDesempateCondMetodo(data, ctx);
+    validarConfigSorteo(data, ctx);
+}
+
 // =============================================================================
 // CREAR / EDITAR (borrador) — LAXO: solo título + ciudad obligatorios
 // =============================================================================
@@ -142,8 +211,10 @@ export const crearDinamicaSchema = z
         precioBoleto: campoPrecioBoleto.optional(),
         fechaLimiteInscripcion: campoFechaLimiteInscripcion.optional(),
         reglaDesempate: campoReglaDesempate.optional(),
+        numeroLugaresGanadores: campoNumeroLugaresGanadores.optional(),
+        numeroIntentosSorteo: campoNumeroIntentosSorteo.optional(),
     })
-    .superRefine(validarReglaDesempateCondMetodo);
+    .superRefine(validarSorteoDinamica);
 
 export type CrearDinamicaInput = z.infer<typeof crearDinamicaSchema>;
 
@@ -162,8 +233,10 @@ export const editarBorradorDinamicaSchema = z
         fechaLimiteInscripcion: campoFechaLimiteInscripcion.optional(),
         reglaDesempate: campoReglaDesempate.optional(),
         ciudad: campoCiudad.optional(),
+        numeroLugaresGanadores: campoNumeroLugaresGanadores.optional(),
+        numeroIntentosSorteo: campoNumeroIntentosSorteo.optional(),
     })
-    .superRefine(validarReglaDesempateCondMetodo);
+    .superRefine(validarSorteoDinamica);
 
 export type EditarBorradorDinamicaInput = z.infer<typeof editarBorradorDinamicaSchema>;
 

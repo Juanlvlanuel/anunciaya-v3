@@ -12,9 +12,11 @@
  *
  *   PÚBLICO (verificarTokenOpcional)
  *   GET    /
+ *   GET    /salon-fama                            (rifas cerradas + ganadores de la ciudad — "Cuadro de Honor")
  *   GET    /organizador/:usuarioId
  *   GET    /:id
  *   GET    /:id/boletos
+ *   GET    /:id/sala                             (carga inicial de la sala — mensajes/ganadores/estado)
  *
  *   PRIVADOS (verificarToken + requiereModoPersonal — Dinámicas es 100% P2P personal)
  *   GET    /mias
@@ -31,8 +33,10 @@
  *   POST   /:id/boletos/:boletoId/reasignar      (solo el organizador, solo boletos CON cuenta AY — reasigna el número)
  *   POST   /:id/boletos/:boletoId/liberar        (solo el organizador — borra el boleto, vuelve a disponible)
  *   POST   /:id/boletos/:boletoId/confirmar-pago (solo el organizador — validado en el service)
+ *   POST   /:id/sala/activar                     (solo el organizador — agenda la sala en vivo)
  *
- * NO en esta fase: el motor de sorteo (elegir ganador, semilla, hash) es Fase 4.
+ * Sala en vivo (Fase 4.1) — unirse, chat y moderación son eventos de
+ * Socket.io (`dinamica:sala:*` en `socket.ts`), no rutas HTTP.
  */
 
 import { Router } from 'express';
@@ -44,6 +48,7 @@ import {
     postCancelarDinamica,
     getMisDinamicas,
     getFeedDinamicas,
+    getSalonFamaDinamicas,
     getDinamicasDeOrganizador,
     getDinamica,
     getBoletosDinamica,
@@ -56,6 +61,7 @@ import {
     postUploadImagen,
     deleteFotoDinamicaHuerfana,
 } from '../controllers/dinamicas.controller.js';
+import { postActivarSala, getEstadoSala } from '../controllers/dinamicas-sala.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
 import { requiereModoPersonal } from '../middleware/validarModo.js';
@@ -77,11 +83,14 @@ router.put('/:id/boletos/:boletoId', verificarToken, requiereModoPersonal, putEd
 router.post('/:id/boletos/:boletoId/reasignar', verificarToken, requiereModoPersonal, postReasignarBoleto);
 router.post('/:id/boletos/:boletoId/liberar', verificarToken, requiereModoPersonal, postLiberarBoleto);
 router.post('/:id/boletos/:boletoId/confirmar-pago', verificarToken, requiereModoPersonal, postConfirmarPagoBoleto);
+router.post('/:id/sala/activar', verificarToken, requiereModoPersonal, postActivarSala);
 
 // ─── Público ─────────────────────────────────────────────────────────────
 router.get('/', verificarTokenOpcional, getFeedDinamicas);
+router.get('/salon-fama', verificarTokenOpcional, getSalonFamaDinamicas);
 router.get('/organizador/:usuarioId', verificarTokenOpcional, getDinamicasDeOrganizador);
 router.get('/:id', verificarTokenOpcional, getDinamica);
 router.get('/:id/boletos', verificarTokenOpcional, getBoletosDinamica);
+router.get('/:id/sala', verificarTokenOpcional, getEstadoSala);
 
 export default router;

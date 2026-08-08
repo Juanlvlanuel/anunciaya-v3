@@ -287,9 +287,11 @@ export const queryKeys = {
     mias: () => ['dinamicas', 'mias'] as const,
     feed: (filtros: { ciudad: string; pagina?: number; limite?: number }) =>
       ['dinamicas', 'feed', filtros] as const,
+    salonFama: (ciudad: string) => ['dinamicas', 'salon-fama', ciudad] as const,
     boletos: (dinamicaId: string) => ['dinamicas', 'boletos', dinamicaId] as const,
     deOrganizador: (usuarioId: string, incluirCanceladas = false) =>
         ['dinamicas', 'organizador', usuarioId, incluirCanceladas] as const,
+    sala: (dinamicaId: string) => ['dinamicas', 'sala', dinamicaId] as const,
   },
 
   // ─── Sección pública — Servicios ──────────────────────────────────────────

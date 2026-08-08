@@ -51,6 +51,14 @@ export interface Dinamica {
     semillaAleatoria: string | null;
     timestampSorteo: string | null;
     hashVerificacion: string | null;
+    /** Sala en vivo (Fase 4.1) — su sola presencia es la señal de "sala
+     *  configurada". El estado de la sala reusa `estado` de arriba. */
+    salaProgramadaPara: string | null;
+    /** K = cuántos lugares premiados hay (default 1). */
+    numeroLugaresGanadores: number;
+    /** N = a qué intento (bola sin reemplazo) sale cada lugar, en cascada
+     *  — el intento N es el 1er lugar, N-1 el 2do, etc. */
+    numeroIntentosSorteo: number | null;
     confirmaciones: ConfirmacionesDinamica | null;
     /** Contador denormalizado de "Mis Guardados" — mismo patrón que
      *  `totalGuardados` de MarketPlace/Servicios. */
@@ -74,6 +82,8 @@ export interface CrearDinamicaPayload {
     precioBoleto?: number;
     fechaLimiteInscripcion?: string;
     reglaDesempate?: ReglaDesempate;
+    numeroLugaresGanadores?: number;
+    numeroIntentosSorteo?: number;
 }
 
 export type EditarBorradorDinamicaPayload = Partial<CrearDinamicaPayload>;
@@ -170,3 +180,98 @@ export interface DinamicasDeOrganizadorRespuesta {
     limite: number;
     hayMas: boolean;
 }
+
+/** Ganador dentro del "Cuadro de Honor" (`GET /api/dinamicas/salon-fama`) —
+ *  mismo shape que resuelve la sala (`obtenerEstadoSala`) más el avatar, que
+ *  ahí no hacía falta pero acá sí (se pinta junto al nombre). */
+export interface GanadorSalonFama {
+    lugar: number;
+    numeroBoleto: number;
+    usuarioId: string | null;
+    nombreManual: string | null;
+    usuarioNombre: string | null;
+    usuarioApellidos: string | null;
+    usuarioAvatarUrl: string | null;
+}
+
+/** Rifa cerrada dentro del "Cuadro de Honor". */
+export interface DinamicaSalonFama {
+    id: string;
+    titulo: string;
+    fotosPremio: ArchivoFoto[];
+    updatedAt: string;
+    ganadores: GanadorSalonFama[];
+}
+
+export interface SalonFamaRespuesta {
+    dinamicas: DinamicaSalonFama[];
+    pagina: number;
+    limite: number;
+    hayMas: boolean;
+}
+
+// =============================================================================
+// FASE 4.1 — sala en vivo + motor de sorteo
+// =============================================================================
+
+export type TipoMensajeSala = 'texto' | 'sistema';
+
+/** Mensaje del chat de la sala — llega tanto en la carga inicial
+ *  (`GET /:id/sala`) como por el evento `dinamica:sala:mensaje`. Los
+ *  mensajes `tipo: 'sistema'` (moderación) no traen datos de autor. */
+export interface MensajeSalaDinamica {
+    id: string;
+    usuarioId: string;
+    tipo: TipoMensajeSala;
+    contenido: string;
+    createdAt: string;
+    nombre?: string;
+    apellidos?: string;
+    avatarUrl?: string | null;
+}
+
+export interface GanadorDinamica {
+    lugar: number;
+    numeroIntento: number;
+    numeroBoleto: number;
+    usuarioId: string | null;
+    nombreManual: string | null;
+    usuarioNombre?: string | null;
+    usuarioApellidos?: string | null;
+}
+
+/** Snapshot completo de la sala — respuesta de `GET /:id/sala` y del evento
+ *  `dinamica:sala:estado-inicial` al unirse por socket. */
+export interface EstadoSalaDinamica {
+    estado: EstadoDinamica;
+    salaProgramadaPara: string | null;
+    numeroLugaresGanadores: number;
+    numeroIntentosSorteo: number | null;
+    esOrganizador: boolean;
+    miModeracion: { silenciado: boolean; expulsado: boolean };
+    mensajes: MensajeSalaDinamica[];
+    ganadores: { lista: GanadorDinamica[]; hashVerificacion: string | null; semillaAleatoria: string | null } | null;
+}
+
+/** Payload del evento `dinamica:sala:intento` — una bola revelada. */
+export interface IntentoSorteoEvento {
+    numeroIntento: number;
+    numeroBoleto: number;
+    esGanador: boolean;
+    lugar: number | null;
+}
+
+/** Payload del evento `dinamica:sala:sorteo-cerrado`. */
+export interface SorteoDCerradoEvento {
+    hashVerificacion: string | null;
+    semillaAleatoria: string | null;
+    ganadores: { lugar: number | null; numeroBoleto: number; numeroIntento: number }[];
+}
+
+export type AccionModeracionSala =
+    | 'silenciar'
+    | 'expulsar'
+    | 'quitar-silencio'
+    | 'quitar-expulsion'
+    | 'bloquear'
+    | 'desbloquear';

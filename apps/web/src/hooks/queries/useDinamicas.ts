@@ -22,6 +22,8 @@ import type {
     RespuestaFeedDinamicas,
     BoletoDinamica,
     DinamicasDeOrganizadorRespuesta,
+    EstadoSalaDinamica,
+    SalonFamaRespuesta,
 } from '../../types/dinamicas';
 
 // =============================================================================
@@ -207,6 +209,25 @@ export function useFeedInfinitoDinamicas(params: UseFeedInfinitoDinamicasParams)
     });
 }
 
+/** "Cuadro de Honor" — rifas cerradas + ganadores de la ciudad. Lista corta,
+ *  sin scroll infinito (a diferencia del feed) — una sola página alimenta el
+ *  carrusel móvil / columna desktop. */
+export function useSalonFamaDinamicas(ciudad: string | null | undefined, limite = 8) {
+    return useQuery({
+        queryKey: queryKeys.dinamicas.salonFama(ciudad ?? ''),
+        queryFn: async (): Promise<SalonFamaRespuesta> => {
+            const response = await api.get<{ success: boolean; data: SalonFamaRespuesta }>('/dinamicas/salon-fama', {
+                params: { ciudad, limite },
+            });
+            return response.data.success
+                ? response.data.data
+                : { dinamicas: [], pagina: 1, limite, hayMas: false };
+        },
+        enabled: !!ciudad,
+        staleTime: 5 * 60 * 1000,
+    });
+}
+
 /** Lista pública de participantes — transparencia antes del cierre de
  *  inscripción (ver Contexto_Dinamicas.md). Sin `staleTime`: cambia seguido
  *  (cada reserva/confirmación) y la ficha debe reflejarlo al reabrirse. */
@@ -386,6 +407,48 @@ export function useDinamicasDeOrganizador(
         },
         enabled: !!usuarioId,
         staleTime: 2 * 60 * 1000,
+    });
+}
+
+// =============================================================================
+// SALA EN VIVO (Fase 4.1)
+// =============================================================================
+
+/** Carga inicial de la sala (estado, mensajes recientes, ganadores si ya
+ *  cerró) — `verificarTokenOpcional` en el backend, funciona sin sesión.
+ *  El resto (unirse, chat, moderar, iniciar sorteo) es Socket.io, no
+ *  React Query — ver `useSalaDinamicaStore.ts`. */
+export function useEstadoSalaDinamica(dinamicaId: string | undefined) {
+    return useQuery({
+        queryKey: queryKeys.dinamicas.sala(dinamicaId ?? ''),
+        queryFn: async (): Promise<EstadoSalaDinamica | null> => {
+            const response = await api.get<{ success: boolean; data: EstadoSalaDinamica }>(
+                `/dinamicas/${dinamicaId}/sala`,
+            );
+            return response.data.success ? response.data.data : null;
+        },
+        enabled: !!dinamicaId,
+        staleTime: 30 * 1000,
+    });
+}
+
+/** El organizador agenda la sala — solo fija `salaProgramadaPara`; iniciar
+ *  el sorteo cuando llegue la hora es una acción de socket, no HTTP. */
+export function useActivarSalaDinamica() {
+    const queryClient = useQueryClient();
+    return useMutation<RespuestaDinamica, unknown, { dinamicaId: string; salaProgramadaPara: string }>({
+        mutationFn: async ({ dinamicaId, salaProgramadaPara }) => {
+            const response = await api.post<RespuestaDinamica>(`/dinamicas/${dinamicaId}/sala/activar`, {
+                salaProgramadaPara,
+            });
+            return response.data;
+        },
+        onSuccess: (data, vars) => {
+            if (data.success) {
+                queryClient.invalidateQueries({ queryKey: queryKeys.dinamicas.dinamica(vars.dinamicaId) });
+                queryClient.invalidateQueries({ queryKey: queryKeys.dinamicas.sala(vars.dinamicaId) });
+            }
+        },
     });
 }
 

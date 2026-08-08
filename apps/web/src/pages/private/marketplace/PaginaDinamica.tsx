@@ -89,6 +89,7 @@ import {
     ModalEditarParticipante,
     ModalReasignarBoleto,
 } from '../../../components/dinamicas/ModalesAccionDinamica';
+import { BotonSalaEnVivo } from '../../../components/dinamicas/sala/BotonSalaEnVivo';
 import { notificar } from '../../../utils/notificaciones';
 import { formatearUltimaConexion } from '../../../utils/marketplace';
 import type { BoletoDinamica, DinamicaDetallePublico, OrganizadorDinamica } from '../../../types/dinamicas';
@@ -490,10 +491,32 @@ export function PaginaDinamica() {
             ════════════════════════════════════════════════════════════════ */}
             <div
                 ref={cuerpoRef}
-                className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 lg:py-8 2xl:max-w-[920px] 2xl:px-4"
+                className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:px-6 lg:pb-8 2xl:max-w-[920px] 2xl:px-4"
             >
+                {/* Sala en vivo — único punto de entrada, pill sticky pegada
+                    al header (mismo contenedor de scroll que él, por eso va
+                    ANTES del `lg:pt-8` que empieza el hero — así no hereda
+                    ese padding y queda a ras). SIN wrapper propio a
+                    propósito: un `position:sticky` solo puede moverse dentro
+                    de la caja de su padre inmediato — si lo envolvemos en un
+                    `<div>` que solo mide lo que mide la pill, se queda sin
+                    "cuarto" para despegarse y deja de sentirse sticky al
+                    hacer scroll. Su padre real debe ser `cuerpoRef`
+                    (alto = toda la página), no un wrapper angosto.
+                    Visible en cuanto la Dinámica se publica — pero solo
+                    para el organizador mientras la sala no esté programada
+                    (nadie más tiene nada que ver ahí todavía). */}
+                {dinamica.estado !== 'borrador' && dinamica.estado !== 'cancelada' && (esOrganizador || dinamica.salaProgramadaPara) && (
+                    <BotonSalaEnVivo
+                        estado={dinamica.estado}
+                        salaProgramadaPara={dinamica.salaProgramadaPara}
+                        onClick={() => navigate(`/marketplace/dinamica/${dinamica.id}/sala`)}
+                        compensarHeaderDesktop
+                    />
+                )}
+
                 {/* ─── HERO: Galería (izq) + Info/organizador/acciones (der) ─── */}
-                <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
+                <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:pt-8">
                     <div className="relative min-w-0">
                         <GaleriaArticulo fotos={dinamica.fotosPremio} titulo={dinamica.titulo} ajusteImagen="cover" />
 

@@ -48,11 +48,13 @@ import {
 
 import { useDinamica, useBoletosDinamica } from '../../hooks/queries/useDinamicas';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { GaleriaArticulo } from '../../components/marketplace/GaleriaArticulo';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
 import { ModalAdaptativo } from '../../components/ui/ModalAdaptativo';
 import { ModalImagenes } from '../../components/ui/ModalImagenes';
 import { HeaderAccionGradiente } from '../../components/ui/ModalAccionGradiente';
+import { BotonSalaEnVivo } from '../../components/dinamicas/sala/BotonSalaEnVivo';
 import Tooltip from '../../components/ui/Tooltip';
 import { Spinner } from '../../components/ui/Spinner';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
@@ -89,6 +91,7 @@ function obtenerIniciales(nombre: string, apellidos: string): string {
 export function PaginaDinamicaPublica() {
     const { dinamicaId } = useParams<{ dinamicaId: string }>();
     const navigate = useNavigate();
+    const usuarioActual = useAuthStore((s) => s.usuario);
     const { data: dinamica, isLoading, isError } = useDinamica(dinamicaId ?? null);
     const { data: boletos = [] } = useBoletosDinamica(dinamicaId ?? null);
     const [modalAuthAbierto, setModalAuthAbierto] = useState(false);
@@ -126,6 +129,7 @@ export function PaginaDinamicaPublica() {
         return <Estado404Publico onVolver={() => navigate('/')} />;
     }
 
+    const esOrganizador = !!usuarioActual && usuarioActual.id === dinamica.organizadorUsuarioId;
     const cuentaRegresiva = formatearCuentaRegresiva(dinamica.fechaLimiteInscripcion);
     const aceptaParticipantes = dinamica.estado === 'activa' || dinamica.estado === 'pospuesta';
     const mapaBoletos = new Map(boletos.map((b) => [b.numeroBoleto, b]));
@@ -146,6 +150,22 @@ export function PaginaDinamicaPublica() {
 
             <main className="flex-1 overflow-y-auto">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                    {/* Sala en vivo — único punto de entrada, pill sticky
+                        justo debajo del header público. SIN wrapper propio
+                        (mismo motivo que en la ficha privada): su padre debe
+                        ser este `<div>` alto (todo el contenido de la
+                        página), no una caja angosta del tamaño de la pill —
+                        si no, se queda sin espacio para despegarse al
+                        hacer scroll. Solo visible para el organizador
+                        mientras la sala no esté programada (para cualquier
+                        otro visitante no hay nada que ver ahí todavía). */}
+                    {dinamica.estado !== 'borrador' && dinamica.estado !== 'cancelada' && (esOrganizador || dinamica.salaProgramadaPara) && (
+                        <BotonSalaEnVivo
+                            estado={dinamica.estado}
+                            salaProgramadaPara={dinamica.salaProgramadaPara}
+                            onClick={() => navigate(`/p/dinamica/${dinamica.id}/sala`)}
+                        />
+                    )}
                     <div className="pb-5 lg:pb-8 lg:pt-2">
                         <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
                             {/* ─── COLUMNA IZQUIERDA (full width móvil) ─────── */}

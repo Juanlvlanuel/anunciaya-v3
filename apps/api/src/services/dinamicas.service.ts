@@ -23,7 +23,7 @@
 
 import { and, desc, eq, count, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { dinamicas, dinamicaBoletos, usuarios, ciudades } from '../db/schemas/schema.js';
+import { dinamicas, dinamicaBoletos, dinamicaGanadores, usuarios, ciudades } from '../db/schemas/schema.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
@@ -102,6 +102,8 @@ export async function crearDinamica(usuarioId: string, datos: CrearDinamicaInput
                 ciudadId,
                 fechaLimiteInscripcion: datos.fechaLimiteInscripcion,
                 reglaDesempate: datos.reglaDesempate ?? null,
+                numeroLugaresGanadores: datos.numeroLugaresGanadores ?? 1,
+                numeroIntentosSorteo: datos.numeroIntentosSorteo,
                 estado: 'borrador',
             })
             .returning();
@@ -116,7 +118,15 @@ export async function crearDinamica(usuarioId: string, datos: CrearDinamicaInput
 /** Campos que solo se pueden tocar mientras la Dinámica sigue en 'borrador'
  *  — una vez publicada, cambiarlos sería injusto para quienes ya se
  *  inscribieron con esas reglas (boletos, precio, sorteo, fecha límite ya
- *  tiene su propio flujo vía `posponerDinamica`). */
+ *  tiene su propio flujo vía `posponerDinamica`).
+ *
+ *  `numeroLugaresGanadores`/`numeroIntentosSorteo` (K/N del motor de
+ *  sorteo, Fase 4.1) NO están aquí a propósito: rifas publicadas ANTES de
+ *  que existiera esta fase se quedaron con `numeroIntentosSorteo = NULL` y
+ *  no hay forma de "volver a borrador" para completarlo. Su propia guarda
+ *  vive en `puedeConfigurarSorteo()` — se puede fijar UNA VEZ aunque ya
+ *  esté publicada (mientras siga NULL, nadie ha visto/confiado en ningún
+ *  valor todavía), pero ya no se puede CAMBIAR una vez configurado. */
 const CAMPOS_SOLO_BORRADOR = [
     'tipoPremio',
     'metodoSorteo',
@@ -159,6 +169,41 @@ export async function editarBorrador(
                     code: 409,
                 } satisfies RespuestaError;
             }
+
+            const intentaTocarSorteo = datos.numeroLugaresGanadores !== undefined || datos.numeroIntentosSorteo !== undefined;
+            if (intentaTocarSorteo) {
+                if (actual.numeroIntentosSorteo !== null) {
+                    return {
+                        success: false,
+                        message: 'El sorteo ya está configurado — no se puede modificar una vez fijado',
+                        code: 409,
+                    } satisfies RespuestaError;
+                }
+                // Zod (`validarConfigSorteo`) no puede cruzar N/K contra el
+                // total de boletos aquí: en este flujo (publicada, solo K/N)
+                // `numeroTotalBoletos` nunca viaja en el body — se valida
+                // contra el de la fila ya guardada.
+                const K = datos.numeroLugaresGanadores ?? actual.numeroLugaresGanadores;
+                const N = datos.numeroIntentosSorteo;
+                if (N === undefined) {
+                    return { success: false, message: 'Indica a qué intento sale el ganador', code: 400 } satisfies RespuestaError;
+                }
+                if (N < K) {
+                    return {
+                        success: false,
+                        message: 'El número de intentos no puede ser menor a los lugares premiados',
+                        code: 400,
+                    } satisfies RespuestaError;
+                }
+                if (actual.numeroTotalBoletos !== null) {
+                    if (K > actual.numeroTotalBoletos) {
+                        return { success: false, message: 'No puede haber más lugares premiados que boletos totales', code: 400 } satisfies RespuestaError;
+                    }
+                    if (N > actual.numeroTotalBoletos) {
+                        return { success: false, message: 'El número de intentos no puede exceder el total de boletos', code: 400 } satisfies RespuestaError;
+                    }
+                }
+            }
         }
 
         if (datos.titulo !== undefined || datos.descripcion !== undefined) {
@@ -183,6 +228,10 @@ export async function editarBorrador(
             if (datos.reglaDesempate !== undefined) patch.reglaDesempate = datos.reglaDesempate;
             if (datos.ciudad !== undefined) patch.ciudadId = await resolverCiudadId(datos.ciudad);
         }
+        // K/N del sorteo: en borrador siempre, o publicada como
+        // configuración única (ya validado arriba que sigue en NULL).
+        if (datos.numeroLugaresGanadores !== undefined) patch.numeroLugaresGanadores = datos.numeroLugaresGanadores;
+        if (datos.numeroIntentosSorteo !== undefined) patch.numeroIntentosSorteo = datos.numeroIntentosSorteo;
 
         const [fila] = await db
             .update(dinamicas)
@@ -530,6 +579,68 @@ export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas, u
     } catch (error) {
         console.error('Error en listarDinamicasPublicas:', error);
         return { success: false, message: 'Error al listar Dinámicas', code: 500 } satisfies RespuestaError;
+    }
+}
+
+interface OpcionesSalonFama {
+    pagina?: number;
+    limite?: number;
+}
+
+/** "Cuadro de Honor" — rifas ya cerradas de la ciudad, con sus ganadores, para
+ *  que los resultados sean visibles sin tener que entrar a cada sala. Antes
+ *  del resultado solo vivía dentro de la sala de cada Dinámica (ver
+ *  `sala.service.ts` → `obtenerEstadoSala`); esto es la vista agregada
+ *  pública del feed. Mismo patrón de paginación offset-based que
+ *  `listarDinamicasPublicas`. */
+export async function listarSalonFamaDinamicas(ciudadId: string, opciones: OpcionesSalonFama = {}) {
+    try {
+        const pagina = Math.max(1, opciones.pagina ?? 1);
+        const limite = Math.min(20, Math.max(1, opciones.limite ?? 8));
+        const offset = (pagina - 1) * limite;
+
+        const filas = await db
+            .select({ id: dinamicas.id, titulo: dinamicas.titulo, fotosPremio: dinamicas.fotosPremio, updatedAt: dinamicas.updatedAt })
+            .from(dinamicas)
+            .where(and(eq(dinamicas.ciudadId, ciudadId), eq(dinamicas.estado, 'cerrada')))
+            .orderBy(desc(dinamicas.updatedAt))
+            .limit(limite + 1)
+            .offset(offset);
+
+        const hayMas = filas.length > limite;
+        const filasRecortadas = hayMas ? filas.slice(0, limite) : filas;
+
+        const items = await Promise.all(
+            filasRecortadas.map(async (fila) => {
+                const ganadores = await db
+                    .select({
+                        lugar: dinamicaGanadores.lugar,
+                        numeroBoleto: dinamicaBoletos.numeroBoleto,
+                        usuarioId: dinamicaBoletos.usuarioId,
+                        nombreManual: dinamicaBoletos.nombreManual,
+                        usuarioNombre: usuarios.nombre,
+                        usuarioApellidos: usuarios.apellidos,
+                        usuarioAvatarUrl: usuarios.avatarUrl,
+                    })
+                    .from(dinamicaGanadores)
+                    .innerJoin(dinamicaBoletos, eq(dinamicaBoletos.id, dinamicaGanadores.boletoId))
+                    .leftJoin(usuarios, eq(usuarios.id, dinamicaBoletos.usuarioId))
+                    .where(eq(dinamicaGanadores.dinamicaId, fila.id))
+                    .orderBy(dinamicaGanadores.lugar);
+                return { ...fila, ganadores };
+            }),
+        );
+
+        // Defensivo: una `cerrada` sin ganadores persistidos no debería pasar
+        // (el motor de sorteo siempre persiste los K ganadores antes de la
+        // transición — ver `sala.service.ts` → `iniciarSorteo`), pero si pasa
+        // no tiene nada útil que mostrar en el Cuadro de Honor.
+        const itemsConGanadores = items.filter((item) => item.ganadores.length > 0);
+
+        return { success: true as const, data: { dinamicas: itemsConGanadores, pagina, limite, hayMas } };
+    } catch (error) {
+        console.error('Error en listarSalonFamaDinamicas:', error);
+        return { success: false, message: 'Error al listar el Cuadro de Honor', code: 500 } satisfies RespuestaError;
     }
 }
 

@@ -19,6 +19,7 @@ import {
     cancelarDinamica,
     obtenerDinamicaPublica,
     listarDinamicasPublicas,
+    listarSalonFamaDinamicas,
     listarDinamicasDeOrganizador,
     listarMisDinamicas,
     listarBoletosPublico,
@@ -364,6 +365,29 @@ export async function getFeedDinamicas(req: Request, res: Response) {
     const limite = req.query.limite ? Number(req.query.limite) : undefined;
 
     const resultado = await listarDinamicasPublicas({ ciudadId, pagina, limite }, req.usuario?.usuarioId);
+    if (!resultado.success) {
+        return res.status(resultado.code).json(resultado);
+    }
+    return res.json(resultado);
+}
+
+/** GET /api/dinamicas/salon-fama — rifas cerradas + ganadores de la ciudad
+ *  (query: ciudad, pagina, limite), para el "Cuadro de Honor" del feed. */
+export async function getSalonFamaDinamicas(req: Request, res: Response) {
+    const ciudad = typeof req.query.ciudad === 'string' ? req.query.ciudad : '';
+    if (!ciudad.trim()) {
+        return res.status(400).json({ success: false, message: 'Falta el parámetro ciudad' });
+    }
+
+    const ciudadId = await resolverCiudadId(ciudad);
+    if (!ciudadId) {
+        return res.json({ success: true, data: { dinamicas: [], pagina: 1, limite: 8, hayMas: false } });
+    }
+
+    const pagina = req.query.pagina ? Number(req.query.pagina) : undefined;
+    const limite = req.query.limite ? Number(req.query.limite) : undefined;
+
+    const resultado = await listarSalonFamaDinamicas(ciudadId, { pagina, limite });
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }

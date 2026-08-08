@@ -618,6 +618,21 @@ body {
 }
 
 /* ============================================= */
+/* Parpadeo del ícono de transmisión (Radio) del  */
+/* pill "Sala en vivo" — como si prendiera y      */
+/* apagara, efecto de señal transmitiendo.        */
+/* Usado en BotonSalaEnVivo.tsx (Dinámicas).      */
+/* ============================================= */
+@keyframes salaRadioBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ============================================= */
 /* Bubble flotante "¡Guardado!" / "Quitado" /    */
 /* "¡Gracias!" — sube y se desvanece al hacer    */
 /* toggle. Usado por useSaveBubble + variantes   */

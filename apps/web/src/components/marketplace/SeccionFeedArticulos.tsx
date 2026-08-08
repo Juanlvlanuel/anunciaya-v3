@@ -428,8 +428,9 @@ export function SeccionFeedArticulos({
                                 >
                                     <h3
                                         ref={cardsHeadingRef}
-                                        className="px-1 pb-2 text-sm font-bold uppercase tracking-wide text-slate-600"
+                                        className="flex items-center gap-1.5 px-1 pb-2 text-sm font-bold uppercase tracking-wide text-slate-600"
                                     >
+                                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-teal-600" strokeWidth={2.5} />
                                         Recién publicado
                                     </h3>
                                     <div

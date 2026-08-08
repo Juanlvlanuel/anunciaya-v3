@@ -2848,6 +2848,14 @@ export const dinamicas = pgTable("dinamicas", {
 	semillaAleatoria: varchar("semilla_aleatoria", { length: 128 }),
 	timestampSorteo: timestamp("timestamp_sorteo", { withTimezone: true, mode: 'string' }),
 	hashVerificacion: varchar("hash_verificacion", { length: 128 }),
+	// Sala en vivo (Fase 4.1) — su sola presencia es la señal de "sala
+	// configurada". El estado de la sala NO es columna aparte: reusa
+	// `estado` (activa/pospuesta → en_sorteo → cerrada).
+	salaProgramadaPara: timestamp("sala_programada_para", { withTimezone: true, mode: 'string' }),
+	// K = cuántos lugares premiados hay. N = a qué intento (bola sin
+	// reemplazo) sale cada uno, en cascada (N=1er lugar, N-1=2do, ...).
+	numeroLugaresGanadores: integer("numero_lugares_ganadores").default(1).notNull(),
+	numeroIntentosSorteo: integer("numero_intentos_sorteo"),
 	// Contador denormalizado de "Mis Guardados" — mismo patrón que
 	// articulos_marketplace.total_guardados / servicios_publicaciones.total_guardados.
 	totalGuardados: integer("total_guardados").default(0).notNull(),
@@ -2874,6 +2882,8 @@ export const dinamicas = pgTable("dinamicas", {
 	check("dinamicas_regla_desempate_check", sql`regla_desempate IS NULL OR regla_desempate IN ('sorteo_instantaneo', 'repartir_premio', 'ronda_extra', 'orden_inscripcion')`),
 	check("dinamicas_regla_desempate_metodo_check", sql`regla_desempate IS NULL OR metodo_sorteo = 'tabla_completa'`),
 	check("dinamicas_estado_check", sql`estado IN ('borrador', 'activa', 'pospuesta', 'en_sorteo', 'cerrada', 'cancelada')`),
+	check("dinamicas_numero_lugares_ganadores_check", sql`numero_lugares_ganadores > 0`),
+	check("dinamicas_numero_intentos_sorteo_check", sql`numero_intentos_sorteo IS NULL OR numero_intentos_sorteo >= numero_lugares_ganadores`),
 ]);
 
 export const dinamicaBoletos = pgTable("dinamica_boletos", {
@@ -2912,10 +2922,14 @@ export const dinamicaGanadores = pgTable("dinamica_ganadores", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	dinamicaId: uuid("dinamica_id").notNull(),
 	boletoId: uuid("boleto_id").notNull(),
+	// Fase 4.1 — lugar (1ro, 2do, ...) y en qué intento de la cascada salió.
+	lugar: smallint(),
+	numeroIntento: integer("numero_intento"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_dinamica_ganadores_dinamica").using("btree", table.dinamicaId.asc().nullsLast()),
 	unique("dinamica_ganadores_dinamica_boleto_key").on(table.dinamicaId, table.boletoId),
+	unique("dinamica_ganadores_dinamica_lugar_key").on(table.dinamicaId, table.lugar),
 	foreignKey({
 		columns: [table.dinamicaId],
 		foreignColumns: [dinamicas.id],
@@ -2926,4 +2940,61 @@ export const dinamicaGanadores = pgTable("dinamica_ganadores", {
 		foreignColumns: [dinamicaBoletos.id],
 		name: "fk_dinamica_ganadores_boleto"
 	}).onDelete("cascade"),
+	check("dinamica_ganadores_lugar_check", sql`lugar > 0`),
+]);
+
+export const dinamicaSalaMensajes = pgTable("dinamica_sala_mensajes", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	dinamicaId: uuid("dinamica_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	tipo: varchar({ length: 20 }).default('texto').notNull(),   // texto | sistema
+	contenido: text().notNull(),
+	eliminado: boolean().default(false).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_dinamica_sala_mensajes_dinamica").using("btree", table.dinamicaId.asc().nullsLast(), table.createdAt.asc().nullsLast()),
+	foreignKey({
+		columns: [table.dinamicaId],
+		foreignColumns: [dinamicas.id],
+		name: "fk_dinamica_sala_mensajes_dinamica"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_dinamica_sala_mensajes_usuario"
+	}).onDelete("cascade"),
+	check("dinamica_sala_mensajes_tipo_check", sql`tipo IN ('texto', 'sistema')`),
+	check("dinamica_sala_mensajes_contenido_check", sql`char_length(contenido) BETWEEN 1 AND 500`),
+]);
+
+// Moderación EFÍMERA por evento (silenciar/expulsar solo para esta Dinámica,
+// se borra sola con ella). El bloqueo PERMANENTE reusa chat_bloqueados tal
+// cual — ver bloquearUsuario()/desbloquearUsuario() en chatya.service.ts.
+export const dinamicaSalaModeracion = pgTable("dinamica_sala_moderacion", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	dinamicaId: uuid("dinamica_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	tipo: varchar({ length: 20 }).notNull(),   // silenciado | expulsado
+	aplicadoPor: uuid("aplicado_por").notNull(),
+	motivo: varchar({ length: 200 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_dinamica_sala_moderacion_dinamica").using("btree", table.dinamicaId.asc().nullsLast(), table.usuarioId.asc().nullsLast()),
+	unique("dinamica_sala_moderacion_dinamica_usuario_tipo_key").on(table.dinamicaId, table.usuarioId, table.tipo),
+	foreignKey({
+		columns: [table.dinamicaId],
+		foreignColumns: [dinamicas.id],
+		name: "fk_dinamica_sala_moderacion_dinamica"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_dinamica_sala_moderacion_usuario"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.aplicadoPor],
+		foreignColumns: [usuarios.id],
+		name: "fk_dinamica_sala_moderacion_aplicado_por"
+	}).onDelete("cascade"),
+	check("dinamica_sala_moderacion_tipo_check", sql`tipo IN ('silenciado', 'expulsado')`),
 ]);

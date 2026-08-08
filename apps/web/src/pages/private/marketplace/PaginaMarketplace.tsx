@@ -678,7 +678,7 @@ export function PaginaMarketplace() {
                                                     {ciudad}
                                                 </span>
                                                 {contextoActivo === 'dinamicas' ? (
-                                                    dataDinamicas && <> · {totalDinamicas} publicaciones</>
+                                                    dataDinamicas && <> · {totalDinamicas} Dinámicas</>
                                                 ) : (
                                                     data && <> · {totalArticulos} publicaciones</>
                                                 )}
@@ -780,7 +780,12 @@ export function PaginaMarketplace() {
 
                 {dinamicasMontada && (
                     <div className={contextoActivo === 'dinamicas' ? '' : 'hidden'}>
-                        <SeccionFeedDinamicas ciudad={ciudad} esModoPersonal={esModoPersonal} />
+                        <SeccionFeedDinamicas
+                            ciudad={ciudad}
+                            esModoPersonal={esModoPersonal}
+                            headerBottom={headerBottom}
+                            visible={contextoActivo === 'dinamicas'}
+                        />
                     </div>
                 )}
 
