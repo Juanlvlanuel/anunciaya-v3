@@ -93,9 +93,12 @@ export function DetallePublicacionNegocioContenido({
                 `h-[700px]` con scroll interno — necesita ese límite para
                 comportarse como un panel de chat, sin importar cuántos
                 comentarios haya. Las columnas ya no quedan forzadas a la
-                misma altura. */}
+                misma altura. El ANCHO de esta columna es `flex-1` (lo que
+                sobra del contenedor tras la izquierda fija) — se agranda
+                desde el `max-w` del contenedor en `PaginaPublicacionNegocio.tsx`
+                / `PaginaPublicacionNegocioPublica.tsx`, no aquí. */}
             <div className="hidden lg:flex lg:items-start lg:gap-6 2xl:gap-8">
-                <div className={`w-[560px] 2xl:w-[640px] shrink-0 space-y-4 p-5 ${TARJETA_CLASES}`}>
+                <div className={`lg:w-[510px] 2xl:w-[640px] shrink-0 space-y-4 p-5 ${TARJETA_CLASES}`}>
                     {contenidoIzquierda}
                 </div>
 

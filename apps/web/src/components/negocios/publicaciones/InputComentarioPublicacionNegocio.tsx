@@ -77,7 +77,7 @@ export function InputComentarioPublicacionNegocio({
     return (
         <div className={className}>
             <form onSubmit={handleEnviarComentario}>
-                <div className="flex items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
+                <div className="flex items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-2.5 transition-all focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
                     <input
                         type="text"
                         data-testid="input-comentario-negocio-facebook"
@@ -89,7 +89,7 @@ export function InputComentarioPublicacionNegocio({
                         placeholder={`Comentar como ${nombreIdentidad}…`}
                         maxLength={TEXTO_MAX}
                         disabled={crearComentario.isPending}
-                        className="flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                        className="min-w-0 flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
                     />
                     <button
                         type="submit"
