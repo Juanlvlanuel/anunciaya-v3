@@ -85,7 +85,7 @@ const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 // dos componentes aplica un borde MÁS ancho al abrir (solo cambia el color/
 // ring), así que forzar aquí solo el color es seguro en cualquier estado.
 const ESTILO_TRIGGER_AMBER =
-    '[&>button]:!h-auto [&>button]:!rounded-full [&>button]:!border-2 [&>button]:!border-amber-400 [&>button]:!py-2 [&>button]:!px-4 [&>button]:!text-[15px] [&>button:hover]:!border-amber-500';
+    '[&>button]:!h-auto [&>button]:!rounded-full [&>button]:!border-2 [&>button]:!border-amber-400 [&>button]:!py-2 [&>button]:!px-4 [&>button]:!text-[15px] [&>button:hover]:!border-amber-500 [&>button]:!ring-amber-300';
 
 // ─── Fecha + hora límite: DatePicker para la fecha + CustomSelect (ambos ya
 // existen en components/ui) para la hora, con una lista propia de opciones
@@ -154,7 +154,7 @@ function dinamicaAlDraft(d: Dinamica): Partial<ComposerDinamicasDraft> {
     };
 }
 
-type Seccion = 'tipoPremio' | 'metodoSorteo' | 'boletos' | 'fecha' | 'reglaDesempate' | null;
+type Seccion = 'tipoPremio' | 'metodoSorteo' | 'boletos' | 'reglasSorteo' | 'fecha' | 'reglaDesempate' | null;
 
 export function ComposerDinamicas({
     modo,
@@ -354,6 +354,8 @@ export function ComposerDinamicas({
             ['numeroTotalBoletos', 'boletos'],
             ['numeroBoletoInicial', 'boletos'],
             ['precioBoleto', 'boletos'],
+            ['numeroLugaresGanadores', 'reglasSorteo'],
+            ['numeroIntentosSorteo', 'reglasSorteo'],
             ['fechaLimiteInscripcion', 'fecha'],
         ];
         for (const [clave, seccion] of mapa) {
@@ -694,7 +696,7 @@ export function ComposerDinamicas({
                                                     'flex w-40 shrink-0 items-center justify-center gap-2 py-2 rounded-full text-[14px] font-semibold cursor-pointer ' +
                                                     (activa
                                                         ? 'bg-amber-600 text-white border-2 border-amber-700'
-                                                        : 'bg-white border-2 border-slate-300 text-slate-800 hover:border-amber-500 hover:text-amber-700')
+                                                        : 'bg-white border-2 border-amber-300 text-slate-800 hover:border-amber-500 hover:text-amber-700')
                                                 }
                                             >
                                                 {activa && <Check className="w-4 h-4" strokeWidth={3} />}
@@ -713,7 +715,7 @@ export function ComposerDinamicas({
                                 <div className="flex flex-wrap gap-1.5">
                                     {(
                                         [
-                                            ['tombola', 'Tómbola clásica animada'],
+                                            ['tombola', 'Tómbola clásica'],
                                             ['carta_unica', 'Lotería — carta única'],
                                             ['tabla_completa', 'Lotería — tabla completa'],
                                         ] as [MetodoSorteo, string][]
@@ -733,7 +735,7 @@ export function ComposerDinamicas({
                                                     'inline-flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold cursor-pointer ' +
                                                     (activa
                                                         ? 'bg-amber-600 text-white border-2 border-amber-700'
-                                                        : 'bg-white border-2 border-slate-300 text-slate-800 hover:border-amber-500 hover:text-amber-700')
+                                                        : 'bg-white border-2 border-amber-300 text-slate-800 hover:border-amber-500 hover:text-amber-700')
                                                 }
                                             >
                                                 {activa && <Check className="w-4 h-4 shrink-0" strokeWidth={3} />}
@@ -749,11 +751,12 @@ export function ComposerDinamicas({
                     {seccionAbierta === 'boletos' && (
                         <div className="mt-3">
                             <PanelWrapper titulo="Boletos">
-                                {/* Los 3 en la misma línea siempre — en móvil se reparten el
-                                    ancho a partes iguales (`flex-1`) para no desbordar el
-                                    composer; en `lg:` recuperan su ancho fijo original. */}
-                                <div className="flex items-center gap-1.5 lg:gap-2">
-                                    <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
+                                {/* En móvil, grid 2x1 arriba (Boleto Inicial + Total) y
+                                    Precio abajo ocupando el ancho completo; en `lg:` los 3
+                                    caben en 1 sola fila con su ancho fijo de siempre. El
+                                    texto va como placeholder dentro de cada uno. */}
+                                <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-row lg:items-center lg:gap-2">
+                                    <div className="relative lg:w-44 lg:shrink-0">
                                         <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
                                         <input
                                             type="text"
@@ -761,11 +764,11 @@ export function ComposerDinamicas({
                                             data-testid="composer-dinamicas-numero-boleto-inicial"
                                             value={draft.numeroBoletoInicial}
                                             onChange={(e) => actualizar({ numeroBoletoInicial: e.target.value.replace(/[^\d]/g, '') })}
-                                            placeholder="Empieza en"
+                                            placeholder="Boleto Inicial"
                                             className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
                                         />
                                     </div>
-                                    <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
+                                    <div className="relative lg:w-44 lg:shrink-0">
                                         <Ticket className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
                                         <input
                                             type="text"
@@ -773,11 +776,11 @@ export function ComposerDinamicas({
                                             data-testid="composer-dinamicas-numero-boletos"
                                             value={draft.numeroTotalBoletos}
                                             onChange={(e) => actualizar({ numeroTotalBoletos: e.target.value.replace(/[^\d]/g, '') })}
-                                            placeholder="Total"
+                                            placeholder="Total de Boletos"
                                             className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
                                         />
                                     </div>
-                                    <div className="relative min-w-0 flex-1 lg:w-40 lg:flex-none lg:shrink-0">
+                                    <div className="relative col-span-2 lg:col-span-1 lg:w-40 lg:shrink-0 2xl:w-52">
                                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-500 lg:left-3.5 lg:text-[15px]">$</span>
                                         <input
                                             type="text"
@@ -785,7 +788,7 @@ export function ComposerDinamicas({
                                             data-testid="composer-dinamicas-precio-boleto"
                                             value={draft.precioBoleto}
                                             onChange={(e) => actualizar({ precioBoleto: e.target.value.replace(/[^\d.]/g, '') })}
-                                            placeholder="Precio"
+                                            placeholder="Precio del Boleto"
                                             className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-6 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-8 lg:pr-3 lg:text-[15px]"
                                         />
                                     </div>
@@ -805,45 +808,49 @@ export function ComposerDinamicas({
                                 {intentoEnvio && errores.precioBoleto && (
                                     <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.precioBoleto}</p>
                                 )}
+                            </PanelWrapper>
+                        </div>
+                    )}
 
-                                {/* Sorteo: lugares premiados (K) + a qué intento sale el
-                                    ganador (N), en cascada — el intento N es el 1er lugar
-                                    (premio grande, se revela al final), N-1 el 2do, etc. */}
-                                <div className="mt-4 border-t border-slate-200 pt-3">
-                                    <p className="mb-2 text-[13px] font-bold text-amber-800">Sorteo</p>
-                                    <div className="flex items-center gap-1.5 lg:gap-2">
-                                        <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
-                                            <Trophy className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                data-testid="composer-dinamicas-numero-lugares-ganadores"
-                                                value={draft.numeroLugaresGanadores}
-                                                onChange={(e) => actualizar({ numeroLugaresGanadores: e.target.value.replace(/[^\d]/g, '') })}
-                                                placeholder="Lugares premiados"
-                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
-                                            />
-                                        </div>
-                                        <div className="relative min-w-0 flex-1 lg:w-44 lg:flex-none lg:shrink-0">
-                                            <Dices className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                data-testid="composer-dinamicas-numero-intentos-sorteo"
-                                                value={draft.numeroIntentosSorteo}
-                                                onChange={(e) => actualizar({ numeroIntentosSorteo: e.target.value.replace(/[^\d]/g, '') })}
-                                                placeholder="Sale en el intento #"
-                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
-                                            />
-                                        </div>
+                    {seccionAbierta === 'reglasSorteo' && (
+                        <div className="mt-3">
+                            <PanelWrapper titulo="Reglas">
+                                {/* Lugares premiados (K) + a qué intento sale el ganador
+                                    DE CADA lugar (N) — cada lugar corre su propia ronda de
+                                    N bolas; el premio mayor (lugar #1) siempre es la
+                                    última bola de todo el sorteo. */}
+                                <div className="flex items-center gap-1.5 lg:gap-2">
+                                    <div className="relative min-w-0 flex-1 lg:w-56 lg:flex-none lg:shrink-0">
+                                        <Trophy className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            data-testid="composer-dinamicas-numero-lugares-ganadores"
+                                            value={draft.numeroLugaresGanadores}
+                                            onChange={(e) => actualizar({ numeroLugaresGanadores: e.target.value.replace(/[^\d]/g, '') })}
+                                            placeholder="Lugares premiados"
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                        />
                                     </div>
-                                    {intentoEnvio && errores.numeroLugaresGanadores && (
-                                        <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroLugaresGanadores}</p>
-                                    )}
-                                    {intentoEnvio && errores.numeroIntentosSorteo && (
-                                        <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroIntentosSorteo}</p>
-                                    )}
+                                    <div className="relative min-w-0 flex-1 lg:w-56 lg:flex-none lg:shrink-0">
+                                        <Dices className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            data-testid="composer-dinamicas-numero-intentos-sorteo"
+                                            value={draft.numeroIntentosSorteo}
+                                            onChange={(e) => actualizar({ numeroIntentosSorteo: e.target.value.replace(/[^\d]/g, '') })}
+                                            placeholder="Intentos por lugar"
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                        />
+                                    </div>
                                 </div>
+                                {intentoEnvio && errores.numeroLugaresGanadores && (
+                                    <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroLugaresGanadores}</p>
+                                )}
+                                {intentoEnvio && errores.numeroIntentosSorteo && (
+                                    <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroIntentosSorteo}</p>
+                                )}
                             </PanelWrapper>
                         </div>
                     )}
@@ -971,15 +978,18 @@ export function ComposerDinamicas({
                         Icono={Ticket}
                         label="Boletos"
                         activo={!!draft.numeroTotalBoletos && !!draft.precioBoleto}
-                        error={
-                            intentoEnvio &&
-                            (!!errores.numeroTotalBoletos ||
-                                !!errores.precioBoleto ||
-                                !!errores.numeroLugaresGanadores ||
-                                !!errores.numeroIntentosSorteo)
-                        }
+                        error={intentoEnvio && (!!errores.numeroTotalBoletos || !!errores.numeroBoletoInicial || !!errores.precioBoleto)}
                         abierto={seccionAbierta === 'boletos'}
                         onClick={() => setSeccionAbierta((s) => (s === 'boletos' ? null : 'boletos'))}
+                    />
+                    <ChipDetalle
+                        id="reglasSorteo"
+                        Icono={Trophy}
+                        label="Reglas"
+                        activo={!!draft.numeroLugaresGanadores && !!draft.numeroIntentosSorteo}
+                        error={intentoEnvio && (!!errores.numeroLugaresGanadores || !!errores.numeroIntentosSorteo)}
+                        abierto={seccionAbierta === 'reglasSorteo'}
+                        onClick={() => setSeccionAbierta((s) => (s === 'reglasSorteo' ? null : 'reglasSorteo'))}
                     />
                     <ChipDetalle
                         id="fecha"

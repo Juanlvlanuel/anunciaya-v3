@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertCircle, CalendarClock, ChevronLeft, Dices, Loader2, Radio, Trophy } from 'lucide-react';
+import { AlertCircle, CalendarClock, ChevronLeft, Dices, Hand, Loader2, Pause, Play, Radio, SkipForward, Zap } from 'lucide-react';
 import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
 import Tooltip from '../../../components/ui/Tooltip';
 import { DatePicker } from '../../../components/ui/DatePicker';
@@ -32,6 +32,7 @@ import { CronometroSala } from '../../../components/dinamicas/sala/CronometroSal
 import { TombolaSorteo } from '../../../components/dinamicas/sala/TombolaSorteo';
 import { ChatSala } from '../../../components/dinamicas/sala/ChatSala';
 import { PanelModeracionSala } from '../../../components/dinamicas/sala/PanelModeracionSala';
+import { GanadoresSala } from '../../../components/dinamicas/sala/GanadoresSala';
 import type { AccionModeracionSala } from '../../../types/dinamicas';
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
@@ -157,13 +158,24 @@ export function PaginaSalaDinamica() {
     // (`dinamicas.estado`/`sala_programada_para`) sin la latencia del socket.
     const estado = sala.estado ?? dinamica.estado;
     const salaProgramadaPara = sala.salaProgramadaPara ?? dinamica.salaProgramadaPara;
+    // `sala.intentosRevelados` solo tiene datos si viviste el sorteo en vivo
+    // (evento por evento, vía socket). Si recargas la página después de que
+    // ya cerró, esa lista llega vacía — se usa el historial recomputado por
+    // el backend desde la semilla pública como evidencia del sorteo completo.
+    const intentosParaTombola = sala.intentosRevelados.length > 0 ? sala.intentosRevelados : (estadoHttp?.historialCompleto ?? []);
 
-    const puedeEscribir = !!usuarioActual && !sala.miModeracion.silenciado && !sala.miModeracion.expulsado && !sala.expulsadoAhora;
+    // El chat cierra junto con la sala — el backend ya lo rechaza
+    // (`enviarMensajeSala`) si `estado === 'cerrada'`; esto solo refleja esa
+    // misma regla en el input para no dejarlo habilitado de mentiras.
+    const puedeEscribir =
+        !!usuarioActual && !sala.miModeracion.silenciado && !sala.miModeracion.expulsado && !sala.expulsadoAhora && estado !== 'cerrada';
     const motivoBloqueo = sala.expulsadoAhora || sala.miModeracion.expulsado
         ? 'Fuiste expulsado de esta sala'
         : sala.miModeracion.silenciado
             ? 'El organizador te silenció en esta sala'
-            : undefined;
+            : estado === 'cerrada'
+                ? 'Esta sala ya cerró'
+                : undefined;
 
     const yaLlegoLaHora = salaProgramadaPara ? new Date(salaProgramadaPara).getTime() <= Date.now() : false;
 
@@ -173,6 +185,11 @@ export function PaginaSalaDinamica() {
         typeof window !== 'undefined'
             ? `${window.location.origin}/p/dinamica/${dinamica.id}/sala`
             : `/p/dinamica/${dinamica.id}/sala`;
+
+    // Premio para la sala de espera del cronómetro — mismo criterio que
+    // CardDinamica.tsx (portada = 1ra imagen, o poster si es video).
+    const portadaSala = dinamica.fotosPremio.find((f) => f.tipo === 'imagen') ?? dinamica.fotosPremio[0];
+    const portadaSalaUrl = portadaSala?.tipo === 'video' ? portadaSala.posterUrl : portadaSala?.url;
 
     return (
         <div className="flex h-full flex-col bg-slate-50 lg:block lg:h-auto lg:min-h-full">
@@ -353,39 +370,84 @@ export function PaginaSalaDinamica() {
                         )}
 
                         {salaProgramadaPara && (estado === 'activa' || estado === 'pospuesta') && (
-                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-300 bg-white p-4">
-                                <CronometroSala objetivo={salaProgramadaPara} onLlegoLaHora={() => setHoraLlego(true)} />
+                            <CronometroSala
+                                objetivo={salaProgramadaPara}
+                                onLlegoLaHora={() => setHoraLlego(true)}
+                                tituloRifa={dinamica.titulo}
+                                portadaUrl={portadaSalaUrl}
+                                boletosPagados={dinamica.boletosPagados}
+                                numeroTotalBoletos={dinamica.numeroTotalBoletos}
+                                conectados={sala.conectados.size}
+                            >
                                 {esOrganizador && (yaLlegoLaHora || horaLlego) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => sala.iniciarSorteo()}
-                                        className="rounded-full bg-amber-600 px-4 py-2 text-sm font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
-                                    >
-                                        Iniciar sorteo
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => sala.iniciarSorteo('automatico')}
+                                            className="flex items-center gap-1.5 rounded-full bg-amber-600 px-5 py-2.5 text-sm font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
+                                        >
+                                            <Zap className="h-4 w-4" strokeWidth={2.5} />
+                                            Automático
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => sala.iniciarSorteo('manual')}
+                                            className="flex items-center gap-1.5 rounded-full border-2 border-amber-400 bg-white px-5 py-2.5 text-sm font-bold text-amber-700 lg:cursor-pointer lg:hover:bg-amber-50"
+                                        >
+                                            <Hand className="h-4 w-4" strokeWidth={2.5} />
+                                            Manual
+                                        </button>
+                                    </div>
                                 )}
-                            </div>
+                            </CronometroSala>
                         )}
 
-                        {(estado === 'en_sorteo' || sala.intentosRevelados.length > 0) && (
-                            <TombolaSorteo intentosRevelados={sala.intentosRevelados} numeroIntentosSorteo={sala.numeroIntentosSorteo} />
+                        {(estado === 'en_sorteo' || intentosParaTombola.length > 0) && (
+                            <TombolaSorteo
+                                intentosRevelados={intentosParaTombola}
+                                numeroIntentosSorteo={sala.numeroIntentosSorteo}
+                                numeroLugaresGanadores={sala.numeroLugaresGanadores}
+                                salaCerrada={estado === 'cerrada'}
+                            />
+                        )}
+
+                        {/* Modo manual — el organizador revela cada bola con este botón
+                            en vez de la cascada automática temporizada. */}
+                        {esOrganizador && estado === 'en_sorteo' && sala.modoSorteo === 'manual' && (
+                            <button
+                                type="button"
+                                onClick={() => sala.revelarSiguienteBola()}
+                                className="mx-auto flex items-center gap-2 rounded-full bg-amber-600 px-6 py-2.5 text-sm font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
+                            >
+                                <SkipForward className="h-4 w-4" strokeWidth={2.5} />
+                                Siguiente bola
+                            </button>
+                        )}
+
+                        {/* Modo automático — el organizador puede pausar/reanudar la
+                            cascada temporizada a mitad del sorteo. */}
+                        {esOrganizador && estado === 'en_sorteo' && sala.modoSorteo === 'automatico' && (
+                            <button
+                                type="button"
+                                onClick={() => (sala.pausadoSorteo ? sala.reanudarSorteo() : sala.pausarSorteo())}
+                                className="mx-auto flex items-center gap-2 rounded-full border-2 border-amber-400 bg-white px-6 py-2.5 text-sm font-bold text-amber-700 lg:cursor-pointer lg:hover:bg-amber-50"
+                            >
+                                {sala.pausadoSorteo ? (
+                                    <>
+                                        <Play className="h-4 w-4" strokeWidth={2.5} />
+                                        Reanudar
+                                    </>
+                                ) : (
+                                    <>
+                                        <Pause className="h-4 w-4" strokeWidth={2.5} />
+                                        Pausar
+                                    </>
+                                )}
+                            </button>
                         )}
 
                         {estado === 'cerrada' && estadoHttp?.ganadores && (
-                            <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
-                                <h3 className="mb-2 flex items-center gap-1.5 text-base font-bold text-amber-900">
-                                    <Trophy className="h-4 w-4" strokeWidth={2.5} />
-                                    Ganadores
-                                </h3>
-                                <div className="space-y-1.5">
-                                    {estadoHttp.ganadores.lista.map((g) => (
-                                        <div key={g.lugar} className="flex items-center justify-between text-sm font-semibold text-amber-800">
-                                            <span>Lugar #{g.lugar} — Boleto #{g.numeroBoleto}</span>
-                                            <span>{g.usuarioNombre ? `${g.usuarioNombre} ${g.usuarioApellidos ?? ''}` : (g.nombreManual ?? 'Sin cuenta AY')}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <GanadoresSala ganadores={estadoHttp.ganadores.lista} />
                         )}
                     </div>
 

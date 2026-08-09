@@ -456,28 +456,35 @@ describe('ejecutarSorteo — determinismo y reglas de cascada', () => {
         );
     });
 
-    it('produce exactamente N intentos sin boletos repetidos', () => {
-        const r = ejecutarSorteo(pool, SEMILLA_FIJA, 8, 2);
-        expect(r.intentos).toHaveLength(8);
+    it('produce exactamente K×N intentos (N por ronda, una ronda por lugar) sin boletos repetidos', () => {
+        const r = ejecutarSorteo(pool, SEMILLA_FIJA, 8, 2); // 8 por ronda × 2 rondas = 16
+        expect(r.intentos).toHaveLength(16);
         const numeros = r.intentos.map((i) => i.boleto.numeroBoleto);
-        expect(new Set(numeros).size).toBe(8);
+        expect(new Set(numeros).size).toBe(16);
     });
 
-    it('marca ganadores solo en los últimos K intentos, en orden inverso (cascada)', () => {
+    it('cada lugar corre su propia ronda de N bolas — la última de cada ronda gana, el premio mayor es la última bola de TODO el sorteo', () => {
+        // N=5 por ronda, K=3 lugares → 15 bolas: ronda0=intentos[1..5]→lugar3,
+        // ronda1=intentos[6..10]→lugar2, ronda2=intentos[11..15]→lugar1.
         const r = ejecutarSorteo(pool, SEMILLA_FIJA, 5, 3);
+        expect(r.intentos).toHaveLength(15);
         expect(r.ganadores).toHaveLength(3);
-        // intento 5 (el último) es el 1er lugar (premio grande, revelado al final)
+
+        // Ronda 1 (primera en revelarse) — lugar #3, gana el intento 5.
         expect(r.intentos[4].esGanador).toBe(true);
-        expect(r.intentos[4].lugar).toBe(1);
-        // intento 4 es el 2do lugar
-        expect(r.intentos[3].esGanador).toBe(true);
-        expect(r.intentos[3].lugar).toBe(2);
-        // intento 3 es el 3er lugar
-        expect(r.intentos[2].esGanador).toBe(true);
-        expect(r.intentos[2].lugar).toBe(3);
-        // los primeros 2 intentos NO son ganadores
-        expect(r.intentos[0].esGanador).toBe(false);
-        expect(r.intentos[1].esGanador).toBe(false);
+        expect(r.intentos[4].lugar).toBe(3);
+        expect(r.intentos.slice(0, 4).every((i) => !i.esGanador)).toBe(true);
+
+        // Ronda 2 — lugar #2, gana el intento 10.
+        expect(r.intentos[9].esGanador).toBe(true);
+        expect(r.intentos[9].lugar).toBe(2);
+        expect(r.intentos.slice(5, 9).every((i) => !i.esGanador)).toBe(true);
+
+        // Ronda 3 (última) — lugar #1, premio mayor, gana el intento 15.
+        expect(r.intentos[14].esGanador).toBe(true);
+        expect(r.intentos[14].lugar).toBe(1);
+        expect(r.intentos.slice(10, 14).every((i) => !i.esGanador)).toBe(true);
+
         // ganadores[] viene ordenado por lugar ascendente (1ro, 2do, 3ro)
         expect(r.ganadores.map((g) => g.lugar)).toEqual([1, 2, 3]);
     });
@@ -489,12 +496,15 @@ describe('ejecutarSorteo — determinismo y reglas de cascada', () => {
         expect(r.ganadores[0].lugar).toBe(1);
     });
 
-    it('RECHAZA numeroIntentos mayor al tamaño del pool', () => {
+    it('RECHAZA cuando K×N es mayor al tamaño del pool', () => {
         expect(() => ejecutarSorteo(pool, SEMILLA_FIJA, 999, 1)).toThrow();
     });
 
-    it('RECHAZA numeroLugares mayor a numeroIntentos', () => {
-        expect(() => ejecutarSorteo(pool, SEMILLA_FIJA, 3, 5)).toThrow();
+    it('ACEPTA numeroLugares mayor a numeroIntentosPorLugar (ya no hay cascada única, cada lugar es su propia ronda)', () => {
+        // 3 por ronda × 5 lugares = 15 bolas, cabe en el pool de 20.
+        const r = ejecutarSorteo(pool, SEMILLA_FIJA, 3, 5);
+        expect(r.intentos).toHaveLength(15);
+        expect(r.ganadores).toHaveLength(5);
     });
 
     it('semillas distintas producen resultados distintos (con probabilidad práctica)', () => {

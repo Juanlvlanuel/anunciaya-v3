@@ -126,17 +126,24 @@ const campoNumeroLugaresGanadores = z
     .int('El número de lugares premiados debe ser un entero')
     .positive('Debe haber al menos 1 lugar premiado');
 
-/** N = a qué intento (bola sin reemplazo) sale cada lugar, en cascada — el
- *  intento N es el 1er lugar, N-1 el 2do, etc. (confirmado con el usuario:
- *  un solo número de intentos que aplica en cascada a todos los lugares). */
+/** N = a qué intento (bola sin reemplazo) sale el ganador DE CADA lugar —
+ *  cada lugar premiado corre su propia ronda de N bolas (las primeras N-1
+ *  "no ganan", la N-ésima es la ganadora de esa ronda). Las rondas se
+ *  revelan en orden de lugar descendente (K, K-1, ..., 1) para que el
+ *  premio mayor (lugar #1) salga en la última ronda — mismo criterio de
+ *  suspenso que antes, ahora aplicado por ronda en vez de a un solo
+ *  cascada global (confirmado con el usuario, ago-2026). */
 const campoNumeroIntentosSorteo = z
     .number({ message: 'El número de intentos del sorteo debe ser un número' })
     .int('El número de intentos del sorteo debe ser un entero')
     .positive('El número de intentos debe ser mayor a cero');
 
-/** Cruza K y N contra `numeroTotalBoletos` y entre sí — mismo criterio que
+/** Cruza K y N contra `numeroTotalBoletos` — mismo criterio que
  *  `validarReglaDesempateCondMetodo`: un CHECK de BD no puede condicionar
- *  sobre `numeroTotalBoletos`, que es nullable en borrador. */
+ *  sobre `numeroTotalBoletos`, que es nullable en borrador. Con N por
+ *  ronda, el total de bolas que se van a sacar es K × N (sin reemplazo en
+ *  todo el sorteo), así que ese producto es el que no puede exceder el
+ *  total de boletos — no N por sí solo. */
 function validarConfigSorteo(
     data: {
         numeroLugaresGanadores?: number;
@@ -149,13 +156,6 @@ function validarConfigSorteo(
     const N = data.numeroIntentosSorteo;
     const total = data.numeroTotalBoletos;
 
-    if (K !== undefined && N !== undefined && N < K) {
-        ctx.addIssue({
-            code: 'custom',
-            path: ['numeroIntentosSorteo'],
-            message: 'El número de intentos no puede ser menor al número de lugares premiados',
-        });
-    }
     if (total !== undefined) {
         if (K !== undefined && K > total) {
             ctx.addIssue({
@@ -164,11 +164,11 @@ function validarConfigSorteo(
                 message: 'No puede haber más lugares premiados que boletos totales',
             });
         }
-        if (N !== undefined && N > total) {
+        if (K !== undefined && N !== undefined && K * N > total) {
             ctx.addIssue({
                 code: 'custom',
                 path: ['numeroIntentosSorteo'],
-                message: 'El número de intentos no puede exceder el total de boletos',
+                message: 'Lugares premiados × intentos por lugar no puede exceder el total de boletos',
             });
         }
     }

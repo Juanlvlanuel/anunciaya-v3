@@ -24,7 +24,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Icon, type IconProps } from '@/config/iconos';
+import { Icon, type IconProps, type IconoComponente } from '@/config/iconos';
 import { Lock, LogOut, Ticket, User, Download, HelpCircle, Megaphone, ChartNoAxesCombined, ChevronRight, Store, X } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
@@ -64,7 +64,7 @@ interface ItemMenuDrawer {
   /** Color del tile 36×36. Cuando el item lleva imagen de marca, no se aplica. */
   tile: string;
   /** Ícono vectorial. Mutuamente excluyente con `iconoImagen`. */
-  icon?: React.ElementType;
+  icon?: IconoComponente;
   /** Logo de marca (webp). Mutuamente excluyente con `icon`. */
   iconoImagen?: string;
   /** Renderiza la imagen llenando el tile (object-cover) sobre el fondo `tile`,

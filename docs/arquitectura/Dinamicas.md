@@ -1,8 +1,8 @@
 # 🎟️ Dinámicas — Rifas y Concursos P2P entre Usuarios
 
-> **Última actualización:** 8 Agosto 2026
-> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción. Fase 4.1 (sala en vivo + motor de sorteo) construida: la sala pasó de modal a **página completa** (`/marketplace/dinamica/:id/sala` y `/p/.../sala`), y se agregó el **Cuadro de Honor** ("Últimos Ganadores", resumen agregado de rifas cerradas). **Pendiente correr migraciones + QA E2E**. Fase 4.2 (animación cinematográfica de tómbola) y Fase 5 (tarjeta compartible) pendientes.
-> **Versión:** 0.4.0 (Fase 4.1 — sala en vivo + motor de sorteo)
+> **Última actualización:** 9 Agosto 2026
+> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción. Fase 4.1 (sala en vivo + motor de sorteo) y **Fase 4.2 (tómbola 3D real + modos automático/manual)** construidas. Sala como **página completa** (`/marketplace/dinamica/:id/sala` y `/p/.../sala`), con el **Cuadro de Honor** ("Últimos Ganadores"). **Pendiente correr migraciones + QA E2E en producción**. Fase 4.3 (`carta_unica`/`tabla_completa`) y Fase 5 (tarjeta compartible) pendientes.
+> **Versión:** 0.4.2 (Fase 4.2 — tómbola 3D, modo automático/manual, catch-up en vivo)
 > **Doc de planeación original:** `docs/kit-dinamicas/Contexto_Dinamicas.md` (decisiones de producto previas a construir; este documento es la referencia técnica viva de lo ya construido — se va actualizando fase por fase).
 
 > **Identidad visual:** Ámbar (`#f59e0b → #d97706`) — distingue a Dinámicas de MarketPlace (teal) dentro del mismo módulo compartido.
@@ -218,9 +218,9 @@ Rediseñada (ago-2026) para calcar el patrón de `PaginaArticuloMarketplace.tsx`
 **Columna izquierda (escenario), en orden mutuamente excluyente:**
 1. "Configura el sorteo antes de programar la sala" (solo organizador, solo si `numeroIntentosSorteo === null` — cubre rifas publicadas antes de que existiera la sala, sin otro camino en la UI para fijar K/N).
 2. "Programar sala" (organizador, K/N ya configurados, sin fecha aún).
-3. `CronometroSala` + botón "Iniciar sorteo" (organizador, habilitado al llegar la hora).
-4. `TombolaSorteo` (revelación en vivo, cascada de intentos).
-5. Card de Ganadores (estado `cerrada`, nombres vía `GET /:id/sala`).
+3. `CronometroSala` + botones **"Automático"**/**"Manual"** (organizador, habilitados al llegar la hora — ver §12 para la diferencia entre modos).
+4. `TombolaSorteo` (tómbola 3D real + banner de ronda + revelación) — mientras `estado='en_sorteo'`, debajo aparece **"Siguiente bola"** (modo manual) o **"Pausar"/"Reanudar"** (modo automático), solo para el organizador.
+5. `GanadoresSala` (lista ordenada por lugar, `estado='cerrada'`, nombres vía `GET /:id/sala`) — la tómbola con el historial completo de bolas se queda visible arriba como evidencia, no se reemplaza por el card de ganadores.
 
 **Columna derecha:** `PanelModeracionSala` (solo organizador, con punto de presencia verde/gris por participante) + `ChatSala` (rediseñado ago-2026 para calcar `ComentarioItem.tsx` de MarketPlace: avatar clickeable → `ModalImagenes`, nombre visible, menú ⋮ con "Contactar" por ChatYA — antes era burbujas estilo WhatsApp izq/der).
 
@@ -244,6 +244,8 @@ Estado en vivo vía `useSalaDinamica(dinamicaId)` (hook) → `useSalaDinamicaSto
 - `?dinamicas=1&editarDinamica=<id>` → modo edición (solo mientras `estado='borrador'`).
 
 Móvil: página completa estilo "Nueva publicación" de Instagram/Facebook. Desktop: `ModalAdaptativo` de tamaño fijo. Guarda borrador automáticamente en localStorage mientras el usuario escribe (mismo patrón que MarketPlace).
+
+**Chips "Boletos" y "Reglas" separados** (ago-2026) — antes los campos del sorteo (K/N) vivían dentro del panel "Boletos"; ahora tienen su propio chip "Reglas" (ícono `Trophy`), cada uno valida/abre independiente. En "Boletos", "Empieza en" pasó a llamarse "Boleto Inicial"; en móvil los 3 campos van en grid 2+1 (Boleto Inicial + Total arriba, Precio abajo ocupando el ancho completo), en `lg:` los 3 caben en una sola fila. El campo antes "Sale en el intento #" ahora dice "Intentos por lugar" (refleja el algoritmo por rondas, ver §12).
 
 ### Integración — Perfil público del organizador
 
@@ -310,7 +312,7 @@ El botón "Contactar" (organizador, desde el card del feed o la ficha) abre Chat
 
 | Método | Ruta | Función |
 |---|---|---|
-| GET | `/` | Feed público filtrado por ciudad (`?ciudad=&pagina=&limite=`) |
+| GET | `/` | Feed público filtrado por ciudad (`?ciudad=&pagina=&limite=`) — `estado IN ('activa','pospuesta','en_sorteo')`. `en_sorteo` se agregó ago-2026 (bug real: sin esto, la rifa desaparecía del feed justo cuando el organizador iniciaba el sorteo y nadie podía encontrarla para entrar a la sala en vivo). `cerrada` se queda fuera a propósito — esas migran al Cuadro de Honor. |
 | GET | `/salon-fama` | Cuadro de Honor — rifas cerradas + ganadores de la ciudad (`?ciudad=&pagina=&limite=`), para el resumen agregado del feed (Fase 4.1) |
 | GET | `/organizador/:usuarioId` | Dinámicas de un organizador + insignia (`?incluirCanceladas=1` solo si el requester es ese mismo usuario autenticado) |
 | GET | `/:id` | Ficha enriquecida (organizador + boletos + insignia) |
@@ -376,38 +378,58 @@ Catálogo completo, iconos/colores y patrón general en `docs/arquitectura/Notif
 
 ---
 
-## 🎲 Sala en vivo y motor de sorteo (Fase 4.1)
+## 🎲 Sala en vivo y motor de sorteo (Fase 4.1 + 4.2)
 
-El organizador programa la sala con anticipación (`salaProgramadaPara`), todos ven una cuenta regresiva y se unen a una sala con chat en vivo — visitantes sin cuenta AY pueden entrar en modo lectura desde el link público, escribir/participar pide login. El organizador conduce el evento a mano: transición manual, no un cron automático (el cron/timer solo maneja la cuenta regresiva visual y habilita el botón "Iniciar sorteo").
+El organizador programa la sala con anticipación (`salaProgramadaPara`), todos ven una cuenta regresiva y se unen a una sala con chat en vivo — visitantes sin cuenta AY pueden entrar en modo lectura desde el link público, escribir/participar pide login. El organizador conduce el evento a mano: transición manual, no un cron automático (el cron/timer solo maneja la cuenta regresiva visual y habilita los botones "Automático"/"Manual").
 
 **Máquina de estados reusada** — no hay columna "estado de sala" nueva: `dinamicas.estado` mapea 1:1 (`activa`/`pospuesta` con `salaProgramadaPara` fijada → `en_sorteo` → `cerrada`), reusando el guard `puedeTransicionar()` de `dinamicas/estados.ts` que ya declaraba esos valores desde Fase 1 sin nada que transicionara a ellos.
 
 **Motor de sorteo — determinista y auditable** (`apps/api/src/services/dinamicas/sorteo.ts`, módulo puro sin BD):
 - Al iniciar, se genera una `semillaAleatoria` con `crypto.randomBytes(32)` — nadie la elige, nadie puede predecirla.
-- Cascada confirmada con el usuario: **un solo N (intentos) aplica a todos los K lugares**, no un N independiente por lugar. En cada intento 1..N se saca, sin reemplazo, un boleto del pool de `pagado` usando `SHA256(semilla:intento) % restante.length` como índice.
-- Los últimos K intentos son los ganadores, **en orden inverso**: el intento N es el 1er lugar (premio grande, revelado al final para dar suspenso), N-1 el 2do, etc.
-- Solo los K ganadores se persisten en `dinamica_ganadores`; los intentos "no ganó" no se guardan — cualquiera puede recomputarlos desde la `semillaAleatoria` pública + el algoritmo, y verificar el resultado contra `hashVerificacion` (`SHA256(dinamicaId|semilla|secuencia)`).
-- `iniciarSorteo()` calcula TODO el resultado de una vez (fairness: la secuencia debe quedar fija antes de revelar nada) y lo persiste junto con la transición a `en_sorteo`. La revelación gradual es responsabilidad de `socket.ts` (`revelarSorteoEnVivo()`): emite un `dinamica:sala:intento` por bola con ~2s de pausa entre cada uno, y al terminar llama `cerrarSala()` (transición `en_sorteo → cerrada` + notificaciones `dinamica_resultado`).
+- **Por RONDAS**: cada lugar premiado corre su propia ronda de N bolas — las primeras N-1 de esa ronda "no ganan", la N-ésima es la ganadora de ESE lugar. Las rondas se revelan en orden de lugar **descendente** (K, K-1, ..., 1), así que el premio mayor (lugar #1) es siempre la última bola de TODO el sorteo.
+- Sin reemplazo a lo largo de todo el sorteo (no solo dentro de cada ronda): cada bola usa `SHA256(semilla:intentoGlobal) % restante.length` como índice sobre el pool de `pagado` que va quedando. Total de bolas del sorteo = **K × N**.
+- Solo los K ganadores se persisten en `dinamica_ganadores`; los intentos "no ganó" no se guardan — cualquiera puede recomputarlos desde la `semillaAleatoria` pública + el algoritmo, y verificar el resultado contra `hashVerificacion` (`SHA256(dinamicaId|semilla|secuencia)`). Este mismo principio es lo que permite `historialCompleto` (ver abajo) sin agregar ninguna columna nueva.
+- `iniciarSorteo()` calcula TODO el resultado de una vez (fairness: la secuencia debe quedar fija antes de revelar nada) y lo persiste junto con la transición a `en_sorteo`. La revelación gradual es responsabilidad de `socket.ts`, que al terminar llama `cerrarSala()` (transición `en_sorteo → cerrada` + notificaciones `dinamica_resultado`) — compartido entre el modo automático y el manual (`cerrarSalaYAnunciar()`).
+
+**Modo automático vs manual (Fase 4.2)** — al llegar la hora, el organizador elige cómo se revela:
+- **Automático** (`revelarSorteoEnVivo()`): cascada temporizada, ~2s entre cada bola (`dinamica:sala:intento`), igual que Fase 4.1. El organizador puede **pausar/reanudar** a mitad de la cascada (`dinamica:sala:pausar-sorteo`/`reanudar-sorteo`) — no cancela nada, solo detiene el avance a la siguiente bola; se revisa la bandera de pausa antes de emitir cada una.
+- **Manual**: el organizador revela una bola a la vez con el botón "Siguiente bola" (`dinamica:sala:revelar-siguiente-bola`) — mismo resultado ya calculado, solo cambia el ritmo de revelación.
+- Ambos modos guardan su progreso **en memoria** del proceso de Node (`sorteosAutomaticosPausables`/`sorteosManualesPendientes` en `socket.ts`, keyed por `dinamicaId`) — **no** en BD. Esto tiene una consecuencia real: si el servidor de la API se reinicia a mitad de un sorteo (deploy, crash, health-check), ese progreso se pierde y la Dinámica queda **atorada en `en_sorteo`** para siempre (nadie puede volver a "Iniciar sorteo" porque la transición `en_sorteo → en_sorteo` es inválida). Ver §Decisiones y pendientes abiertos.
+
+**Catch-up en vivo** — si alguien se une (o recarga la página) DESPUÉS de que el sorteo ya empezó, se perdió los eventos `dinamica:sala:intento` anteriores (solo se emiten una vez). El servidor manda, dentro del MISMO evento `dinamica:sala:estado-inicial` (no uno aparte, para evitar el parpadeo de "esperando la primera bola" antes de que llegue el segundo evento):
+- `intentosEnCurso` — las bolas ya reveladas hasta ahora, tomadas del progreso en memoria (`.slice(0, cursor/progreso)`).
+- `modoSorteoActual` — 'automatico'/'manual', para que el botón correcto ("Siguiente bola" o "Pausar/Reanudar") aparezca. Necesario porque `dinamica:sala:estado-cambio` (que normalmente manda `modoSorteo`) solo se emite UNA vez, al iniciar — quien se une después nunca lo recibe.
+
+**`historialCompleto` para salas cerradas** — al pedir `GET /:id/sala` de una Dinámica ya `cerrada`, el backend **recomputa** el sorteo completo (`ejecutarSorteo()` con el pool de boletos `pagado` + la `semillaAleatoria` ya persistida) para devolver TODAS las bolas (ganadoras y "no ganó"), no solo los K ganadores — sin necesidad de una tabla/columna nueva, mismo principio de verificabilidad pública. El frontend muestra la tómbola con este historial completo como "evidencia" junto al card de ganadores, en vez de reemplazarlo.
 
 **Moderación en 2 capas:**
 1. **Efímera, por evento** — silenciar/expulsar en `dinamica_sala_moderacion`, se borra con la Dinámica.
 2. **Permanente** — bloquear reusa `chat_bloqueados` tal cual (mismas funciones que ChatYA), aplica a todas las Dinámicas futuras del organizador y a ChatYA directo.
 
+**El chat cierra junto con la sala** — `enviarMensajeSala()` rechaza (409, "El chat de esta sala ya no está disponible") si `estado` no es `activa`/`pospuesta`/`en_sorteo`. El frontend refleja esto deshabilitando el input con el mensaje "Esta sala ya cerró" en vez de dejarlo escribible y que el envío rebote con error.
+
 **Socket.io** (`apps/api/src/socket.ts`):
 - El middleware de auth ahora **admite conexión anónima** (`socket.data.usuarioId = null`) — antes rechazaba cualquier conexión sin token. Cambio de infraestructura compartida (afecta TODOS los sockets, no solo Dinámicas), aditivo y sin bajar la seguridad de ChatYA.
 - Room `sala-dinamica:<dinamicaId>` (mismo mecanismo `socket.join`/`io.to().emit()` que ya usa `usuario:<id>`).
-- Cliente→servidor: `dinamica:sala:unirse`, `dinamica:sala:mensaje`, `dinamica:sala:salir`, `dinamica:sala:moderar`, `dinamica:sala:iniciar-sorteo`.
-- Servidor→cliente: `dinamica:sala:estado-inicial`, `dinamica:sala:mensaje`, `dinamica:sala:sistema`, `dinamica:sala:moderacion-actualizada`, `dinamica:sala:expulsado`, `dinamica:sala:estado-cambio`, `dinamica:sala:intento`, `dinamica:sala:sorteo-cerrado`, `dinamica:sala:error`.
+- Cliente→servidor: `dinamica:sala:unirse`, `dinamica:sala:mensaje`, `dinamica:sala:salir`, `dinamica:sala:moderar`, `dinamica:sala:iniciar-sorteo` (payload con `modo: 'automatico'|'manual'`), `dinamica:sala:revelar-siguiente-bola`, `dinamica:sala:pausar-sorteo`, `dinamica:sala:reanudar-sorteo`.
+- Servidor→cliente: `dinamica:sala:estado-inicial` (incluye `intentosEnCurso`/`modoSorteoActual` si aplica), `dinamica:sala:mensaje`, `dinamica:sala:sistema`, `dinamica:sala:moderacion-actualizada`, `dinamica:sala:expulsado`, `dinamica:sala:estado-cambio` (incluye `modoSorteo` al iniciar), `dinamica:sala:pausa-cambio`, `dinamica:sala:intento`, `dinamica:sala:sorteo-cerrado`, `dinamica:sala:error`.
 
 **Frontend:**
-- `apps/web/src/stores/useSalaDinamicaStore.ts` — store Zustand propio (no reutiliza `useChatYAStore.ts`), mismo patrón de listeners a nivel de módulo.
+- `apps/web/src/stores/useSalaDinamicaStore.ts` — store Zustand propio (no reutiliza `useChatYAStore.ts`), mismo patrón de listeners a nivel de módulo. Campos `modoSorteo`/`pausadoSorteo`; acciones `iniciarSorteo(modo)`/`revelarSiguienteBola()`/`pausarSorteo()`/`reanudarSorteo()`.
 - `apps/web/src/hooks/useSalaDinamica.ts` — orquesta unirse/salir + refresca la carga HTTP cuando el estado pasa a `cerrada` (el evento de socket no trae nombres de ganadores, esos vienen de `GET /:id/sala`).
 - `apps/web/src/pages/private/marketplace/PaginaSalaDinamica.tsx` / `apps/web/src/pages/public/PaginaSalaDinamicaPublica.tsx` — páginas completas de la sala (ver arriba, ya no es modal).
-- `apps/web/src/components/dinamicas/sala/` — `BotonSalaEnVivo.tsx` (pill de entrada), `CronometroSala.tsx`, `ChatSala.tsx`, `PanelModeracionSala.tsx` (solo organizador), `TombolaSorteo.tsx` (stub, Fase 4.2 la reemplaza).
+- `apps/web/src/components/dinamicas/sala/`:
+  - `BotonSalaEnVivo.tsx` — pill de entrada.
+  - `CronometroSala.tsx` — cuenta regresiva, estilo "premium dark".
+  - `TombolaSorteo.tsx` (Fase 4.2, YA NO es stub) — orquesta el banner de ronda ("Sorteando el Lugar N"/"Premio mayor", derivado de N/K sin pedir nada al backend), la escena 3D, la revelación (debajo de la escena, no como overlay encima — se probó y se sentía mal) y el historial en tira horizontal tipo "talón de boleto".
+  - `EscenarioTombola3D.tsx` (nuevo, Fase 4.2) — canvas 3D real vía `@react-three/fiber`/`three`, mismo diseño en escritorio y móvil (antes había una versión CSS aparte solo para móvil, se eliminó): jaula tipo geodésica sostenida por 2 postes laterales que giran sobre ese eje, 24 bolas decorativas numeradas (texturas `CanvasTexture` renderizadas como `<sprite>` — billboard, siempre miran a cámara; el sprite necesita `depthTest={false}` porque si no, la esfera opaca de la bola tapa su propio número), en reposo amontonadas por capas (acotadas al corte real de la esfera) y repartidas por el volumen al girar. La bola activa viaja con una estela de bolas que se desvanecen (`meshBasicMaterial`, sin luz — deliberado: los materiales metálicos/vidrio sin reflejos de ambiente se veían mal, negro o plano, así que se evitan). Sin `drei`, sin HDRI/Environment, sin post-processing (mismo criterio que `SISTEMA_ICONOS.md`, nada de fetch de assets en runtime).
+  - `GanadoresSala.tsx` — lista ordenada por lugar (ya no "podio"): cada fila separa el badge del lugar, avatar, nombre y "Boleto #N" como piezas visuales distintas (antes un texto combinado "Lugar #2 · #55" se leía repetido con el nombre "Competidor 055"). 1er lugar con fondo ámbar sutil y trofeo, sin colores de medalla por puesto (Regla 13).
+  - `ChatSala.tsx` — auto-scroll solo en mensajes NUEVOS en vivo, no en la carga inicial del historial (antes arrastraba la página completa hacia abajo en móvil al entrar).
+  - `PanelModeracionSala.tsx` (solo organizador).
 - `services/socketService.ts` ganó `conectarSocketInvitado()` — conecta sin exigir token, para visitantes anónimos de la ficha pública (`conectarSocket()` existente sigue exigiendo sesión, sin tocar).
 - Entrada: pill `BotonSalaEnVivo` en `PaginaDinamica.tsx`/`PaginaDinamicaPublica.tsx`, que navega a la ruta de la sala — visible en cuanto la Dinámica se publica.
 
-**Explícitamente fuera de esta fase (4.1):** animación cinematográfica de tómbola (`TombolaSorteo.tsx` hoy es un stub — fade/zoom simple, aislado para reemplazarse sin tocar el resto de la sala; es Fase 4.2), métodos `carta_unica`/`tabla_completa` (el motor ya es genérico sobre un pool, la piel visual queda para después), recordatorio de "la sala está por empezar", replay animado para quien se reconecta a media cascada, rate-limiting de chat más allá de lo básico.
+**Explícitamente fuera de estas fases (4.1 + 4.2):** métodos `carta_unica`/`tabla_completa` (Fase 4.3 — el motor ya es genérico sobre un pool, la piel visual queda para después), recordatorio de "la sala está por empezar", rate-limiting de chat más allá de lo básico, persistir el progreso del sorteo en BD (hoy vive en memoria — ver §Decisiones y pendientes abiertos sobre el riesgo de reinicio del servidor a mitad de sorteo).
 
 ---
 
@@ -431,8 +453,8 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 | **Fase 1** | Backend: ciclo de vida, CRUD de borrador, transiciones de estado, boletos (funciones internas sin endpoint) | ✅ Completa |
 | **Fase 2** | Moderación de texto reducida, checklist legal al publicar, fotos de evidencia del premio en R2, composer de creación/edición | ✅ Completa |
 | **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados**, **guardar en "Mis Guardados"**, **gestión avanzada de boletos** (liberar / editar participante manual / reasignar boleto con cuenta AY, cada uno con su notificación) | ✅ Completa |
-| **Fase 4.1** | Sala en vivo (chat, moderación, cuenta regresiva) + motor de sorteo (tómbola) determinista/auditable, con animación de revelación simple (stub) | ✅ Backend y frontend construidos (7-ago) — **pendiente correr migraciones en DEV/PROD + QA E2E** |
-| **Fase 4.2** | Animación cinematográfica profesional de la tómbola (reemplaza `TombolaSorteo.tsx`) | 🔜 Pendiente |
+| **Fase 4.1** | Sala en vivo (chat, moderación, cuenta regresiva) + motor de sorteo (tómbola) determinista/auditable por rondas (K×N) | ✅ Backend y frontend construidos (7-ago) — **pendiente correr migraciones en DEV/PROD + QA E2E** |
+| **Fase 4.2** | Tómbola 3D real (Three.js), modo automático (con pausar/reanudar) y manual, catch-up en vivo para quien se une a mitad del sorteo, historial completo recomputado para salas cerradas | ✅ Construida (9-ago) — **pendiente QA E2E en producción** |
 | **Fase 4.3** | Métodos de sorteo `carta_unica`/`tabla_completa` (el motor ya es genérico, falta la piel visual) | 🔜 Pendiente. Las 54 cartas de lotería ya están listas como preparación. |
 | **Fase 5** | Tarjeta compartible (imagen de resultado para redes sociales) | 🔜 Pendiente |
 
@@ -445,9 +467,11 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 - **El feed de "Mis Dinámicas" (`GET /mias`)** no filtra por estado (trae todo) — a diferencia de `listarDinamicasDeOrganizador` (usado en Perfil/Mis Publicaciones), que sí agrupa. Verificar si `GET /mias` sigue en uso real o quedó obsoleto tras la integración a Mis Publicaciones.
 - **Detalle de implementación de los 3 métodos de sorteo** — tómbola ya construida (Fase 4.1, motor genérico sobre un pool de boletos). Carta única y tabla completa (Fase 4.3) reusan el mismo motor, solo cambia la piel visual; tabla completa es la única que además necesita resolver empates (`reglaDesempate`).
 - **Sala en vivo siempre obligatoria** (confirmado con el usuario) — no existe un atajo "sortear sin evento". Cualquier Dinámica con método `tombola` necesita `numeroIntentosSorteo` configurado (composer) y la sala programada antes de poder sortear.
-- **Cascada de intentos, no N independiente por lugar** (confirmado con el usuario tras comparar ambas opciones) — un solo N aplica a todos los K lugares premiados; el premio grande siempre sale en el último intento, para sostener el suspenso.
+- **Rondas independientes por lugar, no una sola cascada de N** (rediseñado ago-2026 tras probarlo en vivo — el diseño original de "un solo N para todos los K lugares" no era lo que el usuario esperaba) — cada lugar premiado corre su propia ronda de N bolas; el total del sorteo es K × N, y el premio mayor siempre sale en la última bola de todas, para sostener el suspenso.
 - **Conexión anónima de Socket.io es un cambio de infraestructura compartida** (Fase 4.1) — antes cualquier socket sin token era rechazado; ahora conecta como invitado (`usuarioId: null`). Vale la pena tenerlo presente al tocar `socket.ts` para cualquier otro módulo (ChatYA, notificaciones, etc.).
-- **`TombolaSorteo.tsx` es un stub a propósito** — aislado en su propio componente para que la animación cinematográfica de Fase 4.2 lo reemplace sin tocar el resto de la sala (chat, moderación, cronómetro).
+- **Riesgo conocido: progreso del sorteo en memoria** — si el servidor de la API se reinicia (deploy, crash, health-check) mientras una Dinámica está `en_sorteo`, el progreso guardado en memoria (`socket.ts`) se pierde y la Dinámica queda atorada en `en_sorteo` para siempre (la transición `en_sorteo → en_sorteo` es inválida, nadie puede reiniciar el sorteo desde la UI). El único remedio hoy es un UPDATE manual en BD (resetear `estado`, `semillaAleatoria`, `hashVerificacion`, `timestampSorteo` a NULL/`activa`, y borrar los `dinamica_ganadores` de esa corrida abortada). Aceptable mientras la beta tenga pocas rifas simultáneas; si se vuelve un problema real, la solución es persistir el progreso (cursor de revelación) en la tabla `dinamicas` en vez de memoria.
+- **Overlay de revelación probado y descartado** — se intentó que el resultado de cada bola apareciera como un overlay cubriendo la escena 3D (más "cinematográfico"), pero tapar la tómbola mientras gira se sintió mal; quedó como card debajo de la escena, sin overlap.
+- **Material del conducto probado y descartado dos veces** — primero "vidrio" (`meshPhysicalMaterial` + `clearcoat`), luego metal cromado (`metalness` alto): ambos se ven mal (plano/gris o negro) sin reflejos de ambiente, que se evitan a propósito (sin HDRI, ver `EscenarioTombola3D.tsx`). Se quitó el tubo físico por completo — la bola activa viaja con una estela de "ecos" que se desvanecen (`meshBasicMaterial`, sin luz), sin necesidad de ninguna geometría de conducto.
 - **Columnas fijas con `position:fixed` + JS, no `sticky`** (Cuadro de Honor y "Recién publicado" de MP) — con `sticky` el elemento solo se despega dentro del alto de SU contenedor padre; en escritorio estas secciones viven dentro de un contenedor con `lg:overflow-visible` (el scroll real ocurre en el `<main>` compartido de `MainLayout`), así que `fixed` es lo único que garantiza que la columna quede clavada en viewport. Igualar este patrón si se agrega otra columna fija en el futuro, no inventar uno con `sticky`.
 - **Sala como página, no modal** (revertido de la decisión original de Fase 4.1) — el usuario pidió explícitamente una página completa con layout 60/40 (evento/chat) calcado del patrón de ficha de detalle, en vez del modal inicial. `SalaDinamica.tsx` fue eliminado.
 - Ver `docs/kit-dinamicas/Contexto_Dinamicas.md` para el razonamiento de producto detrás de estas decisiones (por qué solo 3 métodos de los 7 originalmente considerados, por qué el filtro de moderación es reducido, etc.).

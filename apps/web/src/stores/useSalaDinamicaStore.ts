@@ -38,6 +38,13 @@ export interface SalaDinamicaState {
     miModeracion: { silenciado: boolean; expulsado: boolean };
     mensajes: MensajeSalaDinamica[];
     intentosRevelados: IntentoSorteoEvento[];
+    /** Cómo se está revelando el sorteo en curso — `null` fuera de
+     *  'en_sorteo'. 'automatico' = cascada temporizada (como siempre);
+     *  'manual' = el organizador revela cada bola con un botón. */
+    modoSorteo: 'automatico' | 'manual' | null;
+    /** Solo aplica en modo automático — el organizador la pausó a mitad
+     *  de la cascada. */
+    pausadoSorteo: boolean;
     hashVerificacion: string | null;
     semillaAleatoria: string | null;
     expulsadoAhora: boolean;
@@ -54,7 +61,10 @@ export interface SalaDinamicaState {
     salir: () => void;
     enviarMensaje: (contenido: string) => void;
     moderar: (usuarioId: string, accion: AccionModeracionSala, motivo?: string) => void;
-    iniciarSorteo: () => void;
+    iniciarSorteo: (modo: 'automatico' | 'manual') => void;
+    revelarSiguienteBola: () => void;
+    pausarSorteo: () => void;
+    reanudarSorteo: () => void;
     limpiarError: () => void;
 }
 
@@ -69,12 +79,25 @@ const ESTADO_INICIAL_SALA = {
     miModeracion: { silenciado: false, expulsado: false },
     mensajes: [],
     intentosRevelados: [],
+    modoSorteo: null,
+    pausadoSorteo: false,
     hashVerificacion: null,
     semillaAleatoria: null,
     expulsadoAhora: false,
     error: null,
     conectados: new Set<string>(),
-} satisfies Omit<SalaDinamicaState, 'unirse' | 'salir' | 'enviarMensaje' | 'moderar' | 'iniciarSorteo' | 'limpiarError'>;
+} satisfies Omit<
+    SalaDinamicaState,
+    | 'unirse'
+    | 'salir'
+    | 'enviarMensaje'
+    | 'moderar'
+    | 'iniciarSorteo'
+    | 'revelarSiguienteBola'
+    | 'pausarSorteo'
+    | 'reanudarSorteo'
+    | 'limpiarError'
+>;
 
 export const useSalaDinamicaStore = create<SalaDinamicaState>((set, get) => ({
     ...ESTADO_INICIAL_SALA,
@@ -113,10 +136,28 @@ export const useSalaDinamicaStore = create<SalaDinamicaState>((set, get) => ({
         emitirEvento('dinamica:sala:moderar', { dinamicaId, usuarioId, accion, motivo });
     },
 
-    iniciarSorteo: () => {
+    iniciarSorteo: (modo) => {
         const { dinamicaId } = get();
         if (!dinamicaId) return;
-        emitirEvento('dinamica:sala:iniciar-sorteo', { dinamicaId });
+        emitirEvento('dinamica:sala:iniciar-sorteo', { dinamicaId, modo });
+    },
+
+    revelarSiguienteBola: () => {
+        const { dinamicaId } = get();
+        if (!dinamicaId) return;
+        emitirEvento('dinamica:sala:revelar-siguiente-bola', { dinamicaId });
+    },
+
+    pausarSorteo: () => {
+        const { dinamicaId } = get();
+        if (!dinamicaId) return;
+        emitirEvento('dinamica:sala:pausar-sorteo', { dinamicaId });
+    },
+
+    reanudarSorteo: () => {
+        const { dinamicaId } = get();
+        if (!dinamicaId) return;
+        emitirEvento('dinamica:sala:reanudar-sorteo', { dinamicaId });
     },
 
     limpiarError: () => set({ error: null }),
@@ -140,6 +181,11 @@ escucharEvento<EstadoSalaDinamica>('dinamica:sala:estado-inicial', (data) => {
         mensajes: data.mensajes,
         hashVerificacion: data.ganadores?.hashVerificacion ?? null,
         semillaAleatoria: data.ganadores?.semillaAleatoria ?? null,
+        // "Ponte al día" si el sorteo ya estaba en curso al unirse — viene
+        // en el MISMO evento (no uno aparte) para que no haya un instante
+        // pintando "esperando la primera bola" antes de que llegue.
+        intentosRevelados: data.intentosEnCurso ?? [],
+        modoSorteo: data.modoSorteoActual ?? null,
     });
 });
 
@@ -187,8 +233,12 @@ escucharEvento('dinamica:sala:expulsado', () => {
     useSalaDinamicaStore.setState({ expulsadoAhora: true, miModeracion: { ...state.miModeracion, expulsado: true } });
 });
 
-escucharEvento<{ estado: EstadoDinamica }>('dinamica:sala:estado-cambio', (data) => {
-    useSalaDinamicaStore.setState({ estado: data.estado });
+escucharEvento<{ estado: EstadoDinamica; modoSorteo?: 'automatico' | 'manual' }>('dinamica:sala:estado-cambio', (data) => {
+    useSalaDinamicaStore.setState({ estado: data.estado, modoSorteo: data.modoSorteo ?? null, pausadoSorteo: false });
+});
+
+escucharEvento<{ pausado: boolean }>('dinamica:sala:pausa-cambio', (data) => {
+    useSalaDinamicaStore.setState({ pausadoSorteo: data.pausado });
 });
 
 escucharEvento<IntentoSorteoEvento>('dinamica:sala:intento', (intento) => {

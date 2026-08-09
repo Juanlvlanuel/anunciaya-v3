@@ -40,7 +40,7 @@
  *   Menu, Search, Info, Edit2, Trash2, Copy, Send, Lock, LogOut, etc.
  */
 
-import { createElement, type SVGProps } from 'react';
+import { createElement, type ComponentType, type SVGProps } from 'react';
 import {
     Archive,
     BadgeCheck,
@@ -138,6 +138,17 @@ export type IconProps = Omit<SVGProps<SVGSVGElement>, 'icon'> & {
     /** Atajo de lucide: fija ancho y alto a la vez. */
     size?: string | number;
 };
+
+/**
+ * Tipo para campos `icon` que reciben un componente de ícono (LucideIcon o
+ * un wrapper local como `Bookmark` arriba) — NO usar `React.ElementType` para
+ * esto: al agregar Three.js (`@react-three/fiber`), `JSX.IntrinsicElements`
+ * se infla con cientos de elementos 3D, y `React.ElementType` (que mapea
+ * sobre TODO `JSX.IntrinsicElements`) rompe la inferencia de props extra
+ * (width/height/strokeWidth) en ese escenario. `ComponentType` no tiene ese
+ * problema porque no depende de `JSX.IntrinsicElements`.
+ */
+export type IconoComponente = ComponentType<Omit<SVGProps<SVGSVGElement>, 'icon'> & { size?: string | number }>;
 
 /**
  * Pinta un ícono del registro. Existe para conservar la firma

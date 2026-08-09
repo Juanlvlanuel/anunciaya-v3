@@ -31,6 +31,25 @@ import type { IntentoSorteo } from './services/dinamicas/sorteo.js';
 
 let io: SocketServer | null = null;
 
+/** Sorteos en modo manual esperando a que el organizador revele la
+ *  siguiente bola — en memoria, efímero (mismo criterio que la presencia
+ *  de la sala, vía `fetchSockets()`): solo vive mientras dura el proceso. */
+const sorteosManualesPendientes = new Map<
+  string,
+  { intentos: IntentoSorteo[]; cursor: number; organizadorUsuarioId: string }
+>();
+
+/** Sorteos en modo automático que el organizador puede pausar/reanudar —
+ *  `revelarSorteoEnVivo` revisa esta bandera entre cada bola y actualiza
+ *  `progreso` (cuántas bolas van reveladas) según avanza. `intentos` +
+ *  `progreso` también sirven para poner al día a quien se une a la sala
+ *  DESPUÉS de que ya empezó el sorteo (ver `dinamica:sala:unirse`).
+ *  También efímero, igual que el mapa de arriba. */
+const sorteosAutomaticosPausables = new Map<
+  string,
+  { pausado: boolean; organizadorUsuarioId: string; intentos: IntentoSorteo[]; progreso: number }
+>();
+
 /**
  * Inicializa Socket.io sobre el servidor HTTP existente.
  * Se llama UNA vez desde index.ts al arrancar el servidor.
@@ -200,7 +219,38 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       }
       const room = roomSala(data.dinamicaId);
       socket.join(room);
-      socket.emit('dinamica:sala:estado-inicial', resultado.data);
+
+      // Si el sorteo YA está en curso, quien se une ahora se perdió los
+      // eventos `dinamica:sala:intento` de las bolas anteriores (esos solo
+      // se emiten una vez, en vivo) — se manda lo ya revelado (tomado del
+      // progreso guardado en memoria) DENTRO del mismo `estado-inicial`,
+      // no como evento aparte: 2 emits separados le daban tiempo al cliente
+      // de pintar "esperando la primera bola" antes de que llegara el
+      // segundo, un parpadeo visible. Igual con `modoSorteo`: el evento
+      // `estado-cambio` que normalmente lo manda solo se emite UNA vez, al
+      // iniciar — quien se une después (recarga de página a mitad del
+      // sorteo) nunca lo recibe, y sin saber que es 'manual' el botón
+      // "Siguiente bola" no tenía por qué mostrarse nunca.
+      let intentosEnCurso: { numeroIntento: number; numeroBoleto: number; esGanador: boolean; lugar: number | null }[] = [];
+      let modoSorteoActual: 'automatico' | 'manual' | undefined;
+      if (resultado.data.estado === 'en_sorteo') {
+        const pendienteManual = sorteosManualesPendientes.get(data.dinamicaId);
+        const pendienteAutomatico = sorteosAutomaticosPausables.get(data.dinamicaId);
+        modoSorteoActual = pendienteManual ? 'manual' : pendienteAutomatico ? 'automatico' : undefined;
+        const yaRevelados = pendienteManual
+          ? pendienteManual.intentos.slice(0, pendienteManual.cursor)
+          : pendienteAutomatico
+            ? pendienteAutomatico.intentos.slice(0, pendienteAutomatico.progreso)
+            : [];
+        intentosEnCurso = yaRevelados.map((i) => ({
+          numeroIntento: i.numeroIntento,
+          numeroBoleto: i.boleto.numeroBoleto,
+          esGanador: i.esGanador,
+          lugar: i.lugar,
+        }));
+      }
+      socket.emit('dinamica:sala:estado-inicial', { ...resultado.data, intentosEnCurso, modoSorteoActual });
+
       emitirPresenciaSala(room).catch((error) => console.error('Error emitiendo presencia de sala:', error));
     });
 
@@ -262,9 +312,10 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       }
     });
 
-    socket.on('dinamica:sala:iniciar-sorteo', async (data: { dinamicaId: string }) => {
+    socket.on('dinamica:sala:iniciar-sorteo', async (data: { dinamicaId: string; modo?: 'automatico' | 'manual' }) => {
       const organizadorUsuarioId = socket.data.usuarioId as string | null;
       if (!organizadorUsuarioId || !data?.dinamicaId) return;
+      const modo: 'automatico' | 'manual' = data.modo === 'manual' ? 'manual' : 'automatico';
 
       const resultado = await iniciarSorteo(organizadorUsuarioId, data.dinamicaId);
       if (!resultado.success) {
@@ -273,10 +324,78 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       }
 
       const room = roomSala(data.dinamicaId);
-      io!.to(room).emit('dinamica:sala:estado-cambio', { estado: 'en_sorteo' });
+      io!.to(room).emit('dinamica:sala:estado-cambio', { estado: 'en_sorteo', modoSorteo: modo });
+
+      if (modo === 'manual') {
+        sorteosManualesPendientes.set(data.dinamicaId, {
+          intentos: resultado.data.resultado.intentos,
+          cursor: 0,
+          organizadorUsuarioId,
+        });
+        return;
+      }
+
+      sorteosAutomaticosPausables.set(data.dinamicaId, {
+        pausado: false,
+        organizadorUsuarioId,
+        intentos: resultado.data.resultado.intentos,
+        progreso: 0,
+      });
       revelarSorteoEnVivo(data.dinamicaId, resultado.data.resultado.intentos).catch((error) => {
         console.error('Error revelando el sorteo en vivo:', error);
       });
+    });
+
+    // El organizador pausa/reanuda la cascada automática entre 2 bolas —
+    // no cancela nada, solo detiene el avance; `revelarSorteoEnVivo` revisa
+    // esta bandera antes de emitir cada siguiente intento.
+    socket.on('dinamica:sala:pausar-sorteo', (data: { dinamicaId: string }) => {
+      const usuarioId = socket.data.usuarioId as string | null;
+      if (!usuarioId || !data?.dinamicaId) return;
+      const estado = sorteosAutomaticosPausables.get(data.dinamicaId);
+      if (!estado || estado.organizadorUsuarioId !== usuarioId) return;
+      estado.pausado = true;
+      io!.to(roomSala(data.dinamicaId)).emit('dinamica:sala:pausa-cambio', { pausado: true });
+    });
+
+    socket.on('dinamica:sala:reanudar-sorteo', (data: { dinamicaId: string }) => {
+      const usuarioId = socket.data.usuarioId as string | null;
+      if (!usuarioId || !data?.dinamicaId) return;
+      const estado = sorteosAutomaticosPausables.get(data.dinamicaId);
+      if (!estado || estado.organizadorUsuarioId !== usuarioId) return;
+      estado.pausado = false;
+      io!.to(roomSala(data.dinamicaId)).emit('dinamica:sala:pausa-cambio', { pausado: false });
+    });
+
+    // Modo manual — el organizador revela una bola a la vez presionando un
+    // botón (en vez de la cascada automática cada `MS_ENTRE_INTENTOS`). El
+    // resultado YA está calculado y persistido por `iniciarSorteo()` (mismo
+    // principio de fairness); esto solo pausa la revelación hasta que el
+    // organizador la pide.
+    socket.on('dinamica:sala:revelar-siguiente-bola', async (data: { dinamicaId: string }) => {
+      const usuarioId = socket.data.usuarioId as string | null;
+      if (!usuarioId || !data?.dinamicaId) return;
+
+      const pendiente = sorteosManualesPendientes.get(data.dinamicaId);
+      if (!pendiente || pendiente.organizadorUsuarioId !== usuarioId) {
+        socket.emit('dinamica:sala:error', { message: 'No hay un sorteo manual pendiente para esta sala', code: 409 });
+        return;
+      }
+
+      const room = roomSala(data.dinamicaId);
+      const intento = pendiente.intentos[pendiente.cursor];
+      pendiente.cursor++;
+      io!.to(room).emit('dinamica:sala:intento', {
+        numeroIntento: intento.numeroIntento,
+        numeroBoleto: intento.boleto.numeroBoleto,
+        esGanador: intento.esGanador,
+        lugar: intento.lugar,
+      });
+
+      if (pendiente.cursor >= pendiente.intentos.length) {
+        sorteosManualesPendientes.delete(data.dinamicaId);
+        await cerrarSalaYAnunciar(data.dinamicaId, pendiente.intentos);
+      }
     });
 
     // -----------------------------------------------------------------
@@ -353,15 +472,35 @@ async function revelarSorteoEnVivo(dinamicaId: string, intentos: IntentoSorteo[]
   const room = `sala-dinamica:${dinamicaId}`;
   for (const intento of intentos) {
     if (!io) return;
+
+    // Pausa — revisada ANTES de cada bola (la actual ya se mostró, esto
+    // solo detiene el avance a la siguiente) mientras el organizador la
+    // tenga pausada.
+    while (sorteosAutomaticosPausables.get(dinamicaId)?.pausado) {
+      await esperar(200);
+      if (!io) return;
+    }
+
     io.to(room).emit('dinamica:sala:intento', {
       numeroIntento: intento.numeroIntento,
       numeroBoleto: intento.boleto.numeroBoleto,
       esGanador: intento.esGanador,
       lugar: intento.lugar,
     });
+    const estadoPausa = sorteosAutomaticosPausables.get(dinamicaId);
+    if (estadoPausa) estadoPausa.progreso++;
     await esperar(MS_ENTRE_INTENTOS);
   }
 
+  sorteosAutomaticosPausables.delete(dinamicaId);
+  await cerrarSalaYAnunciar(dinamicaId, intentos);
+}
+
+/** Cierra la sala y anuncia el resultado final — compartido entre el modo
+ *  automático (al terminar la cascada temporizada) y el manual (al revelar
+ *  la última bola con el botón). */
+async function cerrarSalaYAnunciar(dinamicaId: string, intentos: IntentoSorteo[]): Promise<void> {
+  const room = `sala-dinamica:${dinamicaId}`;
   const cierre = await cerrarSala(dinamicaId);
   if (!io || !cierre.success) return;
 

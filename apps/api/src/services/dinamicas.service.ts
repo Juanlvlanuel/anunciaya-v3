@@ -188,19 +188,16 @@ export async function editarBorrador(
                 if (N === undefined) {
                     return { success: false, message: 'Indica a qué intento sale el ganador', code: 400 } satisfies RespuestaError;
                 }
-                if (N < K) {
-                    return {
-                        success: false,
-                        message: 'El número de intentos no puede ser menor a los lugares premiados',
-                        code: 400,
-                    } satisfies RespuestaError;
-                }
                 if (actual.numeroTotalBoletos !== null) {
                     if (K > actual.numeroTotalBoletos) {
                         return { success: false, message: 'No puede haber más lugares premiados que boletos totales', code: 400 } satisfies RespuestaError;
                     }
-                    if (N > actual.numeroTotalBoletos) {
-                        return { success: false, message: 'El número de intentos no puede exceder el total de boletos', code: 400 } satisfies RespuestaError;
+                    if (K * N > actual.numeroTotalBoletos) {
+                        return {
+                            success: false,
+                            message: 'Lugares premiados × intentos por lugar no puede exceder el total de boletos',
+                            code: 400,
+                        } satisfies RespuestaError;
                     }
                 }
             }
@@ -543,7 +540,12 @@ export async function listarDinamicasPublicas(opciones: OpcionesFeedDinamicas, u
             .where(
                 and(
                     eq(dinamicas.ciudadId, opciones.ciudadId),
-                    sql`${dinamicas.estado} IN ('activa', 'pospuesta')`,
+                    // 'en_sorteo' incluido a propósito — si no, la rifa
+                    // desaparece del feed justo cuando el organizador inicia
+                    // el sorteo y nadie puede encontrarla para entrar a ver
+                    // la sala en vivo. 'cerrada' se queda fuera (esas ya
+                    // migran al Cuadro de Honor, ver `listarSalonFamaDinamicas`).
+                    sql`${dinamicas.estado} IN ('activa', 'pospuesta', 'en_sorteo')`,
                 ),
             )
             .orderBy(desc(dinamicas.createdAt))

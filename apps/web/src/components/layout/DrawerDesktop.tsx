@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Icon, type IconProps } from '@/config/iconos';
+import { Icon, type IconProps, type IconoComponente } from '@/config/iconos';
 import { Package, User, LogOut, Download, HelpCircle, ChevronRight, Store } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
@@ -47,7 +47,7 @@ interface ItemDrawer {
   label: string;
   /** Ruta de navegación. Omitir cuando el ítem ejecuta una acción (`onClick`). */
   ruta?: string;
-  icon: React.ElementType;
+  icon: IconoComponente;
   /** Color del tile 36×36 (paridad visual con el drawer móvil). */
   tile: string;
   /** Acción alternativa a navegar (ej. instalar la PWA). */

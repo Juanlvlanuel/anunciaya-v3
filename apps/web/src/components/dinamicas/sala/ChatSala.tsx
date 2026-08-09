@@ -160,8 +160,19 @@ function FilaMensajeSala({ mensaje, esMio }: { mensaje: MensajeSalaDinamica; esM
 export function ChatSala({ mensajes, miUsuarioId, puedeEscribir, motivoBloqueo, onEnviar }: ChatSalaProps) {
     const [texto, setTexto] = useState('');
     const finRef = useRef<HTMLDivElement>(null);
+    // La carga inicial del historial (0 → N mensajes, llega async por
+    // socket un instante después del mount) NO debe hacer scroll — en
+    // móvil el chat no tiene su propio contenedor con scroll fijo (eso solo
+    // pasa en `lg:`), así que `scrollIntoView` termina arrastrando la
+    // PÁGINA completa hacia abajo al entrar a la sala. Se compara contra el
+    // largo ANTERIOR (no solo "primer render"): si venía de 0, es carga de
+    // historial, no un mensaje nuevo en vivo.
+    const largoAnteriorRef = useRef(0);
 
     useEffect(() => {
+        const anterior = largoAnteriorRef.current;
+        largoAnteriorRef.current = mensajes.length;
+        if (anterior === 0) return;
         finRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, [mensajes.length]);
 

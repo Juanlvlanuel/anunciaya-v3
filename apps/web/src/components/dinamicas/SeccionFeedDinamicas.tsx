@@ -217,8 +217,7 @@ export function SeccionFeedDinamicas({ ciudad, esModoPersonal, headerBottom, vis
                             </div>
                             <h3 className="mb-1.5 text-lg font-bold text-slate-900">Aún no hay Dinámicas en {ciudad}</h3>
                             <p className="max-w-sm text-sm text-slate-600">
-                                Organiza una rifa o concurso entre vecinos — el pago y la entrega del premio se coordinan
-                                siempre fuera de la app.
+                                Organiza una rifa o concurso entre vecinos — coordina el pago y la entrega fuera de la app.
                             </p>
                         </div>
                     ) : (

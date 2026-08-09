@@ -56,8 +56,10 @@ export interface Dinamica {
     salaProgramadaPara: string | null;
     /** K = cuántos lugares premiados hay (default 1). */
     numeroLugaresGanadores: number;
-    /** N = a qué intento (bola sin reemplazo) sale cada lugar, en cascada
-     *  — el intento N es el 1er lugar, N-1 el 2do, etc. */
+    /** N = a qué intento sale el ganador DE CADA lugar — cada lugar corre
+     *  su propia ronda de N bolas (sin reemplazo en todo el sorteo); las
+     *  rondas se revelan en orden descendente de lugar, así que el premio
+     *  mayor (lugar #1) es siempre la última bola de todas. */
     numeroIntentosSorteo: number | null;
     confirmaciones: ConfirmacionesDinamica | null;
     /** Contador denormalizado de "Mis Guardados" — mismo patrón que
@@ -238,6 +240,7 @@ export interface GanadorDinamica {
     nombreManual: string | null;
     usuarioNombre?: string | null;
     usuarioApellidos?: string | null;
+    usuarioAvatarUrl?: string | null;
 }
 
 /** Snapshot completo de la sala — respuesta de `GET /:id/sala` y del evento
@@ -251,6 +254,21 @@ export interface EstadoSalaDinamica {
     miModeracion: { silenciado: boolean; expulsado: boolean };
     mensajes: MensajeSalaDinamica[];
     ganadores: { lista: GanadorDinamica[]; hashVerificacion: string | null; semillaAleatoria: string | null } | null;
+    /** Todas las bolas del sorteo (ganadoras y "no ganó") — recomputadas en
+     *  el backend desde la semilla pública ya persistida, como evidencia
+     *  del sorteo completo. Solo presente cuando `estado === 'cerrada'`. */
+    historialCompleto: IntentoSorteoEvento[] | null;
+    /** Bolas ya reveladas del sorteo EN CURSO (`estado === 'en_sorteo'`) —
+     *  "ponte al día" para quien se une después de que ya empezó, tomado
+     *  del progreso guardado en memoria del servidor. Solo lo manda el
+     *  evento de socket `estado-inicial` (el snapshot HTTP no tiene acceso
+     *  a ese estado efímero); ausente/vacío en cualquier otro caso. */
+    intentosEnCurso?: IntentoSorteoEvento[];
+    /** Modo del sorteo EN CURSO (`estado === 'en_sorteo'`) — mismo criterio
+     *  que `intentosEnCurso`: el evento `dinamica:sala:estado-cambio` que
+     *  normalmente lo manda solo se emite UNA vez, al iniciar; quien se une
+     *  después (recarga de página a mitad del sorteo) nunca lo recibe. */
+    modoSorteoActual?: 'automatico' | 'manual';
 }
 
 /** Payload del evento `dinamica:sala:intento` — una bola revelada. */

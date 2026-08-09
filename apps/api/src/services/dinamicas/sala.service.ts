@@ -104,7 +104,7 @@ export async function obtenerEstadoSala(dinamicaId: string, usuarioActualId?: st
             return { success: false, message: 'Dinámica no encontrada', code: 404 } satisfies RespuestaError;
         }
 
-        const [mensajes, moderacionPropia, ganadores] = await Promise.all([
+        const [mensajes, moderacionPropia, ganadores, poolParaHistorial] = await Promise.all([
             db
                 .select({
                     id: dinamicaSalaMensajes.id,
@@ -137,6 +137,7 @@ export async function obtenerEstadoSala(dinamicaId: string, usuarioActualId?: st
                         nombreManual: dinamicaBoletos.nombreManual,
                         usuarioNombre: usuarios.nombre,
                         usuarioApellidos: usuarios.apellidos,
+                        usuarioAvatarUrl: usuarios.avatarUrl,
                     })
                     .from(dinamicaGanadores)
                     .innerJoin(dinamicaBoletos, eq(dinamicaBoletos.id, dinamicaGanadores.boletoId))
@@ -152,9 +153,40 @@ export async function obtenerEstadoSala(dinamicaId: string, usuarioActualId?: st
                         nombreManual: string | null;
                         usuarioNombre: string | null;
                         usuarioApellidos: string | null;
+                        usuarioAvatarUrl: string | null;
                     }[],
                 ),
+            // Pool de boletos pagados — con esto + la semilla ya persistida
+            // se puede RECOMPUTAR el sorteo completo (ganadores y "no ganó"),
+            // sin necesidad de guardar los intentos perdedores en BD (mismo
+            // principio de verificabilidad pública que documenta sorteo.ts).
+            dinamica.estado === 'cerrada' && dinamica.semillaAleatoria
+                ? db
+                    .select({ id: dinamicaBoletos.id, numeroBoleto: dinamicaBoletos.numeroBoleto })
+                    .from(dinamicaBoletos)
+                    .where(and(eq(dinamicaBoletos.dinamicaId, dinamicaId), eq(dinamicaBoletos.estado, 'pagado')))
+                : Promise.resolve([] as BoletoParaSorteo[]),
         ]);
+
+        let historialCompleto: { numeroIntento: number; numeroBoleto: number; esGanador: boolean; lugar: number | null }[] | null = null;
+        if (dinamica.estado === 'cerrada' && dinamica.semillaAleatoria && dinamica.numeroIntentosSorteo) {
+            try {
+                const resultado = ejecutarSorteo(
+                    poolParaHistorial,
+                    dinamica.semillaAleatoria,
+                    dinamica.numeroIntentosSorteo,
+                    dinamica.numeroLugaresGanadores,
+                );
+                historialCompleto = resultado.intentos.map((i) => ({
+                    numeroIntento: i.numeroIntento,
+                    numeroBoleto: i.boleto.numeroBoleto,
+                    esGanador: i.esGanador,
+                    lugar: i.lugar,
+                }));
+            } catch (error) {
+                console.error('No se pudo recomputar el historial del sorteo:', error);
+            }
+        }
 
         return {
             success: true as const,
@@ -176,6 +208,7 @@ export async function obtenerEstadoSala(dinamicaId: string, usuarioActualId?: st
                         semillaAleatoria: dinamica.semillaAleatoria,
                     }
                     : null,
+                historialCompleto,
             },
         };
     } catch (error) {
@@ -434,10 +467,13 @@ export async function iniciarSorteo(organizadorUsuarioId: string, dinamicaId: st
             .where(and(eq(dinamicaBoletos.dinamicaId, dinamicaId), eq(dinamicaBoletos.estado, 'pagado')));
 
         const pool: BoletoParaSorteo[] = boletosPagados;
-        if (pool.length < actual.numeroIntentosSorteo) {
+        // N es por RONDA (una por lugar premiado) — el sorteo completo saca
+        // K × N bolas en total, sin reemplazo (ver sorteo.ts).
+        const totalBolasNecesarias = actual.numeroIntentosSorteo * actual.numeroLugaresGanadores;
+        if (pool.length < totalBolasNecesarias) {
             return {
                 success: false,
-                message: `No hay boletos pagados suficientes: se necesitan ${actual.numeroIntentosSorteo} y hay ${pool.length}`,
+                message: `No hay boletos pagados suficientes: se necesitan ${totalBolasNecesarias} (${actual.numeroLugaresGanadores} lugares × ${actual.numeroIntentosSorteo} intentos) y hay ${pool.length}`,
                 code: 409,
             } satisfies RespuestaError;
         }

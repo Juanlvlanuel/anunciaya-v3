@@ -633,6 +633,68 @@ body {
 }
 
 /* ============================================= */
+/* Tómbola girando — anillo de bolitas dando      */
+/* vueltas dentro del tambor mientras corre el    */
+/* sorteo. Usado en TombolaSorteo.tsx (Fase 4.2). */
+/* ============================================= */
+@keyframes tombolaGiro {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Revelación de la bola que acaba de salir del   */
+/* tambor — entra chica y "rebota" a su tamaño    */
+/* final, en vez de solo aparecer/crecer parejo.  */
+@keyframes tombolaRevelacion {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* "Latido" del cronómetro de la sala de espera — brillo ámbar que respira
+   en el borde de cada dígito, como un contador de evento en vivo.
+   Usado en CronometroSala.tsx (Dinámicas, Fase 4.2). */
+@keyframes cronometroLatido {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.55);
+  }
+}
+
+/* Revelación "cámara" — la bola que acaba de caer en el contenedor se
+   expande ocupando el área, como un zoom de cámara acercándose al
+   resultado, en vez de solo aparecer/crecer en su lugar fijo. */
+@keyframes bolaZoomCamara {
+  0% {
+    transform: scale(0.15);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================= */
 /* Bubble flotante "¡Guardado!" / "Quitado" /    */
 /* "¡Gracias!" — sube y se desvanece al hacer    */
 /* toggle. Usado por useSaveBubble + variantes   */

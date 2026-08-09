@@ -70,9 +70,9 @@ export interface ComposerDinamicasDraft {
     /** K = cuántos lugares premiados hay — default '1' (mismo criterio que
      *  numeroBoletoInicial: casi siempre es 1, se pide solo si cambia). */
     numeroLugaresGanadores: string;
-    /** N = a qué intento (bola sin reemplazo) sale cada lugar, en cascada
-     *  — el intento N es el 1er lugar, N-1 el 2do, etc. Sin default: cada
-     *  rifa tiene un total de boletos distinto. */
+    /** N = a qué intento sale el ganador DE CADA lugar — cada lugar corre su
+     *  propia ronda de N bolas (K×N bolas en total). Sin default: cada rifa
+     *  tiene un total de boletos distinto. */
     numeroIntentosSorteo: string;
 
     // Ciudad — viene del GPS, se siembra automáticamente (mismo patrón que
@@ -280,12 +280,8 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
 
     if (intentos === null) {
         errores.numeroIntentosSorteo = 'Escribe a qué intento sale el ganador.';
-    } else {
-        if (lugares !== null && intentos < lugares) {
-            errores.numeroIntentosSorteo = 'El número de intentos no puede ser menor a los lugares premiados.';
-        } else if (totalBoletos !== null && intentos > totalBoletos) {
-            errores.numeroIntentosSorteo = 'El número de intentos no puede exceder el total de boletos.';
-        }
+    } else if (lugares !== null && totalBoletos !== null && lugares * intentos > totalBoletos) {
+        errores.numeroIntentosSorteo = 'Lugares premiados × intentos por lugar no puede exceder el total de boletos.';
     }
 
     if (!d.ciudad) {

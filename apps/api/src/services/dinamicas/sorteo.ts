@@ -10,12 +10,19 @@
  * genera con `crypto.randomBytes` al momento de iniciar el sorteo — nadie la
  * elige, nadie puede predecirla de antemano.
  *
- * Algoritmo (cascada, confirmado con el usuario): en cada intento 1..N se
- * saca, sin reemplazo, un boleto del pool restante usando
- * `SHA256(semilla:intento) % restante.length` como índice. Los últimos K
- * intentos son los ganadores, en ORDEN INVERSO — el intento N es el 1er
- * lugar (premio grande, revelado al final para dar suspenso), N-1 es el
- * 2do lugar, etc.
+ * Algoritmo (por RONDAS, confirmado con el usuario ago-2026 — reemplaza el
+ * diseño anterior de "una sola cascada de N para todos los K lugares"):
+ * cada uno de los K lugares premiados corre su propia ronda de N bolas —
+ * las primeras N-1 de esa ronda "no ganan", la N-ésima es la ganadora de
+ * ESE lugar. Las rondas se revelan en orden de lugar DESCENDENTE (K, K-1,
+ * ..., 1), para que el premio mayor (lugar #1) sea la última bola de todo
+ * el sorteo — mismo suspenso de siempre, ahora aplicado por ronda.
+ *
+ * Sin reemplazo a lo largo de TODO el sorteo (no solo dentro de cada
+ * ronda): cada bola sacada usa `SHA256(semilla:intentoGlobal) %
+ * restante.length` como índice sobre el pool que va quedando, así que
+ * ningún boleto puede salir dos veces ni entre rondas distintas. Total de
+ * bolas del sorteo = K × N.
  *
  * Solo los K ganadores se persisten en `dinamica_ganadores`. Los intentos
  * "no ganó" no se guardan — son recomputables por cualquiera desde la
@@ -66,37 +73,46 @@ function indiceDeterministico(semilla: string, intento: number, tamañoRestante:
  *   reordena internamente por `numeroBoleto` para que el resultado sea
  *   reproducible sin depender del orden de llegada de la consulta SQL.
  * @param semilla generada con `generarSemilla()`.
- * @param numeroIntentos N — cuántas bolas se sacan en total.
- * @param numeroLugares K — cuántas de esas bolas (las últimas) son ganadoras.
+ * @param numeroIntentosPorLugar N — cuántas bolas se sacan EN CADA ronda
+ *   (una ronda por lugar premiado); la N-ésima de cada ronda es la ganadora
+ *   de ese lugar.
+ * @param numeroLugares K — cuántos lugares premiados hay = cuántas rondas
+ *   se corren. Total de bolas del sorteo = K × N.
  */
 export function ejecutarSorteo(
     pool: BoletoParaSorteo[],
     semilla: string,
-    numeroIntentos: number,
+    numeroIntentosPorLugar: number,
     numeroLugares: number,
 ): ResultadoSorteo {
-    if (numeroIntentos > pool.length) {
-        throw new Error('numeroIntentos no puede ser mayor al tamaño del pool');
-    }
-    if (numeroLugares > numeroIntentos) {
-        throw new Error('numeroLugares no puede ser mayor a numeroIntentos');
+    const totalBolas = numeroIntentosPorLugar * numeroLugares;
+    if (totalBolas > pool.length) {
+        throw new Error('numeroIntentosPorLugar × numeroLugares no puede ser mayor al tamaño del pool');
     }
 
     const restante = [...pool].sort((a, b) => a.numeroBoleto - b.numeroBoleto);
     const intentos: IntentoSorteo[] = [];
-
-    for (let intento = 1; intento <= numeroIntentos; intento++) {
-        const indice = indiceDeterministico(semilla, intento, restante.length);
-        const [boleto] = restante.splice(indice, 1);
-        intentos.push({ numeroIntento: intento, boleto, esGanador: false, lugar: null });
-    }
-
     const ganadores: IntentoSorteo[] = [];
-    for (let i = 0; i < numeroLugares; i++) {
-        const intentoGanador = intentos[numeroIntentos - 1 - i];
-        intentoGanador.esGanador = true;
-        intentoGanador.lugar = i + 1;
-        ganadores.push(intentoGanador);
+
+    let intentoGlobal = 0;
+    // Ronda 0 sortea el lugar K (el más chico), la última ronda sortea el
+    // lugar #1 — así el premio mayor siempre es la última bola del sorteo.
+    for (let ronda = 0; ronda < numeroLugares; ronda++) {
+        const lugarDeEstaRonda = numeroLugares - ronda;
+        for (let i = 1; i <= numeroIntentosPorLugar; i++) {
+            intentoGlobal++;
+            const indice = indiceDeterministico(semilla, intentoGlobal, restante.length);
+            const [boleto] = restante.splice(indice, 1);
+            const esGanador = i === numeroIntentosPorLugar;
+            const intento: IntentoSorteo = {
+                numeroIntento: intentoGlobal,
+                boleto,
+                esGanador,
+                lugar: esGanador ? lugarDeEstaRonda : null,
+            };
+            intentos.push(intento);
+            if (esGanador) ganadores.push(intento);
+        }
     }
     ganadores.sort((a, b) => (a.lugar as number) - (b.lugar as number));
 
