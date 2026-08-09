@@ -20,6 +20,7 @@
 
 import { create } from 'zustand';
 import type { ArchivoFoto } from '../types/archivoFoto';
+import type { CategoriaClasificado } from '../types/servicios';
 
 export interface PrefillMarketplace {
     titulo?: string;
@@ -35,6 +36,8 @@ export interface PrefillMarketplace {
 export interface PrefillServicios {
     titulo?: string;
     descripcion?: string;
+    /** Solo aplica a modo="solicito" (Clasificados) — deducida por Coyo. */
+    categoria?: CategoriaClasificado;
     /** Un solo número que el usuario dio — se usa como budgetMin y budgetMax. */
     presupuesto?: number;
 }

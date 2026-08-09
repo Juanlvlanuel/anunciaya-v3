@@ -259,7 +259,7 @@ export const CAPACIDADES_ASISTENTE: Capacidad[] = [
     {
         nombre: 'buscar_informacion',
         descripcion:
-            'Busca negocios, ofertas, artículos o servicios REALES ya publicados en la ciudad — el mismo buscador del Home ("Pregúntale a Peñasco"). Úsala SOLO para encontrar algo concreto que alguien publicó (ej. "hay tacos", "quién vende bicicletas", "necesito un plomero"). NO la uses para preguntas sobre qué es o cómo funciona AnunciaYA o alguna de sus secciones (CardYA, puntos, cupones, etc.) — esas se responden directo en texto con la información de la app.',
+            'Busca negocios, ofertas, artículos o servicios REALES ya publicados en la ciudad — el mismo buscador del Home ("Pregúntale a Peñasco"). Úsala SOLO para encontrar algo concreto que alguien publicó (ej. "hay tacos", "quién vende bicicletas", "necesito un plomero"). Los resultados se muestran automáticamente como tarjetas clicables debajo de tu respuesta — no hace falta que expliques cómo llegar a cada uno, ni que ofrezcas "llevar" al usuario a un resultado específico (no existe una función para eso): si pide abrir uno en particular, dile que toque la tarjeta. NO la uses para preguntas sobre qué es o cómo funciona AnunciaYA o alguna de sus secciones (CardYA, puntos, cupones, etc.) — esas se responden directo en texto con la información de la app.',
         parametros: [
             {
                 nombre: 'pregunta',

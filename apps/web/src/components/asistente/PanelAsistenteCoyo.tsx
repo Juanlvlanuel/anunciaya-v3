@@ -35,6 +35,8 @@ import { useFotosUploaderMarketplace } from '../../hooks/useFotosUploaderMarketp
 import { useCategoriasMarketplace, useEliminarFotoMarketplaceHuerfana, useSugerirArticuloIA } from '../../hooks/queries/useMarketplace';
 import { FILTRO_CONTORNO_COYO } from '../../config/estilosCoyo';
 import { AnimacionBasuraAudio } from '../ui/AnimacionBasuraAudio';
+import { itemsPlanosCoyo, rutaDetalleItemCoyo } from '../home/navegacionCoyo';
+import type { ItemCoyo } from '../../types/preguntasComunidad';
 import type { ArchivoFoto } from '../../types/archivoFoto';
 
 /** Formatea segundos como "0:0X" / "X:XX" — mismo formato que ChatYA. */
@@ -219,9 +221,22 @@ export function PanelAsistenteCoyo() {
 
     function procesarResultado(resultado: ResultadoAsistente, origenVoz: boolean) {
         switch (resultado.tipo) {
-            case 'pregunta':
-            case 'respuesta': {
+            case 'pregunta': {
                 agregarMensaje({ rol: 'coyo', texto: resultado.texto });
+                if (origenVoz) hablar(resultado.texto);
+                break;
+            }
+            case 'respuesta': {
+                // Resultados reales (negocio/oferta/marketplace/servicio) se muestran
+                // como lista clicable — así el usuario navega directo en vez de
+                // depender de que Coyo describa bien el link en texto (o, peor,
+                // que diga "ya te dejé ahí" sin haber navegado a ningún lado).
+                const resultadosBusqueda = itemsPlanosCoyo(resultado.resultados);
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: resultado.texto,
+                    ...(resultadosBusqueda.length > 0 ? { resultadosBusqueda } : {}),
+                });
                 if (origenVoz) hablar(resultado.texto);
                 break;
             }
@@ -262,6 +277,7 @@ export function PanelAsistenteCoyo() {
                         ruta: resultado.ruta,
                         titulo: resultado.descripcionServicio,
                         descripcion: resultado.descripcion,
+                        categoria: resultado.categoria,
                         presupuesto: resultado.presupuesto,
                     },
                 });
@@ -400,9 +416,15 @@ export function PanelAsistenteCoyo() {
         useComposerPrefillStore.getState().setPrefillServicios({
             titulo: accion.titulo,
             descripcion: accion.descripcion,
+            categoria: accion.categoria,
             presupuesto: accion.presupuesto,
         });
         navigate(accion.ruta);
+    }
+
+    /** Click en un resultado real de búsqueda (negocio/oferta/marketplace/servicio) — misma resolución de ruta que ya usa el carrusel de Coyo en el Home. */
+    function handleClickResultado(item: ItemCoyo) {
+        navigate(rutaDetalleItemCoyo(item));
     }
 
     if (!asistenteCoyoAbierto) return null;
@@ -479,6 +501,31 @@ export function PanelAsistenteCoyo() {
                                     <BurbujaAudioCoyo url={m.audioUrl} waveform={m.audioWaveform ?? []} duracion={m.audioDuracion ?? 0} />
                                 ) : (
                                     m.texto
+                                )}
+                                {m.resultadosBusqueda && m.resultadosBusqueda.length > 0 && (
+                                    <div className="mt-2 space-y-1.5">
+                                        {m.resultadosBusqueda.map((item) => (
+                                            <button
+                                                key={`${item.tipo}-${item.id}`}
+                                                type="button"
+                                                data-testid={`asistente-resultado-${item.tipo}-${item.id}`}
+                                                onClick={() => handleClickResultado(item)}
+                                                className="flex w-full items-center gap-2.5 rounded-xl border border-amber-200 bg-white px-2.5 py-2 text-left lg:cursor-pointer lg:hover:bg-amber-50"
+                                            >
+                                                {item.imagen ? (
+                                                    <img src={item.imagen} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                                                ) : (
+                                                    <div className="h-10 w-10 shrink-0 rounded-lg bg-amber-100" />
+                                                )}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-[13px] font-semibold text-slate-800">{item.titulo}</span>
+                                                    {item.subtitulo && (
+                                                        <span className="block truncate text-[12px] font-normal text-slate-500">{item.subtitulo}</span>
+                                                    )}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
                                 {m.accionPublicarMarketplace && (
                                     <button
@@ -670,7 +717,7 @@ export function PanelAsistenteCoyo() {
     return (
         <div
             data-testid="panel-asistente-coyo"
-            className="fixed right-0 bottom-0 z-[60] flex w-[260px] flex-col bg-white shadow-2xl lg:w-[260px] 2xl:w-[360px]"
+            className="fixed right-0 bottom-0 z-[60] flex w-[260px] flex-col bg-white shadow-2xl lg:w-[340px] 2xl:w-[360px]"
             style={{ top: 'var(--ay-navbar-h, 72px)' }}
         >
             {contenido}

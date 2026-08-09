@@ -12,6 +12,7 @@
 
 import { create } from 'zustand';
 import { useAuthStore } from './useAuthStore';
+import type { ItemCoyo } from '../types/preguntasComunidad';
 
 // =============================================================================
 // TIPOS
@@ -27,7 +28,7 @@ export interface MensajeAsistenteCoyo {
     /** Si viene, el mensaje de Coyo muestra un botón "Revisar y publicar". Los datos se aplican al composer SOLO al hacer click (no antes) — evita que un borrador nunca confirmado quede pendiente para una próxima creación manual sin relación. */
     accionPublicarMarketplace?: { ruta: string; titulo?: string; descripcion?: string; categoriaId?: number; precio?: number };
     /** Mismo patrón que `accionPublicarMarketplace`, para el composer de Servicios. */
-    accionPublicarServicio?: { ruta: string; titulo?: string; descripcion?: string; presupuesto?: number };
+    accionPublicarServicio?: { ruta: string; titulo?: string; descripcion?: string; categoria?: 'hogar' | 'cuidados' | 'eventos' | 'belleza-bienestar' | 'empleo' | 'otros'; presupuesto?: number };
     /** Burbuja de audio (mensaje de voz del usuario) — igual patrón visual que ChatYA: onda + reproducir. `audioUrl` es un blob URL, solo vive mientras dure la pestaña — NUNCA se persiste a localStorage (no se sube el audio a ningún lado, igual que en el backend). Tras recargar la página, el mensaje vuelve a mostrarse como texto simple. */
     audioUrl?: string;
     audioWaveform?: number[];
@@ -36,6 +37,8 @@ export interface MensajeAsistenteCoyo {
     imagenUrl?: string;
     /** `true` en mensajes de error de Coyo (falló la red o la IA) — habilita el botón "Reintentar" cuando este es el ÚLTIMO mensaje del chat. */
     esError?: boolean;
+    /** Resultados reales de `buscar_informacion` (negocio/oferta/marketplace/servicio), aplanados — se muestran como lista clicable bajo la respuesta para que el usuario navegue directo, en vez de solo describirlos en texto. */
+    resultadosBusqueda?: ItemCoyo[];
 }
 
 interface AsistenteCoyoState {

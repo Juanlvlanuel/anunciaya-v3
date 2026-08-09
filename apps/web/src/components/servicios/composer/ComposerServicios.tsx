@@ -232,6 +232,7 @@ export function ComposerServicios({
             actualizar({
                 ...(prefill.titulo ? { titulo: prefill.titulo.slice(0, TITULO_MAX) } : {}),
                 ...(prefill.descripcion ? { descripcion: prefill.descripcion } : {}),
+                ...(prefill.categoria ? { categoria: prefill.categoria } : {}),
                 ...(prefill.presupuesto !== undefined
                     ? { budgetMin: String(prefill.presupuesto), budgetMax: String(prefill.presupuesto) }
                     : {}),

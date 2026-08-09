@@ -185,6 +185,27 @@ interface RawNegocio {
     estaAbierto: boolean | null;
 }
 
+/** Elemento real de la columna JSONB `fotos` (ver `archivoFoto.schema.ts`) — NO es
+ *  un string plano, así que `fotos[idx]` nunca se puede usar directo como `src`
+ *  de una imagen (se veía como imagen rota — bug corregido ago-2026). */
+interface FotoCruda {
+    url: string;
+    tipo?: string;
+    posterUrl?: string;
+}
+
+/** Extrae la URL de imagen mostrable de una entrada de `fotos` — `.url` si es
+ *  imagen, `.posterUrl` si es video (nunca el archivo de video como `src`).
+ *  Tolera también el caso (histórico/futuro) de que alguna vez llegue un
+ *  string plano en vez de objeto. */
+function extraerUrlFoto(fotos: unknown, idx: number): string | null {
+    if (!Array.isArray(fotos) || fotos.length === 0) return null;
+    const foto = (fotos[idx] ?? fotos[0]) as FotoCruda | string | undefined;
+    if (!foto) return null;
+    if (typeof foto === 'string') return foto;
+    return foto.tipo === 'video' ? foto.posterUrl ?? null : foto.url ?? null;
+}
+
 interface RawMarketplace {
     id: string;
     titulo: string;
@@ -195,7 +216,8 @@ interface RawMarketplace {
     /** Rango de presupuesto — solo modo='busco', opcional. */
     presupuesto: { min: number; max: number } | null;
     condicion: string | null;
-    fotos: string[];
+    /** Array de `{url, tipo, posterUrl?}` (JSONB) — NUNCA strings planos, ver `extraerUrlFoto`. */
+    fotos: unknown[];
     fotoPortadaIndex: number;
     // Ricos (ya en el mapper de buscarArticulos)
     aceptaOfertas: boolean | null;
@@ -207,7 +229,8 @@ interface RawServicio {
     modo: string;
     tipo: string;
     modalidad: string;
-    fotos: string[];
+    /** Array de `{url, tipo, posterUrl?}` (JSONB) — NUNCA strings planos, ver `extraerUrlFoto`. */
+    fotos: unknown[];
     fotoPortadaIndex: number;
     // Datos del negocio (para vacantes ligadas a una sucursal, que no traen fotos
     // propias): el buscador de servicios los resuelve vía `sucursal_id`.
@@ -516,9 +539,7 @@ function procesarMarketplace(
     }
     const filas = (res.value.data ?? []) as RawMarketplace[];
     const items: ItemUnificado[] = filas.map((a) => {
-        const fotos = Array.isArray(a.fotos) ? a.fotos : [];
-        const idx = a.fotoPortadaIndex ?? 0;
-        const imagen = fotos.length > 0 ? (fotos[idx] ?? fotos[0] ?? null) : null;
+        const imagen = extraerUrlFoto(a.fotos, a.fotoPortadaIndex ?? 0);
         const esBusco = a.modo === 'busco';
         // 'busco' (demanda): NO lleva precio ni condición → muestra el presupuesto
         // si el vecino lo puso. 'vendo': precio + condición como siempre.
@@ -568,9 +589,7 @@ function procesarServicios(
     }
     const filas = (res.value.data ?? []) as RawServicio[];
     const items: ItemUnificado[] = filas.map((s) => {
-        const fotos = Array.isArray(s.fotos) ? s.fotos : [];
-        const idx = s.fotoPortadaIndex ?? 0;
-        const fotoPropia = fotos.length > 0 ? (fotos[idx] ?? fotos[0] ?? null) : null;
+        const fotoPropia = extraerUrlFoto(s.fotos, s.fotoPortadaIndex ?? 0);
         // Las vacantes rara vez traen foto propia → heredan la imagen del negocio
         // que las publica (perfil/portada/logo), igual que en el feed de Servicios.
         const imagen = fotoPropia ?? s.imagenNegocio ?? null;

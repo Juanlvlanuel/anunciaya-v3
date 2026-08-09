@@ -52,6 +52,7 @@ export type ResultadoAsistenteFrontend =
           modo: 'ofrezco' | 'solicito';
           descripcionServicio: string;
           descripcion?: string;
+          categoria?: 'hogar' | 'cuidados' | 'eventos' | 'belleza-bienestar' | 'empleo' | 'otros';
           presupuesto?: number;
           mensaje?: string;
       };
@@ -81,6 +82,15 @@ const TEXTO_NEGOCIO_NO_ENCONTRADO =
     'No encontré ningún negocio con ese nombre por aquí — ¿me dices si lo escribiste bien o me das más pistas?';
 const TEXTO_REQUIERE_MODO_PERSONAL =
     'Esa sección solo está disponible en modo Personal — estás en modo comercial (Business Studio) ahorita. Cambia de modo desde tu perfil y vuelve a pedírmelo.';
+const TEXTO_FALTA_DETALLE_PUBLICACION =
+    '¡Claro! Para dejarte una buena publicación, cuéntame un poco más — por ejemplo qué características tiene, para cuándo lo necesitas, o cualquier dato que ayude a describirlo mejor.';
+
+/** Espejo de `CATEGORIAS_CLASIFICADO` (`validations/servicios.schema.ts`) — Servicios en modo="solicito" (Clasificados). */
+const CATEGORIAS_CLASIFICADO_VALIDAS = ['hogar', 'cuidados', 'eventos', 'belleza-bienestar', 'empleo', 'otros'] as const;
+type CategoriaClasificado = (typeof CATEGORIAS_CLASIFICADO_VALIDAS)[number];
+function esCategoriaClasificadoValida(valor: string): valor is CategoriaClasificado {
+    return (CATEGORIAS_CLASIFICADO_VALIDAS as readonly string[]).includes(valor);
+}
 
 // =============================================================================
 // buscar_informacion — mismas piezas que "Pregúntale a Peñasco", sin BD
@@ -231,7 +241,10 @@ export async function ejecutarPeticionAsistente(
                     ? data.parametros.descripcionArticulo
                     : '';
             const descripcion =
-                typeof data.parametros.descripcion === 'string' ? data.parametros.descripcion : undefined;
+                typeof data.parametros.descripcion === 'string' ? data.parametros.descripcion.trim() : '';
+            if (!descripcion) {
+                return { tipo: 'pregunta', texto: TEXTO_FALTA_DETALLE_PUBLICACION };
+            }
             const categoriaTexto =
                 typeof data.parametros.categoria === 'string' ? data.parametros.categoria : '';
             const categoriaId = categoriaTexto
@@ -260,15 +273,23 @@ export async function ejecutarPeticionAsistente(
                     ? data.parametros.descripcionServicio
                     : '';
             const descripcion =
-                typeof data.parametros.descripcion === 'string' ? data.parametros.descripcion : undefined;
+                typeof data.parametros.descripcion === 'string' ? data.parametros.descripcion.trim() : '';
+            if (!descripcion) {
+                return { tipo: 'pregunta', texto: TEXTO_FALTA_DETALLE_PUBLICACION };
+            }
             const presupuesto =
                 typeof data.parametros.presupuesto === 'number' ? data.parametros.presupuesto : undefined;
+            const categoriaTexto = typeof data.parametros.categoria === 'string' ? data.parametros.categoria : '';
+            const categoria = modo === 'solicito' && esCategoriaClasificadoValida(categoriaTexto)
+                ? categoriaTexto
+                : undefined;
             return {
                 tipo: 'prefill_servicio',
                 ruta: `/servicios?crear=${modo}`,
                 modo,
                 descripcionServicio,
                 descripcion,
+                categoria,
                 presupuesto,
                 mensaje: data.mensaje,
             };

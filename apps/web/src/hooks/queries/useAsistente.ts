@@ -11,6 +11,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import type { ResultadosCoyo } from '../../types/preguntasComunidad';
 
 // =============================================================================
 // TIPOS — deben calzar con apps/api/src/services/asistente/asistente.service.ts
@@ -23,7 +24,7 @@ export interface TurnoChatAsistente {
 
 export type ResultadoAsistente =
     | { tipo: 'pregunta'; texto: string }
-    | { tipo: 'respuesta'; texto: string; resultados: unknown }
+    | { tipo: 'respuesta'; texto: string; resultados: ResultadosCoyo | null }
     | { tipo: 'navegar'; ruta: string; mensaje?: string }
     | {
           tipo: 'prefill_marketplace';
@@ -41,6 +42,7 @@ export type ResultadoAsistente =
           modo: 'ofrezco' | 'solicito';
           descripcionServicio: string;
           descripcion?: string;
+          categoria?: 'hogar' | 'cuidados' | 'eventos' | 'belleza-bienestar' | 'empleo' | 'otros';
           presupuesto?: number;
           mensaje?: string;
       };
