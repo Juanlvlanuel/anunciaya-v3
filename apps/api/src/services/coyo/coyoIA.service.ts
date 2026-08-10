@@ -1008,6 +1008,200 @@ export async function sugerirDatosArticulo(
 }
 
 // =============================================================================
+// FUNCIÓN 5 — sugerirListaArticulos (Alta Rápida de Catálogo, Business Studio)
+// =============================================================================
+//
+// Analiza una o varias fotos de un menú/anaquel/lista de precios y extrae
+// TODOS los artículos distinguibles como una lista — a diferencia de
+// `sugerirDatosArticulo` (MarketPlace), que analiza UNA foto para UN solo
+// artículo. El resultado llena la tabla editable de Alta Rápida; el
+// comerciante revisa y corrige cada fila antes de publicar (nunca se salta
+// esa revisión), mismo principio de "Coyo arma el borrador" que el resto de
+// las capacidades del asistente.
+
+/** Tope de fotos que se mandan a Gemini en una sola llamada (ej. varias páginas de un menú). */
+export const MAX_IMAGENES_SUGERIR_LISTA = 6;
+
+export interface ArticuloCatalogoSugerido {
+    tipo: 'producto' | 'servicio';
+    nombre: string;
+    descripcion: string | null;
+    categoria: string | null;
+    /** `null` cuando el precio no es legible en la foto — la fila queda marcada con error hasta que el comerciante lo capture a mano. */
+    precioBase: number | null;
+}
+
+const PROMPT_SUGERIR_LISTA_ARTICULOS = `Vas a ayudar a un comerciante de AnunciaYA (app de comercio local) a cargar su catálogo de productos o servicios. Te paso una o varias fotos de su menú, anaquel, pizarrón de precios o lista escrita a mano. Tu trabajo es extraer TODOS los artículos individuales que puedas distinguir con claridad — cada renglón de un menú, cada producto con precio, cada servicio listado.
+
+QUÉ CUENTA COMO UN ARTÍCULO: cualquier producto o servicio con nombre propio, tenga o no precio visible. NO cuentes como artículo los encabezados de sección ("BEBIDAS", "ENTRADAS"), textos decorativos, el nombre del negocio, ni el logo.
+
+PARA CADA ARTÍCULO devuelve:
+- "tipo": "producto" si es un objeto/comida/bebida que se entrega físicamente, "servicio" si es un servicio (corte de cabello, reparación, consulta, etc.).
+- "nombre": el nombre tal cual aparece, sin el precio ni símbolos de moneda mezclados. Máximo 150 caracteres.
+- "descripcion": SOLO si hay información adicional visible junto al nombre (ingredientes, qué incluye) — texto corrido, sin viñetas, máximo 300 caracteres. Si no hay nada adicional visible, responde null — NUNCA inventes ni rellenes.
+- "categoria": una palabra o frase corta que agrupe el artículo (ej. "Bebidas", "Cortes", "Mariscos"), tomada de los encabezados de sección de la foto si existen. Si no hay agrupación clara, responde null.
+- "precioBase": el precio como número, SIN signo de moneda ni comas (ej. 65.00, no "$65.00"). Si el precio no es legible o no está impreso, responde null — NUNCA inventes un precio.
+
+PROHIBIDO INVENTAR: si un dato no se distingue con claridad en la foto, usa null en ese campo — mejor un campo vacío que uno adivinado. Si la foto no muestra ningún menú, lista de precios o anaquel reconocible, responde un array vacío.
+
+RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
+{"articulos": [{"tipo": "producto"|"servicio", "nombre": "...", "descripcion": "..."|null, "categoria": "..."|null, "precioBase": number|null}]}`;
+
+/**
+ * Analiza 1 a {@link MAX_IMAGENES_SUGERIR_LISTA} fotos (ya subidas a R2, URLs
+ * públicas) de un menú/anaquel/lista de precios y devuelve la lista completa
+ * de artículos detectados. Disparado por un botón explícito del comerciante
+ * en Alta Rápida de Catálogo — ver `PaginaAltaRapidaCatalogo.tsx`.
+ *
+ * @example
+ *   const r = await sugerirListaArticulos(['https://...r2.../articulos/menu1.webp']);
+ *   if (r.disponible) console.log(r.data.length, r.data[0].nombre);
+ */
+export async function sugerirListaArticulos(
+    imagenesUrls: string[],
+): Promise<RespuestaIA<ArticuloCatalogoSugerido[]>> {
+    const cliente = obtenerCliente();
+    if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
+
+    const urlsAUsar = imagenesUrls.slice(0, MAX_IMAGENES_SUGERIR_LISTA);
+    const imagenes = (
+        await Promise.all(urlsAUsar.map((url) => descargarImagenComoBase64(url)))
+    ).filter((img): img is { data: string; mimeType: string } => img !== null);
+
+    if (imagenes.length === 0) {
+        console.warn(
+            'Coyo IA — sugerirListaArticulos: no se pudo descargar ninguna imagen',
+            imagenesUrls,
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    const contents: ContenidoGemini = [
+        {
+            role: 'user',
+            parts: [
+                { text: PROMPT_SUGERIR_LISTA_ARTICULOS },
+                ...imagenes.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } } as Part)),
+            ],
+        },
+    ];
+
+    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — sugerirListaArticulos agotó reintentos y fallback de Gemini',
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    try {
+        const limpio = limpiarJsonDeGemini(respuesta.texto);
+        const parseado: unknown = JSON.parse(limpio);
+        if (esListaArticulosCatalogoCruda(parseado)) {
+            return { disponible: true, data: parseado.articulos };
+        }
+        console.warn(
+            'Coyo IA — sugerirListaArticulos: JSON con shape inválido',
+            respuesta.texto,
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    } catch (error) {
+        console.warn(
+            'Coyo IA — sugerirListaArticulos: respuesta no es JSON parseable',
+            { texto: respuesta.texto, error },
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    }
+}
+
+const PROMPT_SUGERIR_LISTA_ARTICULOS_TEXTO = `Vas a ayudar a un comerciante de AnunciaYA (app de comercio local) a cargar su catálogo de productos o servicios. Te paso el texto que el comerciante ya tiene escrito (pegado de WhatsApp, Facebook o una nota) con su lista de artículos. Tu trabajo es estructurar cada artículo que puedas distinguir con claridad.
+
+QUÉ CUENTA COMO UN ARTÍCULO: cualquier renglón o frase que nombre un producto o servicio, tenga o no precio. NO cuentes como artículo los encabezados de sección ("BEBIDAS", "PROMOS"), saludos, datos de contacto, horarios, ni frases de cierre ("¡Pedidos al watsap!").
+
+PARA CADA ARTÍCULO devuelve:
+- "tipo": "producto" si es un objeto/comida/bebida que se entrega físicamente, "servicio" si es un servicio (corte de cabello, reparación, consulta, etc.).
+- "nombre": el nombre tal cual aparece, sin el precio ni símbolos de moneda mezclados, sin emojis. Máximo 150 caracteres.
+- "descripcion": SOLO si hay información adicional en el mismo renglón o el siguiente (ingredientes, qué incluye) — texto corrido, sin viñetas, máximo 300 caracteres. Si no hay nada adicional, responde null — NUNCA inventes ni rellenes.
+- "categoria": una palabra o frase corta que agrupe el artículo (ej. "Bebidas", "Cortes", "Mariscos"), tomada de los encabezados de sección del texto si existen. Si no hay agrupación clara, responde null.
+- "precioBase": el precio como número, SIN signo de moneda ni comas (ej. 65.00, no "$65.00" ni "65 pesos"). Si el precio no aparece, responde null — NUNCA inventes un precio.
+
+PROHIBIDO INVENTAR: si un dato no está claramente en el texto, usa null en ese campo. Si el texto no contiene ninguna lista de artículos reconocible, responde un array vacío.
+
+RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
+{"articulos": [{"tipo": "producto"|"servicio", "nombre": "...", "descripcion": "..."|null, "categoria": "..."|null, "precioBase": number|null}]}`;
+
+/**
+ * Estructura una lista de artículos pegada como texto libre (WhatsApp,
+ * Facebook, nota) — mismo resultado que `sugerirListaArticulos` pero sin
+ * foto de por medio. Disparado por un botón explícito del comerciante en
+ * Alta Rápida de Catálogo.
+ *
+ * @example
+ *   const r = await sugerirListaArticulosDesdeTexto('Tacos de asada $18\nRefresco $20');
+ *   if (r.disponible) console.log(r.data.length, r.data[0].nombre);
+ */
+export async function sugerirListaArticulosDesdeTexto(
+    texto: string,
+): Promise<RespuestaIA<ArticuloCatalogoSugerido[]>> {
+    const cliente = obtenerCliente();
+    if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
+
+    const promptCompleto = `${PROMPT_SUGERIR_LISTA_ARTICULOS_TEXTO}\n\nTEXTO DEL COMERCIANTE:\n${texto}`;
+    const contents: ContenidoGemini = promptCompleto;
+
+    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — sugerirListaArticulosDesdeTexto agotó reintentos y fallback de Gemini',
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    try {
+        const limpio = limpiarJsonDeGemini(respuesta.texto);
+        const parseado: unknown = JSON.parse(limpio);
+        if (esListaArticulosCatalogoCruda(parseado)) {
+            return { disponible: true, data: parseado.articulos };
+        }
+        console.warn(
+            'Coyo IA — sugerirListaArticulosDesdeTexto: JSON con shape inválido',
+            respuesta.texto,
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    } catch (error) {
+        console.warn(
+            'Coyo IA — sugerirListaArticulosDesdeTexto: respuesta no es JSON parseable',
+            { texto: respuesta.texto, error },
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    }
+}
+
+/**
+ * Type guard defensivo para un único artículo dentro de la lista que
+ * devuelve `sugerirListaArticulos`.
+ */
+function esArticuloCatalogoSugeridoCrudo(v: unknown): v is ArticuloCatalogoSugerido {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    if (obj.tipo !== 'producto' && obj.tipo !== 'servicio') return false;
+    if (typeof obj.nombre !== 'string' || obj.nombre.trim().length === 0) return false;
+    if (obj.descripcion !== null && typeof obj.descripcion !== 'string') return false;
+    if (obj.categoria !== null && typeof obj.categoria !== 'string') return false;
+    if (obj.precioBase !== null && typeof obj.precioBase !== 'number') return false;
+    return true;
+}
+
+/** Type guard defensivo para el JSON completo `{ articulos: [...] }` de `sugerirListaArticulos`. */
+function esListaArticulosCatalogoCruda(
+    v: unknown,
+): v is { articulos: ArticuloCatalogoSugerido[] } {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    return Array.isArray(obj.articulos) && obj.articulos.every(esArticuloCatalogoSugeridoCrudo);
+}
+
+// =============================================================================
 // HELPERS INTERNOS
 // =============================================================================
 

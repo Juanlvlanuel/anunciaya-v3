@@ -28,6 +28,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Plus,
     Search,
@@ -43,6 +44,7 @@ import {
     ChevronUp,
     Inbox,
     X,
+    Zap,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -304,6 +306,7 @@ function mensajeVacioCatalogo({
 // =============================================================================
 
 export function PaginaCatalogo() {
+    const navigate = useNavigate();
     const { usuario, totalSucursales } = useAuthStore();
 
     // React Query — datos del servidor
@@ -838,6 +841,15 @@ export function PaginaCatalogo() {
                             </>
                         )}
 
+                            {/* Alta Rápida — móvil */}
+                            <button
+                                onClick={() => navigate('/business-studio/catalogo/alta-rapida')}
+                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-3 rounded-lg text-base font-bold text-slate-700 border-2 border-slate-300 bg-white cursor-pointer"
+                                data-testid="btn-alta-rapida-movil"
+                            >
+                                <Zap className="w-4 h-4" />
+                            </button>
+
                             {/* Nuevo Artículo — móvil */}
                             <button
                                 onClick={handleCrear}
@@ -872,6 +884,17 @@ export function PaginaCatalogo() {
                                     ) : undefined}
                                 />
                             </div>
+                            {/* Alta Rápida — desktop */}
+                            <Tooltip text="Alta Rápida de Catálogo" position="bottom">
+                                <button
+                                    onClick={() => navigate('/business-studio/catalogo/alta-rapida')}
+                                    className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-3 2xl:px-4 rounded-lg text-sm 2xl:text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 cursor-pointer"
+                                    data-testid="btn-alta-rapida-desktop"
+                                >
+                                    <Zap className="w-4 h-4 2xl:w-4 2xl:h-4" />
+                                </button>
+                            </Tooltip>
+
                             {/* Nuevo — desktop */}
                             <button
                                 onClick={handleCrear}

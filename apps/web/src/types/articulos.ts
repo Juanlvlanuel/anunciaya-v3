@@ -58,6 +58,36 @@ export interface CrearArticuloInput {
 }
 
 /**
+ * Input para crear artículos en lote (Alta Rápida de Catálogo)
+ */
+export type CrearArticuloLoteInput = CrearArticuloInput[];
+
+/**
+ * Respuesta de crear artículos en lote
+ */
+export interface ResultadoArticuloLote {
+  id: string;
+  tipo: TipoArticulo;
+  nombre: string;
+  categoria: string;
+  precioBase: string;
+  imagenPrincipal: string | null;
+}
+
+/**
+ * Artículo sugerido por Coyo IA a partir de foto(s) o texto (Alta Rápida de
+ * Catálogo) — llena una fila de la tabla editable, siempre para revisión del
+ * comerciante antes de publicar.
+ */
+export interface ArticuloCatalogoSugerido {
+  tipo: TipoArticulo;
+  nombre: string;
+  descripcion: string | null;
+  categoria: string | null;
+  precioBase: number | null;
+}
+
+/**
  * Input para actualizar un artículo
  */
 export interface ActualizarArticuloInput {

@@ -84,6 +84,12 @@ export interface CrearArticuloInput {
 }
 
 /**
+ * Datos de entrada para crear artículos en lote (Alta Rápida)
+ * Cada elemento se valida con las mismas reglas que CrearArticuloInput
+ */
+export type CrearArticuloLoteInput = CrearArticuloInput[];
+
+/**
  * Datos de entrada para actualizar un artículo
  * Todos los campos son opcionales (PATCH)
  */

@@ -8,6 +8,7 @@
  * ENDPOINTS:
  * - GET /api/articulos/negocio/:negocioId → Catálogo de un negocio (público)
  * - POST /api/articulos → Crear artículo (Business Studio)
+ * - POST /api/articulos/bulk → Crear artículos en lote, Alta Rápida (Business Studio)
  * - GET /api/articulos → Listar artículos (Business Studio)
  * - GET /api/articulos/:id → Obtener artículo (Business Studio)
  * - PUT /api/articulos/:id → Actualizar artículo (Business Studio)
@@ -25,6 +26,9 @@ import {
     getArticuloDetalle,
     postRegistrarVista,
     postCrearArticulo,
+    postCrearArticulosLote,
+    postSugerirArticulosLoteIA,
+    postSugerirArticulosLoteTextoIA,
     getArticulos,
     getArticulo,
     putActualizarArticulo,
@@ -85,14 +89,63 @@ router.post(
 );
 
 /**
+ * POST /api/articulos/sugerir-lote-ia
+ * Analiza foto(s) de un menú/anaquel y sugiere la lista de artículos
+ * detectados (Alta Rápida de Catálogo). Ver coyoIA.service.ts (sugerirListaArticulos).
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ * Body: { imagenesUrls: string[] } (1 a 6 imágenes)
+ */
+router.post(
+    '/sugerir-lote-ia',
+    verificarToken,
+    verificarNegocio,
+    postSugerirArticulosLoteIA
+);
+
+/**
+ * POST /api/articulos/sugerir-lote-texto-ia
+ * Estructura una lista de artículos pegada como texto libre (Alta Rápida
+ * de Catálogo). Ver coyoIA.service.ts (sugerirListaArticulosDesdeTexto).
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ * Body: { texto: string }
+ */
+router.post(
+    '/sugerir-lote-texto-ia',
+    verificarToken,
+    verificarNegocio,
+    postSugerirArticulosLoteTextoIA
+);
+
+/**
+ * POST /api/articulos/bulk
+ * Crea varios artículos de una sola vez (Alta Rápida de Catálogo)
+ * Debe ir ANTES de POST /:id-like routes para que Express no confunda la ruta
+ * (aquí no aplica por ser POST literal, pero se mantiene junto a upload-imagen
+ * por convención de rutas literales antes de rutas con :id).
+ *
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ * Body: CrearArticuloInput[] (1 a 100 elementos)
+ * Query: ?sucursalId=UUID (agregado automáticamente por interceptor Axios)
+ */
+router.post(
+    '/bulk',
+    verificarToken,
+    verificarNegocio,
+    validarAccesoSucursal,
+    postCrearArticulosLote
+);
+
+/**
  * POST /api/articulos
  * Crea un nuevo artículo y lo asigna a la sucursal activa
- * 
+ *
  * Middlewares:
  * - verificarToken: Valida JWT y agrega req.usuario
  * - verificarNegocio: Inyecta req.negocioId (dueño o empleado)
  * - validarAccesoSucursal: Valida acceso según rol (query.sucursalId)
- * 
+ *
  * Body: { tipo, nombre, descripcion?, categoria?, precioBase, precioDesde?, imagenPrincipal?, disponible?, destacado? }
  * Query: ?sucursalId=UUID (agregado automáticamente por interceptor Axios)
  */

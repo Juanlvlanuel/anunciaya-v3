@@ -18,6 +18,7 @@ import { db } from '../db';
 import { articulos, articuloSucursales } from '../db/schemas/schema';
 import { generarPresignedUrl, eliminarArchivo, duplicarArchivo } from './r2.service.js';
 import { urlReferenciadaEnChat } from './negocioManagement.service.js';
+import { sugerirListaArticulos, sugerirListaArticulosDesdeTexto } from './coyo/coyoIA.service.js';
 
 /**
  * Cuenta cuántos artículos del negocio siguen referenciando una URL de imagen,
@@ -79,6 +80,7 @@ export async function generarUrlUploadImagenArticulo(nombreArchivo: string, cont
 import type {
     ArticuloCatalogoRow,
     CrearArticuloInput,
+    CrearArticuloLoteInput,
     ActualizarArticuloInput,
     DuplicarArticuloInput,
 } from '../types/articulos.types';
@@ -322,6 +324,115 @@ export async function crearArticulo(
         console.error('Error al crear artículo:', error);
         throw error;
     }
+}
+
+// =============================================================================
+// CREAR ARTÍCULOS EN LOTE (ALTA RÁPIDA DE CATÁLOGO)
+// =============================================================================
+
+/**
+ * Crea varios artículos de una sola vez y los asigna a la sucursal activa.
+ * Transacción única: si un artículo falla, se revierten todos (todo o nada) —
+ * consistente con crearArticulo/duplicarArticuloASucursales.
+ *
+ * @param negocioId - UUID del negocio (inyectado por middleware)
+ * @param sucursalId - UUID de la sucursal activa (del query interceptor)
+ * @param lote - Artículos a crear, ya validados por crearArticuloLoteSchema
+ * @returns Resumen con la cantidad creada y los artículos resultantes
+ */
+export async function crearArticulosLote(
+    negocioId: string,
+    sucursalId: string,
+    lote: CrearArticuloLoteInput
+) {
+    try {
+        return await db.transaction(async (tx) => {
+            const articulosCreados = [];
+
+            for (const datos of lote) {
+                const [nuevoArticulo] = await tx
+                    .insert(articulos)
+                    .values({
+                        negocioId,
+                        tipo: datos.tipo,
+                        nombre: datos.nombre.trim(),
+                        descripcion: datos.descripcion?.trim() || null,
+                        categoria: datos.categoria?.trim() || 'General',
+                        precioBase: datos.precioBase.toString(),
+                        precioDesde: datos.precioDesde ?? false,
+                        imagenPrincipal: datos.imagenPrincipal || null,
+                        disponible: datos.disponible ?? true,
+                        destacado: datos.destacado ?? false,
+                        orden: 0,
+                        totalVentas: 0,
+                        totalVistas: 0,
+                    })
+                    .returning();
+
+                await tx
+                    .insert(articuloSucursales)
+                    .values({
+                        articuloId: nuevoArticulo.id,
+                        sucursalId,
+                    });
+
+                articulosCreados.push({
+                    id: nuevoArticulo.id,
+                    tipo: nuevoArticulo.tipo,
+                    nombre: nuevoArticulo.nombre,
+                    categoria: nuevoArticulo.categoria,
+                    precioBase: nuevoArticulo.precioBase,
+                    imagenPrincipal: nuevoArticulo.imagenPrincipal,
+                });
+            }
+
+            return {
+                success: true,
+                message: `${articulosCreados.length} artículo(s) creado(s) correctamente`,
+                data: {
+                    total: articulosCreados.length,
+                    articulos: articulosCreados,
+                },
+            };
+        });
+    } catch (error) {
+        console.error('Error al crear artículos en lote:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
+// SUGERIR ARTÍCULOS EN LOTE CON IA (ALTA RÁPIDA — FOTO)
+// =============================================================================
+
+/**
+ * Analiza foto(s) de un menú/anaquel y devuelve la lista de artículos que
+ * Gemini detectó, para prellenar la tabla editable de Alta Rápida. El
+ * comerciante siempre revisa/corrige cada fila antes de publicar — esto
+ * nunca crea artículos directamente.
+ *
+ * Siempre responde `code: 200`, incluso cuando la IA no está disponible
+ * (`success: false`) — no es un error de request, es una función opcional
+ * del flujo. El frontend hace fallback silencioso sin mostrar toast de error.
+ */
+export async function sugerirArticulosLoteConIA(imagenesUrls: string[]) {
+    const resultado = await sugerirListaArticulos(imagenesUrls);
+    if (!resultado.disponible) {
+        return { success: false as const, code: 200, razon: resultado.razon };
+    }
+    return { success: true as const, code: 200, data: resultado.data };
+}
+
+/**
+ * Igual que `sugerirArticulosLoteConIA` pero a partir de texto pegado
+ * (WhatsApp, Facebook, nota) en vez de foto(s).
+ */
+export async function sugerirArticulosLoteTextoConIA(texto: string) {
+    const resultado = await sugerirListaArticulosDesdeTexto(texto);
+    if (!resultado.disponible) {
+        return { success: false as const, code: 200, razon: resultado.razon };
+    }
+    return { success: true as const, code: 200, data: resultado.data };
 }
 
 // =============================================================================
@@ -792,6 +903,9 @@ export default {
 
     // Business Studio
     crearArticulo,
+    crearArticulosLote,
+    sugerirArticulosLoteConIA,
+    sugerirArticulosLoteTextoConIA,
     obtenerArticulos,
     obtenerArticuloPorId,
     actualizarArticulo,

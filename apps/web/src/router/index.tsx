@@ -72,6 +72,7 @@ import PaginaPerfil from '../pages/private/business-studio/perfil/PaginaPerfil';
 import PaginaPerfilPersonal from '../pages/private/perfil/PaginaPerfilPersonal';
 import PaginaMockupMenu from '../pages/private/dev/PaginaMockupMenu';
 import PaginaCatalogo from '../pages/private/business-studio/catalogo/PaginaCatalogo';
+import PaginaAltaRapidaCatalogo from '../pages/private/business-studio/catalogo/PaginaAltaRapidaCatalogo';
 import BSPaginaPublicaciones from '../pages/private/business-studio/publicaciones/PaginaPublicaciones';
 import BSPaginaOfertas from '../pages/private/business-studio/ofertas/PaginaOfertas';
 import PaginaOfertas from '../pages/private/ofertas/PaginaOfertas';
@@ -538,6 +539,14 @@ const router = createBrowserRouter([
             element: (
               <ModoGuard requiereModo="comercial">
                 <PaginaCatalogo />
+              </ModoGuard>
+            ),
+          },
+          {
+            path: '/business-studio/catalogo/alta-rapida',
+            element: (
+              <ModoGuard requiereModo="comercial">
+                <PaginaAltaRapidaCatalogo />
               </ModoGuard>
             ),
           },

@@ -336,6 +336,9 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 |--------|----------|-----------|
 | POST | `/api/articulos/upload-imagen` | Generar presigned URL para subir imagen a R2 |
 | POST | `/api/articulos` | Crear artículo |
+| POST | `/api/articulos/bulk` | Crear artículos en lote (Alta Rápida) |
+| POST | `/api/articulos/sugerir-lote-ia` | Sugerir lote de artículos desde foto(s), Gemini (Alta Rápida) |
+| POST | `/api/articulos/sugerir-lote-texto-ia` | Sugerir lote de artículos desde texto pegado, Gemini (Alta Rápida) |
 | GET | `/api/articulos` | Listar artículos de la sucursal |
 | GET | `/api/articulos/:id` | Obtener artículo específico |
 | PUT | `/api/articulos/:id` | Actualizar artículo |
@@ -346,10 +349,11 @@ Los 14 módulos están organizados en 5 secciones lógicas:
 - `PaginaCatalogo.tsx` - Lista con filtros
 - `ModalArticulo.tsx` - Crear/editar
 - `ModalDuplicar.tsx` - Duplicar a sucursales
+- `PaginaAltaRapidaCatalogo.tsx` - Carga masiva (foto/texto/manual → tabla editable → publicar). Ruta `/business-studio/catalogo/alta-rapida`. Detalle completo: `docs/arquitectura/Alta_Rapida_Catalogo.md`
 
 **Estado (React Query + useState local):**
-- `hooks/queries/useArticulos.ts` — useQuery (lista), 4 useMutation (crear, actualizar, eliminar, duplicar) con updates optimistas
-- Store Zustand eliminado — no hay estado UI compartido; filtros/orden son useState locales en la página
+- `hooks/queries/useArticulos.ts` — useQuery (lista), 4 useMutation (crear, actualizar, eliminar, duplicar) con updates optimistas + 3 mutations de Alta Rápida (`useCrearArticulosLote` sin optimismo, `useSugerirArticulosLoteIA`, `useSugerirArticulosLoteTextoIA`)
+- Store Zustand eliminado — no hay estado UI compartido; filtros/orden son useState locales en la página; la tabla borrador de Alta Rápida también es useState local (transitoria, no cacheada)
 - Query keys: `queryKeys.articulos.porSucursal(sucursalId)`
 
 ---

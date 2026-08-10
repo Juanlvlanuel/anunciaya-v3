@@ -18,6 +18,9 @@ import {
     obtenerArticuloDetalle,
     registrarVistaArticulo,
     crearArticulo,
+    crearArticulosLote,
+    sugerirArticulosLoteConIA,
+    sugerirArticulosLoteTextoConIA,
     obtenerArticulos,
     obtenerArticuloPorId,
     actualizarArticulo,
@@ -27,8 +30,11 @@ import {
 } from '../services/articulos.service.js';
 import {
     crearArticuloSchema,
+    crearArticuloLoteSchema,
     actualizarArticuloSchema,
     duplicarArticuloSchema,
+    sugerirArticulosLoteIASchema,
+    sugerirArticulosLoteTextoIASchema,
     formatearErroresZod,
 } from '../validations/articulos.schema.js';
 
@@ -176,6 +182,60 @@ export async function postCrearArticulo(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al crear el artículo',
+        });
+    }
+}
+
+/**
+ * POST /api/articulos/bulk
+ * Crea varios artículos de una sola vez (Alta Rápida de Catálogo)
+ *
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ * Body: CrearArticuloInput[] (1 a 100 elementos)
+ */
+export async function postCrearArticulosLote(req: Request, res: Response) {
+    try {
+        // Validar datos con Zod
+        const validacion = crearArticuloLoteSchema.safeParse(req.body);
+
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        // Obtener negocioId (inyectado por middleware verificarNegocio)
+        const negocioId = req.negocioId;
+
+        if (!negocioId) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se pudo identificar el negocio',
+            });
+        }
+
+        // Obtener sucursalId (del query, agregado por interceptor Axios)
+        const sucursalId = req.query.sucursalId as string;
+
+        if (!sucursalId) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID de la sucursal es requerido',
+            });
+        }
+
+        // Crear artículos en lote
+        const resultado = await crearArticulosLote(negocioId, sucursalId, validacion.data);
+
+        return res.status(201).json(resultado);
+
+    } catch (error) {
+        console.error('Error en postCrearArticulosLote:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al crear los artículos',
         });
     }
 }
@@ -479,6 +539,71 @@ export async function postDuplicarArticulo(req: Request, res: Response) {
     }
 }
 
+/**
+ * POST /api/articulos/sugerir-lote-ia
+ * Body: { imagenesUrls: string[] }. El comerciante dispara esto con un botón
+ * explícito en Alta Rápida de Catálogo tras subir foto(s) de un menú/anaquel
+ * — Gemini analiza la(s) imagen(es) y sugiere la lista de artículos. Nunca
+ * falla "duro" por ausencia de IA: si Gemini no está disponible,
+ * `sugerirArticulosLoteConIA` responde `success:false` con código 200 y el
+ * frontend hace fallback silencioso (sin toast de error).
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ */
+export async function postSugerirArticulosLoteIA(req: Request, res: Response) {
+    try {
+        const validacion = sugerirArticulosLoteIASchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const resultado = await sugerirArticulosLoteConIA(validacion.data.imagenesUrls);
+        return res.status(resultado.code).json(resultado);
+
+    } catch (error) {
+        console.error('Error en postSugerirArticulosLoteIA:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar la sugerencia',
+        });
+    }
+}
+
+/**
+ * POST /api/articulos/sugerir-lote-texto-ia
+ * Body: { texto: string }. El comerciante pega una lista de artículos
+ * (WhatsApp, Facebook, nota) y Gemini la estructura. Mismo contrato que
+ * postSugerirArticulosLoteIA (nunca falla "duro").
+ *
+ * Middlewares: verificarToken, verificarNegocio
+ */
+export async function postSugerirArticulosLoteTextoIA(req: Request, res: Response) {
+    try {
+        const validacion = sugerirArticulosLoteTextoIASchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const resultado = await sugerirArticulosLoteTextoConIA(validacion.data.texto);
+        return res.status(resultado.code).json(resultado);
+
+    } catch (error) {
+        console.error('Error en postSugerirArticulosLoteTextoIA:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar la sugerencia',
+        });
+    }
+}
+
 // =============================================================================
 // UPLOAD DE IMAGEN A R2
 // =============================================================================
@@ -564,6 +689,9 @@ export default {
     
     // Business Studio
     postCrearArticulo,
+    postCrearArticulosLote,
+    postSugerirArticulosLoteIA,
+    postSugerirArticulosLoteTextoIA,
     getArticulos,
     getArticulo,
     putActualizarArticulo,

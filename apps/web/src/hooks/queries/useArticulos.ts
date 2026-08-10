@@ -12,9 +12,12 @@
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import * as articulosService from '../../services/articulosService';
+import { api } from '../../services/api';
 import type {
   Articulo,
   CrearArticuloInput,
+  CrearArticuloLoteInput,
+  ArticuloCatalogoSugerido,
   ActualizarArticuloInput,
   DuplicarArticuloInput,
 } from '../../types/articulos';
@@ -100,6 +103,70 @@ export function useCrearArticulo() {
       // Catálogo público del negocio (vista de clientes en /negocios/:id)
       qc.invalidateQueries({ queryKey: ['negocios', 'catalogo', negocioId] });
       notificar.exito('Artículo creado correctamente');
+    },
+  });
+}
+
+// =============================================================================
+// MUTACIÓN: Crear artículos en lote (Alta Rápida — sin update optimista)
+// =============================================================================
+// Sin optimismo: el volumen (hasta 100 filas) no se presta a un snapshot
+// temporal razonable — se invalida la lista al terminar, igual que duplicar.
+
+export function useCrearArticulosLote() {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const negocioId = useAuthStore((s) => s.usuario?.negocioId ?? '');
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (lote: CrearArticuloLoteInput) => articulosService.crearArticulosLote(lote),
+
+    onError: (_err) => {
+      const mensaje = _err instanceof Error ? _err.message : 'Error al crear los artículos';
+      notificar.error(mensaje);
+    },
+
+    onSuccess: (respuesta) => {
+      qc.invalidateQueries({ queryKey: queryKeys.articulos.porSucursal(sucursalId) });
+      qc.invalidateQueries({ queryKey: ['negocios', 'catalogo', negocioId] });
+      const total = respuesta.data?.total ?? 0;
+      notificar.exito(`${total} artículo${total === 1 ? '' : 's'} publicado${total === 1 ? '' : 's'}`);
+    },
+  });
+}
+
+// =============================================================================
+// MUTACIÓN: Sugerir artículos en lote con IA (Alta Rápida — foto)
+// =============================================================================
+// Mismo patrón que useSugerirArticuloIA (MarketPlace): usa el cliente axios
+// crudo, no el wrapper `post<T>` de articulosService, porque el backend
+// responde `{success, code, data|razon}` directo, sin el envelope estándar.
+// Nunca falla "duro" — el caller decide qué hacer con `success:false`.
+
+export function useSugerirArticulosLoteIA() {
+  return useMutation({
+    mutationFn: async (imagenesUrls: string[]) => {
+      const response = await api.post<
+        | { success: true; data: ArticuloCatalogoSugerido[] }
+        | { success: false; razon: string }
+      >('/articulos/sugerir-lote-ia', { imagenesUrls });
+      return response.data;
+    },
+  });
+}
+
+// =============================================================================
+// MUTACIÓN: Sugerir artículos en lote con IA (Alta Rápida — texto pegado)
+// =============================================================================
+
+export function useSugerirArticulosLoteTextoIA() {
+  return useMutation({
+    mutationFn: async (texto: string) => {
+      const response = await api.post<
+        | { success: true; data: ArticuloCatalogoSugerido[] }
+        | { success: false; razon: string }
+      >('/articulos/sugerir-lote-texto-ia', { texto });
+      return response.data;
     },
   });
 }

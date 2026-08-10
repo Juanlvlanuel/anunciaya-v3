@@ -20,6 +20,8 @@ import { get, post, put, del } from './api';
 import type {
   Articulo,
   CrearArticuloInput,
+  CrearArticuloLoteInput,
+  ResultadoArticuloLote,
   ActualizarArticuloInput,
   DuplicarArticuloInput,
   ArticuloDuplicado,
@@ -62,6 +64,16 @@ export async function obtenerArticulo(id: string) {
  */
 export async function crearArticulo(datos: CrearArticuloInput) {
   return post<{ id: string; tipo: string; nombre: string }>('/articulos', datos);
+}
+
+/**
+ * Crea varios artículos de una sola vez (Alta Rápida de Catálogo)
+ * POST /api/articulos/bulk
+ *
+ * @param datos - Artículos a crear (1 a 100)
+ */
+export async function crearArticulosLote(datos: CrearArticuloLoteInput) {
+  return post<{ total: number; articulos: ResultadoArticuloLote[] }>('/articulos/bulk', datos);
 }
 
 /**
@@ -194,6 +206,7 @@ export default {
   obtenerArticulos,
   obtenerArticulo,
   crearArticulo,
+  crearArticulosLote,
   actualizarArticulo,
   eliminarArticulo,
   duplicarArticulo,
