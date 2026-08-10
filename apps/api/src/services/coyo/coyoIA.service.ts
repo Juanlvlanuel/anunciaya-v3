@@ -704,6 +704,8 @@ export interface ContextoAppAsistente {
     rutaActual: string;
     /** true si el usuario está navegando en modo comercial (Business Studio). */
     modoComercial?: boolean;
+    /** Nombre real del negocio (solo en modo comercial) — SIEMPRE debe usarse este nombre si Coyo redacta un texto que lo mencione; nunca inventar uno. */
+    nombreNegocio?: string;
 }
 
 /** Resultado de interpretar una petición: o Gemini decide EJECUTAR una capacidad, o hace una PREGUNTA porque falta un dato obligatorio. */
@@ -737,6 +739,10 @@ AL CREAR UNA PUBLICACIÓN (MarketPlace/Servicios), el MODO CONSULTOR también ap
 - Si además falta algún detalle para escribir una buena descripción (estado, marca, motivo de venta, o experiencia/zona/horario si es un servicio), pregúntalo también.
 - Combina TODO lo que realmente haga falta preguntar (precio + algún detalle, ya sabiendo qué es) en la MENOR cantidad de preguntas posible — no hagas una pregunta por cada campo si puedes juntarlas en una sola frase natural. Si el usuario ya vino con todo en su primer mensaje, no le insistas con más preguntas — ejecuta directo.
 - Con lo que te cuente (y lo que detectó el análisis de foto, si adjuntó una), redacta TÚ el título (corto, atractivo, mejor que una copia literal de sus palabras) y la descripción — en tono NATURAL y HABLADO, como si el vecino la platicara, NUNCA en viñetas ni lenguaje de catálogo. Junta ahí TODOS los datos reales que tengas (marca/color/componentes de la foto + lo que el usuario contó) para que quede completa, no una frase suelta — entre más detalle real haya, más rica debe quedar la descripción. ES UNA DESCRIPCIÓN DE VENTA, NO UNA DESCRIPCIÓN DE FOTO: describe el artículo como su dueño, nunca como quien narra una imagen — PROHIBIDO usar "se ve", "se ven", "se aprecia", "en la imagen/foto", "está servido/colocado en/sobre", ni mencionar el fondo/plato/mesa/tabla que aparezcan solo por la foto. Nunca inventes un dato que no venga de la foto ni de lo que el usuario dijo.
+
+NUNCA INVENTES EL NOMBRE DEL NEGOCIO (error real ya visto): si vas a redactar un texto que mencione el nombre del negocio (descripción, publicación, promoción, etc.), usa ÚNICAMENTE el nombre real que viene en el "Contexto" de abajo. Si el contexto no trae un nombre de negocio, NO le pongas nombre al texto (redáctalo sin mencionarlo) — jamás inventes uno, y jamás uses tu propio nombre ("Coyo") como si fuera el nombre del negocio del comerciante, son cosas completamente distintas.
+
+FECHAS RELATIVAS: cuando una función pida una fecha (formato YYYY-MM-DD) y el usuario la dé en palabras ("hoy", "mañana", "el próximo lunes", "fin de mes", "en una semana"), calcúlala tú a partir de la fecha de HOY que viene en el "Contexto" de abajo — nunca la fecha de tu entrenamiento ni una que te parezca razonable. Si el usuario da una fecha ambigua que no puedes calcular con certeza (ej. "para el 15" sin decir de qué mes), pregunta para confirmar en vez de adivinar.
 
 CUÁNDO EJECUTAR UNA FUNCIÓN: solo cuando tengas TODOS sus datos obligatorios y la petición claramente pide navegar a una sección de la cuenta, crear una publicación, o buscar algo REAL (negocio/oferta/artículo/servicio) ya publicado en la ciudad.
 
@@ -804,7 +810,12 @@ export async function interpretarPeticionAsistente(
     const cliente = obtenerCliente();
     if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
 
-    let promptTexto = `${PERSONALIDAD_COYO}\n\n${PROMPT_ASISTENTE_ACCIONES}\n\nContexto: el usuario está en la ruta "${contextoApp.rutaActual}"${contextoApp.modoComercial ? ', en modo comercial (Business Studio)' : ''}.`;
+    // Fecha real del servidor (nunca del cliente) — le da a Coyo un ancla para
+    // calcular fechas relativas ("hoy", "fin de mes", "en una semana") sin
+    // inventarlas ni confundirse de zona horaria.
+    const fechaHoyISO = new Date().toISOString().substring(0, 10);
+
+    let promptTexto = `${PERSONALIDAD_COYO}\n\n${PROMPT_ASISTENTE_ACCIONES}\n\nContexto: hoy es "${fechaHoyISO}" (formato YYYY-MM-DD). El usuario está en la ruta "${contextoApp.rutaActual}"${contextoApp.modoComercial ? ', en modo comercial (Business Studio)' : ''}${contextoApp.nombreNegocio ? `. Su negocio se llama "${contextoApp.nombreNegocio}" — SIEMPRE usa este nombre exacto si vas a mencionar el nombre del negocio en un texto que redactes (descripción, publicación, etc.), NUNCA inventes o supongas otro nombre` : ''}.`;
 
     if (historialReciente.length > 0) {
         const historialTexto = historialReciente

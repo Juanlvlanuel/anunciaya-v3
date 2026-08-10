@@ -25,6 +25,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { usePerfil } from './hooks/usePerfil';
 import { useUiStore } from '../../../../stores/useUiStore';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import { useHideOnScroll } from '../../../../hooks/useHideOnScroll';
 import { Spinner } from '../../../../components/ui';
 import TabInformacion from './components/TabInformacion';
@@ -86,7 +87,11 @@ export default function PaginaPerfil() {
   const [tabActivo, setTabActivo] = useState(0);
   const [animandoGuardar, setAnimandoGuardar] = useState(false);
   const btnGuardarDesktopRef = React.useRef<HTMLButtonElement>(null);
-  const hookPerfil = usePerfil();
+  // Prefill del Asistente Coyo (FAB global) — se consume (lee+limpia) una
+  // sola vez al montar; `usePerfil` lo aplica por encima de los datos reales
+  // en cuanto llegan del servidor.
+  const [prefillPerfil] = useState(() => useComposerPrefillStore.getState().consumirPerfilComercial());
+  const hookPerfil = usePerfil(prefillPerfil);
 
   const { loading, error, esGerente, guardando, hayCambios, datosInformacion, datosUbicacion } = hookPerfil;
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
@@ -206,6 +211,27 @@ export default function PaginaPerfil() {
   useEffect(() => {
     setTabActivo(0);
   }, [vistaComoGerente]);
+
+  // Prefill de Coyo: en cuanto los tabs están listos, salta UNA sola vez al
+  // que corresponde a lo que Coyo llenó, para que el comerciante lo vea de
+  // inmediato (el botón de Guardar ya funciona para cualquier tab, esto es
+  // solo para la revisión visual).
+  const tabPrefillAplicadoRef = React.useRef(false);
+  useEffect(() => {
+    if (!prefillPerfil || tabPrefillAplicadoRef.current || tabs.length === 0) return;
+    tabPrefillAplicadoRef.current = true;
+    const key =
+      prefillPerfil.telefono !== undefined || prefillPerfil.whatsapp !== undefined ||
+      prefillPerfil.correo !== undefined || prefillPerfil.sitioWeb !== undefined
+        ? 'contacto'
+        : prefillPerfil.direccion !== undefined || prefillPerfil.ciudad !== undefined
+          ? 'ubicacion'
+          : prefillPerfil.descripcion !== undefined
+            ? 'informacion'
+            : 'operacion';
+    const idx = tabs.findIndex((t) => t.key === key);
+    if (idx >= 0) setTabActivo(idx);
+  }, [tabs, prefillPerfil]);
 
   // =============================================================================
   // FUNCIÓN DE GUARDADO

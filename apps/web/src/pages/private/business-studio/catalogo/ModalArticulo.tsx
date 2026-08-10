@@ -51,6 +51,16 @@ interface ModalArticuloProps {
   categoriasExistentes?: string[];
   tipoInicial?: 'producto' | 'servicio';
   permitirCambioTipo?: boolean;
+  /** Valores de arranque cuando el borrador viene del Asistente Coyo (chat) —
+   *  solo aplica en modo creación (`articulo` null); `articulo` siempre gana
+   *  si ambos vienen (no debería pasar, edición no usa prefill). */
+  valoresIniciales?: {
+    tipo?: 'producto' | 'servicio';
+    nombre?: string;
+    descripcion?: string;
+    categoria?: string;
+    precioBase?: number;
+  };
   onGuardar: (datos: CrearArticuloInput | ActualizarArticuloInput) => Promise<void>;
   onCerrar: () => void;
 }
@@ -137,17 +147,17 @@ function PrecioStepper({ id, value, onChange, invalido = false, inputClassName, 
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial = 'producto', permitirCambioTipo = false, onGuardar, onCerrar }: ModalArticuloProps) {
+export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial = 'producto', permitirCambioTipo = false, valoresIniciales, onGuardar, onCerrar }: ModalArticuloProps) {
   const esEdicion = !!articulo;
 
   // ===========================================================================
   // ESTADOS
   // ===========================================================================
 
-  const [tipo, setTipo] = useState<'producto' | 'servicio'>(articulo?.tipo || tipoInicial);
-  const [nombre, setNombre] = useState(articulo?.nombre || '');
-  const [descripcion, setDescripcion] = useState(articulo?.descripcion || '');
-  const [categoria, setCategoria] = useState(articulo?.categoria || '');
+  const [tipo, setTipo] = useState<'producto' | 'servicio'>(articulo?.tipo || valoresIniciales?.tipo || tipoInicial);
+  const [nombre, setNombre] = useState(articulo?.nombre || valoresIniciales?.nombre || '');
+  const [descripcion, setDescripcion] = useState(articulo?.descripcion || valoresIniciales?.descripcion || '');
+  const [categoria, setCategoria] = useState(articulo?.categoria || valoresIniciales?.categoria || '');
   const [categoriaNueva, setCategoriaNueva] = useState('');
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const [mostrarInputNueva, setMostrarInputNueva] = useState(false);
@@ -157,7 +167,11 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
   const botonRef = useRef<HTMLButtonElement>(null);
   const botonRefDesktop = useRef<HTMLButtonElement>(null);
   const [precioStr, setPrecioStr] = useState(
-    articulo?.precioBase ? String(Number(articulo.precioBase)) : ''
+    articulo?.precioBase
+      ? String(Number(articulo.precioBase))
+      : valoresIniciales?.precioBase
+        ? String(valoresIniciales.precioBase)
+        : ''
   );
   const precioVacio = precioStr.trim() === '';
   const precioBase = precioVacio ? 0 : Number(precioStr);

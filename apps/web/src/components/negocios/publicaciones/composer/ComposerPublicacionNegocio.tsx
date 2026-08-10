@@ -43,6 +43,7 @@ import {
 } from '../../../../hooks/queries/useNegocioPublicaciones';
 import { notificar } from '../../../../utils/notificaciones';
 import { fuenteThumbnail } from '../../../../utils/marketplace';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 
 interface ComposerPublicacionNegocioProps {
     modo: 'crear' | 'editar';
@@ -101,6 +102,25 @@ export function ComposerPublicacionNegocio({
         }
     }, [esEdicion, publicacionQuery.data, hidratarDesdePublicacion]);
     const cargandoEdicion = esEdicion && publicacionQuery.isPending && !publicacionQuery.data;
+
+    // ─── Prefill del Asistente Coyo (FAB global) ─────────────────────
+    // Mismo patrón que ComposerMarketplace/ComposerServicios/PaginaCatalogo:
+    // se consume (lee + limpia) al montar, nunca en edición, y limpia también
+    // al desmontar como red de seguridad.
+    useEffect(() => {
+        if (esEdicion) return;
+        const prefill = useComposerPrefillStore.getState().consumirPublicacionNegocio();
+        if (prefill) {
+            actualizar({
+                ...(prefill.texto ? { texto: prefill.texto.slice(0, 2000) } : {}),
+                ...(prefill.precio !== undefined ? { precio: String(prefill.precio) } : {}),
+            });
+        }
+        return () => {
+            useComposerPrefillStore.getState().consumirPublicacionNegocio();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [esEdicion]);
 
     // Fotos subidas en esta sesión — si el usuario descarta, se limpian de R2.
     const urlsSubidasEnSesion = useRef<Set<string>>(new Set());

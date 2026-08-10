@@ -16,6 +16,7 @@ import { notificar } from '../../../../utils/notificaciones';
 import * as empleadosService from '../../../../services/empleadosService';
 import { InputCorreoValidado } from '../../../../components/ui/InputCorreoValidado';
 import { InputTelefono, normalizarTelefono } from '../../../../components/ui/InputTelefono';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import type { EmpleadoDetalle } from '../../../../types/empleados';
 import { LABELS_PERMISOS } from '../../../../types/empleados';
 
@@ -30,20 +31,29 @@ export function ModalEmpleado({ empleado, onCerrar }: Props) {
 	const { usuario } = useAuthStore();
 	const esEditar = !!empleado;
 
-	const [nombre, setNombre] = useState(empleado?.nombre ?? '');
-	const [nick, setNick] = useState(empleado?.nick ?? '');
+	// Prefill del Asistente Coyo (FAB global) — se consume (lee+limpia) una sola
+	// vez al montar, SOLO en modo crear (nunca pisa datos de una edición real).
+	// Deliberadamente SIN PIN — ese campo se queda en blanco a propósito, es
+	// información sensible de acceso a caja que el comerciante siempre captura
+	// a mano.
+	const [prefillEmpleado] = useState(() =>
+		empleado ? null : useComposerPrefillStore.getState().consumirEmpleado(),
+	);
+
+	const [nombre, setNombre] = useState(empleado?.nombre ?? prefillEmpleado?.nombre ?? '');
+	const [nick, setNick] = useState(empleado?.nick ?? prefillEmpleado?.nick ?? '');
 	const [pin, setPin] = useState(empleado?.pinAcceso ?? '');
 	const [sucursalId] = useState(empleado?.sucursalId ?? usuario?.sucursalActiva ?? '');
-	const [especialidad, setEspecialidad] = useState(empleado?.especialidad ?? '');
-	const [telefono, setTelefono] = useState(empleado?.telefono ?? '');
+	const [especialidad, setEspecialidad] = useState(empleado?.especialidad ?? prefillEmpleado?.especialidad ?? '');
+	const [telefono, setTelefono] = useState(empleado?.telefono ?? prefillEmpleado?.telefono ?? '');
 	const [correo, setCorreo] = useState(empleado?.correo ?? '');
 	const [notasInternas, setNotasInternas] = useState(empleado?.notasInternas ?? '');
 	const [permisos, setPermisos] = useState({
-		puedeRegistrarVentas: empleado?.permisos.puedeRegistrarVentas ?? true,
-		puedeProcesarCanjes: empleado?.permisos.puedeProcesarCanjes ?? true,
-		puedeVerHistorial: empleado?.permisos.puedeVerHistorial ?? true,
-		puedeResponderChat: empleado?.permisos.puedeResponderChat ?? true,
-		puedeResponderResenas: empleado?.permisos.puedeResponderResenas ?? true,
+		puedeRegistrarVentas: empleado?.permisos.puedeRegistrarVentas ?? prefillEmpleado?.puedeRegistrarVentas ?? true,
+		puedeProcesarCanjes: empleado?.permisos.puedeProcesarCanjes ?? prefillEmpleado?.puedeProcesarCanjes ?? true,
+		puedeVerHistorial: empleado?.permisos.puedeVerHistorial ?? prefillEmpleado?.puedeVerHistorial ?? true,
+		puedeResponderChat: empleado?.permisos.puedeResponderChat ?? prefillEmpleado?.puedeResponderChat ?? true,
+		puedeResponderResenas: empleado?.permisos.puedeResponderResenas ?? prefillEmpleado?.puedeResponderResenas ?? true,
 	});
 	const [guardando, setGuardando] = useState(false);
 

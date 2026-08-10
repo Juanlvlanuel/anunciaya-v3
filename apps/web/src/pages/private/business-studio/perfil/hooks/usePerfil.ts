@@ -28,6 +28,7 @@ import { detectarZonaHoraria } from '../../../../../utils/zonaHoraria';
 import { validarHorarioDia } from '../../../../../utils/horarios';
 import { usePerfilSucursal, usePerfilSucursales } from '../../../../../hooks/queries/usePerfil';
 import { queryKeys } from '../../../../../config/queryKeys';
+import type { PrefillPerfilComercial } from '../../../../../stores/composerPrefillStore';
 
 // =============================================================================
 // TIPOS
@@ -167,7 +168,16 @@ interface PerfilCompleto {
 // HOOK PRINCIPAL
 // =============================================================================
 
-export function usePerfil() {
+/**
+ * `prefillPerfil` — valores del Asistente Coyo (FAB global, capacidad
+ * `editar_perfil_comercial`), ya consumidos (leídos+limpiados) por el
+ * llamador (`PaginaPerfil.tsx`) antes de montar este hook. Se aplican UNA
+ * sola vez, por encima de los datos reales del servidor, en cuanto estos
+ * llegan — quedan como "cambio pendiente" (el FAB de Guardar de siempre
+ * los detecta y persiste). Deliberadamente no incluye nombre/categoría/
+ * horarios/imágenes — Coyo nunca los toca.
+ */
+export function usePerfil(prefillPerfil?: PrefillPerfilComercial | null) {
   const usuario = useAuthStore((state) => state.usuario);
   const sucursalActiva = usuario?.sucursalActiva;
   const negocioId = usuario?.negocioId;
@@ -178,6 +188,7 @@ export function usePerfil() {
   const perfilQuery = usePerfilSucursal();
   const sucursalesQuery = usePerfilSucursales();
   const sincronizadoRef = useRef<string | null>(null);
+  const prefillAplicadoRef = useRef(false);
 
   // =============================================================================
   // ESTADO
@@ -280,6 +291,10 @@ export function usePerfil() {
       esPrincipal = sucursalActual?.esPrincipal ?? true;
     }
 
+    // Prefill del Asistente Coyo — se aplica UNA sola vez (nunca vuelve a
+    // pisar los datos reales tras un refetch posterior, ej. después de guardar).
+    const aplicarPrefill = !!prefillPerfil && !prefillAplicadoRef.current;
+
     const infoInicial = {
       nombre: perfil.negocioNombre,
       nombreSucursal: perfil.sucursalNombre || '',
@@ -290,8 +305,12 @@ export function usePerfil() {
       esPrincipal,
       totalSucursales,
     };
-    setDatosInformacion(infoInicial);
     setDatosInicialesInformacion(infoInicial);
+    setDatosInformacion(
+      aplicarPrefill && prefillPerfil?.descripcion !== undefined
+        ? { ...infoInicial, descripcion: prefillPerfil.descripcion }
+        : infoInicial,
+    );
 
     const ubicacionInicial = {
       direccion: perfil.direccion || '',
@@ -301,8 +320,19 @@ export function usePerfil() {
       latitud: perfil.latitud,
       longitud: perfil.longitud,
     };
-    setDatosUbicacion(ubicacionInicial);
     setDatosInicialesUbicacion(ubicacionInicial);
+    setDatosUbicacion(
+      aplicarPrefill
+        ? {
+            ...ubicacionInicial,
+            ...(prefillPerfil?.direccion !== undefined ? { direccion: prefillPerfil.direccion } : {}),
+            ...(prefillPerfil?.ciudad !== undefined ? { ciudad: prefillPerfil.ciudad } : {}),
+            ...(prefillPerfil?.estado !== undefined ? { estado: prefillPerfil.estado } : {}),
+            ...(prefillPerfil?.latitud !== undefined ? { latitud: prefillPerfil.latitud } : {}),
+            ...(prefillPerfil?.longitud !== undefined ? { longitud: prefillPerfil.longitud } : {}),
+          }
+        : ubicacionInicial,
+    );
 
     const contactoInicial = {
       nombreSucursal: perfil.sucursalNombre || '',
@@ -314,8 +344,18 @@ export function usePerfil() {
       sitioWeb: perfil.sitioWeb || '',
       redesSociales: perfil.redesSociales || {},
     };
-    setDatosContacto(contactoInicial);
     setDatosInicialesContacto(contactoInicial);
+    setDatosContacto(
+      aplicarPrefill
+        ? {
+            ...contactoInicial,
+            ...(prefillPerfil?.telefono !== undefined ? { telefono: prefillPerfil.telefono } : {}),
+            ...(prefillPerfil?.whatsapp !== undefined ? { whatsapp: prefillPerfil.whatsapp } : {}),
+            ...(prefillPerfil?.correo !== undefined ? { email: prefillPerfil.correo } : {}),
+            ...(prefillPerfil?.sitioWeb !== undefined ? { sitioWeb: prefillPerfil.sitioWeb } : {}),
+          }
+        : contactoInicial,
+    );
 
     const horariosInicial = {
       horarios: perfil.horarios.map(h => ({
@@ -342,8 +382,21 @@ export function usePerfil() {
       tieneEnvio: perfil.tieneEnvioDomicilio ?? false,
       tieneServicio: perfil.tieneServicioDomicilio ?? false,
     };
-    setDatosOperacion(operacionInicial);
     setDatosInicialesOperacion(operacionInicial);
+    setDatosOperacion(
+      aplicarPrefill
+        ? {
+            metodosPago: {
+              ...operacionInicial.metodosPago,
+              ...(prefillPerfil?.metodoPagoEfectivo !== undefined ? { efectivo: prefillPerfil.metodoPagoEfectivo } : {}),
+              ...(prefillPerfil?.metodoPagoTarjeta !== undefined ? { tarjeta: prefillPerfil.metodoPagoTarjeta } : {}),
+              ...(prefillPerfil?.metodoPagoTransferencia !== undefined ? { transferencia: prefillPerfil.metodoPagoTransferencia } : {}),
+            },
+            tieneEnvio: prefillPerfil?.tieneEnvio ?? operacionInicial.tieneEnvio,
+            tieneServicio: prefillPerfil?.tieneServicio ?? operacionInicial.tieneServicio,
+          }
+        : operacionInicial,
+    );
 
     setDatosImagenes({
       logoUrl: perfil.logoUrl,
@@ -354,8 +407,10 @@ export function usePerfil() {
       galeria: perfil.galeria,
     });
 
+    if (aplicarPrefill) prefillAplicadoRef.current = true;
+
     setLoading(false);
-  }, [perfil, sucursalesData, sucursalActiva]);
+  }, [perfil, sucursalesData, sucursalActiva, prefillPerfil]);
 
   // Refetch helper — invalida React Query cache para recargar.
   // Incluye todas las caches que muestran datos del negocio/sucursal:

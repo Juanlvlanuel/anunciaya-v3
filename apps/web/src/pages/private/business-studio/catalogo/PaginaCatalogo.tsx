@@ -67,6 +67,7 @@ import { ModalImagenes } from '../../../../components/ui';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { ModalArticulo } from './ModalArticulo';
+import { useComposerPrefillStore, type PrefillCatalogo } from '../../../../stores/composerPrefillStore';
 import { ModalDuplicar } from './ModalDuplicar';
 import type { Articulo, FiltrosArticulos, CrearArticuloInput } from '../../../../types/articulos';
 import { notificar } from '../../../../utils/notificaciones';
@@ -316,6 +317,7 @@ export function PaginaCatalogo() {
     const [modalAbierto, setModalAbierto] = useState(false);
     const [modalDuplicarAbierto, setModalDuplicarAbierto] = useState(false);
     const [articuloEditando, setArticuloEditando] = useState<Articulo | null>(null);
+    const [valoresInicialesCoyo, setValoresInicialesCoyo] = useState<PrefillCatalogo | null>(null);
     const [articuloDuplicando, setArticuloDuplicando] = useState<Articulo | null>(null);
     const [articulosCargados, setArticulosCargados] = useState(ARTICULOS_POR_PAGINA);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
@@ -327,6 +329,23 @@ export function PaginaCatalogo() {
     // pasa porque la tabla no pagina (`articulosOrdenados` completo). Se
     // fuerza a que estos IDs sigan visibles aunque queden fuera del slice.
     const [idsRecienCreados, setIdsRecienCreados] = useState<Set<string>>(new Set());
+
+    // ─── Prefill del Asistente Coyo (FAB global) ─────────────────────
+    // Mismo patrón que ComposerMarketplace/ComposerServicios: se consume (lee
+    // + limpia) al montar y abre el modal de creación ya con esos valores —
+    // el comerciante da el "Guardar" final él mismo dentro de ModalArticulo.
+    useEffect(() => {
+        const prefill = useComposerPrefillStore.getState().consumirCatalogo();
+        if (prefill) {
+            setValoresInicialesCoyo(prefill);
+            setArticuloEditando(null);
+            setModalAbierto(true);
+        }
+        return () => {
+            useComposerPrefillStore.getState().consumirCatalogo();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Ordenación
     const [orden, setOrden] = useState<OrdenState | null>(null);
@@ -514,6 +533,7 @@ export function PaginaCatalogo() {
 
     const handleCrear = () => {
         setArticuloEditando(null);
+        setValoresInicialesCoyo(null);
         setModalAbierto(true);
     };
 
@@ -1138,6 +1158,7 @@ export function PaginaCatalogo() {
                         articulo={articuloEditando}
                         categoriasExistentes={categoriasUnicas}
                         tipoInicial={esServicios ? 'servicio' : 'producto'}
+                        valoresIniciales={valoresInicialesCoyo ?? undefined}
                         onGuardar={async (datos) => {
                             try {
                                 if (articuloEditando) {
@@ -1150,6 +1171,7 @@ export function PaginaCatalogo() {
                                 }
                                 setModalAbierto(false);
                                 setArticuloEditando(null);
+                                setValoresInicialesCoyo(null);
                             } catch {
                                 // Error ya notificado por la mutación
                             }
@@ -1157,6 +1179,7 @@ export function PaginaCatalogo() {
                         onCerrar={() => {
                             setModalAbierto(false);
                             setArticuloEditando(null);
+                            setValoresInicialesCoyo(null);
                         }}
                     />
                 )}

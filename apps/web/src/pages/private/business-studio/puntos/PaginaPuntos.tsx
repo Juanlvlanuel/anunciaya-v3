@@ -72,6 +72,7 @@ import type { ActualizarConfigPuntosInput, Recompensa } from '../../../../types/
 import SistemaNiveles, { type NivelLocal } from './componentes/SistemaNiveles';
 import CardRecompensa from './componentes/CardRecompensa';
 import ModalRecompensa, { type DatosModalRecompensa } from './componentes/ModalRecompensa';
+import { useComposerPrefillStore, type PrefillRecompensa, type PrefillConfigPuntos } from '../../../../stores/composerPrefillStore';
 
 // =============================================================================
 // HELPERS - Optimizados para performance
@@ -402,6 +403,15 @@ export default function PaginaPuntos() {
   const previewNegocioAbierto = useUiStore((s) => s.previewNegocioAbierto);
   const { setGuardarBsFn, setGuardandoBs, setBsPuedeGuardar } = useUiStore();
 
+  // ─── Prefill de Config. de Puntos (Asistente Coyo) ───────────────────────
+  // Se consume (lee+limpia) una sola vez al montar — mismo patrón que
+  // `recompensaIdPendiente` (deep link de notificaciones), pero aquí no hay
+  // modal: se aplica directo a los inputs siempre visibles del formulario.
+  // Deliberadamente NO toca niveles Bronce/Plata/Oro.
+  const [prefillConfigPuntos, setPrefillConfigPuntos] = useState<PrefillConfigPuntos | null>(
+    () => useComposerPrefillStore.getState().consumirConfigPuntos(),
+  );
+
   // ─── Estado: Tab mobile ────────────────────────────────────────────────
   // soloSellos arranca directo en la vista de recompensas (sin config ni niveles).
   const [tabActiva, setTabActiva] = useState<TabPuntos>(soloSellos ? 'recompensas' : 'configuracion');
@@ -461,6 +471,7 @@ export default function PaginaPuntos() {
   const [modalAbierto, setModalAbierto]             = useState(false);
   const [modalKey, setModalKey]                     = useState(0);
   const [recompensaEditando, setRecompensaEditando] = useState<Recompensa | null>(null);
+  const [valoresInicialesCoyo, setValoresInicialesCoyo] = useState<PrefillRecompensa | null>(null);
   // soloSellos fija el tipo en tarjetas de sellos y el contexto de recompensas.
   const [tipoRecompensaFiltro, setTipoRecompensaFiltro] = useState<'basica' | 'compras_frecuentes'>(soloSellos ? 'compras_frecuentes' : 'basica');
   const [contextoRecompensas, setContextoRecompensas] = useState(soloSellos);
@@ -526,6 +537,52 @@ export default function PaginaPuntos() {
     }
     setRecompensaIdPendiente('');
   }, [recompensaIdPendiente, recompensas]);
+
+  // ─── Prefill del Asistente Coyo (FAB global) ─────────────────────
+  // Mismo criterio que "abrir desde URL": cambia a la tab de Recompensas y
+  // abre el modal de creación ya con esos valores — el comerciante da el
+  // "Guardar" final él mismo. Se consume (lee+limpia) al montar.
+  useEffect(() => {
+    const prefill = useComposerPrefillStore.getState().consumirRecompensa();
+    if (prefill) {
+      setTabActiva('recompensas');
+      setTabDesktop('recompensas');
+      setValoresInicialesCoyo(prefill);
+      setRecompensaEditando(null);
+      setModalKey((k) => k + 1);
+      setModalAbierto(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Aplicar prefill de Config. de Puntos (Asistente Coyo) ───────────────
+  // Espera a que `configuracion` ya haya llegado (el useLayoutEffect de abajo
+  // ya sincronizó los valores del servidor en este mismo commit) para recién
+  // ahí sobreescribir con lo que pidió Coyo — si aplicara antes, el próximo
+  // sync desde el servidor lo borraría sin que el usuario alcanzara a verlo.
+  useEffect(() => {
+    if (!prefillConfigPuntos || !configuracion) return;
+    if (prefillConfigPuntos.pesosPor !== undefined) {
+      setPesosPor(prefillConfigPuntos.pesosPor);
+      setTextoPesosPor(String(prefillConfigPuntos.pesosPor));
+    }
+    if (prefillConfigPuntos.puntosGanados !== undefined) {
+      setPuntosGanados(prefillConfigPuntos.puntosGanados);
+      setTextoPuntosGanados(String(prefillConfigPuntos.puntosGanados));
+    }
+    if (prefillConfigPuntos.diasExpiracionPuntos === null) {
+      setNoExpiran(true);
+    } else if (prefillConfigPuntos.diasExpiracionPuntos !== undefined) {
+      setNoExpiran(false);
+      setDiasExpiracionPuntos(prefillConfigPuntos.diasExpiracionPuntos);
+    }
+    if (prefillConfigPuntos.diasExpiracionVoucher !== undefined) {
+      setDiasExpiracionVoucher(prefillConfigPuntos.diasExpiracionVoucher);
+    }
+    setTabActiva('configuracion');
+    setTabDesktop('puntos');
+    setPrefillConfigPuntos(null);
+  }, [configuracion, prefillConfigPuntos]);
 
   // Estadísticas se recargan automáticamente al cambiar sucursal (query key incluye sucursalId)
 
@@ -789,6 +846,7 @@ export default function PaginaPuntos() {
   // ─── Handlers: recompensas ──────────────────────────────────────────────
   const handleCrear = useCallback(() => {
     setRecompensaEditando(null);
+    setValoresInicialesCoyo(null);
     setModalKey((k) => k + 1);
     setModalAbierto(true);
   }, []);
@@ -807,6 +865,7 @@ export default function PaginaPuntos() {
         await crearRecompensaMutation.mutateAsync(datos);
       }
       setModalAbierto(false);
+      setValoresInicialesCoyo(null);
     } catch {
       // Error ya notificado por la mutación
     }
@@ -1587,10 +1646,11 @@ export default function PaginaPuntos() {
       <ModalRecompensa
         key={modalKey}
         abierto={modalAbierto}
-        onCerrar={() => setModalAbierto(false)}
+        onCerrar={() => { setModalAbierto(false); setValoresInicialesCoyo(null); }}
         recompensa={recompensaEditando}
         onGuardar={handleGuardarRecompensa}
         tipoInicial={tipoRecompensaFiltro}
+        valoresIniciales={valoresInicialesCoyo ?? undefined}
       />
 
       {/* Popup explicativo sellos — solo móvil, auto-dismiss */}

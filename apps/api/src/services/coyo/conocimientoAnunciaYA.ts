@@ -55,7 +55,7 @@ BUSINESS STUDIO: el panel donde el dueño (o su empleado con permiso) gestiona s
 
 CENTRO DE AYUDA: tutoriales en video de cómo usar cada parte de la app.
 
-DUDAS FRECUENTES:
+DUDAS FRECUENTES (usa esta redacción CASI TAL CUAL cuando la pregunta calce con alguna — solo suaviza el tono si hace falta, NO la reescribas libremente parafraseando: reescribir de más ya generó errores de español reales, ej. "no te preocupará nada" en vez de "no te cobra nada"):
 - ¿Cuesta usar AnunciaYA como cliente? No, la cuenta personal es gratis siempre (MarketPlace, Servicios, Ofertas, CardYA, cupones, ChatYA).
 - ¿Cuánto cuesta tener un negocio? $864 MXN/mes, con 14 días de prueba gratis. Si cancelas antes de que termine el trial, no pagas nada.
 - ¿Necesito tarjeta para el trial de negocio? Sí, la pide al registrarte, pero no te cobra hasta que termine el periodo de prueba.

@@ -31,6 +31,7 @@ import { useBackNativo } from '@/hooks/useBackNativo';
 import { useCrearSucursal, useSucursalesLista } from '../../../../hooks/queries/useSucursales';
 import { notificar } from '../../../../utils/notificaciones';
 import { buscarCiudades, type CiudadConNombreCompleto } from '../../../../data/ciudadesPopulares';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import { InputTelefono, normalizarTelefono } from '../../../../components/ui/InputTelefono';
 import { InputCorreoValidado } from '../../../../components/ui/InputCorreoValidado';
 
@@ -286,25 +287,30 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 	const sucursalesListaQuery = useSucursalesLista({});
 	const sucursalesExistentes = sucursalesListaQuery.data ?? [];
 
-	const [nombre, setNombre] = useState('');
-	const [ciudad, setCiudad] = useState('');
-	const [estado, setEstado] = useState('');
+	// Prefill del Asistente Coyo (FAB global) — se consume (lee+limpia) una sola
+	// vez al montar. Ciudad/estado/lat/lng ya vienen resueltos por el backend
+	// contra el catálogo real de ciudades; el comerciante ajusta el marcador.
+	const [prefillSucursal] = useState(() => useComposerPrefillStore.getState().consumirSucursal());
+
+	const [nombre, setNombre] = useState(prefillSucursal?.nombre ?? '');
+	const [ciudad, setCiudad] = useState(prefillSucursal?.ciudad ?? '');
+	const [estado, setEstado] = useState(prefillSucursal?.estado ?? '');
 	const [busquedaCiudad, setBusquedaCiudad] = useState('');
 	const [sugerencias, setSugerencias] = useState<CiudadConNombreCompleto[]>([]);
 	const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 	const [inputCiudadActivo, setInputCiudadActivo] = useState(false);
 	const sugerenciasRef = useRef<HTMLDivElement>(null);
-	const [direccion, setDireccion] = useState('');
-	const [telefono, setTelefono] = useState('');
+	const [direccion, setDireccion] = useState(prefillSucursal?.direccion ?? '');
+	const [telefono, setTelefono] = useState(prefillSucursal?.telefono ?? '');
 	const [whatsapp, setWhatsapp] = useState('');
 	// Segundo número opcional (ej. línea de pedidos aparte de la principal).
 	const [telefonoAlterno, setTelefonoAlterno] = useState('');
 	const [whatsappAlterno, setWhatsappAlterno] = useState('');
 	const [correo, setCorreo] = useState('');
 
-	// Coordenadas — se auto-llenan al seleccionar ciudad; el usuario ajusta el marcador en el mapa
-	const [latitud, setLatitud] = useState<number | null>(null);
-	const [longitud, setLongitud] = useState<number | null>(null);
+	// Coordenadas — se auto-llenan al seleccionar ciudad (o con el prefill de Coyo); el usuario ajusta el marcador en el mapa
+	const [latitud, setLatitud] = useState<number | null>(prefillSucursal?.latitud ?? null);
+	const [longitud, setLongitud] = useState<number | null>(prefillSucursal?.longitud ?? null);
 	const [mapaKey, setMapaKey] = useState(0); // fuerza re-centrado al cambiar ciudad
 	const mapCompactoRef = useRef<MapRef | null>(null);
 	const mapFullscreenRef = useRef<MapRef | null>(null);

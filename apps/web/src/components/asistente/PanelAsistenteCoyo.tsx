@@ -284,6 +284,174 @@ export function PanelAsistenteCoyo() {
                 if (origenVoz) hablar(respuesta);
                 break;
             }
+            case 'prefill_catalogo': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y guardes en tu catálogo.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarCatalogo: {
+                        ruta: resultado.ruta,
+                        tipo: resultado.tipoArticulo,
+                        nombre: resultado.nombre,
+                        descripcion: resultado.descripcion,
+                        categoria: resultado.categoria,
+                        precioBase: resultado.precioBase,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_publicacion_negocio': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y publiques en tu feed.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarNegocio: {
+                        ruta: resultado.ruta,
+                        texto: resultado.texto,
+                        precio: resultado.precio,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_vacante': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y publiques.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarVacante: {
+                        ruta: resultado.ruta,
+                        titulo: resultado.titulo,
+                        descripcion: resultado.descripcion,
+                        tipoEmpleo: resultado.tipoEmpleo,
+                        modalidad: resultado.modalidad,
+                        salario: resultado.salario,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_recompensa': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y guardes.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarRecompensa: {
+                        ruta: resultado.ruta,
+                        nombre: resultado.nombre,
+                        descripcion: resultado.descripcion,
+                        puntosRequeridos: resultado.puntosRequeridos,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_config_puntos': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y guardes.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionEditarConfigPuntos: {
+                        ruta: resultado.ruta,
+                        pesosPor: resultado.pesosPor,
+                        puntosGanados: resultado.puntosGanados,
+                        diasExpiracionPuntos: resultado.diasExpiracionPuntos,
+                        diasExpiracionVoucher: resultado.diasExpiracionVoucher,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_sucursal': {
+                const respuesta = resultado.mensaje?.trim()
+                    || 'Te dejo esto listo para que lo revises — ajusta el marcador del mapa a la ubicación exacta y dale "Crear sucursal".';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarSucursal: {
+                        ruta: resultado.ruta,
+                        nombre: resultado.nombre,
+                        ciudad: resultado.ciudad,
+                        estado: resultado.estado,
+                        latitud: resultado.latitud,
+                        longitud: resultado.longitud,
+                        direccion: resultado.direccion,
+                        telefono: resultado.telefono,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_empleado': {
+                const respuesta = resultado.mensaje?.trim()
+                    || 'Te dejo esto listo para que lo revises — captura el PIN a mano y dale "Crear empleado".';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarEmpleado: {
+                        ruta: resultado.ruta,
+                        nombre: resultado.nombre,
+                        nick: resultado.nick,
+                        especialidad: resultado.especialidad,
+                        telefono: resultado.telefono,
+                        puedeRegistrarVentas: resultado.puedeRegistrarVentas,
+                        puedeProcesarCanjes: resultado.puedeProcesarCanjes,
+                        puedeVerHistorial: resultado.puedeVerHistorial,
+                        puedeResponderChat: resultado.puedeResponderChat,
+                        puedeResponderResenas: resultado.puedeResponderResenas,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_perfil_comercial': {
+                const respuesta = resultado.mensaje?.trim()
+                    || 'Te dejo esto listo para que lo revises — dale "Guardar" cuando quieras.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionEditarPerfilComercial: {
+                        ruta: resultado.ruta,
+                        descripcion: resultado.descripcion,
+                        telefono: resultado.telefono,
+                        whatsapp: resultado.whatsapp,
+                        correo: resultado.correo,
+                        sitioWeb: resultado.sitioWeb,
+                        direccion: resultado.direccion,
+                        ciudad: resultado.ciudad,
+                        estado: resultado.estado,
+                        latitud: resultado.latitud,
+                        longitud: resultado.longitud,
+                        metodoPagoEfectivo: resultado.metodoPagoEfectivo,
+                        metodoPagoTarjeta: resultado.metodoPagoTarjeta,
+                        metodoPagoTransferencia: resultado.metodoPagoTransferencia,
+                        tieneEnvio: resultado.tieneEnvio,
+                        tieneServicio: resultado.tieneServicio,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
+            case 'prefill_oferta': {
+                const respuesta = resultado.mensaje?.trim() || 'Te dejo esto listo para que lo revises y publiques.';
+                agregarMensaje({
+                    rol: 'coyo',
+                    texto: respuesta,
+                    accionPublicarOferta: {
+                        ruta: resultado.ruta,
+                        titulo: resultado.titulo,
+                        tipoOferta: resultado.tipoOferta,
+                        valor: resultado.valor,
+                        fechaInicio: resultado.fechaInicio,
+                        fechaFin: resultado.fechaFin,
+                        descripcion: resultado.descripcion,
+                        compraMinima: resultado.compraMinima,
+                    },
+                });
+                if (origenVoz) hablar(respuesta);
+                break;
+            }
         }
     }
 
@@ -298,6 +466,7 @@ export function PanelAsistenteCoyo() {
                 historial,
                 rutaActual: location.pathname,
                 modoComercial: usuario?.modoActivo === 'comercial',
+                nombreNegocio: usuario?.modoActivo === 'comercial' ? (usuario?.nombreNegocio ?? undefined) : undefined,
                 ciudad,
                 lat,
                 lng,
@@ -418,6 +587,117 @@ export function PanelAsistenteCoyo() {
             descripcion: accion.descripcion,
             categoria: accion.categoria,
             presupuesto: accion.presupuesto,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarCatalogo(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarCatalogo']>) {
+        useComposerPrefillStore.getState().setPrefillCatalogo({
+            tipo: accion.tipo,
+            nombre: accion.nombre,
+            descripcion: accion.descripcion,
+            categoria: accion.categoria,
+            precioBase: accion.precioBase,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarNegocio(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarNegocio']>) {
+        useComposerPrefillStore.getState().setPrefillPublicacionNegocio({
+            texto: accion.texto,
+            precio: accion.precio,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarVacante(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarVacante']>) {
+        useComposerPrefillStore.getState().setPrefillVacante({
+            titulo: accion.titulo,
+            descripcion: accion.descripcion,
+            tipoEmpleo: accion.tipoEmpleo,
+            modalidad: accion.modalidad,
+            salario: accion.salario,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarRecompensa(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarRecompensa']>) {
+        useComposerPrefillStore.getState().setPrefillRecompensa({
+            nombre: accion.nombre,
+            descripcion: accion.descripcion,
+            puntosRequeridos: accion.puntosRequeridos,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickEditarConfigPuntos(accion: NonNullable<MensajeAsistenteCoyo['accionEditarConfigPuntos']>) {
+        useComposerPrefillStore.getState().setPrefillConfigPuntos({
+            pesosPor: accion.pesosPor,
+            puntosGanados: accion.puntosGanados,
+            diasExpiracionPuntos: accion.diasExpiracionPuntos,
+            diasExpiracionVoucher: accion.diasExpiracionVoucher,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarSucursal(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarSucursal']>) {
+        useComposerPrefillStore.getState().setPrefillSucursal({
+            nombre: accion.nombre,
+            ciudad: accion.ciudad,
+            estado: accion.estado,
+            latitud: accion.latitud,
+            longitud: accion.longitud,
+            direccion: accion.direccion,
+            telefono: accion.telefono,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarEmpleado(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarEmpleado']>) {
+        useComposerPrefillStore.getState().setPrefillEmpleado({
+            nombre: accion.nombre,
+            nick: accion.nick,
+            especialidad: accion.especialidad,
+            telefono: accion.telefono,
+            puedeRegistrarVentas: accion.puedeRegistrarVentas,
+            puedeProcesarCanjes: accion.puedeProcesarCanjes,
+            puedeVerHistorial: accion.puedeVerHistorial,
+            puedeResponderChat: accion.puedeResponderChat,
+            puedeResponderResenas: accion.puedeResponderResenas,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickEditarPerfilComercial(accion: NonNullable<MensajeAsistenteCoyo['accionEditarPerfilComercial']>) {
+        useComposerPrefillStore.getState().setPrefillPerfilComercial({
+            descripcion: accion.descripcion,
+            telefono: accion.telefono,
+            whatsapp: accion.whatsapp,
+            correo: accion.correo,
+            sitioWeb: accion.sitioWeb,
+            direccion: accion.direccion,
+            ciudad: accion.ciudad,
+            estado: accion.estado,
+            latitud: accion.latitud,
+            longitud: accion.longitud,
+            metodoPagoEfectivo: accion.metodoPagoEfectivo,
+            metodoPagoTarjeta: accion.metodoPagoTarjeta,
+            metodoPagoTransferencia: accion.metodoPagoTransferencia,
+            tieneEnvio: accion.tieneEnvio,
+            tieneServicio: accion.tieneServicio,
+        });
+        navigate(accion.ruta);
+    }
+
+    function handleClickPublicarOferta(accion: NonNullable<MensajeAsistenteCoyo['accionPublicarOferta']>) {
+        useComposerPrefillStore.getState().setPrefillOferta({
+            titulo: accion.titulo,
+            tipo: accion.tipoOferta,
+            valor: accion.valor,
+            fechaInicio: accion.fechaInicio,
+            fechaFin: accion.fechaFin,
+            descripcion: accion.descripcion,
+            compraMinima: accion.compraMinima !== undefined ? String(accion.compraMinima) : undefined,
         });
         navigate(accion.ruta);
     }
@@ -543,6 +823,96 @@ export function PanelAsistenteCoyo() {
                                         data-testid="asistente-btn-revisar-publicar-servicio"
                                         onClick={() => handleClickPublicarServicio(m.accionPublicarServicio!)}
                                         className="mt-2 block w-full rounded-full bg-sky-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-sky-700"
+                                    >
+                                        Revisar y publicar
+                                    </button>
+                                )}
+                                {m.accionPublicarCatalogo && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-catalogo"
+                                        onClick={() => handleClickPublicarCatalogo(m.accionPublicarCatalogo!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y guardar
+                                    </button>
+                                )}
+                                {m.accionPublicarNegocio && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-negocio"
+                                        onClick={() => handleClickPublicarNegocio(m.accionPublicarNegocio!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y publicar
+                                    </button>
+                                )}
+                                {m.accionPublicarVacante && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-vacante"
+                                        onClick={() => handleClickPublicarVacante(m.accionPublicarVacante!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y publicar
+                                    </button>
+                                )}
+                                {m.accionPublicarRecompensa && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-recompensa"
+                                        onClick={() => handleClickPublicarRecompensa(m.accionPublicarRecompensa!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y guardar
+                                    </button>
+                                )}
+                                {m.accionEditarConfigPuntos && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-config-puntos"
+                                        onClick={() => handleClickEditarConfigPuntos(m.accionEditarConfigPuntos!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y guardar
+                                    </button>
+                                )}
+                                {m.accionPublicarSucursal && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-sucursal"
+                                        onClick={() => handleClickPublicarSucursal(m.accionPublicarSucursal!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y crear
+                                    </button>
+                                )}
+                                {m.accionPublicarEmpleado && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-empleado"
+                                        onClick={() => handleClickPublicarEmpleado(m.accionPublicarEmpleado!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y crear
+                                    </button>
+                                )}
+                                {m.accionEditarPerfilComercial && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-perfil-comercial"
+                                        onClick={() => handleClickEditarPerfilComercial(m.accionEditarPerfilComercial!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
+                                    >
+                                        Revisar y guardar
+                                    </button>
+                                )}
+                                {m.accionPublicarOferta && (
+                                    <button
+                                        type="button"
+                                        data-testid="asistente-btn-revisar-publicar-oferta"
+                                        onClick={() => handleClickPublicarOferta(m.accionPublicarOferta!)}
+                                        className="mt-2 block w-full rounded-full bg-indigo-600 px-3 py-1.5 text-center text-[13px] font-semibold text-white lg:cursor-pointer lg:hover:bg-indigo-700"
                                     >
                                         Revisar y publicar
                                     </button>

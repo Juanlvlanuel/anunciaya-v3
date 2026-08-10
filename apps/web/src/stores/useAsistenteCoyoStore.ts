@@ -29,6 +29,24 @@ export interface MensajeAsistenteCoyo {
     accionPublicarMarketplace?: { ruta: string; titulo?: string; descripcion?: string; categoriaId?: number; precio?: number };
     /** Mismo patrón que `accionPublicarMarketplace`, para el composer de Servicios. */
     accionPublicarServicio?: { ruta: string; titulo?: string; descripcion?: string; categoria?: 'hogar' | 'cuidados' | 'eventos' | 'belleza-bienestar' | 'empleo' | 'otros'; presupuesto?: number };
+    /** Mismo patrón, para el modal de Catálogo (Business Studio) — solo modo comercial. */
+    accionPublicarCatalogo?: { ruta: string; tipo: 'producto' | 'servicio'; nombre: string; descripcion?: string; categoria?: string; precioBase?: number };
+    /** Mismo patrón, para el composer de Publicaciones del negocio (Business Studio) — solo modo comercial. */
+    accionPublicarNegocio?: { ruta: string; texto: string; precio?: number };
+    /** Mismo patrón, para el wizard de Vacantes (Business Studio) — solo modo comercial. */
+    accionPublicarVacante?: { ruta: string; titulo: string; descripcion: string; tipoEmpleo: 'tiempo-completo' | 'medio-tiempo' | 'por-proyecto' | 'eventual'; modalidad: 'presencial' | 'remoto' | 'hibrido'; salario?: number };
+    /** Mismo patrón, para el modal de Recompensas de CardYA (Business Studio) — solo modo comercial. */
+    accionPublicarRecompensa?: { ruta: string; nombre: string; descripcion?: string; puntosRequeridos?: number };
+    /** Mismo patrón, para el formulario SIEMPRE VISIBLE de config de Puntos (Business Studio) — solo modo comercial. */
+    accionEditarConfigPuntos?: { ruta: string; pesosPor?: number; puntosGanados?: number; diasExpiracionPuntos?: number | null; diasExpiracionVoucher?: number };
+    /** Mismo patrón, para el modal de crear Sucursal (Business Studio) — solo modo comercial. Ciudad/estado/lat/lng ya resueltos por el backend contra el catálogo real de ciudades. */
+    accionPublicarSucursal?: { ruta: string; nombre: string; ciudad: string; estado: string; latitud: number; longitud: number; direccion?: string; telefono?: string };
+    /** Mismo patrón, para el modal de crear Empleado (Business Studio) — solo modo comercial. Nunca incluye PIN (se deja en blanco a propósito). */
+    accionPublicarEmpleado?: { ruta: string; nombre: string; nick: string; especialidad?: string; telefono?: string; puedeRegistrarVentas?: boolean; puedeProcesarCanjes?: boolean; puedeVerHistorial?: boolean; puedeResponderChat?: boolean; puedeResponderResenas?: boolean };
+    /** Mismo patrón, para el formulario SIEMPRE VISIBLE de Mi Perfil Comercial (Business Studio) — solo modo comercial. Nunca incluye nombre/categoría/horarios/imágenes. */
+    accionEditarPerfilComercial?: { ruta: string; descripcion?: string; telefono?: string; whatsapp?: string; correo?: string; sitioWeb?: string; direccion?: string; ciudad?: string; estado?: string; latitud?: number; longitud?: number; metodoPagoEfectivo?: boolean; metodoPagoTarjeta?: boolean; metodoPagoTransferencia?: boolean; tieneEnvio?: boolean; tieneServicio?: boolean };
+    /** Mismo patrón, para el modal de crear Oferta pública (Business Studio → Promociones) — solo modo comercial. Nunca es cupón privado. */
+    accionPublicarOferta?: { ruta: string; titulo: string; tipoOferta: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'otro'; valor?: string; fechaInicio: string; fechaFin: string; descripcion?: string; compraMinima?: number };
     /** Burbuja de audio (mensaje de voz del usuario) — igual patrón visual que ChatYA: onda + reproducir. `audioUrl` es un blob URL, solo vive mientras dure la pestaña — NUNCA se persiste a localStorage (no se sube el audio a ningún lado, igual que en el backend). Tras recargar la página, el mensaje vuelve a mostrarse como texto simple. */
     audioUrl?: string;
     audioWaveform?: number[];

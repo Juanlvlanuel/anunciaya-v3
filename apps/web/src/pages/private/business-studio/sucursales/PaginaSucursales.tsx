@@ -50,6 +50,7 @@ import { formatearNumero } from '../../../../hooks/useAbrirWhatsApp';
 import { notificar } from '../../../../utils/notificaciones';
 import { escucharEvento } from '../../../../services/socketService';
 import { queryKeys } from '../../../../config/queryKeys';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import { ModalCrearSucursal } from './ModalCrearSucursal';
 import { ModalDetalleSucursal } from './ModalDetalleSucursal';
 import type { SucursalResumen } from '../../../../types/sucursales';
@@ -87,6 +88,15 @@ export default function PaginaSucursales() {
 	const [, setIsMobile] = useState(() => window.innerWidth < 1024);
 
 	const esGerente = !!usuario?.sucursalAsignada;
+
+	// Prefill del Asistente Coyo (FAB global): si dejó una sucursal lista para
+	// revisar, abre el modal de creación — el propio modal consume (lee+limpia)
+	// los valores al montar.
+	useEffect(() => {
+		if (useComposerPrefillStore.getState().pendienteSucursal) {
+			setModalCrearAbierto(true);
+		}
+	}, []);
 
 	// React Query — ANTES del guard para cumplir Rules of Hooks
 	const kpisQuery = useSucursalesKPIs();

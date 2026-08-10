@@ -63,6 +63,7 @@ import {
     guardarBorradorVacantes,
     leerBorradorVacantes,
 } from '../../../../../utils/borradorVacantes';
+import { useComposerPrefillStore } from '../../../../../stores/composerPrefillStore';
 
 // =============================================================================
 // CONSTANTES
@@ -421,47 +422,76 @@ export function SlideoverNuevaVacante({
             // En edición no pedimos las confirmaciones de nuevo
             setConfirms({ real: true, legal: true, coord: true });
         } else {
-            // Sprint 9.3: modo CREAR — si hay borrador pendiente en
-            // localStorage (namespaced por sucursal activa), pre-cargamos
-            // los campos desde ahí. Si no, arrancamos con los defaults
-            // limpios. El borrador de OTRA sucursal NO se ve aquí.
-            const borrador = leerBorradorVacantes(sucursalActivaId);
-            if (borrador) {
-                // sucursalId: respetamos el del borrador si sigue siendo
-                // válida en la lista actual de sucursales. Si la sucursal
-                // ya no existe (fue eliminada, etc.), caemos al default.
-                const sucursalValida = sucursales.some(
-                    (s) => s.id === borrador.sucursalId,
-                );
-                setSucursalId(
-                    sucursalValida ? borrador.sucursalId : sucursalDefault,
-                );
-                setTitulo(borrador.titulo);
-                setDescripcion(borrador.descripcion);
-                setTipoEmpleo(borrador.tipoEmpleo);
-                setModalidad(borrador.modalidad);
-                setAConvenir(borrador.aConvenir);
-                setUnidad(borrador.unidad);
-                setMontoMin(borrador.montoMin);
-                setMontoMax(borrador.montoMax);
-                setRequisitos(borrador.requisitos);
-                setBeneficios(borrador.beneficios);
-                setHorario(borrador.horario);
-                setDias(borrador.dias as DiaSemanaCodigo[]);
-            } else {
+            // Prefill del Asistente Coyo (FAB global) — prioridad sobre el
+            // borrador de localStorage: si el comerciante acaba de armar la
+            // vacante por chat, esa intención es más fresca que un borrador
+            // viejo que pudo haber quedado a medias. Se consume (lee+limpia)
+            // una sola vez aquí.
+            const prefillCoyo = useComposerPrefillStore.getState().consumirVacante();
+            if (prefillCoyo) {
                 setSucursalId(sucursalDefault);
-                setTitulo('');
-                setDescripcion('');
-                setTipoEmpleo('tiempo-completo');
-                setModalidad('presencial');
-                setAConvenir(false);
-                setUnidad('mes-rango');
-                setMontoMin('');
-                setMontoMax('');
+                setTitulo(prefillCoyo.titulo ?? '');
+                setDescripcion(prefillCoyo.descripcion ?? '');
+                setTipoEmpleo(prefillCoyo.tipoEmpleo ?? 'tiempo-completo');
+                setModalidad(prefillCoyo.modalidad ?? 'presencial');
+                if (prefillCoyo.salario !== undefined) {
+                    setAConvenir(false);
+                    setUnidad('mes-fijo');
+                    setMontoMin(String(prefillCoyo.salario));
+                    setMontoMax('');
+                } else {
+                    setAConvenir(true);
+                    setUnidad('mes-rango');
+                    setMontoMin('');
+                    setMontoMax('');
+                }
                 setRequisitos([]);
                 setBeneficios([]);
                 setHorario('');
                 setDias([]);
+            } else {
+                // Sprint 9.3: modo CREAR — si hay borrador pendiente en
+                // localStorage (namespaced por sucursal activa), pre-cargamos
+                // los campos desde ahí. Si no, arrancamos con los defaults
+                // limpios. El borrador de OTRA sucursal NO se ve aquí.
+                const borrador = leerBorradorVacantes(sucursalActivaId);
+                if (borrador) {
+                    // sucursalId: respetamos el del borrador si sigue siendo
+                    // válida en la lista actual de sucursales. Si la sucursal
+                    // ya no existe (fue eliminada, etc.), caemos al default.
+                    const sucursalValida = sucursales.some(
+                        (s) => s.id === borrador.sucursalId,
+                    );
+                    setSucursalId(
+                        sucursalValida ? borrador.sucursalId : sucursalDefault,
+                    );
+                    setTitulo(borrador.titulo);
+                    setDescripcion(borrador.descripcion);
+                    setTipoEmpleo(borrador.tipoEmpleo);
+                    setModalidad(borrador.modalidad);
+                    setAConvenir(borrador.aConvenir);
+                    setUnidad(borrador.unidad);
+                    setMontoMin(borrador.montoMin);
+                    setMontoMax(borrador.montoMax);
+                    setRequisitos(borrador.requisitos);
+                    setBeneficios(borrador.beneficios);
+                    setHorario(borrador.horario);
+                    setDias(borrador.dias as DiaSemanaCodigo[]);
+                } else {
+                    setSucursalId(sucursalDefault);
+                    setTitulo('');
+                    setDescripcion('');
+                    setTipoEmpleo('tiempo-completo');
+                    setModalidad('presencial');
+                    setAConvenir(false);
+                    setUnidad('mes-rango');
+                    setMontoMin('');
+                    setMontoMax('');
+                    setRequisitos([]);
+                    setBeneficios([]);
+                    setHorario('');
+                    setDias([]);
+                }
             }
             // Confirmaciones legales SIEMPRE se piden frescas, aunque
             // haya borrador (decisión de cumplimiento — el usuario debe

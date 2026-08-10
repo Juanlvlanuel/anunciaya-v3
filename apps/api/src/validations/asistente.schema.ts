@@ -28,6 +28,9 @@ export const interpretarAsistenteSchema = z
         historial: z.array(turnoChatSchema).max(20).default([]),
         rutaActual: z.string().trim().min(1).max(200),
         modoComercial: z.boolean().optional(),
+        // Nombre real del negocio (modo comercial) — evita que Gemini invente uno
+        // al redactar descripciones/textos cuando no tiene con qué anclarse.
+        nombreNegocio: z.string().trim().min(1).max(200).optional(),
         // Contexto de ubicación — solo se usa si Gemini decide ejecutar
         // buscar_informacion (mismo requisito que GET /api/coyo/buscar).
         ciudad: z.string().trim().min(2).max(100).optional(),

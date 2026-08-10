@@ -43,6 +43,7 @@ import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { notificar } from '../../../../utils/notificaciones';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import { ModalEmpleado } from './ModalEmpleado';
 import { ModalDetalleEmpleado } from './ModalDetalleEmpleado';
 import type { EmpleadoResumen } from '../../../../types/empleados';
@@ -79,6 +80,15 @@ export default function PaginaEmpleados() {
 		setBusqueda('');
 		setFiltroActivo(undefined);
 	}, [usuario?.sucursalActiva]);
+
+	// Prefill del Asistente Coyo (FAB global): si dejó un empleado listo para
+	// revisar, abre el modal de creación — el propio modal consume (lee+limpia)
+	// los valores al montar.
+	useEffect(() => {
+		if (useComposerPrefillStore.getState().pendienteEmpleado) {
+			setModalCrearAbierto(true);
+		}
+	}, []);
 	const [empleadoSeleccionadoId, setEmpleadoSeleccionadoId] = useState<string | null>(null);
 	const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 	const sentinelaRef = useRef<HTMLDivElement | null>(null);

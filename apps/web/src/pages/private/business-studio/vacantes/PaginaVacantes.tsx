@@ -46,6 +46,7 @@ import {
 } from '../../../../hooks/queries/useVacantesBS';
 import { usePerfilSucursales } from '../../../../hooks/queries/usePerfil';
 import { useBackNativo } from '../../../../hooks/useBackNativo';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import { notificar } from '../../../../utils/notificaciones';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -238,6 +239,17 @@ export default function PaginaVacantes() {
         setModoSlideover('crear');
         setSlideoverAbierto(true);
     };
+
+    // ─── Prefill del Asistente Coyo (FAB global) ─────────────────────
+    // Solo abre el slideover en modo crear — el propio slideover consume
+    // (lee + limpia) el prefill al montar (mismo store, prioridad sobre el
+    // borrador de localStorage).
+    useEffect(() => {
+        if (useComposerPrefillStore.getState().pendienteVacante) {
+            abrirCrear();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const abrirEditar = (vacante: Vacante) => {
         setModoSlideover({ tipo: 'editar', vacante });

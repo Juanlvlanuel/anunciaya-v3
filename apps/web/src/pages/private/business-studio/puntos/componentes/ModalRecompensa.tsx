@@ -78,21 +78,27 @@ export default function ModalRecompensa({
   recompensa,
   onGuardar,
   tipoInicial = 'basica',
+  valoresIniciales,
 }: {
   abierto: boolean;
   onCerrar: () => void;
   recompensa: Recompensa | null;
   onGuardar: (datos: DatosModalRecompensa) => Promise<void>;
   tipoInicial?: 'basica' | 'compras_frecuentes';
+  /** Valores de arranque cuando el borrador viene del Asistente Coyo (chat) —
+   *  solo aplica en modo creación (`recompensa` null). */
+  valoresIniciales?: { nombre?: string; descripcion?: string; puntosRequeridos?: number };
 }) {
   const imagen = useR2Upload({
     generarUrl: generarUrlUploadImagenRecompensa,
     onError: (error) => { notificar.error(`Error al subir imagen: ${error.message}`); },
   });
 
-  const [nombre, setNombre] = useState(recompensa?.nombre ?? '');
-  const [descripcion, setDescripcion] = useState(recompensa?.descripcion ?? '');
-  const [puntos, setPuntos] = useState<string>(recompensa?.puntosRequeridos?.toString() ?? '');
+  const [nombre, setNombre] = useState(recompensa?.nombre ?? valoresIniciales?.nombre ?? '');
+  const [descripcion, setDescripcion] = useState(recompensa?.descripcion ?? valoresIniciales?.descripcion ?? '');
+  const [puntos, setPuntos] = useState<string>(
+    recompensa?.puntosRequeridos?.toString() ?? (valoresIniciales?.puntosRequeridos !== undefined ? String(valoresIniciales.puntosRequeridos) : '')
+  );
   const [stockIlimitado, setStockIlimitado] = useState(recompensa?.stock === null);
   const [stock, setStock] = useState<string>(recompensa?.stock?.toString() ?? '');
   const [activa, setActiva] = useState(recompensa?.activa ?? true);

@@ -30,14 +30,14 @@ export async function postInterpretarAsistente(req: Request, res: Response) {
             });
         }
 
-        const { texto, audioBase64, audioMimeType, historial, rutaActual, modoComercial, ciudad, lat, lng } =
+        const { texto, audioBase64, audioMimeType, historial, rutaActual, modoComercial, nombreNegocio, ciudad, lat, lng } =
             validacion.data;
         const usuarioId = req.usuario?.usuarioId ?? null;
 
         const resultado = await ejecutarPeticionAsistente(
             { texto, audioBase64, audioMimeType },
             historial,
-            { rutaActual, modoComercial },
+            { rutaActual, modoComercial, nombreNegocio },
             { ciudad: ciudad ?? null, lat, lng, usuarioId },
         );
 

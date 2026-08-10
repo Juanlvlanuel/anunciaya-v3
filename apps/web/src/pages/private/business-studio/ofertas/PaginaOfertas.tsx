@@ -85,6 +85,7 @@ import Tooltip from '../../../../components/ui/Tooltip';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { Boton } from '../../../../components/ui/Boton';
 import { notificar } from '../../../../utils/notificaciones';
+import { useComposerPrefillStore } from '../../../../stores/composerPrefillStore';
 import { ModalOferta } from './ModalOferta';
 import { ModalDuplicarOferta } from './ModalDuplicarOferta';
 import { ModalDestinatariosCiudad, type OfertaHeader } from './ModalDestinatariosCiudad';
@@ -515,6 +516,28 @@ export function PaginaOfertas() {
     // Limpiar búsqueda al desmontar
     useEffect(() => {
         return () => setFiltros((prev) => ({ ...prev, busqueda: '' }));
+    }, []);
+
+    // Prefill del Asistente Coyo (FAB global): reusa el mismo `datosPrelleno`
+    // que ya alimenta el flujo "duplicar cupón" — se consume (lee+limpia) al
+    // montar y abre el modal de creación en modo Oferta pública (nunca cupón).
+    useEffect(() => {
+        const prefill = useComposerPrefillStore.getState().consumirOferta();
+        if (prefill) {
+            setDatosPrelleno({
+                ...(prefill.titulo !== undefined ? { titulo: prefill.titulo } : {}),
+                ...(prefill.tipo !== undefined ? { tipo: prefill.tipo } : {}),
+                ...(prefill.valor !== undefined ? { valor: prefill.valor } : {}),
+                ...(prefill.fechaInicio !== undefined ? { fechaInicio: prefill.fechaInicio } : {}),
+                ...(prefill.fechaFin !== undefined ? { fechaFin: prefill.fechaFin } : {}),
+                ...(prefill.descripcion !== undefined ? { descripcion: prefill.descripcion } : {}),
+                ...(prefill.compraMinima !== undefined ? { compraMinima: prefill.compraMinima } : {}),
+            });
+            setVisibilidadNueva('publico');
+            setOfertaEditando(null);
+            setModalAbierto(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Reset COMPLETO al cambiar de sucursal (jerarquía sucursal > toggle > filtros).
