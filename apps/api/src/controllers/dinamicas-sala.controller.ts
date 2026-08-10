@@ -13,6 +13,7 @@
 import type { Request, Response } from 'express';
 import { activarSala, obtenerEstadoSala } from '../services/dinamicas/sala.service.js';
 import { activarSalaSchema, formatearErroresZod } from '../validations/dinamicas-sala.schema.js';
+import { obtenerIO, roomSalaDinamica } from '../socket.js';
 
 function exigirUsuarioId(req: Request, res: Response): string | null {
     const id = req.usuario?.usuarioId ?? null;
@@ -41,6 +42,14 @@ export async function postActivarSala(req: Request, res: Response) {
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }
+
+    // Avisar en vivo a quien YA esté conectado a la sala (organizador en
+    // otra pestaña, participantes esperando) — sin esto, su cronómetro se
+    // queda contando para la hora vieja hasta que recarguen la página.
+    obtenerIO()?.to(roomSalaDinamica(req.params.id as string)).emit('dinamica:sala:programada-actualizada', {
+        salaProgramadaPara: validacion.data.salaProgramadaPara,
+    });
+
     return res.json(resultado);
 }
 

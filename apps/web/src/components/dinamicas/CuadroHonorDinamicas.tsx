@@ -27,8 +27,9 @@
  * Ubicación: apps/web/src/components/dinamicas/CuadroHonorDinamicas.tsx
  */
 
-import { type RefObject } from 'react';
+import { type RefObject, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useEmblaCarousel from 'embla-carousel-react';
 import { Trophy, ImageOff } from 'lucide-react';
 import type { DinamicaSalonFama, GanadorSalonFama } from '../../types/dinamicas';
 
@@ -38,6 +39,18 @@ interface CuadroHonorProps {
 
 export function CuadroHonorMovil({ rifas }: CuadroHonorProps) {
     const navigate = useNavigate();
+
+    // Embla en vez de scroll nativo — mismos valores ya probados en el
+    // carrusel de boletos de carta única (ver PaginaDinamica.tsx):
+    // `touch-action: pan-y` en el viewport es OBLIGATORIO (no pan-x) porque
+    // Embla es quien maneja el gesto horizontal por JS; dejarle pan-x al
+    // navegador hace que compitan por el mismo gesto y el carrusel se
+    // sienta "trabado" en los extremos.
+    const emblaOptions = useMemo(
+        () => ({ align: 'start' as const, duration: 30, dragThreshold: 4, containScroll: 'trimSnaps' as const }),
+        [],
+    );
+    const [emblaRef] = useEmblaCarousel(emblaOptions);
 
     if (rifas.length === 0) return null;
 
@@ -50,13 +63,12 @@ export function CuadroHonorMovil({ rifas }: CuadroHonorProps) {
             <div className="px-3">
                 <EncabezadoCuadroHonor />
             </div>
-            <div
-                data-testid="reel-cuadro-honor"
-                className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory px-3 pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
-            >
-                {rifas.map((d) => (
-                    <TarjetaSalonFama key={d.id} dinamica={d} onClick={() => irASala(d.id)} variante="movil" />
-                ))}
+            <div ref={emblaRef} className="touch-pan-y overflow-hidden">
+                <div data-testid="reel-cuadro-honor" className="flex gap-3 px-3 pb-1">
+                    {rifas.map((d) => (
+                        <TarjetaSalonFama key={d.id} dinamica={d} onClick={() => irASala(d.id)} variante="movil" />
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -128,7 +140,7 @@ function TarjetaSalonFama({
             onClick={onClick}
             className={
                 esMovil
-                    ? 'w-44 shrink-0 snap-start flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-white text-left shadow-sm'
+                    ? 'w-44 shrink-0 flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-white text-left shadow-sm'
                     : 'mb-2.5 flex w-full flex-col overflow-hidden rounded-xl border-2 border-slate-200 bg-white text-left transition-colors last:mb-0 lg:cursor-pointer lg:hover:border-amber-300'
             }
         >

@@ -24,14 +24,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, CalendarClock, Dices, Hand, Pause, Play, Radio, SkipForward, Zap } from 'lucide-react';
 import { DatePicker } from '../../components/ui/DatePicker';
-import { CustomSelect } from '../../components/ui/CustomSelect';
-import { hoyISO, combinarFechaHora, opcionesHoraDisponibles } from '../../utils/fechaHoraLocal';
+import { hoyISO, combinarFechaHora, horaMinimaSiEsHoy, descomponerFechaHora } from '../../utils/fechaHoraLocal';
 import { useSalaDinamica } from '../../hooks/useSalaDinamica';
 import { useDinamica, useBoletosDinamica, useEstadoSalaDinamica, useActivarSalaDinamica, useEditarBorradorDinamica } from '../../hooks/queries/useDinamicas';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
 import { CronometroSala } from '../../components/dinamicas/sala/CronometroSala';
 import { TombolaSorteo } from '../../components/dinamicas/sala/TombolaSorteo';
+import { CartaSorteo } from '../../components/dinamicas/sala/CartaSorteo';
 import { ChatSala } from '../../components/dinamicas/sala/ChatSala';
 import { PanelModeracionSala } from '../../components/dinamicas/sala/PanelModeracionSala';
 import { GanadoresSala } from '../../components/dinamicas/sala/GanadoresSala';
@@ -43,7 +43,8 @@ import type { AccionModeracionSala } from '../../types/dinamicas';
 // El DatePicker resalta en azul por default al abrirse (border+ring) — acá
 // lo forzamos a slate (mismo mecanismo que ESTILO_TRIGGER_AMBER del
 // composer: overrides con `!` sobre el botón interno).
-const ESTILO_TRIGGER_SLATE = '[&>button]:!border-slate-500 [&>button]:!ring-slate-300';
+const ESTILO_TRIGGER_SLATE =
+    '[&>button]:!h-auto [&>button]:!py-2 [&>button]:!text-sm [&>button]:!rounded-full [&>button]:!border-slate-500 [&>button]:!ring-slate-300';
 
 export function PaginaSalaDinamicaPublica() {
     const { dinamicaId } = useParams<{ dinamicaId: string }>();
@@ -65,6 +66,9 @@ export function PaginaSalaDinamicaPublica() {
 
     const [fechaProgramar, setFechaProgramar] = useState('');
     const [horaProgramar, setHoraProgramar] = useState('18:00');
+    // Reprogramar la hora YA programada — mismo criterio que "posponer" la
+    // fecha límite de inscripción. Ver mismo comentario en PaginaSalaDinamica.tsx.
+    const [reprogramando, setReprogramando] = useState(false);
     const [silenciados, setSilenciados] = useState<Set<string>>(new Set());
     const [expulsados, setExpulsados] = useState<Set<string>>(new Set());
     const [horaLlego, setHoraLlego] = useState(false);
@@ -76,14 +80,11 @@ export function PaginaSalaDinamicaPublica() {
     const [nSorteo, setNSorteo] = useState('');
 
     // Si la fecha elegida es HOY y la hora seleccionada ya quedó en el
-    // pasado (o cambió de un día futuro a hoy), la reemplaza por la
-    // primera hora disponible — evita mandar una combinación que el
-    // backend va a rechazar por no ser estrictamente futura.
+    // pasado (o cambió de un día futuro a hoy), la empuja unos minutos al
+    // futuro — evita mandar una combinación que el backend va a rechazar
+    // por no ser estrictamente futura.
     useEffect(() => {
-        const disponibles = opcionesHoraDisponibles(fechaProgramar);
-        if (disponibles.length > 0 && !disponibles.some((h) => h.valor === horaProgramar)) {
-            setHoraProgramar(disponibles[0].valor);
-        }
+        setHoraProgramar((h) => horaMinimaSiEsHoy(fechaProgramar, h));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fechaProgramar]);
 
@@ -96,6 +97,14 @@ export function PaginaSalaDinamicaPublica() {
                 lista.push({ usuarioId: b.usuario.id, nombre: b.usuario.nombre, apellidos: b.usuario.apellidos });
             }
         }
+        // Cualquiera con cuenta AY puede escribir en el chat aunque no haya
+        // comprado boleto (la sala es pública) — sin esto, el organizador no
+        // tenía forma de silenciar/expulsar a esos espectadores.
+        for (const m of sala.mensajes) {
+            if (m.tipo === 'sistema' || !m.usuarioId || vistos.has(m.usuarioId)) continue;
+            vistos.add(m.usuarioId);
+            lista.push({ usuarioId: m.usuarioId, nombre: m.nombre ?? '', apellidos: m.apellidos ?? '' });
+        }
         return lista;
     })();
 
@@ -103,8 +112,21 @@ export function PaginaSalaDinamicaPublica() {
         if (!fechaProgramar || !dinamicaId) return;
         const iso = combinarFechaHora(fechaProgramar, horaProgramar);
         const r = await activarSala.mutateAsync({ dinamicaId, salaProgramadaPara: iso });
-        if (r.success) notificar.exito('Sala programada.');
-        else notificar.error(r.message);
+        if (r.success) {
+            notificar.exito(reprogramando ? 'Sala reprogramada.' : 'Sala programada.');
+            setReprogramando(false);
+        } else {
+            notificar.error(r.message);
+        }
+    }
+
+    function abrirReprogramar() {
+        if (salaProgramadaPara) {
+            const { fecha, hora } = descomponerFechaHora(salaProgramadaPara);
+            setFechaProgramar(fecha);
+            setHoraProgramar(hora);
+        }
+        setReprogramando(true);
     }
 
     async function guardarConfigSorteo() {
@@ -272,43 +294,54 @@ export function PaginaSalaDinamicaPublica() {
                                     </div>
                                 )}
 
-                                {esOrganizador && dinamica.numeroIntentosSorteo !== null && !salaProgramadaPara && (estado === 'activa' || estado === 'pospuesta') && (
-                                    <div className="rounded-xl border-2 border-slate-300 bg-white p-4">
-                                        <label className="mb-1.5 block text-xs font-bold text-slate-600">Programar sala</label>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <div className="w-36 shrink-0 lg:w-56">
-                                                <DatePicker
-                                                    value={fechaProgramar}
-                                                    onChange={setFechaProgramar}
-                                                    placeholder="Fecha"
-                                                    minDate={hoyISO()}
-                                                    className={ESTILO_TRIGGER_SLATE}
-                                                />
+                                {esOrganizador &&
+                                    dinamica.numeroIntentosSorteo !== null &&
+                                    (!salaProgramadaPara || reprogramando) &&
+                                    (estado === 'activa' || estado === 'pospuesta') && (
+                                        <div className="rounded-xl border-2 border-slate-300 bg-white p-4">
+                                            <label className="mb-1.5 block text-sm font-bold text-slate-700">¿Cuándo se hace el sorteo?</label>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <div className="w-36 shrink-0 lg:w-56">
+                                                    <DatePicker
+                                                        value={fechaProgramar}
+                                                        onChange={setFechaProgramar}
+                                                        placeholder="Fecha"
+                                                        minDate={hoyISO()}
+                                                        className={ESTILO_TRIGGER_SLATE}
+                                                    />
+                                                </div>
+                                                <div className="w-36 shrink-0 lg:w-48">
+                                                    <input
+                                                        type="time"
+                                                        data-testid="sala-hora-programar-publico"
+                                                        value={horaProgramar}
+                                                        onChange={(e) => setHoraProgramar(e.target.value)}
+                                                        className="w-full rounded-full border-2 border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-500"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={programarSala}
+                                                    disabled={!fechaProgramar || activarSala.isPending}
+                                                    className="flex items-center gap-1.5 rounded-full bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 lg:cursor-pointer lg:hover:bg-amber-700"
+                                                >
+                                                    <CalendarClock className="h-4 w-4" strokeWidth={2.5} />
+                                                    {reprogramando ? 'Reprogramar' : 'Programar'}
+                                                </button>
+                                                {reprogramando && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setReprogramando(false)}
+                                                        className="rounded-full px-3 py-2 text-sm font-bold text-slate-500 lg:cursor-pointer lg:hover:bg-slate-100"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                )}
                                             </div>
-                                            <div className="w-36 shrink-0 lg:w-48">
-                                                <CustomSelect
-                                                    testId="sala-hora-programar-publico"
-                                                    value={horaProgramar}
-                                                    onChange={setHoraProgramar}
-                                                    options={opcionesHoraDisponibles(fechaProgramar).map((h) => ({ value: h.valor, label: h.etiqueta }))}
-                                                    claseControl="px-3 py-2"
-                                                    portal
-                                                />
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={programarSala}
-                                                disabled={!fechaProgramar || activarSala.isPending}
-                                                className="flex items-center gap-1.5 rounded-full bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 lg:cursor-pointer lg:hover:bg-amber-700"
-                                            >
-                                                <CalendarClock className="h-4 w-4" strokeWidth={2.5} />
-                                                Programar
-                                            </button>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {salaProgramadaPara && (estado === 'activa' || estado === 'pospuesta') && (
+                                {salaProgramadaPara && !reprogramando && (estado === 'activa' || estado === 'pospuesta') && (
                                     <CronometroSala
                                         objetivo={salaProgramadaPara}
                                         onLlegoLaHora={() => setHoraLlego(true)}
@@ -317,6 +350,21 @@ export function PaginaSalaDinamicaPublica() {
                                         boletosPagados={dinamica.boletosPagados}
                                         numeroTotalBoletos={dinamica.numeroTotalBoletos}
                                         conectados={sala.conectados.size}
+                                        accionEsquina={
+                                            esOrganizador && (
+                                                <button
+                                                    type="button"
+                                                    onClick={abrirReprogramar}
+                                                    className="flex flex-col items-center gap-1 rounded-2xl border-2 border-white/25 bg-white/10 px-2.5 py-2 text-center text-xs font-bold leading-tight text-white/80 lg:cursor-pointer lg:flex-row lg:gap-1.5 lg:rounded-full lg:px-3 lg:py-1.5 lg:hover:border-white/40 lg:hover:bg-white/15 lg:hover:text-white"
+                                                >
+                                                    <CalendarClock className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                                                    <span>
+                                                        Reprogramar
+                                                        <br className="lg:hidden" /> hora
+                                                    </span>
+                                                </button>
+                                            )
+                                        }
                                     >
                                         {esOrganizador && (yaLlegoLaHora || horaLlego) && (
                                             <div className="flex items-center gap-2">
@@ -341,14 +389,22 @@ export function PaginaSalaDinamicaPublica() {
                                     </CronometroSala>
                                 )}
 
-                                {(estado === 'en_sorteo' || intentosParaTombola.length > 0) && (
-                                    <TombolaSorteo
-                                        intentosRevelados={intentosParaTombola}
-                                        numeroIntentosSorteo={sala.numeroIntentosSorteo}
-                                        numeroLugaresGanadores={sala.numeroLugaresGanadores}
-                                        salaCerrada={estado === 'cerrada'}
-                                    />
-                                )}
+                                {(estado === 'en_sorteo' || intentosParaTombola.length > 0) &&
+                                    (dinamica.metodoSorteo === 'carta_unica' ? (
+                                        <CartaSorteo
+                                            intentosRevelados={intentosParaTombola}
+                                            numeroIntentosSorteo={sala.numeroIntentosSorteo}
+                                            numeroLugaresGanadores={sala.numeroLugaresGanadores}
+                                            salaCerrada={estado === 'cerrada'}
+                                        />
+                                    ) : (
+                                        <TombolaSorteo
+                                            intentosRevelados={intentosParaTombola}
+                                            numeroIntentosSorteo={sala.numeroIntentosSorteo}
+                                            numeroLugaresGanadores={sala.numeroLugaresGanadores}
+                                            salaCerrada={estado === 'cerrada'}
+                                        />
+                                    ))}
 
                                 {/* Modo manual — el organizador revela cada bola con este
                                     botón en vez de la cascada automática temporizada. */}
@@ -359,7 +415,7 @@ export function PaginaSalaDinamicaPublica() {
                                         className="mx-auto flex items-center gap-2 rounded-full bg-amber-600 px-6 py-2.5 text-sm font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
                                     >
                                         <SkipForward className="h-4 w-4" strokeWidth={2.5} />
-                                        Siguiente bola
+                                        {dinamica.metodoSorteo === 'carta_unica' ? 'Siguiente carta' : 'Siguiente bola'}
                                     </button>
                                 )}
 
@@ -386,7 +442,7 @@ export function PaginaSalaDinamicaPublica() {
                                 )}
 
                                 {estado === 'cerrada' && estadoHttp?.ganadores && (
-                                    <GanadoresSala ganadores={estadoHttp.ganadores.lista} />
+                                    <GanadoresSala ganadores={estadoHttp.ganadores.lista} metodoSorteo={dinamica.metodoSorteo} />
                                 )}
                             </div>
 

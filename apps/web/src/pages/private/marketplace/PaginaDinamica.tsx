@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -25,6 +26,7 @@ import {
     BadgeCheck,
     Calendar,
     CalendarClock,
+    Check,
     ChevronLeft,
     ChevronRight,
     CircleCheck,
@@ -93,6 +95,7 @@ import { BotonSalaEnVivo } from '../../../components/dinamicas/sala/BotonSalaEnV
 import { notificar } from '../../../utils/notificaciones';
 import { formatearUltimaConexion } from '../../../utils/marketplace';
 import type { BoletoDinamica, DinamicaDetallePublico, OrganizadorDinamica } from '../../../types/dinamicas';
+import { obtenerCartaPorBoleto } from '../../../data/cartasLoteria';
 
 // Wrapper local: icono migrado a Iconify manteniendo el nombre familiar.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -153,6 +156,32 @@ export function PaginaDinamica() {
         entityId: dinamica?.id ?? '',
         initialGuardado: dinamica?.guardado ?? false,
     });
+
+    // Carrusel de boletos en móvil para carta_unica — Embla en vez de
+    // CSS-only (`overflow-x-auto` + scroll-snap): el navegador arbitra
+    // scroll-vs-drag en los primeros ~10-15px de cada touch y ahí el swipe
+    // se siente "rígido"/no responde a la primera (ver el porqué completo
+    // en `hooks/useCarruselRotativo.ts`). No se reusa ese hook porque está
+    // pensado para autoplay — acá el carrusel no rota solo, solo se
+    // desliza con el dedo. Mismos valores de `duration`/`dragThreshold`
+    // que ya se probaron ahí.
+    const { esMobile } = useBreakpoint();
+    const numerosBoletosCartaUnica = useMemo(
+        () => Array.from({ length: dinamica?.numeroTotalBoletos ?? 0 }, (_, i) => (dinamica?.numeroBoletoInicial ?? 1) + i),
+        [dinamica?.numeroTotalBoletos, dinamica?.numeroBoletoInicial],
+    );
+    // Cada slide de Embla = 1 columna con 2 boletos apilados (arriba/abajo),
+    // ya que Embla no tiene un modo "grid" nativo — se pre-agrupa en JS.
+    const paresBoletosCartaUnica = useMemo(() => {
+        const pares: number[][] = [];
+        for (let i = 0; i < numerosBoletosCartaUnica.length; i += 2) pares.push(numerosBoletosCartaUnica.slice(i, i + 2));
+        return pares;
+    }, [numerosBoletosCartaUnica]);
+    const emblaOptionsBoletos = useMemo(
+        () => ({ align: 'start' as const, duration: 30, dragThreshold: 4, containScroll: 'trimSnaps' as const }),
+        [],
+    );
+    const [emblaRefBoletos] = useEmblaCarousel(emblaOptionsBoletos);
 
     const [boletoSeleccionado, setBoletoSeleccionado] = useState<number | null>(null);
     const [modalManualAbierto, setModalManualAbierto] = useState(false);
@@ -224,6 +253,7 @@ export function PaginaDinamica() {
 
     const cuentaRegresiva = formatearCuentaRegresiva(dinamica.fechaLimiteInscripcion);
     const aceptaParticipantes = dinamica.estado === 'activa' || dinamica.estado === 'pospuesta';
+    const esCartaUnica = dinamica.metodoSorteo === 'carta_unica';
 
     function abrirChatCon(usuario: { id: string; nombre: string; apellidos: string; avatarUrl: string | null }) {
         if (usuarioActual?.id === usuario.id) return;
@@ -372,6 +402,47 @@ export function PaginaDinamica() {
 
     function handleGuardar() {
         toggleGuardado();
+    }
+
+    // Un solo botón-carta reusado por las 2 variantes de layout (móvil
+    // Embla / desktop grid que envuelve) — evita duplicar el JSX.
+    function renderBotonCarta(numero: number) {
+        const boleto = mapaBoletos.get(numero);
+        const estado = boleto?.estado ?? 'disponible';
+        const carta = obtenerCartaPorBoleto(numero);
+        const alSeleccionar = () => (esOrganizador ? abrirAgregarManualConBoleto(numero) : setBoletoSeleccionado(numero));
+        const tituloBoton = esOrganizador && estado === 'disponible' ? 'Agregar participante en este boleto' : undefined;
+        return (
+            <button
+                key={numero}
+                data-testid={`boleto-${numero}`}
+                disabled={estado !== 'disponible'}
+                title={tituloBoton}
+                onClick={alSeleccionar}
+                className={`relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border-2 transition-colors ${
+                    estado === 'pagado'
+                        ? 'cursor-not-allowed border-emerald-400'
+                        : estado === 'reservado'
+                          ? 'cursor-not-allowed border-amber-400'
+                          : esOrganizador
+                            ? 'border-slate-300 lg:cursor-pointer lg:hover:border-blue-500'
+                            : 'border-slate-300 lg:cursor-pointer lg:hover:border-amber-500'
+                }`}
+            >
+                <img
+                    src={carta.archivo}
+                    alt={carta.nombre}
+                    className={`h-full w-full object-cover ${estado !== 'disponible' ? 'opacity-60' : ''}`}
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold leading-tight text-white">{numero}</span>
+                {estado === 'pagado' && (
+                    <span className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
+                        <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                    </span>
+                )}
+                {estado === 'reservado' && <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full bg-amber-500" />}
+            </button>
+        );
     }
 
     return (
@@ -614,71 +685,92 @@ export function PaginaDinamica() {
                                 </span>
                             </h2>
 
-                            <div className="relative">
-                                {/* grid-flow-col + grid-rows fijo a 5: los boletos llenan
-                                    5 filas y luego arrancan una columna nueva a la
-                                    derecha — crece horizontal (scroll con flechas), nunca
-                                    vertical. */}
-                                <div
-                                    ref={boletosScrollRef}
-                                    className="grid grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                                >
-                                    {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => dinamica.numeroBoletoInicial + i).map((numero) => {
-                                        const boleto = mapaBoletos.get(numero);
-                                        const estado = boleto?.estado ?? 'disponible';
-                                        // El organizador no puede reservarse boletos de su
-                                        // propia Dinámica (backend lo rechaza con 403) — en vez
-                                        // de mostrarle el recuadro bloqueado, click sobre uno
-                                        // disponible abre "Agregar Participante" con ese boleto
-                                        // ya elegido (para registrar a alguien que le pagó por
-                                        // fuera). Cualquier otra persona ve el flujo normal de
-                                        // "Reservar boleto".
-                                        return (
-                                            <button
-                                                key={numero}
-                                                data-testid={`boleto-${numero}`}
-                                                disabled={estado !== 'disponible'}
-                                                title={esOrganizador && estado === 'disponible' ? 'Agregar participante en este boleto' : undefined}
-                                                onClick={() =>
-                                                    esOrganizador
-                                                        ? abrirAgregarManualConBoleto(numero)
-                                                        : setBoletoSeleccionado(numero)
-                                                }
-                                                className={`flex h-14 w-14 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
-                                                    estado === 'pagado'
-                                                        ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
-                                                        : estado === 'reservado'
-                                                          ? 'bg-amber-100 text-amber-700 cursor-not-allowed'
-                                                          : esOrganizador
-                                                            ? 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-blue-600 lg:hover:text-white'
-                                                            : 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-amber-500 lg:hover:text-white'
-                                                }`}
-                                            >
-                                                {numero}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                            {esCartaUnica ? (
+                                esMobile ? (
+                                    /* Móvil — carrusel Embla (no CSS-only, ver el porqué en
+                                       los hooks declarados arriba). Cada slide es una
+                                       columna con 2 boletos apilados. */
+                                    <div ref={emblaRefBoletos} className="touch-pan-y overflow-hidden">
+                                        <div className="flex gap-2">
+                                            {paresBoletosCartaUnica.map((par, i) => (
+                                                <div key={i} className="flex shrink-0 grow-0 basis-[calc(50%-0.25rem)] flex-col gap-2">
+                                                    {par.map((numero) => renderBotonCarta(numero))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Escritorio — grid de 5 columnas que ENVUELVE sin
+                                       scroll (con solo 54 boletos fijos ya cabe completo). */
+                                    <div className="grid grid-cols-5 gap-2">{numerosBoletosCartaUnica.map((numero) => renderBotonCarta(numero))}</div>
+                                )
+                            ) : (
+                                <div className="relative">
+                                    {/* grid-flow-col + grid-rows fijo a 5: los boletos
+                                        llenan 5 filas y luego arrancan una columna nueva a
+                                        la derecha — crece horizontal (scroll con flechas),
+                                        nunca vertical. */}
+                                    <div
+                                        ref={boletosScrollRef}
+                                        className="grid touch-pan-x grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                    >
+                                        {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => dinamica.numeroBoletoInicial + i).map((numero) => {
+                                            const boleto = mapaBoletos.get(numero);
+                                            const estado = boleto?.estado ?? 'disponible';
+                                            // El organizador no puede reservarse boletos de su
+                                            // propia Dinámica (backend lo rechaza con 403) — en
+                                            // vez de mostrarle el recuadro bloqueado, click sobre
+                                            // uno disponible abre "Agregar Participante" con ese
+                                            // boleto ya elegido (para registrar a alguien que le
+                                            // pagó por fuera). Cualquier otra persona ve el flujo
+                                            // normal de "Reservar boleto".
+                                            return (
+                                                <button
+                                                    key={numero}
+                                                    data-testid={`boleto-${numero}`}
+                                                    disabled={estado !== 'disponible'}
+                                                    title={esOrganizador && estado === 'disponible' ? 'Agregar participante en este boleto' : undefined}
+                                                    onClick={() =>
+                                                        esOrganizador
+                                                            ? abrirAgregarManualConBoleto(numero)
+                                                            : setBoletoSeleccionado(numero)
+                                                    }
+                                                    className={`flex h-14 w-14 items-center justify-center rounded-lg text-sm font-bold transition-colors ${
+                                                        estado === 'pagado'
+                                                            ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
+                                                            : estado === 'reservado'
+                                                              ? 'bg-amber-100 text-amber-700 cursor-not-allowed'
+                                                              : esOrganizador
+                                                                ? 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-blue-600 lg:hover:text-white'
+                                                                : 'bg-slate-200 text-slate-700 lg:cursor-pointer lg:hover:bg-amber-500 lg:hover:text-white'
+                                                    }`}
+                                                >
+                                                    {numero}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
 
-                                {/* Flechas — recorren el carrusel de boletos en vez de que
-                                    la lista crezca hacia abajo. */}
-                                <button
-                                    type="button"
-                                    onClick={() => desplazarBoletos(-1)}
-                                    aria-label="Boletos anteriores"
-                                    className="absolute left-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md lg:cursor-pointer lg:hover:bg-slate-200"
-                                >
-                                    <ChevronLeft className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => desplazarBoletos(1)}
-                                    aria-label="Boletos siguientes"
-                                    className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md lg:cursor-pointer lg:hover:bg-slate-200"
-                                >
-                                    <ChevronRight className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
-                                </button>
-                            </div>
+                                    {/* Flechas — recorren el carrusel de boletos en vez de
+                                        que la lista crezca hacia abajo. */}
+                                    <button
+                                        type="button"
+                                        onClick={() => desplazarBoletos(-1)}
+                                        aria-label="Boletos anteriores"
+                                        className="absolute left-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md lg:cursor-pointer lg:hover:bg-slate-200"
+                                    >
+                                        <ChevronLeft className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => desplazarBoletos(1)}
+                                        aria-label="Boletos siguientes"
+                                        className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md lg:cursor-pointer lg:hover:bg-slate-200"
+                                    >
+                                        <ChevronRight className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="mt-3 flex flex-wrap gap-4 text-xs font-bold text-slate-600">
                                 <span className="flex items-center gap-1.5">

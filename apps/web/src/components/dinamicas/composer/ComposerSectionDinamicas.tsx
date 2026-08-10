@@ -144,7 +144,7 @@ export function ComposerSectionDinamicas() {
             paddingContenido="none"
             sinScrollInterno
             mostrarHeader={false}
-            className="h-[560px] lg:h-[600px] 2xl:h-[660px] lg:!max-w-[798px] 2xl:!max-w-[798px]"
+            className="h-[560px] lg:h-[600px] 2xl:h-[660px] lg:!max-w-[900px] 2xl:!max-w-[900px]"
             discriminador={`_composerDinamicasFull_${guardKey}`}
         >
             {composer}

@@ -1,8 +1,8 @@
 # 🎟️ Dinámicas — Rifas y Concursos P2P entre Usuarios
 
 > **Última actualización:** 9 Agosto 2026
-> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción. Fase 4.1 (sala en vivo + motor de sorteo) y **Fase 4.2 (tómbola 3D real + modos automático/manual)** construidas. Sala como **página completa** (`/marketplace/dinamica/:id/sala` y `/p/.../sala`), con el **Cuadro de Honor** ("Últimos Ganadores"). **Pendiente correr migraciones + QA E2E en producción**. Fase 4.3 (`carta_unica`/`tabla_completa`) y Fase 5 (tarjeta compartible) pendientes.
-> **Versión:** 0.4.2 (Fase 4.2 — tómbola 3D, modo automático/manual, catch-up en vivo)
+> **Estado:** 🟡 En construcción — Fases 1-3 completas y en producción. Fase 4.1 (sala en vivo + motor de sorteo), **Fase 4.2 (tómbola 3D real + modos automático/manual)** y **Fase 4.3 (método `carta_unica`)** construidas, migraciones corridas en DEV/PROD. Sala como **página completa** (`/marketplace/dinamica/:id/sala` y `/p/.../sala`), con el **Cuadro de Honor** ("Últimos Ganadores"). **Pendiente QA E2E en producción**. Método `tabla_completa` (resto de Fase 4.3) y Fase 5 (tarjeta compartible) pendientes.
+> **Versión:** 0.4.3 (Fase 4.3 — método `carta_unica` de lotería mexicana)
 > **Doc de planeación original:** `docs/kit-dinamicas/Contexto_Dinamicas.md` (decisiones de producto previas a construir; este documento es la referencia técnica viva de lo ya construido — se va actualizando fase por fase).
 
 > **Identidad visual:** Ámbar (`#f59e0b → #d97706`) — distingue a Dinámicas de MarketPlace (teal) dentro del mismo módulo compartido.
@@ -349,7 +349,7 @@ Chat en vivo de la sala — broadcast N:N sin destinatario, por eso es tabla pro
 
 Moderación **efímera**, por evento — silenciar/expulsar solo aplica a esa Dinámica, se borra sola con ella (`ON DELETE CASCADE`). `tipo` (`silenciado`|`expulsado`), `UNIQUE (dinamica_id, usuario_id, tipo)`. Levantar la sanción = `DELETE` de la fila. El bloqueo **permanente** NO tiene tabla aquí — reusa `chat_bloqueados` tal cual, vía `bloquearUsuario()`/`desbloquearUsuario()` de `chatya.service.ts` (aplica a todas las Dinámicas futuras del organizador y a ChatYA directo).
 
-**Migraciones:** `2026-08-07-dinamicas-sala-columnas.sql` (columnas de `dinamicas`/`dinamica_ganadores`), `2026-08-07-dinamica-sala-mensajes-moderacion.sql` (las 2 tablas nuevas) — **pendientes de correr en DEV/PROD**.
+**Migraciones:** `2026-08-07-dinamicas-sala-columnas.sql` (columnas de `dinamicas`/`dinamica_ganadores`), `2026-08-07-dinamica-sala-mensajes-moderacion.sql` (las 2 tablas nuevas) — ✅ corridas en DEV/PROD (9-ago).
 
 ---
 
@@ -378,7 +378,7 @@ Catálogo completo, iconos/colores y patrón general en `docs/arquitectura/Notif
 
 ---
 
-## 🎲 Sala en vivo y motor de sorteo (Fase 4.1 + 4.2)
+## 🎲 Sala en vivo y motor de sorteo (Fase 4.1 + 4.2 + 4.3)
 
 El organizador programa la sala con anticipación (`salaProgramadaPara`), todos ven una cuenta regresiva y se unen a una sala con chat en vivo — visitantes sin cuenta AY pueden entrar en modo lectura desde el link público, escribir/participar pide login. El organizador conduce el evento a mano: transición manual, no un cron automático (el cron/timer solo maneja la cuenta regresiva visual y habilita los botones "Automático"/"Manual").
 
@@ -402,6 +402,8 @@ El organizador programa la sala con anticipación (`salaProgramadaPara`), todos 
 
 **`historialCompleto` para salas cerradas** — al pedir `GET /:id/sala` de una Dinámica ya `cerrada`, el backend **recomputa** el sorteo completo (`ejecutarSorteo()` con el pool de boletos `pagado` + la `semillaAleatoria` ya persistida) para devolver TODAS las bolas (ganadoras y "no ganó"), no solo los K ganadores — sin necesidad de una tabla/columna nueva, mismo principio de verificabilidad pública. El frontend muestra la tómbola con este historial completo como "evidencia" junto al card de ganadores, en vez de reemplazarlo.
 
+**Método `carta_unica` — lotería mexicana, carta única (Fase 4.3)** — el segundo de los 3 métodos, según el orden ya acordado (tómbola → carta única → tabla completa). Reutiliza el motor **sin ningún cambio**: mismo pool (boletos `pagado`), mismo `ejecutarSorteo()`, misma persistencia en `dinamica_ganadores.boleto_id`, mismo evento `dinamica:sala:intento` — la carta asignada a cada boleto es una **función pura y determinista de `numeroBoleto`** (`obtenerCartaPorBoleto()` en `apps/web/src/data/cartasLoteria.ts`), calculada en el frontend, sin tabla ni columna nueva en BD. `numeroTotalBoletos`/`numeroBoletoInicial` quedan **FIJOS en 54/1** cuando `metodoSorteo==='carta_unica'` (no es un tope editable — siempre se usa la baraja completa, como en la lotería real): el composer los autocompleta y bloquea los inputs en cuanto se elige el método, y `dinamicas.schema.ts` (backend)/`useComposerDinamicas.ts` (frontend) rechazan cualquier otro valor como defensa del lado del servidor. Sin esto, quedaría ambiguo qué "El Gallo" cantó en la sala en vivo si dos boletos compartieran carta. La pantalla de resultado usa `CartaSorteo.tsx` (componente hermano de `TombolaSorteo.tsx`, mismo shape de props y misma lógica de banner/guardia de animación/historial, deliberadamente duplicado en vez de compartido para no arriesgar el componente de tómbola ya cerrado) en vez del canvas 3D — sin `Suspense`/lazy-load, los webp de `apps/web/public/loteria/` ya están bundleados. `GanadoresSala.tsx` recibe `metodoSorteo` opcional y agrega la miniatura de la carta junto a "Boleto #N" cuando aplica. La pantalla de **reserva de boletos** (grid de números) no cambia para este método — sigue siendo por número, igual que tómbola.
+
 **Moderación en 2 capas:**
 1. **Efímera, por evento** — silenciar/expulsar en `dinamica_sala_moderacion`, se borra con la Dinámica.
 2. **Permanente** — bloquear reusa `chat_bloqueados` tal cual (mismas funciones que ChatYA), aplica a todas las Dinámicas futuras del organizador y a ChatYA directo.
@@ -423,19 +425,20 @@ El organizador programa la sala con anticipación (`salaProgramadaPara`), todos 
   - `CronometroSala.tsx` — cuenta regresiva, estilo "premium dark".
   - `TombolaSorteo.tsx` (Fase 4.2, YA NO es stub) — orquesta el banner de ronda ("Sorteando el Lugar N"/"Premio mayor", derivado de N/K sin pedir nada al backend), la escena 3D, la revelación (debajo de la escena, no como overlay encima — se probó y se sentía mal) y el historial en tira horizontal tipo "talón de boleto".
   - `EscenarioTombola3D.tsx` (nuevo, Fase 4.2) — canvas 3D real vía `@react-three/fiber`/`three`, mismo diseño en escritorio y móvil (antes había una versión CSS aparte solo para móvil, se eliminó): jaula tipo geodésica sostenida por 2 postes laterales que giran sobre ese eje, 24 bolas decorativas numeradas (texturas `CanvasTexture` renderizadas como `<sprite>` — billboard, siempre miran a cámara; el sprite necesita `depthTest={false}` porque si no, la esfera opaca de la bola tapa su propio número), en reposo amontonadas por capas (acotadas al corte real de la esfera) y repartidas por el volumen al girar. La bola activa viaja con una estela de bolas que se desvanecen (`meshBasicMaterial`, sin luz — deliberado: los materiales metálicos/vidrio sin reflejos de ambiente se veían mal, negro o plano, así que se evitan). Sin `drei`, sin HDRI/Environment, sin post-processing (mismo criterio que `SISTEMA_ICONOS.md`, nada de fetch de assets en runtime).
-  - `GanadoresSala.tsx` — lista ordenada por lugar (ya no "podio"): cada fila separa el badge del lugar, avatar, nombre y "Boleto #N" como piezas visuales distintas (antes un texto combinado "Lugar #2 · #55" se leía repetido con el nombre "Competidor 055"). 1er lugar con fondo ámbar sutil y trofeo, sin colores de medalla por puesto (Regla 13).
-  - `ChatSala.tsx` — auto-scroll solo en mensajes NUEVOS en vivo, no en la carga inicial del historial (antes arrastraba la página completa hacia abajo en móvil al entrar).
+  - `GanadoresSala.tsx` — lista ordenada por lugar (ya no "podio"): cada fila separa el badge del lugar, avatar, nombre y "Boleto #N" como piezas visuales distintas (antes un texto combinado "Lugar #2 · #55" se leía repetido con el nombre "Competidor 055"). 1er lugar con fondo ámbar sutil y trofeo, sin colores de medalla por puesto (Regla 13). Prop opcional `metodoSorteo` agrega la miniatura de carta cuando es `carta_unica` (Fase 4.3).
+  - `CartaSorteo.tsx` (nuevo, Fase 4.3) — pantalla de resultado del método `carta_unica`, hermano de `TombolaSorteo.tsx` (mismo shape de props, misma lógica de banner/guardia de animación/historial, sin abstracción compartida a propósito). Carta grande centrada + historial de miniaturas, sin canvas 3D.
   - `PanelModeracionSala.tsx` (solo organizador).
+- `apps/web/src/data/cartasLoteria.ts` (nuevo, Fase 4.3) — las 54 cartas (`{numero, slug, nombre, archivo}`, orden fijo calcado de los nombres de archivo reales) + `obtenerCartaPorBoleto(numeroBoleto)` (función pura, sin BD) + `MAXIMO_BOLETOS_CARTA_UNICA` (54, compartida con la validación del composer).
 - `services/socketService.ts` ganó `conectarSocketInvitado()` — conecta sin exigir token, para visitantes anónimos de la ficha pública (`conectarSocket()` existente sigue exigiendo sesión, sin tocar).
 - Entrada: pill `BotonSalaEnVivo` en `PaginaDinamica.tsx`/`PaginaDinamicaPublica.tsx`, que navega a la ruta de la sala — visible en cuanto la Dinámica se publica.
 
-**Explícitamente fuera de estas fases (4.1 + 4.2):** métodos `carta_unica`/`tabla_completa` (Fase 4.3 — el motor ya es genérico sobre un pool, la piel visual queda para después), recordatorio de "la sala está por empezar", rate-limiting de chat más allá de lo básico, persistir el progreso del sorteo en BD (hoy vive en memoria — ver §Decisiones y pendientes abiertos sobre el riesgo de reinicio del servidor a mitad de sorteo).
+**Explícitamente fuera de estas fases (4.1 + 4.2 + 4.3):** método `tabla_completa` (el tercero y último de los 3 — requiere sincronización en tiempo real más pesada, queda para después), recordatorio de "la sala está por empezar", rate-limiting de chat más allá de lo básico, persistir el progreso del sorteo en BD (hoy vive en memoria — ver §Decisiones y pendientes abiertos sobre el riesgo de reinicio del servidor a mitad de sorteo), cambios a la pantalla de reserva de boletos (sigue por número para los 3 métodos).
 
 ---
 
 ## 🎴 Assets — Cartas de lotería mexicana
 
-Las 54 cartas necesarias para los métodos de sorteo `carta_unica`/`tabla_completa` (Fase 4) ya están generadas — arte original vía prompt en Gemini, **no** la baraja de "Don Clemente" (derechos de autor).
+Las 54 cartas necesarias para los métodos de sorteo `carta_unica`/`tabla_completa` (Fase 4) ya están generadas — arte original vía prompt en Gemini, **no** la baraja de "Don Clemente" (derechos de autor). Ya cableadas en la UI para `carta_unica` (Fase 4.3, vía `data/cartasLoteria.ts`); `tabla_completa` las reusará igual cuando se construya esa fase.
 
 - **Ubicación:** `apps/web/public/loteria/` (asset estático, no pasa por R2).
 - **Formato:** WebP, 800×1200px, nombradas `carta-{NN}-{slug-personaje}.webp` (ej. `carta-01-el-gallo.webp` … `carta-54-la-rana.webp`).
@@ -453,9 +456,9 @@ Detalle completo (incluye el prompt maestro usado, por si hace falta regenerar/a
 | **Fase 1** | Backend: ciclo de vida, CRUD de borrador, transiciones de estado, boletos (funciones internas sin endpoint) | ✅ Completa |
 | **Fase 2** | Moderación de texto reducida, checklist legal al publicar, fotos de evidencia del premio en R2, composer de creación/edición | ✅ Completa |
 | **Fase 3** | Feed público, ficha de detalle, reservar/confirmar boletos, alta manual, chat automático por ChatYA, cron de expiración de reservas, integración en Perfil y Mis Publicaciones, **página pública para compartir**, **chat con contexto (card+mensaje pre-llenado) al Contactar**, **modales unificados**, **guardar en "Mis Guardados"**, **gestión avanzada de boletos** (liberar / editar participante manual / reasignar boleto con cuenta AY, cada uno con su notificación) | ✅ Completa |
-| **Fase 4.1** | Sala en vivo (chat, moderación, cuenta regresiva) + motor de sorteo (tómbola) determinista/auditable por rondas (K×N) | ✅ Backend y frontend construidos (7-ago) — **pendiente correr migraciones en DEV/PROD + QA E2E** |
+| **Fase 4.1** | Sala en vivo (chat, moderación, cuenta regresiva) + motor de sorteo (tómbola) determinista/auditable por rondas (K×N) | ✅ Backend y frontend construidos (7-ago), migraciones corridas en DEV/PROD (9-ago) — **pendiente QA E2E** |
 | **Fase 4.2** | Tómbola 3D real (Three.js), modo automático (con pausar/reanudar) y manual, catch-up en vivo para quien se une a mitad del sorteo, historial completo recomputado para salas cerradas | ✅ Construida (9-ago) — **pendiente QA E2E en producción** |
-| **Fase 4.3** | Métodos de sorteo `carta_unica`/`tabla_completa` (el motor ya es genérico, falta la piel visual) | 🔜 Pendiente. Las 54 cartas de lotería ya están listas como preparación. |
+| **Fase 4.3** | Método de sorteo `carta_unica` (lotería mexicana, carta única) — mismo motor, piel visual con las 54 cartas | ✅ Construida (9-ago), sin migraciones — **pendiente QA E2E**. `tabla_completa` sigue 🔜 (requiere sincronización en tiempo real, se hace aparte). |
 | **Fase 5** | Tarjeta compartible (imagen de resultado para redes sociales) | 🔜 Pendiente |
 
 ---

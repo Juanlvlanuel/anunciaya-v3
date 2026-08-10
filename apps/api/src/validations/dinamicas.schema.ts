@@ -174,6 +174,38 @@ function validarConfigSorteo(
     }
 }
 
+/** El método `carta_unica` siempre usa la baraja completa — 54 cartas, una
+ *  por participante, del boleto #1 al #54, SIN excepción (no es un tope
+ *  editable: el organizador no elige cuántos boletos vender, es fijo). El
+ *  composer bloquea estos 2 campos en cuanto se elige el método; esta
+ *  validación es la defensa del lado del servidor. Espejo de
+ *  `TOTAL_BOLETOS_CARTA_UNICA`/`BOLETO_INICIAL_CARTA_UNICA` en
+ *  `apps/web/src/data/cartasLoteria.ts`. */
+const TOTAL_BOLETOS_CARTA_UNICA = 54;
+const BOLETO_INICIAL_CARTA_UNICA = 1;
+
+function validarFijoCartaUnica(
+    data: { metodoSorteo?: string | null; numeroTotalBoletos?: number; numeroBoletoInicial?: number },
+    ctx: z.RefinementCtx,
+) {
+    if (data.metodoSorteo !== 'carta_unica') return;
+
+    if (data.numeroTotalBoletos !== undefined && data.numeroTotalBoletos !== TOTAL_BOLETOS_CARTA_UNICA) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['numeroTotalBoletos'],
+            message: `La lotería de carta única siempre usa las ${TOTAL_BOLETOS_CARTA_UNICA} cartas de la baraja`,
+        });
+    }
+    if (data.numeroBoletoInicial !== undefined && data.numeroBoletoInicial !== BOLETO_INICIAL_CARTA_UNICA) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['numeroBoletoInicial'],
+            message: `La lotería de carta única siempre empieza en el boleto #${BOLETO_INICIAL_CARTA_UNICA}`,
+        });
+    }
+}
+
 function validarSorteoDinamica(
     data: {
         reglaDesempate?: string | null;
@@ -181,11 +213,13 @@ function validarSorteoDinamica(
         numeroLugaresGanadores?: number;
         numeroIntentosSorteo?: number;
         numeroTotalBoletos?: number;
+        numeroBoletoInicial?: number;
     },
     ctx: z.RefinementCtx,
 ) {
     validarReglaDesempateCondMetodo(data, ctx);
     validarConfigSorteo(data, ctx);
+    validarFijoCartaUnica(data, ctx);
 }
 
 // =============================================================================

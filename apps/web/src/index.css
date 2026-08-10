@@ -617,6 +617,24 @@ body {
   }
 }
 
+/* CartaSorteo.tsx (Fase 4.3) — flotación + ligero vaivén de la carta
+   ganadora (el anillo de arriba ya pulsa alrededor, esto le da movimiento
+   a la carta misma). */
+@keyframes cartaGanadoraFlota {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-3px) rotate(-1.2deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(1.2deg);
+  }
+}
+
 /* ============================================= */
 /* Parpadeo del ícono de transmisión (Radio) del  */
 /* pill "Sala en vivo" — como si prendiera y      */

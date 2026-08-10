@@ -66,6 +66,7 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { notificar } from '../../../utils/notificaciones';
 import type { CrearDinamicaPayload, MetodoSorteo, TipoPremio, ReglaDesempate, Dinamica } from '../../../types/dinamicas';
+import { TOTAL_BOLETOS_CARTA_UNICA } from '../../../data/cartasLoteria';
 
 const CONFIRMACIONES_VERSION = 'v1-2026-08-03';
 
@@ -729,6 +730,12 @@ export function ComposerDinamicas({
                                                     actualizar({
                                                         metodoSorteo: v,
                                                         reglaDesempate: v === 'tabla_completa' ? draft.reglaDesempate : null,
+                                                        // Carta única siempre usa la baraja completa — 54
+                                                        // boletos, del #1 al #54, sin que el organizador
+                                                        // los pueda tocar (ver campos bloqueados abajo).
+                                                        ...(v === 'carta_unica'
+                                                            ? { numeroBoletoInicial: '1', numeroTotalBoletos: String(TOTAL_BOLETOS_CARTA_UNICA) }
+                                                            : {}),
                                                     })
                                                 }
                                                 className={
@@ -765,7 +772,8 @@ export function ComposerDinamicas({
                                             value={draft.numeroBoletoInicial}
                                             onChange={(e) => actualizar({ numeroBoletoInicial: e.target.value.replace(/[^\d]/g, '') })}
                                             placeholder="Boleto Inicial"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                            disabled={draft.metodoSorteo === 'carta_unica'}
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
                                         />
                                     </div>
                                     <div className="relative lg:w-44 lg:shrink-0">
@@ -777,7 +785,8 @@ export function ComposerDinamicas({
                                             value={draft.numeroTotalBoletos}
                                             onChange={(e) => actualizar({ numeroTotalBoletos: e.target.value.replace(/[^\d]/g, '') })}
                                             placeholder="Total de Boletos"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                            disabled={draft.metodoSorteo === 'carta_unica'}
+                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
                                         />
                                     </div>
                                     <div className="relative col-span-2 lg:col-span-1 lg:w-40 lg:shrink-0 2xl:w-52">
@@ -802,6 +811,14 @@ export function ComposerDinamicas({
                                             {Number(draft.numeroBoletoInicial) + Number(draft.numeroTotalBoletos) - 1}
                                         </p>
                                     )}
+                                {draft.metodoSorteo === 'carta_unica' && (
+                                    <p className="mt-2 text-[12px] font-semibold text-slate-500">
+                                        Fijo en {TOTAL_BOLETOS_CARTA_UNICA} boletos — la baraja completa, una carta única por participante.
+                                    </p>
+                                )}
+                                {intentoEnvio && errores.numeroTotalBoletos && (
+                                    <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroTotalBoletos}</p>
+                                )}
                                 {intentoEnvio && errores.numeroBoletoInicial && (
                                     <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroBoletoInicial}</p>
                                 )}

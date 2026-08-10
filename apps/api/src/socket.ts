@@ -207,7 +207,7 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     // -----------------------------------------------------------------
     // Dinámicas: Sala en vivo (Fase 4.1)
     // -----------------------------------------------------------------
-    const roomSala = (dinamicaId: string) => `sala-dinamica:${dinamicaId}`;
+    const roomSala = roomSalaDinamica;
 
     socket.on('dinamica:sala:unirse', async (data: { dinamicaId: string }) => {
       if (!data?.dinamicaId) return;
@@ -555,4 +555,15 @@ export function estaUsuarioConectado(usuarioId: string): boolean {
  */
 export function obtenerIO(): SocketServer | null {
   return io;
+}
+
+/**
+ * Nombre de la room de Socket.io de la sala en vivo de una Dinámica —
+ * exportado para que controllers HTTP (ej. `postActivarSala`, que no vive
+ * dentro de `inicializarSocket`) puedan emitir a la misma room sin
+ * duplicar el formato del string. La `const roomSala` de más arriba
+ * (dentro del closure de conexión) reusa esta misma función.
+ */
+export function roomSalaDinamica(dinamicaId: string): string {
+  return `sala-dinamica:${dinamicaId}`;
 }

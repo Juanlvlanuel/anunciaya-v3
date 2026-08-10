@@ -27,6 +27,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ArchivoFoto } from '../types/archivoFoto';
 import type { TipoPremio, MetodoSorteo, ReglaDesempate } from '../types/dinamicas';
+import { TOTAL_BOLETOS_CARTA_UNICA, BOLETO_INICIAL_CARTA_UNICA } from '../data/cartasLoteria';
 
 // =============================================================================
 // CONSTANTES
@@ -246,12 +247,19 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
 
     if (parseEnteroPositivo(d.numeroTotalBoletos) === null) {
         errores.numeroTotalBoletos = 'Escribe el número total de boletos.';
+    } else if (d.metodoSorteo === 'carta_unica' && Number(d.numeroTotalBoletos) !== TOTAL_BOLETOS_CARTA_UNICA) {
+        // No debería poderse llegar aquí desde la UI (el composer bloquea el
+        // campo al elegir carta_unica) — defensa por si el draft quedó de un
+        // borrador viejo o de otra vía.
+        errores.numeroTotalBoletos = `La lotería de carta única siempre usa las ${TOTAL_BOLETOS_CARTA_UNICA} cartas de la baraja.`;
     }
 
     // Vacío = válido (el backend lo deja en su default de 1) — solo error
     // si el usuario escribió algo y no es un entero positivo.
     if (d.numeroBoletoInicial !== '' && parseEnteroPositivo(d.numeroBoletoInicial) === null) {
         errores.numeroBoletoInicial = 'El número inicial debe ser mayor a 0.';
+    } else if (d.metodoSorteo === 'carta_unica' && d.numeroBoletoInicial !== '' && Number(d.numeroBoletoInicial) !== BOLETO_INICIAL_CARTA_UNICA) {
+        errores.numeroBoletoInicial = `La lotería de carta única siempre empieza en el boleto #${BOLETO_INICIAL_CARTA_UNICA}.`;
     }
 
     if (parseDecimalPositivo(d.precioBoleto) === null) {

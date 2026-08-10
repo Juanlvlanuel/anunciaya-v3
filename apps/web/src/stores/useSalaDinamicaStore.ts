@@ -241,6 +241,14 @@ escucharEvento<{ pausado: boolean }>('dinamica:sala:pausa-cambio', (data) => {
     useSalaDinamicaStore.setState({ pausadoSorteo: data.pausado });
 });
 
+// El organizador reprogramó la hora (o la programó por primera vez) desde
+// OTRA pestaña/dispositivo — sin este listener, quien ya estaba adentro de
+// la sala se quedaba viendo el cronómetro contar para la hora vieja hasta
+// que recargara la página.
+escucharEvento<{ salaProgramadaPara: string }>('dinamica:sala:programada-actualizada', (data) => {
+    useSalaDinamicaStore.setState({ salaProgramadaPara: data.salaProgramadaPara });
+});
+
 escucharEvento<IntentoSorteoEvento>('dinamica:sala:intento', (intento) => {
     const state = useSalaDinamicaStore.getState();
     useSalaDinamicaStore.setState({ intentosRevelados: [...state.intentosRevelados, intento] });

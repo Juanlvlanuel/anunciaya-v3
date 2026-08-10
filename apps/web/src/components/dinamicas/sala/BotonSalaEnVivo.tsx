@@ -76,9 +76,11 @@ export function BotonSalaEnVivo({ estado, salaProgramadaPara, onClick, compensar
         ? 'Se está sorteando'
         : cerrada
             ? null
-            : cuenta
-                ? `Empieza en ${cuenta}`
-                : 'Únete y platica';
+            : cuenta === 'Ya es hora'
+                ? cuenta
+                : cuenta
+                    ? `Empieza en ${cuenta}`
+                    : 'Únete y platica';
 
     return (
         <button

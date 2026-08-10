@@ -25,7 +25,8 @@
  * Ubicación: apps/web/src/pages/public/PaginaDinamicaPublica.tsx
  */
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -48,6 +49,7 @@ import {
 
 import { useDinamica, useBoletosDinamica } from '../../hooks/queries/useDinamicas';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { GaleriaArticulo } from '../../components/marketplace/GaleriaArticulo';
 import { ModalAuthRequerido } from '../../components/compartir/ModalAuthRequerido';
@@ -61,6 +63,7 @@ import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type { BoletoDinamica, DinamicaDetallePublico } from '../../types/dinamicas';
+import { obtenerCartaPorBoleto } from '../../data/cartasLoteria';
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 const ETIQUETA_TIPO_PREMIO: Record<string, string> = { fisico: 'Premio físico', efectivo: 'Premio en efectivo' };
@@ -115,6 +118,25 @@ export function PaginaDinamicaPublica() {
 
     const requerirAuth = () => setModalAuthAbierto(true);
 
+    // Carrusel de boletos en móvil para carta_unica — mismo Embla que
+    // PaginaDinamica.tsx (ver ese archivo para el porqué completo de por
+    // qué no es CSS-only).
+    const { esMobile } = useBreakpoint();
+    const numerosBoletosCartaUnica = useMemo(
+        () => Array.from({ length: dinamica?.numeroTotalBoletos ?? 0 }, (_, i) => (dinamica?.numeroBoletoInicial ?? 1) + i),
+        [dinamica?.numeroTotalBoletos, dinamica?.numeroBoletoInicial],
+    );
+    const paresBoletosCartaUnica = useMemo(() => {
+        const pares: number[][] = [];
+        for (let i = 0; i < numerosBoletosCartaUnica.length; i += 2) pares.push(numerosBoletosCartaUnica.slice(i, i + 2));
+        return pares;
+    }, [numerosBoletosCartaUnica]);
+    const emblaOptionsBoletos = useMemo(
+        () => ({ align: 'start' as const, duration: 30, dragThreshold: 4, containScroll: 'trimSnaps' as const }),
+        [],
+    );
+    const [emblaRefBoletos] = useEmblaCarousel(emblaOptionsBoletos);
+
     // ─── Render ───────────────────────────────────────────────────────────────
 
     if (isLoading) {
@@ -132,6 +154,7 @@ export function PaginaDinamicaPublica() {
     const esOrganizador = !!usuarioActual && usuarioActual.id === dinamica.organizadorUsuarioId;
     const cuentaRegresiva = formatearCuentaRegresiva(dinamica.fechaLimiteInscripcion);
     const aceptaParticipantes = dinamica.estado === 'activa' || dinamica.estado === 'pospuesta';
+    const esCartaUnica = dinamica.metodoSorteo === 'carta_unica';
     const mapaBoletos = new Map(boletos.map((b) => [b.numeroBoleto, b]));
     const participantesVisibles = boletos.filter((b) => b.estado === 'pagado' || b.estado === 'reservado');
 
@@ -141,6 +164,42 @@ export function PaginaDinamicaPublica() {
         el.scrollBy({ left: direccion * el.clientWidth * 0.8, behavior: 'smooth' });
     }
 
+    // Un solo botón-carta reusado por las 2 variantes de layout (móvil
+    // Embla / desktop grid que envuelve) — evita duplicar el JSX.
+    function renderBotonCarta(numero: number) {
+        const boleto = mapaBoletos.get(numero);
+        const estado = boleto?.estado ?? 'disponible';
+        const carta = obtenerCartaPorBoleto(numero);
+        return (
+            <button
+                key={numero}
+                data-testid={`boleto-publico-${numero}`}
+                disabled={estado !== 'disponible'}
+                onClick={estado === 'disponible' ? requerirAuth : undefined}
+                className={`relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-2xl border-2 transition-colors ${
+                    estado === 'pagado'
+                        ? 'cursor-not-allowed border-emerald-400'
+                        : estado === 'reservado'
+                          ? 'cursor-not-allowed border-amber-400'
+                          : 'border-slate-300 lg:cursor-pointer lg:hover:border-amber-500'
+                }`}
+            >
+                <img
+                    src={carta.archivo}
+                    alt={carta.nombre}
+                    className={`h-full w-full object-cover ${estado !== 'disponible' ? 'opacity-60' : ''}`}
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold leading-tight text-white">{numero}</span>
+                {estado === 'pagado' && (
+                    <span className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
+                        <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                    </span>
+                )}
+                {estado === 'reservado' && <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full bg-amber-500" />}
+            </button>
+        );
+    }
+
     return (
         // Mismo patrón de scroll que el resto de páginas públicas — el
         // CSS global aplica `overflow:hidden` en `body` desde lg+, así que
@@ -148,7 +207,7 @@ export function PaginaDinamicaPublica() {
         <div data-testid="pagina-dinamica-publica" className="bg-app-degradado flex h-screen flex-col">
             <HeaderPublico />
 
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto overscroll-contain">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     {/* Sala en vivo — único punto de entrada, pill sticky
                         justo debajo del header público. SIN wrapper propio
@@ -200,10 +259,30 @@ export function PaginaDinamicaPublica() {
                                             <Ticket className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
                                             Boletos ({dinamica.boletosPagados}/{dinamica.numeroTotalBoletos} vendidos)
                                         </h2>
+                                        {esCartaUnica ? (
+                                            esMobile ? (
+                                                /* Móvil — carrusel Embla (ver PaginaDinamica.tsx
+                                                   para el porqué). Cada slide es una columna con
+                                                   2 boletos apilados. */
+                                                <div ref={emblaRefBoletos} className="touch-pan-y overflow-hidden">
+                                                    <div className="flex gap-2">
+                                                        {paresBoletosCartaUnica.map((par, i) => (
+                                                            <div key={i} className="flex shrink-0 grow-0 basis-[calc(50%-0.25rem)] flex-col gap-2">
+                                                                {par.map((numero) => renderBotonCarta(numero))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* Escritorio — grid de 5 columnas que ENVUELVE
+                                                   sin scroll. */
+                                                <div className="grid grid-cols-5 gap-2">{numerosBoletosCartaUnica.map((numero) => renderBotonCarta(numero))}</div>
+                                            )
+                                        ) : (
                                         <div className="relative">
                                             <div
                                                 ref={boletosScrollRef}
-                                                className="grid grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                                className="grid touch-pan-x grid-flow-col grid-rows-[repeat(5,3.5rem)] auto-cols-[3.5rem] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                                             >
                                                 {Array.from({ length: dinamica.numeroTotalBoletos }, (_, i) => dinamica.numeroBoletoInicial + i).map((numero) => {
                                                     const boleto = mapaBoletos.get(numero);
@@ -244,6 +323,7 @@ export function PaginaDinamicaPublica() {
                                                 <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
                                             </button>
                                         </div>
+                                        )}
                                         <div className="mt-2 flex gap-4 text-sm font-medium text-slate-600">
                                             <span className="flex items-center gap-1.5">
                                                 <span className="h-3 w-3 rounded bg-slate-200" /> Disponible

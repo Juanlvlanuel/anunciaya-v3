@@ -52,7 +52,9 @@ export const OPCIONES_HORA: { valor: string; etiqueta: string }[] = Array.from({
  *  fecha mínima seleccionable de todas formas, vía `minDate`), recorta las
  *  horas que ya pasaron: el backend rechaza `salaProgramadaPara` que no sea
  *  estrictamente futura, y antes de este filtro el dropdown dejaba elegir
- *  una hora ya vencida (error "Datos inválidos" recién al dar "Programar"). */
+ *  una hora ya vencida (error "Datos inválidos" recién al dar "Programar").
+ *  Usada por el composer (fecha límite de inscripción) — "Programar sala"
+ *  ya no usa este dropdown de 30 en 30 min, ver `horaMinimaSiEsHoy`. */
 export function opcionesHoraDisponibles(fecha: string): { valor: string; etiqueta: string }[] {
     if (fecha && fecha !== hoyISO()) return OPCIONES_HORA;
     const ahora = new Date();
@@ -61,4 +63,20 @@ export function opcionesHoraDisponibles(fecha: string): { valor: string; etiquet
         const [hh, mm] = h.valor.split(':').map(Number);
         return hh * 60 + mm > minutosAhora;
     });
+}
+
+/** "Programar sala" (`PaginaSalaDinamica.tsx`/`PaginaSalaDinamicaPublica.tsx`)
+ *  usa un `<input type="time">` libre — cualquier horario exacto, no solo
+ *  cada 30 min. Si `fecha` es HOY y `hora` ya quedó en el pasado, la
+ *  empuja unos minutos al futuro (misma protección que antes daba el
+ *  filtrado de `opcionesHoraDisponibles`, sin restringir a una rejilla de
+ *  horas fijas); si no, la deja tal cual. */
+export function horaMinimaSiEsHoy(fecha: string, hora: string): string {
+    if (fecha !== hoyISO()) return hora;
+    const ahora = new Date();
+    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    const [hh, mm] = hora.split(':').map(Number);
+    if (hh * 60 + mm > minutosAhora) return hora;
+    const proximo = new Date(ahora.getTime() + 5 * 60000);
+    return `${pad2(proximo.getHours())}:${pad2(proximo.getMinutes())}`;
 }

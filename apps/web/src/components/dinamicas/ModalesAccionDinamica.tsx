@@ -187,7 +187,6 @@ export function ModalAgregarParticipanteDinamica({
                             disabled={!!numeroBoletoInicial}
                             isValid={numeroOcupado ? false : null}
                             error={numeroOcupado ? 'Ese número ya está ocupado' : undefined}
-                            ayuda={numeroBoletoInicial ? 'Elegiste este boleto desde el grid.' : undefined}
                             className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                         <Input

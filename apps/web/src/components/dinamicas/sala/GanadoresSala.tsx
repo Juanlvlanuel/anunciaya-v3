@@ -22,10 +22,14 @@
 import { useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { ModalImagenes } from '../../ui/ModalImagenes';
-import type { GanadorDinamica } from '../../../types/dinamicas';
+import type { GanadorDinamica, MetodoSorteo } from '../../../types/dinamicas';
+import { obtenerCartaPorBoleto } from '../../../data/cartasLoteria';
 
 interface GanadoresSalaProps {
     ganadores: GanadorDinamica[];
+    /** Si el método es `carta_unica`, cada fila muestra la miniatura de la
+     *  carta asignada junto a "Boleto #N" (ver `data/cartasLoteria.ts`). */
+    metodoSorteo?: MetodoSorteo | null;
 }
 
 function nombreDe(g: GanadorDinamica): string {
@@ -65,8 +69,9 @@ function AvatarGanador({ g, esPrimero }: { g: GanadorDinamica; esPrimero: boolea
     );
 }
 
-function FilaGanador({ g }: { g: GanadorDinamica }) {
+function FilaGanador({ g, mostrarCarta }: { g: GanadorDinamica; mostrarCarta: boolean }) {
     const esPrimero = g.lugar === 1;
+    const carta = mostrarCarta ? obtenerCartaPorBoleto(g.numeroBoleto) : null;
     return (
         <div
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${
@@ -83,17 +88,21 @@ function FilaGanador({ g }: { g: GanadorDinamica }) {
             <AvatarGanador g={g} esPrimero={esPrimero} />
             <div className="min-w-0 flex-1">
                 <p className={`truncate font-bold text-slate-900 ${esPrimero ? 'text-sm' : 'text-[13px]'}`}>{nombreDe(g)}</p>
-                <p className="text-xs font-semibold text-slate-500">Boleto #{g.numeroBoleto}</p>
+                <div className="flex items-center gap-1.5">
+                    {carta && <img src={carta.archivo} alt={carta.nombre} className="h-5 w-3.5 shrink-0 rounded-xs object-cover" />}
+                    <p className="text-xs font-semibold text-slate-500">Boleto #{g.numeroBoleto}</p>
+                </div>
             </div>
             {esPrimero && <Trophy className="h-5 w-5 shrink-0 text-amber-500" strokeWidth={2.5} />}
         </div>
     );
 }
 
-export function GanadoresSala({ ganadores }: GanadoresSalaProps) {
+export function GanadoresSala({ ganadores, metodoSorteo }: GanadoresSalaProps) {
     if (ganadores.length === 0) return null;
 
     const ordenados = [...ganadores].sort((a, b) => a.lugar - b.lugar);
+    const mostrarCarta = metodoSorteo === 'carta_unica';
 
     return (
         <div className="rounded-2xl border-2 border-slate-300 bg-white p-5">
@@ -104,7 +113,7 @@ export function GanadoresSala({ ganadores }: GanadoresSalaProps) {
 
             <div className="space-y-2">
                 {ordenados.map((g) => (
-                    <FilaGanador key={g.lugar} g={g} />
+                    <FilaGanador key={g.lugar} g={g} mostrarCarta={mostrarCarta} />
                 ))}
             </div>
         </div>

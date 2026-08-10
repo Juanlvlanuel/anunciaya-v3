@@ -31,6 +31,10 @@ interface CronometroSalaProps {
     conectados?: number;
     /** Botón "Iniciar sorteo" u otra acción del organizador. */
     children?: ReactNode;
+    /** Acción secundaria del organizador anclada arriba a la derecha del
+     *  escenario (ej. "Reprogramar hora") — separada de `children` (que
+     *  vive abajo, centrado) para que no compitan por el mismo espacio. */
+    accionEsquina?: ReactNode;
 }
 
 function calcularRestante(objetivo: string): { total: number; dias: number; horas: number; minutos: number; segundos: number } {
@@ -68,6 +72,7 @@ export function CronometroSala({
     numeroTotalBoletos,
     conectados,
     children,
+    accionEsquina,
 }: CronometroSalaProps) {
     const [restante, setRestante] = useState(() => calcularRestante(objetivo));
 
@@ -111,6 +116,8 @@ export function CronometroSala({
                 className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px]"
                 style={{ background: 'linear-gradient(90deg, transparent, #f59e0b 40%, #fbbf24 60%, transparent)' }}
             />
+
+            {accionEsquina && <div className="absolute right-3 top-3 z-20">{accionEsquina}</div>}
 
             <div className="relative z-10 px-5 py-7">
                 {/* Premio */}

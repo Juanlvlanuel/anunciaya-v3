@@ -5,7 +5,7 @@
  * escenario (`EscenarioTombola3D`, canvas 3D real vía Three.js, mismo
  * diseño en escritorio y móvil — dibuja la jaula/circuito/bola viajando):
  *
- * 1. Banner ("Sorteando el Lugar N" / "Premio mayor") ANTES/DURANTE cada
+ * 1. Banner ("Sorteando el Lugar N" / "Primer Lugar") ANTES/DURANTE cada
  *    ronda — se deriva de N (intentos por lugar) y K (lugares), sin pedir
  *    nada nuevo al backend: cada ronda de N bolas sortea un lugar, en
  *    orden descendente (K, K-1, ..., 1).
@@ -108,7 +108,7 @@ export function TombolaSorteo({ intentosRevelados, numeroIntentosSorteo, numeroL
                 <div className="mx-auto mb-3 flex w-fit items-center justify-center gap-2 rounded-full bg-linear-to-r from-amber-500 to-amber-600 px-5 py-2 shadow-md shadow-amber-600/20">
                     <Trophy className="h-4 w-4 text-white" strokeWidth={2.5} />
                     <span className="text-sm font-extrabold uppercase tracking-wide text-white">
-                        {lugarRondaActual === 1 ? 'Sorteando el Premio Mayor' : `Sorteando el Lugar ${lugarRondaActual}`}
+                        {lugarRondaActual === 1 ? 'Sorteando el Primer Lugar' : `Sorteando el Lugar ${lugarRondaActual}`}
                     </span>
                 </div>
             )}
@@ -155,7 +155,7 @@ export function TombolaSorteo({ intentosRevelados, numeroIntentosSorteo, numeroL
                                 #{ultimo.numeroBoleto}
                             </span>
                             <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                                {esPremioMayor ? 'Premio mayor' : ultimo.esGanador ? `Lugar ${ultimo.lugar}` : 'No ganó'}
+                                {esPremioMayor ? 'Primer lugar' : ultimo.esGanador ? `Lugar ${ultimo.lugar}` : 'No ganó'}
                             </span>
                         </div>
                     </div>
