@@ -844,7 +844,7 @@ export function PaginaCatalogo() {
                             {/* Alta Rápida — móvil */}
                             <button
                                 onClick={() => navigate('/business-studio/catalogo/alta-rapida')}
-                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-3 rounded-lg text-base font-bold text-slate-700 border-2 border-slate-300 bg-white cursor-pointer"
+                                className="lg:hidden shrink-0 flex items-center gap-1.5 h-11 px-3 rounded-lg text-base font-bold text-amber-600 border-2 border-amber-500 bg-white hover:bg-amber-100 cursor-pointer"
                                 data-testid="btn-alta-rapida-movil"
                             >
                                 <Zap className="w-4 h-4" />
@@ -888,7 +888,7 @@ export function PaginaCatalogo() {
                             <Tooltip text="Alta Rápida de Catálogo" position="bottom">
                                 <button
                                     onClick={() => navigate('/business-studio/catalogo/alta-rapida')}
-                                    className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-3 2xl:px-4 rounded-lg text-sm 2xl:text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 cursor-pointer"
+                                    className="hidden lg:flex shrink-0 items-center gap-1.5 h-10 2xl:h-11 px-3 2xl:px-4 rounded-lg text-sm 2xl:text-base font-bold text-amber-600 border-2 border-amber-500 bg-white hover:bg-amber-100 cursor-pointer"
                                     data-testid="btn-alta-rapida-desktop"
                                 >
                                     <Zap className="w-4 h-4 2xl:w-4 2xl:h-4" />

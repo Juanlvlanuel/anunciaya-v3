@@ -58,6 +58,13 @@ Ninguna analiza N imágenes a la vez en ningún otro punto del código — hasta
 - Nunca inventan: si un precio o dato no es legible/visible, el campo vuelve `null` — la fila queda marcada con error en la tabla hasta que el comerciante la complete a mano.
 - Reintento/fallback (`llamarGeminiConReintento`, modelos `gemini-2.5-flash` → `gemini-2.5-flash-lite`) heredado sin cambios.
 
+**`sugerirListaArticulos` — prompt de doble caso (`PROMPT_SUGERIR_LISTA_ARTICULOS`).** El prompt le pide a Gemini distinguir entre:
+- **Caso A — menú/anaquel/lista con varios artículos**: extracción literal, nunca inventa `nombre`/`descripcion`/`precioBase` — si no está escrito, `null`.
+- **Caso B — una sola foto de un platillo/producto sin contexto de menú**: se trata como el único artículo y, a diferencia del Caso A, Gemini **sí redacta** `nombre` (título de venta) y `descripcion` (2-4 frases), tomando prestadas las reglas anti-"descripción de foto" de `PROMPT_SUGERIR_ARTICULO` (MarketPlace) — nunca "se ve"/"aparece en la imagen", nunca inventa ingredientes/marca no visibles. `precioBase` sigue `null` (una foto de un platillo no trae precio).
+- **Caso C — ninguno de los anteriores** (objeto sin contexto de negocio, imagen ilegible): responde array vacío. Validado en producción con una foto de celulares sin ninguna etiqueta/precio visible — Gemini devolvió vacío correctamente en vez de inventar nombres/precios.
+
+Este dual-caso vive **solo** en `sugerirListaArticulos` (foto) — `sugerirListaArticulosDesdeTexto` no lo necesita porque el texto pegado siempre es una lista, nunca "una sola foto sin contexto".
+
 Wrappers en `services/articulos.service.ts` (mismo contrato que `sugerirArticuloConIA` de MarketPlace — **siempre** `code:200`, incluso con `success:false`, para que el frontend haga fallback silencioso):
 
 | Método | Endpoint | Body | Wrapper |
@@ -77,7 +84,9 @@ Middlewares: `verificarToken`, `verificarNegocio` (sin `validarAccesoSucursal` �
 
 ### 4.1 Tabla editable
 
-Estado 100% local (`useState<FilaBorrador[]>`, sin React Query ni Zustand — es un borrador transitorio que se sube completo al publicar, no hay nada que cachear del servidor hasta ese momento). Edición **inline por celda** (cada celda es un `<input>`/toggle siempre editable, sin paso intermedio de "click para activar edición") — columnas: Tipo (toggle producto/servicio), Nombre, Categoría (con `<datalist>` de categorías existentes del negocio), Precio, Disponible, checkbox incluir, eliminar fila.
+Estado 100% local (`useState<FilaBorrador[]>`, sin React Query ni Zustand — es un borrador transitorio que se sube completo al publicar, no hay nada que cachear del servidor hasta ese momento). Edición **inline por celda** (cada celda es un `<input>`/toggle siempre editable, sin paso intermedio de "click para activar edición") — columnas: incluir (checkbox personalizado) + Tipo (toggle producto/servicio), Nombre + Descripción (input secundario debajo del nombre, opcional), Categoría (con `<datalist>` de categorías existentes del negocio), Precio, Acciones (visible/ocultar + eliminar, mismo patrón de íconos que `PaginaCatalogo.tsx`).
+
+**Validación diferida al intento de publicar.** Las filas nunca nacen en rojo ni muestran error mientras el comerciante escribe. `validarFila` corre en vivo (`erroresPorFila`), pero el estado visual de error (`bg-red-50` + mensaje) solo se revela para las filas incluidas en `filasConErrorRevelado` — un `Set<clientId>` que se llena únicamente dentro de `handlePublicar` cuando la verificación encuentra datos incompletos (con un `notificar.error` resumiendo cuántas fallaron). Una fila nueva jamás hereda el estado de error de un intento previo porque no está en el set hasta el siguiente intento que la evalúe.
 
 Validación cliente espejo de `crearArticuloSchema` (`validarFila`): nombre 2–150 chars, categoría ≤100, precio >0 y ≤999,999.99. Filas con error se resaltan (`bg-red-50`) y quedan excluidas del conteo "listos para publicar" — nunca bloquean el resto del lote.
 

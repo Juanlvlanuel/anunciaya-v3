@@ -23,7 +23,7 @@
  * Ubicación: apps/api/src/services/coyo/coyoIA.service.ts
  */
 
-import { GoogleGenAI, FunctionCallingConfigMode, type FunctionDeclaration, type FunctionCall, type Part } from '@google/genai';
+import { GoogleGenAI, FunctionCallingConfigMode, type FunctionDeclaration, type FunctionCall, type GenerateContentResponse, type Part } from '@google/genai';
 import { env } from '../../config/env.js';
 import {
     obtenerCatalogoCategorias,
@@ -79,19 +79,23 @@ REGLAS SAGRADAS (NO ROMPER NUNCA):
  * Modelo principal — el más nuevo y de mejor calidad. Si Gemini está
  * caído (503) o lento, se reintenta dentro del mismo modelo antes de
  * caer al fallback.
+ *
+ * HISTORIAL DE RETIROS DE MODELOS (Google los da de baja sin previo aviso real):
+ * `gemini-2.0-flash` → retirado jun-2026 (404 "no longer available").
+ * `gemini-2.5-flash-lite` (el fallback de abajo) → bloqueado para "usuarios
+ * nuevos" ago-2026 (mismo error 404). Migrado a la familia 3.x en esa fecha.
+ * Si `gemini-3.6-flash`/`gemini-3.5-flash-lite` también se retiran algún día,
+ * revisar https://ai.google.dev/gemini-api/docs/models por los IDs vigentes.
  */
-const MODELO_GEMINI_PRINCIPAL = 'gemini-2.5-flash';
+const MODELO_GEMINI_PRINCIPAL = 'gemini-3.6-flash';
 
 /**
  * Modelo de respaldo cuando el principal agota reintentos. Variante ligera de
- * la familia 2.5 (rápida y barata) — buena disponibilidad para redactar cuando
- * el principal (gemini-2.5-flash) está saturado o lento.
- *
- * NOTA: el anterior `gemini-2.0-flash` fue RETIRADO por Google (404
- * "no longer available", jun-2026). Si este modelo también se retira, cambiar
- * por el flash/lite vigente más reciente.
+ * la familia 3.x (rápida y barata) — buena disponibilidad para redactar cuando
+ * el principal (gemini-3.6-flash) está saturado o lento. Ver nota de historial
+ * de retiros arriba, en `MODELO_GEMINI_PRINCIPAL`.
  */
-const MODELO_GEMINI_FALLBACK = 'gemini-2.5-flash-lite';
+const MODELO_GEMINI_FALLBACK = 'gemini-3.5-flash-lite';
 
 /**
  * Backoff de reintentos por modelo (ms). Tres intentos: inmediato,
@@ -163,6 +167,48 @@ type ContenidoGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['
 type ConfigGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['config'];
 
 /**
+ * Desactiva el modo "thinking" (`thinkingBudget: 0` = DISABLED según el SDK).
+ * Uso: tareas de extracción/estructuración directa (leer un menú, estructurar
+ * texto pegado) donde el razonamiento interno no aporta calidad y sí cuesta
+ * caro — se vio que el pensamiento invisible llegaba a ser ~10x más grande
+ * que la respuesta útil. Solo se usa en `sugerirListaArticulos` y
+ * `sugerirListaArticulosDesdeTexto` (Alta Rápida de Catálogo) — el resto de
+ * capacidades de Coyo (preguntas, redacción, el asistente FAB) se dejan con
+ * el comportamiento default del modelo a propósito.
+ */
+const CONFIG_SIN_THINKING: ConfigGemini = { thinkingConfig: { thinkingBudget: 0 } };
+
+/**
+ * Loguea el consumo de tokens de una llamada exitosa a Gemini, etiquetado con
+ * la capacidad que la disparó (`interpretarPregunta`, `sugerirListaArticulos`,
+ * etc.). Va por `console.info` — `logBuffer.ts` ya captura todo `console.*` en
+ * memoria para la "Ventana de logs recientes" de Mantenimiento (Panel Admin),
+ * así que esto es visible sin infraestructura nueva. Google AI Studio solo
+ * agrega tokens POR MODELO, nunca por función de la app — este log es la
+ * única forma de ver qué capacidad está gastando más.
+ *
+ * `usageMetadata` puede venir ausente (algunas respuestas no lo incluyen) —
+ * nunca bloquea ni lanza si falta.
+ *
+ * `totalTokenCount` NO es solo `entrada + salida` — el SDK lo define como
+ * `prompt + candidates + toolUsePrompt + thoughts`. Los modelos de la familia
+ * "thinking" (Gemini 2.5+/3.x) generan tokens de razonamiento interno
+ * (`thoughtsTokenCount`) que nunca aparecen en el texto de respuesta pero SÍ
+ * se cobran (normalmente a tarifa de salida) — por eso se loguean aparte.
+ */
+function loguearUsoTokens(
+    etiqueta: string,
+    modelo: string,
+    usage: GenerateContentResponse['usageMetadata'],
+): void {
+    if (!usage) return;
+    const pensamiento = usage.thoughtsTokenCount ? ` pensamiento=${usage.thoughtsTokenCount}` : '';
+    console.info(
+        `Coyo IA — tokens [${etiqueta}] modelo=${modelo} entrada=${usage.promptTokenCount ?? '?'} salida=${usage.candidatesTokenCount ?? '?'}${pensamiento} total=${usage.totalTokenCount ?? '?'}`,
+    );
+}
+
+/**
  * Llama a Gemini con resiliencia: reintenta el modelo principal hasta 3
  * veces con backoff (0s → 1s → 3s), y si todos los reintentos fallan
  * con errores transitorios, intenta con el modelo de respaldo.
@@ -173,10 +219,14 @@ type ConfigGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['con
  *
  * Los errores permanentes (4xx excepto 408/429) NO se reintentan y
  * tampoco activan el fallback — devuelven `null` inmediatamente.
+ *
+ * @param etiqueta - Nombre de la función que llama (para el log de tokens,
+ *   ej. "sugerirListaArticulos") — nunca afecta la llamada a Gemini en sí.
  */
 async function llamarGeminiConReintento(
     cliente: GoogleGenAI,
     contents: ContenidoGemini,
+    etiqueta: string,
     config?: ConfigGemini,
 ): Promise<{ texto: string; modelo: string; functionCalls?: FunctionCall[] } | null> {
     const modelos = [MODELO_GEMINI_PRINCIPAL, MODELO_GEMINI_FALLBACK];
@@ -199,6 +249,7 @@ async function llamarGeminiConReintento(
                         `Coyo IA — recuperado con ${modelo} en intento ${intento + 1}`,
                     );
                 }
+                loguearUsoTokens(etiqueta, modelo, r.usageMetadata);
                 return { texto: r.text ?? '', modelo, functionCalls: r.functionCalls };
             } catch (error) {
                 const transitorio = esErrorTransitorio(error);
@@ -575,7 +626,7 @@ export async function interpretarPregunta(
           ]
         : textoPrompt;
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'interpretarPregunta');
     if (respuesta === null) {
         console.warn(
             'Coyo IA — interpretarPregunta agotó reintentos y fallback de Gemini',
@@ -667,7 +718,7 @@ CASO B — Si y SOLO SI TODOS los 4 grupos vienen vacíos (cero items en total, 
 
 RESPONDE SOLO con el texto de Coyo, SIN comillas envolventes, SIN bloques markdown, SIN encabezados, SIN explicaciones.`;
 
-    const respuesta = await llamarGeminiConReintento(cliente, prompt);
+    const respuesta = await llamarGeminiConReintento(cliente, prompt, 'redactarRespuestaCoyo');
     if (respuesta === null) {
         console.warn(
             'Coyo IA — redactarRespuestaCoyo agotó reintentos y fallback de Gemini',
@@ -839,7 +890,7 @@ export async function interpretarPeticionAsistente(
 
     const contents: ContenidoGemini = [{ role: 'user', parts }];
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents, {
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'interpretarPeticionAsistente', {
         tools: [{ functionDeclarations: capacidadesComoFunctionDeclarations(CAPACIDADES_ASISTENTE) }],
         toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
     });
@@ -968,7 +1019,7 @@ export async function sugerirDatosArticulo(
         },
     ];
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirDatosArticulo');
     if (respuesta === null) {
         console.warn(
             'Coyo IA — sugerirDatosArticulo agotó reintentos y fallback de Gemini',
@@ -1031,18 +1082,27 @@ export interface ArticuloCatalogoSugerido {
     precioBase: number | null;
 }
 
-const PROMPT_SUGERIR_LISTA_ARTICULOS = `Vas a ayudar a un comerciante de AnunciaYA (app de comercio local) a cargar su catálogo de productos o servicios. Te paso una o varias fotos de su menú, anaquel, pizarrón de precios o lista escrita a mano. Tu trabajo es extraer TODOS los artículos individuales que puedas distinguir con claridad — cada renglón de un menú, cada producto con precio, cada servicio listado.
+const PROMPT_SUGERIR_LISTA_ARTICULOS = `Vas a ayudar a un comerciante de AnunciaYA (app de comercio local) a cargar su catálogo de productos o servicios. Te paso una o varias fotos. Hay DOS casos posibles — identifica cuál aplica antes de responder:
 
-QUÉ CUENTA COMO UN ARTÍCULO: cualquier producto o servicio con nombre propio, tenga o no precio visible. NO cuentes como artículo los encabezados de sección ("BEBIDAS", "ENTRADAS"), textos decorativos, el nombre del negocio, ni el logo.
+CASO A — La foto muestra un MENÚ, ANAQUEL, PIZARRÓN DE PRECIOS o LISTA escrita a mano con varios artículos (aunque no todos tengan precio visible): extrae TODOS los artículos individuales que puedas distinguir con claridad — cada renglón, cada producto, cada servicio listado.
+
+QUÉ CUENTA COMO UN ARTÍCULO EN EL CASO A: cualquier producto o servicio con nombre propio, tenga o no precio visible. NO cuentes como artículo los encabezados de sección ("BEBIDAS", "ENTRADAS"), textos decorativos, el nombre del negocio, ni el logo.
+
+CASO B — La foto muestra UN SOLO platillo, producto o servicio, SIN contexto de menú ni lista (ej. una foto de comida ya servida, un producto individual sobre una mesa o mostrador): trátalo como el ÚNICO artículo. Aquí SÍ debes redactar tú una descripción de venta, porque no hay texto que copiar:
+- Escribe como si TÚ fueras el dueño describiendo el artículo a un cliente — nunca como si describieras la foto. PROHIBIDAS las frases "se ve", "se aprecia", "aparece en la imagen", "está servido/a en" o cualquier mención al plato, mesa o fondo usados solo para la toma (a menos que ese objeto sea literalmente parte de lo que se vende).
+- Tono natural, en español de México, sin adjetivos vendedores de relleno ("excelente", "increíble", "de gran calidad").
+- Describe solo lo observable (ingredientes visibles, color, material, tamaño aparente, cantidad) — NUNCA inventes marca, ingredientes ocultos o características no visibles.
+
+CASO C (NI A NI B) — La foto no muestra ni un menú/lista reconocible ni un artículo identificable (ej. objetos sin relación con un negocio, personas, paisajes, imagen borrosa o ilegible): responde un array vacío.
 
 PARA CADA ARTÍCULO devuelve:
 - "tipo": "producto" si es un objeto/comida/bebida que se entrega físicamente, "servicio" si es un servicio (corte de cabello, reparación, consulta, etc.).
-- "nombre": el nombre tal cual aparece, sin el precio ni símbolos de moneda mezclados. Máximo 150 caracteres.
-- "descripcion": SOLO si hay información adicional visible junto al nombre (ingredientes, qué incluye) — texto corrido, sin viñetas, máximo 300 caracteres. Si no hay nada adicional visible, responde null — NUNCA inventes ni rellenes.
-- "categoria": una palabra o frase corta que agrupe el artículo (ej. "Bebidas", "Cortes", "Mariscos"), tomada de los encabezados de sección de la foto si existen. Si no hay agrupación clara, responde null.
-- "precioBase": el precio como número, SIN signo de moneda ni comas (ej. 65.00, no "$65.00"). Si el precio no es legible o no está impreso, responde null — NUNCA inventes un precio.
+- "nombre": Caso A → el nombre tal cual aparece escrito, sin precio ni símbolos de moneda mezclados. Caso B → un título corto y claro de venta (ej. "Torta de bistec con guacamole"), nunca una frase que describa la foto. Máximo 150 caracteres en ambos casos.
+- "descripcion": Caso A → SOLO si hay información adicional YA ESCRITA junto al nombre (ingredientes, qué incluye) — cópiala, nunca la inventes; si no hay nada escrito, responde null. Caso B → redáctala tú siguiendo las reglas de arriba, 2 a 4 frases naturales, máximo 400 caracteres. Texto corrido, sin viñetas ni saltos de línea, en ambos casos.
+- "categoria": una palabra o frase corta que agrupe el artículo (ej. "Bebidas", "Cortes", "Mariscos"). Caso A → tomada de los encabezados de sección de la foto si existen. Caso B → una categoría razonable a partir de lo que se ve (ej. "Comida", "Bebidas"). Si no hay forma de saberla con confianza, responde null.
+- "precioBase": el precio como número, SIN signo de moneda ni comas (ej. 65.00, no "$65.00"). Si el precio no es legible o no está impreso — lo normal en el Caso B, una foto de un platillo nunca trae su precio — responde null. NUNCA inventes un precio.
 
-PROHIBIDO INVENTAR: si un dato no se distingue con claridad en la foto, usa null en ese campo — mejor un campo vacío que uno adivinado. Si la foto no muestra ningún menú, lista de precios o anaquel reconocible, responde un array vacío.
+PROHIBIDO INVENTAR nombre, ingredientes, marca o precio que no se distingan con claridad en la foto — usa null en ese campo antes que adivinar. La única excepción es la descripción del Caso B, que SÍ debes redactar tú (pero solo con lo observable, nunca inventando detalles).
 
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
 {"articulos": [{"tipo": "producto"|"servicio", "nombre": "...", "descripcion": "..."|null, "categoria": "..."|null, "precioBase": number|null}]}`;
@@ -1086,7 +1146,7 @@ export async function sugerirListaArticulos(
         },
     ];
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirListaArticulos', CONFIG_SIN_THINKING);
     if (respuesta === null) {
         console.warn(
             'Coyo IA — sugerirListaArticulos agotó reintentos y fallback de Gemini',
@@ -1149,7 +1209,7 @@ export async function sugerirListaArticulosDesdeTexto(
     const promptCompleto = `${PROMPT_SUGERIR_LISTA_ARTICULOS_TEXTO}\n\nTEXTO DEL COMERCIANTE:\n${texto}`;
     const contents: ContenidoGemini = promptCompleto;
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents);
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirListaArticulosDesdeTexto', CONFIG_SIN_THINKING);
     if (respuesta === null) {
         console.warn(
             'Coyo IA — sugerirListaArticulosDesdeTexto agotó reintentos y fallback de Gemini',

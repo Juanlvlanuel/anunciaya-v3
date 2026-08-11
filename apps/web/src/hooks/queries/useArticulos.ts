@@ -135,6 +135,18 @@ export function useCrearArticulosLote() {
   });
 }
 
+/**
+ * Timeout extendido para las llamadas de sugerencia con IA (foto/texto).
+ * El timeout global de `api` (`services/api.ts`, 15s) está pensado para
+ * peticiones normales — los modelos "thinking" de Gemini (3.x) pueden tardar
+ * bastante más por llamada, y `llamarGeminiConReintento` en el backend puede
+ * hacer hasta 6 intentos (3 en el modelo principal + 3 en el de respaldo) con
+ * backoff entre ellos antes de responder. Sin este margen, el navegador corta
+ * la petición antes de que el backend termine, aunque Gemini sí haya
+ * respondido bien del otro lado.
+ */
+const TIMEOUT_SUGERENCIA_IA_MS = 60000;
+
 // =============================================================================
 // MUTACIÓN: Sugerir artículos en lote con IA (Alta Rápida — foto)
 // =============================================================================
@@ -149,7 +161,7 @@ export function useSugerirArticulosLoteIA() {
       const response = await api.post<
         | { success: true; data: ArticuloCatalogoSugerido[] }
         | { success: false; razon: string }
-      >('/articulos/sugerir-lote-ia', { imagenesUrls });
+      >('/articulos/sugerir-lote-ia', { imagenesUrls }, { timeout: TIMEOUT_SUGERENCIA_IA_MS });
       return response.data;
     },
   });
@@ -165,7 +177,7 @@ export function useSugerirArticulosLoteTextoIA() {
       const response = await api.post<
         | { success: true; data: ArticuloCatalogoSugerido[] }
         | { success: false; razon: string }
-      >('/articulos/sugerir-lote-texto-ia', { texto });
+      >('/articulos/sugerir-lote-texto-ia', { texto }, { timeout: TIMEOUT_SUGERENCIA_IA_MS });
       return response.data;
     },
   });

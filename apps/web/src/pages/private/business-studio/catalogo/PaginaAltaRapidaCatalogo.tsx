@@ -21,9 +21,10 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, ClipboardPaste, Package, Plus, Trash2, Wrench, Zap } from 'lucide-react';
+import { ArrowLeft, Camera, Check, ClipboardPaste, Eye, EyeOff, Package, Plus, Trash2, Wrench, Zap } from 'lucide-react';
 
 import { Boton } from '../../../../components/ui/Boton';
+import Tooltip from '../../../../components/ui/Tooltip';
 import {
   useArticulosLista,
   useCrearArticulosLote,
@@ -44,6 +45,21 @@ const MAX_FILAS = 100;
 const MAX_IMAGENES_FOTO = 6;
 /** Mismo tope que `sugerirArticulosLoteTextoIASchema` en el backend. */
 const TEXTO_MAX_CHARS = 5000;
+
+// =============================================================================
+// CSS — Animación del icono del header (mismo patrón que PaginaCatalogo)
+// =============================================================================
+
+const ESTILOS_CSS = `
+  @keyframes alta-rapida-icon-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    40%      { transform: translateY(-4px) rotate(-3deg); }
+    60%      { transform: translateY(-2px) rotate(2deg); }
+  }
+  .alta-rapida-icon-bounce {
+    animation: alta-rapida-icon-bounce 2s ease-in-out infinite;
+  }
+`;
 
 /**
  * Sube una foto a R2 (optimizada a WebP) y devuelve la URL pública, o `null`
@@ -72,6 +88,7 @@ const LIMITES = {
   nombreMin: 2,
   nombreMax: 150,
   categoriaMax: 100,
+  descripcionMax: 1000,
   precioMax: 999999.99,
 };
 
@@ -85,6 +102,7 @@ interface FilaBorrador {
   clientId: string;
   tipo: TipoArticulo;
   nombre: string;
+  descripcion: string;
   categoria: string;
   precioBase: string;
   imagenPrincipal: string | null;
@@ -98,6 +116,7 @@ function crearFilaVacia(origen: OrigenFila = 'manual'): FilaBorrador {
     clientId: `fila-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     tipo: 'producto',
     nombre: '',
+    descripcion: '',
     categoria: '',
     precioBase: '',
     imagenPrincipal: null,
@@ -107,15 +126,22 @@ function crearFilaVacia(origen: OrigenFila = 'manual'): FilaBorrador {
   };
 }
 
-/** Convierte un artículo sugerido por Coyo IA (foto o texto) en una fila de borrador. */
-function filaDesdeSugerencia(item: ArticuloCatalogoSugerido, origen: OrigenFila): FilaBorrador {
+/**
+ * Convierte un artículo sugerido por Coyo IA (foto o texto) en una fila de
+ * borrador. `imagenPrincipal` solo se adjunta cuando la IA detectó un único
+ * artículo en la foto (caso "un solo platillo/producto") — ahí la foto
+ * subida ES ese artículo. Con un menú de varios artículos no se adjunta
+ * ninguna imagen (no tendría sentido repetir la foto del menú en cada fila).
+ */
+function filaDesdeSugerencia(item: ArticuloCatalogoSugerido, origen: OrigenFila, imagenPrincipal: string | null = null): FilaBorrador {
   return {
     clientId: `fila-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     tipo: item.tipo,
     nombre: item.nombre,
+    descripcion: item.descripcion ?? '',
     categoria: item.categoria ?? '',
     precioBase: item.precioBase !== null ? String(item.precioBase) : '',
-    imagenPrincipal: null,
+    imagenPrincipal,
     disponible: true,
     incluida: true,
     origen,
@@ -130,6 +156,9 @@ function validarFila(fila: FilaBorrador): string[] {
   }
   if (fila.categoria.trim().length > LIMITES.categoriaMax) {
     errores.push(`Categoría: máximo ${LIMITES.categoriaMax} caracteres`);
+  }
+  if (fila.descripcion.trim().length > LIMITES.descripcionMax) {
+    errores.push(`Descripción: máximo ${LIMITES.descripcionMax} caracteres`);
   }
   const precio = Number(fila.precioBase);
   if (fila.precioBase.trim() === '' || Number.isNaN(precio) || precio <= 0) {
@@ -155,28 +184,30 @@ function ToggleTipoCelda({
 }) {
   return (
     <div className="flex items-center bg-slate-100 rounded-lg border border-slate-300 p-0.5 w-fit">
-      <button
-        type="button"
-        data-testid={`${testIdPrefix}-producto`}
-        onClick={() => onChange('producto')}
-        className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
-          valor === 'producto' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-200'
-        }`}
-        title="Producto"
-      >
-        <Package className="w-3.5 h-3.5" />
-      </button>
-      <button
-        type="button"
-        data-testid={`${testIdPrefix}-servicio`}
-        onClick={() => onChange('servicio')}
-        className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
-          valor === 'servicio' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-200'
-        }`}
-        title="Servicio"
-      >
-        <Wrench className="w-3.5 h-3.5" />
-      </button>
+      <Tooltip text="Producto" position="bottom">
+        <button
+          type="button"
+          data-testid={`${testIdPrefix}-producto`}
+          onClick={() => onChange('producto')}
+          className={`h-9 w-9 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+            valor === 'producto' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-200'
+          }`}
+        >
+          <Package className="w-4.5 h-4.5" />
+        </button>
+      </Tooltip>
+      <Tooltip text="Servicio" position="bottom">
+        <button
+          type="button"
+          data-testid={`${testIdPrefix}-servicio`}
+          onClick={() => onChange('servicio')}
+          className={`h-9 w-9 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
+            valor === 'servicio' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-200'
+          }`}
+        >
+          <Wrench className="w-4.5 h-4.5" />
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -198,6 +229,10 @@ export function PaginaAltaRapidaCatalogo() {
   const [panelTextoAbierto, setPanelTextoAbierto] = useState(false);
   const [textoPegado, setTextoPegado] = useState('');
   const [analizandoTexto, setAnalizandoTexto] = useState(false);
+  // IDs de filas cuyo error ya se reveló (solo después de intentar "Publicar").
+  // Nunca se marca una fila en rojo al crearla o mientras se escribe — solo
+  // al verificar los datos obligatorios en el intento de guardado.
+  const [filasConErrorRevelado, setFilasConErrorRevelado] = useState<Set<string>>(new Set());
 
   const categoriasSugeridas = useMemo(() => {
     const categorias = new Set<string>();
@@ -213,8 +248,12 @@ export function PaginaAltaRapidaCatalogo() {
     return mapa;
   }, [filas]);
 
-  const totalConError = filas.filter((f) => f.incluida && (erroresPorFila.get(f.clientId)?.length ?? 0) > 0).length;
-  const filasListas = filas.filter((f) => f.incluida && (erroresPorFila.get(f.clientId)?.length ?? 0) === 0);
+  const incluidas = filas.filter((f) => f.incluida);
+  const filasListas = incluidas.filter((f) => (erroresPorFila.get(f.clientId)?.length ?? 0) === 0);
+  // Solo cuenta como "con error" lo que ya se reveló en un intento de publicar.
+  const totalConError = filas.filter(
+    (f) => filasConErrorRevelado.has(f.clientId) && (erroresPorFila.get(f.clientId)?.length ?? 0) > 0
+  ).length;
 
   // ===========================================================================
   // HANDLERS
@@ -270,19 +309,32 @@ export function PaginaAltaRapidaCatalogo() {
         return;
       }
 
-      agregarFilasDesdeIA(resultado.data, 'ia_foto');
-    } catch {
+      // Si la IA detectó un solo artículo (foto de un platillo/producto, no un
+      // menú), la primera foto subida ES ese artículo — se adjunta como imagen.
+      agregarFilasDesdeIA(resultado.data, 'ia_foto', urls[0]);
+    } catch (error) {
+      console.error('Error al analizar foto(s) en Alta Rápida:', error);
       notificar.error('Error al analizar la foto');
     } finally {
       setAnalizandoFoto(false);
     }
   }
 
-  function agregarFilasDesdeIA(detectadosCrudos: ArticuloCatalogoSugerido[], origen: OrigenFila) {
+  function agregarFilasDesdeIA(
+    detectadosCrudos: ArticuloCatalogoSugerido[],
+    origen: OrigenFila,
+    imagenParaArticuloUnico?: string
+  ) {
     const espacioDisponible = MAX_FILAS - filas.length;
     const detectados = detectadosCrudos.slice(0, Math.max(espacioDisponible, 0));
+    // Solo se adjunta imagen cuando la IA devolvió UN artículo — con un menú de
+    // varios no tendría sentido repetir la misma foto en cada fila.
+    const imagenUnica = detectados.length === 1 ? imagenParaArticuloUnico ?? null : null;
 
-    setFilas((prev) => [...prev, ...detectados.map((item) => filaDesdeSugerencia(item, origen))]);
+    setFilas((prev) => [
+      ...prev,
+      ...detectados.map((item) => filaDesdeSugerencia(item, origen, imagenUnica)),
+    ]);
 
     notificar.exito(
       `${detectados.length} artículo${detectados.length === 1 ? '' : 's'} detectado${detectados.length === 1 ? '' : 's'} — revísalos antes de publicar`
@@ -309,7 +361,8 @@ export function PaginaAltaRapidaCatalogo() {
       agregarFilasDesdeIA(resultado.data, 'ia_texto');
       setTextoPegado('');
       setPanelTextoAbierto(false);
-    } catch {
+    } catch (error) {
+      console.error('Error al analizar texto en Alta Rápida:', error);
       notificar.error('Error al analizar el texto');
     } finally {
       setAnalizandoTexto(false);
@@ -317,11 +370,23 @@ export function PaginaAltaRapidaCatalogo() {
   }
 
   async function handlePublicar() {
-    if (filasListas.length === 0) return;
+    if (incluidas.length === 0) return;
+
+    // Verificación de datos obligatorios: solo aquí, al intentar publicar.
+    const conError = incluidas.filter((f) => (erroresPorFila.get(f.clientId)?.length ?? 0) > 0);
+    if (conError.length > 0) {
+      setFilasConErrorRevelado(new Set(conError.map((f) => f.clientId)));
+      notificar.error(
+        `${conError.length} artículo${conError.length === 1 ? '' : 's'} con datos incompletos — revisa los campos en rojo`
+      );
+      return;
+    }
+    setFilasConErrorRevelado(new Set());
 
     const payload: CrearArticuloInput[] = filasListas.map((f) => ({
       tipo: f.tipo,
       nombre: f.nombre.trim(),
+      descripcion: f.descripcion.trim() || undefined,
       categoria: f.categoria.trim() || undefined,
       precioBase: Number(f.precioBase),
       imagenPrincipal: f.imagenPrincipal,
@@ -342,36 +407,41 @@ export function PaginaAltaRapidaCatalogo() {
 
   return (
     <div className="p-3 lg:p-1.5 2xl:p-3">
+      <style dangerouslySetInnerHTML={{ __html: ESTILOS_CSS }} />
       <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto space-y-3 lg:space-y-2 2xl:space-y-3">
 
         {/* ================================================================= */}
-        {/* HEADER                                                            */}
+        {/* HEADER + ENTRADAS (misma fila, entradas alineadas a la derecha)  */}
         {/* ================================================================= */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            data-testid="btn-volver-catalogo"
-            onClick={() => navigate('/business-studio/catalogo')}
-            className="w-8 h-8 rounded-lg flex items-center justify-center border-2 border-slate-300 bg-white hover:bg-slate-50 text-slate-600 shrink-0 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
-          >
-            <Zap className="w-4 h-4 text-white" />
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              data-testid="btn-volver-catalogo"
+              onClick={() => navigate('/business-studio/catalogo')}
+              className="w-9 h-9 rounded-lg flex items-center justify-center border-2 border-slate-300 bg-white hover:bg-slate-100 text-slate-600 shrink-0 cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{
+                width: 52, height: 52, borderRadius: 14,
+                background: 'linear-gradient(135deg, #b45309, #d97706, #f59e0b)',
+                boxShadow: '0 6px 20px rgba(217,119,6,0.4)',
+              }}
+            >
+              <div className="alta-rapida-icon-bounce">
+                <Zap className="w-6 h-6 text-white" strokeWidth={2.5} />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight truncate">Alta Rápida de Catálogo</h1>
+              <p className="text-base text-slate-600 -mt-1 font-medium">Agrega varios artículos a la vez</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xl lg:text-2xl font-extrabold text-slate-900 truncate leading-tight">Alta Rápida de Catálogo</h1>
-            <p className="text-sm text-slate-500 font-medium leading-tight">Agrega varios artículos a la vez</p>
-          </div>
-        </div>
 
-        {/* ================================================================= */}
-        {/* ENTRADAS                                                          */}
-        {/* ================================================================= */}
-        <div className="flex items-center gap-2 overflow-x-auto lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <Boton
             variante="secundario"
             className="shrink-0"
@@ -409,6 +479,7 @@ export function PaginaAltaRapidaCatalogo() {
           >
             Agregar fila
           </Boton>
+          </div>
         </div>
 
         {/* ================================================================= */}
@@ -467,10 +538,33 @@ export function PaginaAltaRapidaCatalogo() {
         {/* TABLA EDITABLE                                                    */}
         {/* ================================================================= */}
         {filas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 text-center px-4">
-            <Package className="w-10 h-10 mb-2 text-slate-400" />
-            <p className="text-sm font-semibold text-slate-700">Aún no agregas artículos</p>
-            <p className="text-xs font-medium text-slate-500 mt-1">Usa "Agregar fila" para empezar a capturar tu catálogo</p>
+          <div className="flex flex-col items-center justify-center py-16 rounded-xl border-2 border-dashed border-slate-300 text-center px-4">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mb-3">
+              <Package className="w-7 h-7 text-slate-400" />
+            </div>
+            <p className="text-lg font-bold text-slate-800">Aquí va a aparecer tu catálogo</p>
+            <p className="text-base font-medium text-slate-500 mt-1 mb-4">Elige cómo capturar tus artículos</p>
+
+            <div className="flex flex-col gap-3.5 text-left w-full max-w-md">
+              <div className="flex items-start gap-3">
+                <Camera className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
+                <p className="text-base text-slate-600">
+                  <span className="font-bold text-slate-800">Subir foto(s):</span> sube tu menú, anaquel o hasta la foto de un solo platillo — la IA escribe los artículos (título y descripción incluidos) por ti, tú solo revisas y publicas.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <ClipboardPaste className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
+                <p className="text-base text-slate-600">
+                  <span className="font-bold text-slate-800">Pegar texto:</span> pega tu lista de WhatsApp o Facebook y la IA la estructura por ti.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <Plus className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
+                <p className="text-base text-slate-600">
+                  <span className="font-bold text-slate-800">Agregar fila:</span> captura tus artículos uno por uno, directo en la tabla.
+                </p>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border-2 border-slate-300 overflow-hidden" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -478,44 +572,49 @@ export function PaginaAltaRapidaCatalogo() {
               <div className="min-w-[760px]">
                 {/* Header */}
                 <div
-                  className="grid grid-cols-[110px_minmax(200px,1fr)_180px_120px_90px_44px] gap-3 px-4 py-2.5 items-center text-[11px] lg:text-[12px] font-bold text-white uppercase tracking-wider"
+                  className="grid grid-cols-[110px_minmax(200px,1fr)_180px_120px_100px] gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-4 2xl:px-5 py-2 lg:py-2.5 2xl:py-2 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider"
                   style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                 >
                   <span>Tipo</span>
                   <span>Nombre</span>
                   <span>Categoría</span>
                   <span>Precio</span>
-                  <span className="text-center">Visible</span>
-                  <span />
+                  <span className="text-center">Acciones</span>
                 </div>
 
-                {/* Filas */}
                 <datalist id="datalist-categorias-alta-rapida">
                   {categoriasSugeridas.map((cat) => (
                     <option key={cat} value={cat} />
                   ))}
                 </datalist>
 
+                {/* Filas — alto fijo con scroll interno, así la caja no cambia de tamaño según cuántos artículos tenga */}
+                <div className="h-[480px] overflow-y-auto bg-white">
                 {filas.map((fila) => {
                   const errores = erroresPorFila.get(fila.clientId) ?? [];
-                  const conError = errores.length > 0;
+                  // Solo se muestra en rojo si ya se reveló en un intento de publicar.
+                  const conError = filasConErrorRevelado.has(fila.clientId) && errores.length > 0;
                   return (
                     <div
                       key={fila.clientId}
-                      className={`grid grid-cols-[110px_minmax(200px,1fr)_180px_120px_90px_44px] gap-3 px-4 py-2.5 items-center border-t border-slate-200 ${
+                      className={`grid grid-cols-[110px_minmax(200px,1fr)_180px_120px_100px] gap-3 px-4 py-2.5 items-center border-t border-slate-200 ${
                         conError ? 'bg-red-50' : 'bg-white'
                       } ${!fila.incluida ? 'opacity-50' : ''}`}
                     >
-                      {/* Tipo + checkbox incluir */}
+                      {/* Tipo + incluir al publicar */}
                       <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={fila.incluida}
-                          onChange={(e) => actualizarFila(fila.clientId, { incluida: e.target.checked })}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-slate-500 shrink-0"
-                          title="Incluir al publicar"
-                          data-testid={`checkbox-incluir-${fila.clientId}`}
-                        />
+                        <Tooltip text={fila.incluida ? 'Excluir de la publicación' : 'Incluir al publicar'} position="bottom">
+                          <button
+                            type="button"
+                            onClick={() => actualizarFila(fila.clientId, { incluida: !fila.incluida })}
+                            className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                              fila.incluida ? 'bg-slate-700 border-slate-700' : 'bg-white border-slate-300 hover:border-slate-400'
+                            }`}
+                            data-testid={`checkbox-incluir-${fila.clientId}`}
+                          >
+                            {fila.incluida && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                          </button>
+                        </Tooltip>
                         <ToggleTipoCelda
                           valor={fila.tipo}
                           onChange={(tipo) => actualizarFila(fila.clientId, { tipo })}
@@ -524,22 +623,41 @@ export function PaginaAltaRapidaCatalogo() {
                       </div>
 
                       {/* Nombre */}
-                      <div className="relative">
+                      <div className="relative flex items-start gap-2">
                         {fila.origen !== 'manual' && (
                           <span
-                            className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-purple-500"
+                            className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-purple-500 z-10"
                             title="Sugerido por IA — revisa antes de publicar"
                           />
                         )}
-                        <input
-                          type="text"
-                          value={fila.nombre}
-                          onChange={(e) => actualizarFila(fila.clientId, { nombre: e.target.value })}
-                          placeholder="Nombre del artículo"
-                          maxLength={LIMITES.nombreMax}
-                          data-testid={`input-nombre-${fila.clientId}`}
-                          className="w-full h-9 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        />
+                        {fila.imagenPrincipal && (
+                          <img
+                            src={fila.imagenPrincipal}
+                            alt=""
+                            className="w-9 h-9 rounded-lg object-cover shrink-0 border border-slate-200"
+                            title="Imagen del artículo"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={fila.nombre}
+                            onChange={(e) => actualizarFila(fila.clientId, { nombre: e.target.value })}
+                            placeholder="Nombre del artículo"
+                            maxLength={LIMITES.nombreMax}
+                            data-testid={`input-nombre-${fila.clientId}`}
+                            className="w-full h-9 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                          />
+                          <input
+                            type="text"
+                            value={fila.descripcion}
+                            onChange={(e) => actualizarFila(fila.clientId, { descripcion: e.target.value })}
+                            placeholder="Descripción (opcional)"
+                            maxLength={LIMITES.descripcionMax}
+                            data-testid={`input-descripcion-${fila.clientId}`}
+                            className="w-full h-7 mt-1 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                          />
+                        </div>
                       </div>
 
                       {/* Categoría */}
@@ -571,45 +689,49 @@ export function PaginaAltaRapidaCatalogo() {
                         />
                       </div>
 
-                      {/* Disponible */}
-                      <div className="flex justify-center">
-                        <input
-                          type="checkbox"
-                          checked={fila.disponible}
-                          onChange={(e) => actualizarFila(fila.clientId, { disponible: e.target.checked })}
-                          className="w-4 h-4 text-emerald-600 rounded focus:ring-slate-500"
-                          title="Visible en el catálogo público"
-                          data-testid={`checkbox-disponible-${fila.clientId}`}
-                        />
-                      </div>
-
-                      {/* Eliminar */}
-                      <div className="flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => eliminarFila(fila.clientId)}
-                          className="text-red-600 hover:text-red-700 cursor-pointer"
-                          data-testid={`btn-eliminar-fila-${fila.clientId}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {/* Acciones: Visible + Eliminar */}
+                      <div className="flex items-center justify-center gap-1">
+                        <Tooltip text={fila.disponible ? 'Ocultar' : 'Mostrar'}>
+                          <button
+                            type="button"
+                            onClick={() => actualizarFila(fila.clientId, { disponible: !fila.disponible })}
+                            className="p-1.5 rounded-lg cursor-pointer hover:bg-green-100"
+                            data-testid={`btn-visible-${fila.clientId}`}
+                          >
+                            {fila.disponible
+                              ? <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700" />
+                              : <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700" />
+                            }
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Eliminar">
+                          <button
+                            type="button"
+                            onClick={() => eliminarFila(fila.clientId)}
+                            className="p-1.5 rounded-lg cursor-pointer text-red-600 hover:bg-red-100"
+                            data-testid={`btn-eliminar-fila-${fila.clientId}`}
+                          >
+                            <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                          </button>
+                        </Tooltip>
                       </div>
 
                       {/* Errores de la fila */}
                       {conError && (
-                        <div className="col-span-6 -mt-1 pl-[122px] text-xs font-semibold text-red-600">
+                        <div className="col-span-5 -mt-1 pl-[122px] text-xs font-semibold text-red-600">
                           {errores.join(' · ')}
                         </div>
                       )}
                     </div>
                   );
                 })}
+                </div>
 
-                {/* Agregar fila al final de la tabla */}
+                {/* Agregar fila al final de la tabla — fuera del scroll, siempre visible */}
                 <button
                   type="button"
                   onClick={() => agregarFila('manual')}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 border-t border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 border-t border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-200 cursor-pointer"
                   data-testid="btn-agregar-fila-footer"
                 >
                   <Plus className="w-4 h-4" />
@@ -627,13 +749,13 @@ export function PaginaAltaRapidaCatalogo() {
           <div className="flex justify-end">
             <Boton
               variante="primario"
-              tamanio="lg"
-              disabled={filasListas.length === 0}
+              tamanio="md"
+              disabled={incluidas.length === 0}
               cargando={crearLoteMutation.isPending}
               onClick={handlePublicar}
               data-testid="btn-publicar-lote"
             >
-              Publicar {filasListas.length} artículo{filasListas.length === 1 ? '' : 's'}
+              Publicar {incluidas.length} artículo{incluidas.length === 1 ? '' : 's'}
             </Boton>
           </div>
         )}
