@@ -146,6 +146,7 @@ const campoNumeroIntentosSorteo = z
  *  total de boletos — no N por sí solo. */
 function validarConfigSorteo(
     data: {
+        metodoSorteo?: string | null;
         numeroLugaresGanadores?: number;
         numeroIntentosSorteo?: number;
         numeroTotalBoletos?: number;
@@ -164,7 +165,10 @@ function validarConfigSorteo(
                 message: 'No puede haber más lugares premiados que boletos totales',
             });
         }
-        if (K !== undefined && N !== undefined && K * N > total) {
+        // tabla_completa no usa N — su motor (`ejecutarSorteoTablaCompleta`)
+        // solo consume K, gana quien complete tabla llena primero, sin
+        // rondas fijas de N bolas por lugar.
+        if (data.metodoSorteo !== 'tabla_completa' && K !== undefined && N !== undefined && K * N > total) {
             ctx.addIssue({
                 code: 'custom',
                 path: ['numeroIntentosSorteo'],
@@ -183,6 +187,10 @@ function validarConfigSorteo(
  *  `apps/web/src/data/cartasLoteria.ts`. */
 const TOTAL_BOLETOS_CARTA_UNICA = 54;
 const BOLETO_INICIAL_CARTA_UNICA = 1;
+
+/** Tope de boletos para `tabla_completa` — mismo valor que el catálogo de
+ *  tablas pre-generadas (una tabla por boleto). Ver `validarTopeTablaCompleta`. */
+const MAXIMO_BOLETOS_TABLA_COMPLETA = 150;
 
 function validarFijoCartaUnica(
     data: { metodoSorteo?: string | null; numeroTotalBoletos?: number; numeroBoletoInicial?: number },
@@ -206,6 +214,29 @@ function validarFijoCartaUnica(
     }
 }
 
+/** El método `tabla_completa` asigna una tabla del catálogo pre-generado a
+ *  cada boleto (una tabla por boleto) — el catálogo tiene un tamaño fijo,
+ *  así que el organizador no puede vender más boletos de los que hay tablas
+ *  disponibles. A diferencia de carta única, aquí SÍ es un tope (no un
+ *  valor fijo): el organizador elige cuántos boletos vender, hasta el
+ *  máximo. Espejo de `MAXIMO_BOLETOS_TABLA_COMPLETA` en
+ *  `apps/api/src/services/dinamicas/tablasLoteria.ts` y
+ *  `apps/web/src/data/tablasLoteria.ts`. */
+function validarTopeTablaCompleta(
+    data: { metodoSorteo?: string | null; numeroTotalBoletos?: number },
+    ctx: z.RefinementCtx,
+) {
+    if (data.metodoSorteo !== 'tabla_completa') return;
+
+    if (data.numeroTotalBoletos !== undefined && data.numeroTotalBoletos > MAXIMO_BOLETOS_TABLA_COMPLETA) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['numeroTotalBoletos'],
+            message: `La lotería de tabla completa admite máximo ${MAXIMO_BOLETOS_TABLA_COMPLETA} boletos (una tabla por boleto)`,
+        });
+    }
+}
+
 function validarSorteoDinamica(
     data: {
         reglaDesempate?: string | null;
@@ -220,6 +251,7 @@ function validarSorteoDinamica(
     validarReglaDesempateCondMetodo(data, ctx);
     validarConfigSorteo(data, ctx);
     validarFijoCartaUnica(data, ctx);
+    validarTopeTablaCompleta(data, ctx);
 }
 
 // =============================================================================

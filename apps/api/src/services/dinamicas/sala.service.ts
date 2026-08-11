@@ -31,7 +31,15 @@ import {
     usuarios,
 } from '../../db/schemas/schema.js';
 import { puedeTransicionar, type EstadoDinamica } from './estados.js';
-import { generarSemilla, ejecutarSorteo, calcularHashVerificacion, type BoletoParaSorteo } from './sorteo.js';
+import {
+    generarSemilla,
+    ejecutarSorteo,
+    calcularHashVerificacion,
+    ejecutarSorteoTablaCompleta,
+    calcularHashVerificacionTablaCompleta,
+    type BoletoParaSorteo,
+    type BoletoParaSorteoTablaCompleta,
+} from './sorteo.js';
 import { bloquearUsuario, desbloquearUsuario } from '../chatya.service.js';
 import { crearNotificacion } from '../notificaciones.service.js';
 import type { ModerarSalaInput } from '../../validations/dinamicas-sala.schema.js';
@@ -72,7 +80,9 @@ export async function activarSala(organizadorUsuarioId: string, dinamicaId: stri
         if (actual.estado !== 'activa' && actual.estado !== 'pospuesta') {
             return { success: false, message: 'Solo puedes programar la sala de una Dinámica activa o pospuesta', code: 409 } satisfies RespuestaError;
         }
-        if (!actual.numeroIntentosSorteo) {
+        // tabla_completa no usa N (numeroIntentosSorteo) — su motor no corre
+        // rondas fijas, gana quien complete tabla llena primero.
+        if (actual.metodoSorteo !== 'tabla_completa' && !actual.numeroIntentosSorteo) {
             return {
                 success: false,
                 message: 'Configura primero cuántos intentos tendrá el sorteo (edita la Dinámica)',
@@ -160,29 +170,51 @@ export async function obtenerEstadoSala(dinamicaId: string, usuarioActualId?: st
             // se puede RECOMPUTAR el sorteo completo (ganadores y "no ganó"),
             // sin necesidad de guardar los intentos perdedores en BD (mismo
             // principio de verificabilidad pública que documenta sorteo.ts).
+            // `pagadoEn` solo lo usa tabla_completa (desempate por orden de
+            // inscripción) — se trae siempre, es barato y evita 2 queries.
             dinamica.estado === 'cerrada' && dinamica.semillaAleatoria
                 ? db
-                    .select({ id: dinamicaBoletos.id, numeroBoleto: dinamicaBoletos.numeroBoleto })
+                    .select({ id: dinamicaBoletos.id, numeroBoleto: dinamicaBoletos.numeroBoleto, pagadoEn: dinamicaBoletos.pagadoEn })
                     .from(dinamicaBoletos)
                     .where(and(eq(dinamicaBoletos.dinamicaId, dinamicaId), eq(dinamicaBoletos.estado, 'pagado')))
-                : Promise.resolve([] as BoletoParaSorteo[]),
+                : Promise.resolve([] as (BoletoParaSorteo & { pagadoEn: string | null })[]),
         ]);
 
         let historialCompleto: { numeroIntento: number; numeroBoleto: number; esGanador: boolean; lugar: number | null }[] | null = null;
-        if (dinamica.estado === 'cerrada' && dinamica.semillaAleatoria && dinamica.numeroIntentosSorteo) {
+        let historialCartas: { numeroIntento: number; cartaIndice: number; ganadores: { numeroBoleto: number; lugar: number }[] }[] | null = null;
+        if (dinamica.estado === 'cerrada' && dinamica.semillaAleatoria) {
             try {
-                const resultado = ejecutarSorteo(
-                    poolParaHistorial,
-                    dinamica.semillaAleatoria,
-                    dinamica.numeroIntentosSorteo,
-                    dinamica.numeroLugaresGanadores,
-                );
-                historialCompleto = resultado.intentos.map((i) => ({
-                    numeroIntento: i.numeroIntento,
-                    numeroBoleto: i.boleto.numeroBoleto,
-                    esGanador: i.esGanador,
-                    lugar: i.lugar,
-                }));
+                if (dinamica.metodoSorteo === 'tabla_completa') {
+                    const poolTablaCompleta: BoletoParaSorteoTablaCompleta[] = poolParaHistorial.map((b) => ({
+                        id: b.id,
+                        numeroBoleto: b.numeroBoleto,
+                        pagadoEn: b.pagadoEn ?? new Date(0).toISOString(),
+                    }));
+                    const resultado = ejecutarSorteoTablaCompleta(
+                        poolTablaCompleta,
+                        dinamica.semillaAleatoria,
+                        dinamica.numeroLugaresGanadores,
+                        (dinamica.reglaDesempate ?? 'sorteo_instantaneo') as import('./sorteo.js').ReglaDesempate,
+                    );
+                    historialCartas = resultado.cartas.map((c) => ({
+                        numeroIntento: c.numeroIntento,
+                        cartaIndice: c.cartaIndice,
+                        ganadores: c.ganadores.map((g) => ({ numeroBoleto: g.boleto.numeroBoleto, lugar: g.lugar })),
+                    }));
+                } else if (dinamica.numeroIntentosSorteo) {
+                    const resultado = ejecutarSorteo(
+                        poolParaHistorial,
+                        dinamica.semillaAleatoria,
+                        dinamica.numeroIntentosSorteo,
+                        dinamica.numeroLugaresGanadores,
+                    );
+                    historialCompleto = resultado.intentos.map((i) => ({
+                        numeroIntento: i.numeroIntento,
+                        numeroBoleto: i.boleto.numeroBoleto,
+                        esGanador: i.esGanador,
+                        lugar: i.lugar,
+                    }));
+                }
             } catch (error) {
                 console.error('No se pudo recomputar el historial del sorteo:', error);
             }
@@ -209,6 +241,7 @@ export async function obtenerEstadoSala(dinamicaId: string, usuarioActualId?: st
                     }
                     : null,
                 historialCompleto,
+                historialCartas,
             },
         };
     } catch (error) {
@@ -457,19 +490,65 @@ export async function iniciarSorteo(organizadorUsuarioId: string, dinamicaId: st
         if (new Date(actual.salaProgramadaPara).getTime() > Date.now()) {
             return { success: false, message: 'Todavía no llega la hora programada de la sala', code: 409 } satisfies RespuestaError;
         }
-        if (!actual.numeroIntentosSorteo) {
+
+        const esTablaCompleta = actual.metodoSorteo === 'tabla_completa';
+        if (!esTablaCompleta && !actual.numeroIntentosSorteo) {
             return { success: false, message: 'El sorteo no tiene configurado el número de intentos', code: 409 } satisfies RespuestaError;
         }
 
         const boletosPagados = await db
-            .select({ id: dinamicaBoletos.id, numeroBoleto: dinamicaBoletos.numeroBoleto })
+            .select({ id: dinamicaBoletos.id, numeroBoleto: dinamicaBoletos.numeroBoleto, pagadoEn: dinamicaBoletos.pagadoEn })
             .from(dinamicaBoletos)
             .where(and(eq(dinamicaBoletos.dinamicaId, dinamicaId), eq(dinamicaBoletos.estado, 'pagado')));
+
+        if (esTablaCompleta) {
+            // tabla_completa no exige K × N bolas fijas — solo que haya al
+            // menos 1 boleto pagado (gana quien complete tabla llena
+            // primero, cuantos lugares se alcancen a llenar antes de agotar
+            // el mazo de 54 cartas quedan como ganadores).
+            if (boletosPagados.length === 0) {
+                return { success: false, message: 'No hay boletos pagados para sortear', code: 409 } satisfies RespuestaError;
+            }
+
+            const transicion = await cambiarEstadoSala(dinamicaId, actual.estado as EstadoDinamica, 'en_sorteo');
+            if (!transicion.success) return transicion;
+
+            const pool: BoletoParaSorteoTablaCompleta[] = boletosPagados.map((b) => ({
+                id: b.id,
+                numeroBoleto: b.numeroBoleto,
+                pagadoEn: b.pagadoEn ?? new Date(0).toISOString(),
+            }));
+            const semilla = generarSemilla();
+            const reglaDesempate = (actual.reglaDesempate ?? 'sorteo_instantaneo') as import('./sorteo.js').ReglaDesempate;
+            const resultado = ejecutarSorteoTablaCompleta(pool, semilla, actual.numeroLugaresGanadores, reglaDesempate);
+            const hashVerificacion = calcularHashVerificacionTablaCompleta(dinamicaId, semilla, resultado.cartas);
+
+            await db.update(dinamicas).set({
+                semillaAleatoria: semilla,
+                timestampSorteo: new Date().toISOString(),
+                hashVerificacion,
+            }).where(eq(dinamicas.id, dinamicaId));
+
+            // El motor no adjunta `numeroIntento` a cada ganador directo —
+            // se deriva de en qué carta (`cartas[].numeroIntento`) quedó su
+            // tabla completa, iterando las cartas cantadas.
+            const filasGanadores = resultado.cartas.flatMap((c) =>
+                c.ganadores.map((g) => ({
+                    dinamicaId,
+                    boletoId: g.boleto.id,
+                    lugar: g.lugar,
+                    numeroIntento: c.numeroIntento,
+                })),
+            );
+            await db.insert(dinamicaGanadores).values(filasGanadores);
+
+            return { success: true as const, data: { dinamica: transicion.data, resultado, hashVerificacion } };
+        }
 
         const pool: BoletoParaSorteo[] = boletosPagados;
         // N es por RONDA (una por lugar premiado) — el sorteo completo saca
         // K × N bolas en total, sin reemplazo (ver sorteo.ts).
-        const totalBolasNecesarias = actual.numeroIntentosSorteo * actual.numeroLugaresGanadores;
+        const totalBolasNecesarias = (actual.numeroIntentosSorteo as number) * actual.numeroLugaresGanadores;
         if (pool.length < totalBolasNecesarias) {
             return {
                 success: false,
@@ -482,7 +561,7 @@ export async function iniciarSorteo(organizadorUsuarioId: string, dinamicaId: st
         if (!transicion.success) return transicion;
 
         const semilla = generarSemilla();
-        const resultado = ejecutarSorteo(pool, semilla, actual.numeroIntentosSorteo, actual.numeroLugaresGanadores);
+        const resultado = ejecutarSorteo(pool, semilla, actual.numeroIntentosSorteo as number, actual.numeroLugaresGanadores);
         const hashVerificacion = calcularHashVerificacion(dinamicaId, semilla, resultado.intentos);
 
         await db.update(dinamicas).set({

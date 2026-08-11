@@ -32,6 +32,7 @@
  */
 
 import { randomBytes, createHash } from 'node:crypto';
+import { obtenerTablaPorBoleto } from './tablasLoteria.js';
 
 export interface BoletoParaSorteo {
     id: string;
@@ -129,5 +130,161 @@ export function calcularHashVerificacion(
     intentos: IntentoSorteo[],
 ): string {
     const secuencia = intentos.map((i) => `${i.numeroIntento}:${i.boleto.numeroBoleto}`).join(',');
+    return createHash('sha256').update(`${dinamicaId}|${semilla}|${secuencia}`).digest('hex');
+}
+
+// =============================================================================
+// TABLA COMPLETA (Fase 4.3) — motor distinto: no hay "K lugares × N
+// intentos fijos" conocidos de antemano. Se cantan cartas de la baraja
+// (54, sin reemplazo) y, después de cada una, se revisa si alguna tabla
+// ACTIVA (de las 16 cartas de `tablasLoteria.ts`, asignada por
+// `obtenerTablaPorBoleto`) ya quedó completa. El primero en completar gana
+// el lugar #1 (al revés de la tómbola, donde el premio mayor sale al
+// final) — se sigue cantando entre las tablas restantes para el 2do,
+// 3er lugar, etc., hasta llegar a K o agotar el mazo.
+// =============================================================================
+
+export type ReglaDesempate = 'sorteo_instantaneo' | 'repartir_premio' | 'ronda_extra' | 'orden_inscripcion';
+
+export interface BoletoParaSorteoTablaCompleta extends BoletoParaSorteo {
+    /** ISO string — solo se usa si `reglaDesempate === 'orden_inscripcion'`. */
+    pagadoEn: string;
+}
+
+export interface GanadorTablaCompleta {
+    boleto: BoletoParaSorteoTablaCompleta;
+    lugar: number;
+}
+
+export interface CartaCantada {
+    numeroIntento: number;
+    /** Índice de la carta cantada (1-54, mismo orden que `cartasLoteria.ts`). */
+    cartaIndice: number;
+    /** Normalmente 0 o 1 elemento — más de 1 solo puede pasar con
+     *  `reglaDesempate === 'repartir_premio'` (2+ tablas completan con la
+     *  misma carta y se reparten lugares consecutivos de una vez). */
+    ganadores: GanadorTablaCompleta[];
+}
+
+export interface ResultadoSorteoTablaCompleta {
+    cartas: CartaCantada[];
+    ganadores: GanadorTablaCompleta[];
+}
+
+/** Orden determinista de un grupo de boletos empatados — mismo criterio de
+ *  auditabilidad que el resto del motor (nadie lo elige, se puede
+ *  recomputar desde la semilla pública). */
+function ordenDeterministico(
+    boletos: BoletoParaSorteoTablaCompleta[],
+    semilla: string,
+    intentoGlobal: number,
+): BoletoParaSorteoTablaCompleta[] {
+    return boletos
+        .map((b) => ({ b, clave: createHash('sha256').update(`${semilla}:desempate:${intentoGlobal}:${b.id}`).digest('hex') }))
+        .sort((x, y) => (x.clave < y.clave ? -1 : x.clave > y.clave ? 1 : 0))
+        .map((x) => x.b);
+}
+
+/** Resuelve un empate (2+ tablas completas con la misma carta) según
+ *  `reglaDesempate` — devuelve, en orden, a quién(es) se les asigna lugar
+ *  EN ESTE intento (1 solo para sorteo_instantaneo/ronda_extra —el resto
+ *  sigue activo para el siguiente lugar—, todos para repartir_premio,
+ *  ordenados por `pagadoEn` para orden_inscripcion). */
+function resolverEmpate(
+    empatados: BoletoParaSorteoTablaCompleta[],
+    regla: ReglaDesempate,
+    semilla: string,
+    intentoGlobal: number,
+): BoletoParaSorteoTablaCompleta[] {
+    if (regla === 'orden_inscripcion') {
+        return [...empatados].sort((a, b) => new Date(a.pagadoEn).getTime() - new Date(b.pagadoEn).getTime());
+    }
+    if (regla === 'repartir_premio') {
+        return ordenDeterministico(empatados, semilla, intentoGlobal);
+    }
+    // 'sorteo_instantaneo' y 'ronda_extra' — ronda_extra no tiene forma de
+    // "extender" el sorteo con cartas nuevas (el mazo son 54 fijas, sin
+    // reemplazo), así que para esta primera versión se comporta igual que
+    // sorteo_instantaneo (documentado en docs/arquitectura/Dinamicas.md).
+    return [ordenDeterministico(empatados, semilla, intentoGlobal)[0]];
+}
+
+export function ejecutarSorteoTablaCompleta(
+    pool: BoletoParaSorteoTablaCompleta[],
+    semilla: string,
+    numeroLugares: number,
+    reglaDesempate: ReglaDesempate,
+): ResultadoSorteoTablaCompleta {
+    if (pool.length === 0) {
+        throw new Error('No hay boletos pagados para sortear');
+    }
+
+    const tablaPorBoletoId = new Map<string, Set<number>>();
+    for (const boleto of pool) {
+        tablaPorBoletoId.set(boleto.id, new Set(obtenerTablaPorBoleto(boleto.numeroBoleto)));
+    }
+
+    const restante = Array.from({ length: 54 }, (_, i) => i + 1);
+    const cantadas = new Set<number>();
+    const activos = new Map(pool.map((b) => [b.id, b]));
+    const cartas: CartaCantada[] = [];
+    const ganadores: GanadorTablaCompleta[] = [];
+    let siguienteLugar = 1;
+    let intentoGlobal = 0;
+
+    while (restante.length > 0 && siguienteLugar <= numeroLugares) {
+        intentoGlobal++;
+        const indice = indiceDeterministico(semilla, intentoGlobal, restante.length);
+        const [cartaIndice] = restante.splice(indice, 1);
+        cantadas.add(cartaIndice);
+
+        const completadosAhora: BoletoParaSorteoTablaCompleta[] = [];
+        for (const boleto of activos.values()) {
+            const tabla = tablaPorBoletoId.get(boleto.id) as Set<number>;
+            let completa = true;
+            for (const c of tabla) {
+                if (!cantadas.has(c)) {
+                    completa = false;
+                    break;
+                }
+            }
+            if (completa) completadosAhora.push(boleto);
+        }
+
+        const ganadoresEsteIntento: GanadorTablaCompleta[] = [];
+        if (completadosAhora.length === 1) {
+            const lugar = siguienteLugar++;
+            activos.delete(completadosAhora[0].id);
+            const g = { boleto: completadosAhora[0], lugar };
+            ganadores.push(g);
+            ganadoresEsteIntento.push(g);
+        } else if (completadosAhora.length > 1) {
+            const resueltos = resolverEmpate(completadosAhora, reglaDesempate, semilla, intentoGlobal);
+            for (const boleto of resueltos) {
+                if (siguienteLugar > numeroLugares) break;
+                const lugar = siguienteLugar++;
+                activos.delete(boleto.id);
+                const g = { boleto, lugar };
+                ganadores.push(g);
+                ganadoresEsteIntento.push(g);
+            }
+        }
+
+        cartas.push({ numeroIntento: intentoGlobal, cartaIndice, ganadores: ganadoresEsteIntento });
+    }
+
+    ganadores.sort((a, b) => a.lugar - b.lugar);
+    return { cartas, ganadores };
+}
+
+/** Hash público de verificación para tabla completa — mismo criterio que
+ *  `calcularHashVerificacion`, pero sobre la secuencia de CARTAS cantadas
+ *  (no de boletos, aquí cada intento es una carta, no un boleto). */
+export function calcularHashVerificacionTablaCompleta(
+    dinamicaId: string,
+    semilla: string,
+    cartas: CartaCantada[],
+): string {
+    const secuencia = cartas.map((c) => `${c.numeroIntento}:${c.cartaIndice}`).join(',');
     return createHash('sha256').update(`${dinamicaId}|${semilla}|${secuencia}`).digest('hex');
 }

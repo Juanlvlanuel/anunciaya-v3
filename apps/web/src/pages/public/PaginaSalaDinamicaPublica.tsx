@@ -32,12 +32,14 @@ import { notificar } from '../../utils/notificaciones';
 import { CronometroSala } from '../../components/dinamicas/sala/CronometroSala';
 import { TombolaSorteo } from '../../components/dinamicas/sala/TombolaSorteo';
 import { CartaSorteo } from '../../components/dinamicas/sala/CartaSorteo';
+import { TablaCompletaSorteo } from '../../components/dinamicas/sala/TablaCompletaSorteo';
 import { ChatSala } from '../../components/dinamicas/sala/ChatSala';
 import { PanelModeracionSala } from '../../components/dinamicas/sala/PanelModeracionSala';
 import { GanadoresSala } from '../../components/dinamicas/sala/GanadoresSala';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
 import { Spinner } from '../../components/ui/Spinner';
+import { obtenerTablaPorBoleto } from '../../data/tablasLoteria';
 import type { AccionModeracionSala } from '../../types/dinamicas';
 
 // El DatePicker resalta en azul por default al abrirse (border+ring) — acá
@@ -190,6 +192,16 @@ export function PaginaSalaDinamicaPublica() {
     // ya cerró, esa lista llega vacía — se usa el historial recomputado por
     // el backend desde la semilla pública como evidencia del sorteo completo.
     const intentosParaTombola = sala.intentosRevelados.length > 0 ? sala.intentosRevelados : (estadoHttp?.historialCompleto ?? []);
+    // Mismo criterio, para `tabla_completa` — cada elemento es una carta
+    // cantada, no un boleto.
+    const cartasParaTablaCompleta = sala.cartasReveladas.length > 0 ? sala.cartasReveladas : (estadoHttp?.historialCartas ?? []);
+    // "Mi tabla" — boleto(s) pagado(s) del usuario actual en esta Dinámica,
+    // resueltos a su tabla de 16 cartas (`data/tablasLoteria.ts`).
+    const misTablas = usuarioActual
+        ? boletos
+            .filter((b) => b.estado === 'pagado' && b.usuario?.id === usuarioActual.id)
+            .map((b) => obtenerTablaPorBoleto(b.numeroBoleto))
+        : [];
 
     // El chat cierra junto con la sala — el backend ya lo rechaza
     // (`enviarMensajeSala`) si `estado === 'cerrada'`; esto solo refleja esa
@@ -251,7 +263,10 @@ export function PaginaSalaDinamicaPublica() {
                         <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[3fr_2fr] lg:items-start lg:gap-6">
                             {/* ─── Columna izquierda (60%) — escenario del evento ─── */}
                             <div className="space-y-3">
-                                {esOrganizador && dinamica.numeroIntentosSorteo === null && (estado === 'activa' || estado === 'pospuesta') && (
+                                {esOrganizador &&
+                                    dinamica.metodoSorteo !== 'tabla_completa' &&
+                                    dinamica.numeroIntentosSorteo === null &&
+                                    (estado === 'activa' || estado === 'pospuesta') && (
                                     <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
                                         <label className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800">
                                             <Dices className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -295,7 +310,7 @@ export function PaginaSalaDinamicaPublica() {
                                 )}
 
                                 {esOrganizador &&
-                                    dinamica.numeroIntentosSorteo !== null &&
+                                    (dinamica.metodoSorteo === 'tabla_completa' || dinamica.numeroIntentosSorteo !== null) &&
                                     (!salaProgramadaPara || reprogramando) &&
                                     (estado === 'activa' || estado === 'pospuesta') && (
                                         <div className="rounded-xl border-2 border-slate-300 bg-white p-4">
@@ -389,25 +404,34 @@ export function PaginaSalaDinamicaPublica() {
                                     </CronometroSala>
                                 )}
 
-                                {(estado === 'en_sorteo' || intentosParaTombola.length > 0) &&
-                                    (dinamica.metodoSorteo === 'carta_unica' ? (
-                                        <CartaSorteo
-                                            intentosRevelados={intentosParaTombola}
-                                            numeroIntentosSorteo={sala.numeroIntentosSorteo}
+                                {dinamica.metodoSorteo === 'tabla_completa'
+                                    ? (estado === 'en_sorteo' || cartasParaTablaCompleta.length > 0) && (
+                                        <TablaCompletaSorteo
+                                            cartasReveladas={cartasParaTablaCompleta}
                                             numeroLugaresGanadores={sala.numeroLugaresGanadores}
                                             salaCerrada={estado === 'cerrada'}
+                                            misTablas={misTablas}
                                         />
-                                    ) : (
-                                        <TombolaSorteo
-                                            intentosRevelados={intentosParaTombola}
-                                            numeroIntentosSorteo={sala.numeroIntentosSorteo}
-                                            numeroLugaresGanadores={sala.numeroLugaresGanadores}
-                                            salaCerrada={estado === 'cerrada'}
-                                        />
-                                    ))}
+                                    )
+                                    : (estado === 'en_sorteo' || intentosParaTombola.length > 0) &&
+                                        (dinamica.metodoSorteo === 'carta_unica' ? (
+                                            <CartaSorteo
+                                                intentosRevelados={intentosParaTombola}
+                                                numeroIntentosSorteo={sala.numeroIntentosSorteo}
+                                                numeroLugaresGanadores={sala.numeroLugaresGanadores}
+                                                salaCerrada={estado === 'cerrada'}
+                                            />
+                                        ) : (
+                                            <TombolaSorteo
+                                                intentosRevelados={intentosParaTombola}
+                                                numeroIntentosSorteo={sala.numeroIntentosSorteo}
+                                                numeroLugaresGanadores={sala.numeroLugaresGanadores}
+                                                salaCerrada={estado === 'cerrada'}
+                                            />
+                                        ))}
 
-                                {/* Modo manual — el organizador revela cada bola con este
-                                    botón en vez de la cascada automática temporizada. */}
+                                {/* Modo manual — el organizador revela cada bola/carta con
+                                    este botón en vez de la cascada automática temporizada. */}
                                 {esOrganizador && estado === 'en_sorteo' && sala.modoSorteo === 'manual' && (
                                     <button
                                         type="button"
@@ -415,7 +439,7 @@ export function PaginaSalaDinamicaPublica() {
                                         className="mx-auto flex items-center gap-2 rounded-full bg-amber-600 px-6 py-2.5 text-sm font-bold text-white lg:cursor-pointer lg:hover:bg-amber-700"
                                     >
                                         <SkipForward className="h-4 w-4" strokeWidth={2.5} />
-                                        {dinamica.metodoSorteo === 'carta_unica' ? 'Siguiente carta' : 'Siguiente bola'}
+                                        {dinamica.metodoSorteo === 'carta_unica' || dinamica.metodoSorteo === 'tabla_completa' ? 'Siguiente carta' : 'Siguiente bola'}
                                     </button>
                                 )}
 

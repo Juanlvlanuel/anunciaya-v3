@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ArchivoFoto } from '../types/archivoFoto';
 import type { TipoPremio, MetodoSorteo, ReglaDesempate } from '../types/dinamicas';
 import { TOTAL_BOLETOS_CARTA_UNICA, BOLETO_INICIAL_CARTA_UNICA } from '../data/cartasLoteria';
+import { MAXIMO_BOLETOS_TABLA_COMPLETA } from '../data/tablasLoteria';
 
 // =============================================================================
 // CONSTANTES
@@ -252,6 +253,8 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         // campo al elegir carta_unica) — defensa por si el draft quedó de un
         // borrador viejo o de otra vía.
         errores.numeroTotalBoletos = `La lotería de carta única siempre usa las ${TOTAL_BOLETOS_CARTA_UNICA} cartas de la baraja.`;
+    } else if (d.metodoSorteo === 'tabla_completa' && Number(d.numeroTotalBoletos) > MAXIMO_BOLETOS_TABLA_COMPLETA) {
+        errores.numeroTotalBoletos = `La lotería de tabla completa admite máximo ${MAXIMO_BOLETOS_TABLA_COMPLETA} boletos (una tabla por boleto).`;
     }
 
     // Vacío = válido (el backend lo deja en su default de 1) — solo error
@@ -286,10 +289,15 @@ export function validarComposerDinamica(d: ComposerDinamicasDraft): ResultadoVal
         errores.numeroLugaresGanadores = 'No puede haber más lugares premiados que boletos totales.';
     }
 
-    if (intentos === null) {
-        errores.numeroIntentosSorteo = 'Escribe a qué intento sale el ganador.';
-    } else if (lugares !== null && totalBoletos !== null && lugares * intentos > totalBoletos) {
-        errores.numeroIntentosSorteo = 'Lugares premiados × intentos por lugar no puede exceder el total de boletos.';
+    // N (intentos por lugar) no aplica a tabla_completa — su motor
+    // (`ejecutarSorteoTablaCompleta`) solo consume K, gana quien complete
+    // tabla llena primero, sin rondas fijas de N bolas por lugar.
+    if (d.metodoSorteo !== 'tabla_completa') {
+        if (intentos === null) {
+            errores.numeroIntentosSorteo = 'Escribe a qué intento sale el ganador.';
+        } else if (lugares !== null && totalBoletos !== null && lugares * intentos > totalBoletos) {
+            errores.numeroIntentosSorteo = 'Lugares premiados × intentos por lugar no puede exceder el total de boletos.';
+        }
     }
 
     if (!d.ciudad) {

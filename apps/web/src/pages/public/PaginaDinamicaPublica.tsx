@@ -64,6 +64,7 @@ import { FooterPublico } from '../../components/public/FooterPublico';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type { BoletoDinamica, DinamicaDetallePublico } from '../../types/dinamicas';
 import { obtenerCartaPorBoleto } from '../../data/cartasLoteria';
+import { obtenerTablaPorBoleto } from '../../data/tablasLoteria';
 
 const GRADIENTE_DINAMICAS = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
 const ETIQUETA_TIPO_PREMIO: Record<string, string> = { fisico: 'Premio físico', efectivo: 'Premio en efectivo' };
@@ -155,6 +156,7 @@ export function PaginaDinamicaPublica() {
     const cuentaRegresiva = formatearCuentaRegresiva(dinamica.fechaLimiteInscripcion);
     const aceptaParticipantes = dinamica.estado === 'activa' || dinamica.estado === 'pospuesta';
     const esCartaUnica = dinamica.metodoSorteo === 'carta_unica';
+    const esTablaCompleta = dinamica.metodoSorteo === 'tabla_completa';
     const mapaBoletos = new Map(boletos.map((b) => [b.numeroBoleto, b]));
     const participantesVisibles = boletos.filter((b) => b.estado === 'pagado' || b.estado === 'reservado');
 
@@ -190,6 +192,44 @@ export function PaginaDinamicaPublica() {
                     className={`h-full w-full object-cover ${estado !== 'disponible' ? 'opacity-60' : ''}`}
                 />
                 <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold leading-tight text-white">{numero}</span>
+                {estado === 'pagado' && (
+                    <span className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
+                        <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                    </span>
+                )}
+                {estado === 'reservado' && <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full bg-amber-500" />}
+            </button>
+        );
+    }
+
+    // Equivalente a `renderBotonCarta` para `tabla_completa` — cada boleto
+    // muestra su tabla completa (4×4) en miniatura, para que el visitante
+    // elija la que más le guste (las 150 tablas del catálogo son públicas
+    // y navegables, ver `data/tablasLoteria.ts`).
+    function renderBotonTabla(numero: number) {
+        const boleto = mapaBoletos.get(numero);
+        const estado = boleto?.estado ?? 'disponible';
+        const tabla = obtenerTablaPorBoleto(numero);
+        return (
+            <button
+                key={numero}
+                data-testid={`boleto-publico-${numero}`}
+                disabled={estado !== 'disponible'}
+                onClick={estado === 'disponible' ? requerirAuth : undefined}
+                className={`relative w-full shrink-0 overflow-hidden rounded-2xl border-2 bg-white p-1.5 transition-colors ${
+                    estado === 'pagado'
+                        ? 'cursor-not-allowed border-emerald-400'
+                        : estado === 'reservado'
+                          ? 'cursor-not-allowed border-amber-400'
+                          : 'border-slate-300 lg:cursor-pointer lg:hover:border-amber-500'
+                }`}
+            >
+                <div className={`grid grid-cols-4 gap-0.5 ${estado !== 'disponible' ? 'opacity-60' : ''}`}>
+                    {tabla.cartas.map((carta) => (
+                        <img key={carta.numero} src={carta.archivo} alt="" className="aspect-[2/3] w-full rounded-xs object-cover" />
+                    ))}
+                </div>
+                <span className="mt-1 block text-center text-xs font-bold leading-tight text-slate-700">Tabla #{numero}</span>
                 {estado === 'pagado' && (
                     <span className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
                         <Check className="h-4 w-4 text-white" strokeWidth={3} />
@@ -277,6 +317,24 @@ export function PaginaDinamicaPublica() {
                                                 /* Escritorio — grid de 5 columnas que ENVUELVE
                                                    sin scroll. */
                                                 <div className="grid grid-cols-5 gap-2">{numerosBoletosCartaUnica.map((numero) => renderBotonCarta(numero))}</div>
+                                            )
+                                        ) : esTablaCompleta ? (
+                                            esMobile ? (
+                                                /* Móvil — mismo carrusel Embla, 1 tabla por slide
+                                                   (el 4×4 de miniaturas necesita más ancho). */
+                                                <div ref={emblaRefBoletos} className="touch-pan-y overflow-hidden">
+                                                    <div className="flex gap-2">
+                                                        {numerosBoletosCartaUnica.map((numero) => (
+                                                            <div key={numero} className="shrink-0 grow-0 basis-[70%]">
+                                                                {renderBotonTabla(numero)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                /* Escritorio — grid de 3 columnas (cada tarjeta es
+                                                   un 4×4 de miniaturas). */
+                                                <div className="grid grid-cols-3 gap-2">{numerosBoletosCartaUnica.map((numero) => renderBotonTabla(numero))}</div>
                                             )
                                         ) : (
                                         <div className="relative">

@@ -183,22 +183,28 @@ export async function editarBorrador(
                 // total de boletos aquí: en este flujo (publicada, solo K/N)
                 // `numeroTotalBoletos` nunca viaja en el body — se valida
                 // contra el de la fila ya guardada.
+                // `tabla_completa` no usa N — su motor (`ejecutarSorteoTablaCompleta`)
+                // solo consume K, gana quien complete tabla llena primero.
                 const K = datos.numeroLugaresGanadores ?? actual.numeroLugaresGanadores;
                 const N = datos.numeroIntentosSorteo;
-                if (N === undefined) {
-                    return { success: false, message: 'Indica a qué intento sale el ganador', code: 400 } satisfies RespuestaError;
-                }
-                if (actual.numeroTotalBoletos !== null) {
-                    if (K > actual.numeroTotalBoletos) {
-                        return { success: false, message: 'No puede haber más lugares premiados que boletos totales', code: 400 } satisfies RespuestaError;
+                if (actual.metodoSorteo !== 'tabla_completa') {
+                    if (N === undefined) {
+                        return { success: false, message: 'Indica a qué intento sale el ganador', code: 400 } satisfies RespuestaError;
                     }
-                    if (K * N > actual.numeroTotalBoletos) {
-                        return {
-                            success: false,
-                            message: 'Lugares premiados × intentos por lugar no puede exceder el total de boletos',
-                            code: 400,
-                        } satisfies RespuestaError;
+                    if (actual.numeroTotalBoletos !== null) {
+                        if (K > actual.numeroTotalBoletos) {
+                            return { success: false, message: 'No puede haber más lugares premiados que boletos totales', code: 400 } satisfies RespuestaError;
+                        }
+                        if (K * N > actual.numeroTotalBoletos) {
+                            return {
+                                success: false,
+                                message: 'Lugares premiados × intentos por lugar no puede exceder el total de boletos',
+                                code: 400,
+                            } satisfies RespuestaError;
+                        }
                     }
+                } else if (actual.numeroTotalBoletos !== null && K > actual.numeroTotalBoletos) {
+                    return { success: false, message: 'No puede haber más lugares premiados que boletos totales', code: 400 } satisfies RespuestaError;
                 }
             }
         }

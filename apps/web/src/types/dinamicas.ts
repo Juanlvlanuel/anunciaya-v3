@@ -258,12 +258,20 @@ export interface EstadoSalaDinamica {
      *  el backend desde la semilla pública ya persistida, como evidencia
      *  del sorteo completo. Solo presente cuando `estado === 'cerrada'`. */
     historialCompleto: IntentoSorteoEvento[] | null;
+    /** Equivalente a `historialCompleto` para `metodoSorteo === 'tabla_completa'`
+     *  — cada elemento es una CARTA cantada (no un boleto), recomputada igual
+     *  desde la semilla pública. Solo presente cuando `estado === 'cerrada'`
+     *  y el método es tabla_completa (null en los otros 2 métodos). */
+    historialCartas: CartaCantadaEvento[] | null;
     /** Bolas ya reveladas del sorteo EN CURSO (`estado === 'en_sorteo'`) —
      *  "ponte al día" para quien se une después de que ya empezó, tomado
      *  del progreso guardado en memoria del servidor. Solo lo manda el
      *  evento de socket `estado-inicial` (el snapshot HTTP no tiene acceso
      *  a ese estado efímero); ausente/vacío en cualquier otro caso. */
     intentosEnCurso?: IntentoSorteoEvento[];
+    /** Equivalente a `intentosEnCurso` para tabla_completa — cartas ya
+     *  cantadas del sorteo en curso, mismo criterio de "ponte al día". */
+    cartasEnCurso?: CartaCantadaEvento[];
     /** Modo del sorteo EN CURSO (`estado === 'en_sorteo'`) — mismo criterio
      *  que `intentosEnCurso`: el evento `dinamica:sala:estado-cambio` que
      *  normalmente lo manda solo se emite UNA vez, al iniciar; quien se une
@@ -277,6 +285,17 @@ export interface IntentoSorteoEvento {
     numeroBoleto: number;
     esGanador: boolean;
     lugar: number | null;
+}
+
+/** Payload del evento `dinamica:sala:carta-cantada` (`metodoSorteo ===
+ *  'tabla_completa'`) — una carta de la baraja cantada; `ganadores` normalmente
+ *  tiene 0 o 1 elemento, más de 1 solo con `reglaDesempate === 'repartir_premio'`
+ *  (2+ tablas completan con la misma carta y se reparten lugares consecutivos). */
+export interface CartaCantadaEvento {
+    numeroIntento: number;
+    /** Índice de la carta cantada (1-54), mismo orden que `data/cartasLoteria.ts`. */
+    cartaIndice: number;
+    ganadores: { numeroBoleto: number; lugar: number }[];
 }
 
 /** Payload del evento `dinamica:sala:sorteo-cerrado`. */

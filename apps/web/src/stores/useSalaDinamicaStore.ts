@@ -24,6 +24,7 @@ import type {
     EstadoSalaDinamica,
     MensajeSalaDinamica,
     IntentoSorteoEvento,
+    CartaCantadaEvento,
     AccionModeracionSala,
 } from '../types/dinamicas';
 
@@ -38,6 +39,9 @@ export interface SalaDinamicaState {
     miModeracion: { silenciado: boolean; expulsado: boolean };
     mensajes: MensajeSalaDinamica[];
     intentosRevelados: IntentoSorteoEvento[];
+    /** Equivalente a `intentosRevelados` para `metodoSorteo === 'tabla_completa'`
+     *  — cada elemento es una carta cantada, no un boleto. */
+    cartasReveladas: CartaCantadaEvento[];
     /** Cómo se está revelando el sorteo en curso — `null` fuera de
      *  'en_sorteo'. 'automatico' = cascada temporizada (como siempre);
      *  'manual' = el organizador revela cada bola con un botón. */
@@ -79,6 +83,7 @@ const ESTADO_INICIAL_SALA = {
     miModeracion: { silenciado: false, expulsado: false },
     mensajes: [],
     intentosRevelados: [],
+    cartasReveladas: [],
     modoSorteo: null,
     pausadoSorteo: false,
     hashVerificacion: null,
@@ -185,6 +190,7 @@ escucharEvento<EstadoSalaDinamica>('dinamica:sala:estado-inicial', (data) => {
         // en el MISMO evento (no uno aparte) para que no haya un instante
         // pintando "esperando la primera bola" antes de que llegue.
         intentosRevelados: data.intentosEnCurso ?? [],
+        cartasReveladas: data.cartasEnCurso ?? [],
         modoSorteo: data.modoSorteoActual ?? null,
     });
 });
@@ -252,6 +258,11 @@ escucharEvento<{ salaProgramadaPara: string }>('dinamica:sala:programada-actuali
 escucharEvento<IntentoSorteoEvento>('dinamica:sala:intento', (intento) => {
     const state = useSalaDinamicaStore.getState();
     useSalaDinamicaStore.setState({ intentosRevelados: [...state.intentosRevelados, intento] });
+});
+
+escucharEvento<CartaCantadaEvento>('dinamica:sala:carta-cantada', (carta) => {
+    const state = useSalaDinamicaStore.getState();
+    useSalaDinamicaStore.setState({ cartasReveladas: [...state.cartasReveladas, carta] });
 });
 
 escucharEvento<{ usuarioIds: string[] }>('dinamica:sala:presencia', (data) => {

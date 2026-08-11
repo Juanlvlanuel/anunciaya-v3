@@ -67,6 +67,7 @@ import { useGpsStore } from '../../../stores/useGpsStore';
 import { notificar } from '../../../utils/notificaciones';
 import type { CrearDinamicaPayload, MetodoSorteo, TipoPremio, ReglaDesempate, Dinamica } from '../../../types/dinamicas';
 import { TOTAL_BOLETOS_CARTA_UNICA } from '../../../data/cartasLoteria';
+import { MAXIMO_BOLETOS_TABLA_COMPLETA } from '../../../data/tablasLoteria';
 
 const CONFIRMACIONES_VERSION = 'v1-2026-08-03';
 
@@ -278,6 +279,15 @@ export function ComposerDinamicas({
     // vacío se ve como si el usuario ya hubiera hecho algo mal sin haber
     // tocado nada.
     const [intentoEnvio, setIntentoEnvio] = useState(false);
+
+    // Validación en vivo (no espera a `intentoEnvio`) — a diferencia del
+    // resto de errores del formulario, este se marca mientras se escribe:
+    // el organizador debe saber de inmediato que se pasó del catálogo de
+    // 150 tablas, no hasta que intente guardar/publicar.
+    const excedeTopeTablaCompleta =
+        draft.metodoSorteo === 'tabla_completa' &&
+        draft.numeroTotalBoletos !== '' &&
+        Number(draft.numeroTotalBoletos) > MAXIMO_BOLETOS_TABLA_COMPLETA;
 
     // ─── Popup "Tomar foto" / "Grabar video" sobre el chip Cámara (solo
     // móvil, mismo patrón que ComposerMarketplace) ──────────────────────
@@ -736,6 +746,12 @@ export function ComposerDinamicas({
                                                         ...(v === 'carta_unica'
                                                             ? { numeroBoletoInicial: '1', numeroTotalBoletos: String(TOTAL_BOLETOS_CARTA_UNICA) }
                                                             : {}),
+                                                        // tabla_completa: el número de boleto es puramente
+                                                        // interno (el participante elige por tabla, no por
+                                                        // número — ver `data/tablasLoteria.ts`), así que
+                                                        // siempre arranca en 1; solo el TOTAL lo decide el
+                                                        // organizador.
+                                                        ...(v === 'tabla_completa' ? { numeroBoletoInicial: '1' } : {}),
                                                     })
                                                 }
                                                 className={
@@ -762,32 +778,48 @@ export function ComposerDinamicas({
                                     Precio abajo ocupando el ancho completo; en `lg:` los 3
                                     caben en 1 sola fila con su ancho fijo de siempre. El
                                     texto va como placeholder dentro de cada uno. */}
-                                <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-row lg:items-center lg:gap-2">
-                                    <div className="relative lg:w-44 lg:shrink-0">
-                                        <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            data-testid="composer-dinamicas-numero-boleto-inicial"
-                                            value={draft.numeroBoletoInicial}
-                                            onChange={(e) => actualizar({ numeroBoletoInicial: e.target.value.replace(/[^\d]/g, '') })}
-                                            placeholder="Boleto Inicial"
-                                            disabled={draft.metodoSorteo === 'carta_unica'}
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
-                                        />
+                                <div
+                                    className={`grid grid-cols-2 gap-2 lg:flex lg:flex-row lg:items-center lg:gap-2 ${
+                                        draft.metodoSorteo === 'tabla_completa' ? '-mt-2' : ''
+                                    }`}
+                                >
+                                    <div className="lg:w-44 lg:shrink-0">
+                                        {draft.metodoSorteo === 'tabla_completa' && (
+                                            <span aria-hidden className="invisible mb-0.5 block text-center text-[14px] font-bold">Máximo 150</span>
+                                        )}
+                                        <div className="relative">
+                                            <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                data-testid="composer-dinamicas-numero-boleto-inicial"
+                                                value={draft.numeroBoletoInicial}
+                                                onChange={(e) => actualizar({ numeroBoletoInicial: e.target.value.replace(/[^\d]/g, '') })}
+                                                placeholder="Boleto Inicial"
+                                                disabled={draft.metodoSorteo === 'carta_unica' || draft.metodoSorteo === 'tabla_completa'}
+                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="relative lg:w-44 lg:shrink-0">
-                                        <Ticket className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            data-testid="composer-dinamicas-numero-boletos"
-                                            value={draft.numeroTotalBoletos}
-                                            onChange={(e) => actualizar({ numeroTotalBoletos: e.target.value.replace(/[^\d]/g, '') })}
-                                            placeholder="Total de Boletos"
-                                            disabled={draft.metodoSorteo === 'carta_unica'}
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
-                                        />
+                                    <div className="lg:w-44 lg:shrink-0">
+                                        {draft.metodoSorteo === 'tabla_completa' && (
+                                            <span className="mb-0.5 block text-center text-[14px] font-bold text-slate-600">Máximo 150</span>
+                                        )}
+                                        <div className="relative">
+                                            <Ticket className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                data-testid="composer-dinamicas-numero-boletos"
+                                                value={draft.numeroTotalBoletos}
+                                                onChange={(e) => actualizar({ numeroTotalBoletos: e.target.value.replace(/[^\d]/g, '') })}
+                                                placeholder={draft.metodoSorteo === 'tabla_completa' ? 'Total de Tablas' : 'Total de Boletos'}
+                                                disabled={draft.metodoSorteo === 'carta_unica'}
+                                                className={`w-full rounded-full border-2 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500 ${
+                                                    excedeTopeTablaCompleta ? 'border-red-500' : 'border-amber-400'
+                                                }`}
+                                            />
+                                        </div>
                                     </div>
                                     <div className="relative col-span-2 lg:col-span-1 lg:w-40 lg:shrink-0 2xl:w-52">
                                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-500 lg:left-3.5 lg:text-[15px]">$</span>
@@ -803,8 +835,10 @@ export function ComposerDinamicas({
                                     </div>
                                 </div>
                                 {/* El número final se calcula solo — inicio + total - 1 —
-                                    no se pide, solo se muestra como confirmación. */}
-                                {parseEnteroPositivo(draft.numeroBoletoInicial) !== null &&
+                                    no se pide, solo se muestra como confirmación. No aplica a
+                                    tabla_completa (el número de boleto ahí es interno). */}
+                                {draft.metodoSorteo !== 'tabla_completa' &&
+                                    parseEnteroPositivo(draft.numeroBoletoInicial) !== null &&
                                     parseEnteroPositivo(draft.numeroTotalBoletos) !== null && (
                                         <p className="mt-2 text-[13px] font-semibold text-amber-800">
                                             Boletos del #{draft.numeroBoletoInicial} al #
@@ -816,7 +850,12 @@ export function ComposerDinamicas({
                                         Fijo en {TOTAL_BOLETOS_CARTA_UNICA} boletos — la baraja completa, una carta única por participante.
                                     </p>
                                 )}
-                                {intentoEnvio && errores.numeroTotalBoletos && (
+                                {excedeTopeTablaCompleta && (
+                                    <p className="mt-2 text-[12px] font-semibold text-red-600">
+                                        Máximo {MAXIMO_BOLETOS_TABLA_COMPLETA} tablas — el catálogo no tiene más.
+                                    </p>
+                                )}
+                                {intentoEnvio && errores.numeroTotalBoletos && !excedeTopeTablaCompleta && (
                                     <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroTotalBoletos}</p>
                                 )}
                                 {intentoEnvio && errores.numeroBoletoInicial && (
@@ -835,7 +874,9 @@ export function ComposerDinamicas({
                                 {/* Lugares premiados (K) + a qué intento sale el ganador
                                     DE CADA lugar (N) — cada lugar corre su propia ronda de
                                     N bolas; el premio mayor (lugar #1) siempre es la
-                                    última bola de todo el sorteo. */}
+                                    última bola de todo el sorteo.
+                                    tabla_completa no usa N: su motor no corre rondas fijas,
+                                    gana quien complete tabla llena primero. */}
                                 <div className="flex items-center gap-1.5 lg:gap-2">
                                     <div className="relative min-w-0 flex-1 lg:w-56 lg:flex-none lg:shrink-0">
                                         <Trophy className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
@@ -849,19 +890,26 @@ export function ComposerDinamicas({
                                             className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
                                         />
                                     </div>
-                                    <div className="relative min-w-0 flex-1 lg:w-56 lg:flex-none lg:shrink-0">
-                                        <Dices className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            data-testid="composer-dinamicas-numero-intentos-sorteo"
-                                            value={draft.numeroIntentosSorteo}
-                                            onChange={(e) => actualizar({ numeroIntentosSorteo: e.target.value.replace(/[^\d]/g, '') })}
-                                            placeholder="Intentos por lugar"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
-                                        />
-                                    </div>
+                                    {draft.metodoSorteo !== 'tabla_completa' && (
+                                        <div className="relative min-w-0 flex-1 lg:w-56 lg:flex-none lg:shrink-0">
+                                            <Dices className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 lg:left-3.5" strokeWidth={2} />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                data-testid="composer-dinamicas-numero-intentos-sorteo"
+                                                value={draft.numeroIntentosSorteo}
+                                                onChange={(e) => actualizar({ numeroIntentosSorteo: e.target.value.replace(/[^\d]/g, '') })}
+                                                placeholder="Intentos por lugar"
+                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-7 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-9 lg:pr-3 lg:text-[15px]"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
+                                {draft.metodoSorteo === 'tabla_completa' && (
+                                    <p className="mt-2 text-[12px] font-medium text-slate-500">
+                                        Gana quien complete su tabla primero — no aplica número de intentos.
+                                    </p>
+                                )}
                                 {intentoEnvio && errores.numeroLugaresGanadores && (
                                     <p className="mt-2 text-[12px] font-semibold text-red-600">{errores.numeroLugaresGanadores}</p>
                                 )}
@@ -995,7 +1043,7 @@ export function ComposerDinamicas({
                         Icono={Ticket}
                         label="Boletos"
                         activo={!!draft.numeroTotalBoletos && !!draft.precioBoleto}
-                        error={intentoEnvio && (!!errores.numeroTotalBoletos || !!errores.numeroBoletoInicial || !!errores.precioBoleto)}
+                        error={excedeTopeTablaCompleta || (intentoEnvio && (!!errores.numeroTotalBoletos || !!errores.numeroBoletoInicial || !!errores.precioBoleto))}
                         abierto={seccionAbierta === 'boletos'}
                         onClick={() => setSeccionAbierta((s) => (s === 'boletos' ? null : 'boletos'))}
                     />
@@ -1003,7 +1051,7 @@ export function ComposerDinamicas({
                         id="reglasSorteo"
                         Icono={Trophy}
                         label="Reglas"
-                        activo={!!draft.numeroLugaresGanadores && !!draft.numeroIntentosSorteo}
+                        activo={!!draft.numeroLugaresGanadores && (draft.metodoSorteo === 'tabla_completa' || !!draft.numeroIntentosSorteo)}
                         error={intentoEnvio && (!!errores.numeroLugaresGanadores || !!errores.numeroIntentosSorteo)}
                         abierto={seccionAbierta === 'reglasSorteo'}
                         onClick={() => setSeccionAbierta((s) => (s === 'reglasSorteo' ? null : 'reglasSorteo'))}

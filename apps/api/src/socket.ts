@@ -27,7 +27,7 @@ import {
     cerrarSala,
 } from './services/dinamicas/sala.service.js';
 import { moderarSalaSchema } from './validations/dinamicas-sala.schema.js';
-import type { IntentoSorteo } from './services/dinamicas/sorteo.js';
+import type { IntentoSorteo, CartaCantada } from './services/dinamicas/sorteo.js';
 
 let io: SocketServer | null = null;
 
@@ -48,6 +48,22 @@ const sorteosManualesPendientes = new Map<
 const sorteosAutomaticosPausables = new Map<
   string,
   { pausado: boolean; organizadorUsuarioId: string; intentos: IntentoSorteo[]; progreso: number }
+>();
+
+/** Mismo par de mapas de arriba, para `tabla_completa` — motor distinto
+ *  (`ejecutarSorteoTablaCompleta`), cada "bola" es una CARTA cantada, no un
+ *  boleto, así que la unidad que se pagina/revela es `CartaCantada`, no
+ *  `IntentoSorteo`. Eventos y mapas van en paralelo a propósito (no se
+ *  fusionan) — el resto del código ya diferencia por presencia en uno u
+ *  otro mapa, igual que hace el resto del socket con otras variantes. */
+const sorteosManualesPendientesTablaCompleta = new Map<
+  string,
+  { cartas: CartaCantada[]; cursor: number; organizadorUsuarioId: string }
+>();
+
+const sorteosAutomaticosPausablesTablaCompleta = new Map<
+  string,
+  { pausado: boolean; organizadorUsuarioId: string; cartas: CartaCantada[]; progreso: number }
 >();
 
 /**
@@ -232,11 +248,19 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       // sorteo) nunca lo recibe, y sin saber que es 'manual' el botón
       // "Siguiente bola" no tenía por qué mostrarse nunca.
       let intentosEnCurso: { numeroIntento: number; numeroBoleto: number; esGanador: boolean; lugar: number | null }[] = [];
+      let cartasEnCurso: { numeroIntento: number; cartaIndice: number; ganadores: { numeroBoleto: number; lugar: number }[] }[] = [];
       let modoSorteoActual: 'automatico' | 'manual' | undefined;
       if (resultado.data.estado === 'en_sorteo') {
         const pendienteManual = sorteosManualesPendientes.get(data.dinamicaId);
         const pendienteAutomatico = sorteosAutomaticosPausables.get(data.dinamicaId);
-        modoSorteoActual = pendienteManual ? 'manual' : pendienteAutomatico ? 'automatico' : undefined;
+        const pendienteManualTC = sorteosManualesPendientesTablaCompleta.get(data.dinamicaId);
+        const pendienteAutomaticoTC = sorteosAutomaticosPausablesTablaCompleta.get(data.dinamicaId);
+        modoSorteoActual =
+          pendienteManual || pendienteManualTC
+            ? 'manual'
+            : pendienteAutomatico || pendienteAutomaticoTC
+              ? 'automatico'
+              : undefined;
         const yaRevelados = pendienteManual
           ? pendienteManual.intentos.slice(0, pendienteManual.cursor)
           : pendienteAutomatico
@@ -248,8 +272,18 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
           esGanador: i.esGanador,
           lugar: i.lugar,
         }));
+        const yaCantadas = pendienteManualTC
+          ? pendienteManualTC.cartas.slice(0, pendienteManualTC.cursor)
+          : pendienteAutomaticoTC
+            ? pendienteAutomaticoTC.cartas.slice(0, pendienteAutomaticoTC.progreso)
+            : [];
+        cartasEnCurso = yaCantadas.map((c) => ({
+          numeroIntento: c.numeroIntento,
+          cartaIndice: c.cartaIndice,
+          ganadores: c.ganadores.map((g) => ({ numeroBoleto: g.boleto.numeroBoleto, lugar: g.lugar })),
+        }));
       }
-      socket.emit('dinamica:sala:estado-inicial', { ...resultado.data, intentosEnCurso, modoSorteoActual });
+      socket.emit('dinamica:sala:estado-inicial', { ...resultado.data, intentosEnCurso, cartasEnCurso, modoSorteoActual });
 
       emitirPresenciaSala(room).catch((error) => console.error('Error emitiendo presencia de sala:', error));
     });
@@ -326,6 +360,26 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       const room = roomSala(data.dinamicaId);
       io!.to(room).emit('dinamica:sala:estado-cambio', { estado: 'en_sorteo', modoSorteo: modo });
 
+      // tabla_completa devuelve `cartas` en vez de `intentos` — motor
+      // distinto (`ejecutarSorteoTablaCompleta`), mapas/eventos aparte.
+      if ('cartas' in resultado.data.resultado) {
+        const { cartas } = resultado.data.resultado;
+        if (modo === 'manual') {
+          sorteosManualesPendientesTablaCompleta.set(data.dinamicaId, { cartas, cursor: 0, organizadorUsuarioId });
+          return;
+        }
+        sorteosAutomaticosPausablesTablaCompleta.set(data.dinamicaId, {
+          pausado: false,
+          organizadorUsuarioId,
+          cartas,
+          progreso: 0,
+        });
+        revelarSorteoTablaCompletaEnVivo(data.dinamicaId, cartas).catch((error) => {
+          console.error('Error revelando el sorteo de tabla completa en vivo:', error);
+        });
+        return;
+      }
+
       if (modo === 'manual') {
         sorteosManualesPendientes.set(data.dinamicaId, {
           intentos: resultado.data.resultado.intentos,
@@ -353,8 +407,10 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       const usuarioId = socket.data.usuarioId as string | null;
       if (!usuarioId || !data?.dinamicaId) return;
       const estado = sorteosAutomaticosPausables.get(data.dinamicaId);
-      if (!estado || estado.organizadorUsuarioId !== usuarioId) return;
-      estado.pausado = true;
+      const estadoTC = sorteosAutomaticosPausablesTablaCompleta.get(data.dinamicaId);
+      if (estado && estado.organizadorUsuarioId === usuarioId) estado.pausado = true;
+      else if (estadoTC && estadoTC.organizadorUsuarioId === usuarioId) estadoTC.pausado = true;
+      else return;
       io!.to(roomSala(data.dinamicaId)).emit('dinamica:sala:pausa-cambio', { pausado: true });
     });
 
@@ -362,8 +418,10 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       const usuarioId = socket.data.usuarioId as string | null;
       if (!usuarioId || !data?.dinamicaId) return;
       const estado = sorteosAutomaticosPausables.get(data.dinamicaId);
-      if (!estado || estado.organizadorUsuarioId !== usuarioId) return;
-      estado.pausado = false;
+      const estadoTC = sorteosAutomaticosPausablesTablaCompleta.get(data.dinamicaId);
+      if (estado && estado.organizadorUsuarioId === usuarioId) estado.pausado = false;
+      else if (estadoTC && estadoTC.organizadorUsuarioId === usuarioId) estadoTC.pausado = false;
+      else return;
       io!.to(roomSala(data.dinamicaId)).emit('dinamica:sala:pausa-cambio', { pausado: false });
     });
 
@@ -377,25 +435,43 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
       if (!usuarioId || !data?.dinamicaId) return;
 
       const pendiente = sorteosManualesPendientes.get(data.dinamicaId);
-      if (!pendiente || pendiente.organizadorUsuarioId !== usuarioId) {
-        socket.emit('dinamica:sala:error', { message: 'No hay un sorteo manual pendiente para esta sala', code: 409 });
+      if (pendiente && pendiente.organizadorUsuarioId === usuarioId) {
+        const room = roomSala(data.dinamicaId);
+        const intento = pendiente.intentos[pendiente.cursor];
+        pendiente.cursor++;
+        io!.to(room).emit('dinamica:sala:intento', {
+          numeroIntento: intento.numeroIntento,
+          numeroBoleto: intento.boleto.numeroBoleto,
+          esGanador: intento.esGanador,
+          lugar: intento.lugar,
+        });
+
+        if (pendiente.cursor >= pendiente.intentos.length) {
+          sorteosManualesPendientes.delete(data.dinamicaId);
+          await cerrarSalaYAnunciar(data.dinamicaId, pendiente.intentos);
+        }
         return;
       }
 
-      const room = roomSala(data.dinamicaId);
-      const intento = pendiente.intentos[pendiente.cursor];
-      pendiente.cursor++;
-      io!.to(room).emit('dinamica:sala:intento', {
-        numeroIntento: intento.numeroIntento,
-        numeroBoleto: intento.boleto.numeroBoleto,
-        esGanador: intento.esGanador,
-        lugar: intento.lugar,
-      });
+      const pendienteTC = sorteosManualesPendientesTablaCompleta.get(data.dinamicaId);
+      if (pendienteTC && pendienteTC.organizadorUsuarioId === usuarioId) {
+        const room = roomSala(data.dinamicaId);
+        const carta = pendienteTC.cartas[pendienteTC.cursor];
+        pendienteTC.cursor++;
+        io!.to(room).emit('dinamica:sala:carta-cantada', {
+          numeroIntento: carta.numeroIntento,
+          cartaIndice: carta.cartaIndice,
+          ganadores: carta.ganadores.map((g) => ({ numeroBoleto: g.boleto.numeroBoleto, lugar: g.lugar })),
+        });
 
-      if (pendiente.cursor >= pendiente.intentos.length) {
-        sorteosManualesPendientes.delete(data.dinamicaId);
-        await cerrarSalaYAnunciar(data.dinamicaId, pendiente.intentos);
+        if (pendienteTC.cursor >= pendienteTC.cartas.length) {
+          sorteosManualesPendientesTablaCompleta.delete(data.dinamicaId);
+          await cerrarSalaYAnunciarTablaCompleta(data.dinamicaId, pendienteTC.cartas);
+        }
+        return;
       }
+
+      socket.emit('dinamica:sala:error', { message: 'No hay un sorteo manual pendiente para esta sala', code: 409 });
     });
 
     // -----------------------------------------------------------------
@@ -511,6 +587,50 @@ async function cerrarSalaYAnunciar(dinamicaId: string, intentos: IntentoSorteo[]
     ganadores: intentos
       .filter((i) => i.esGanador)
       .map((i) => ({ lugar: i.lugar, numeroBoleto: i.boleto.numeroBoleto, numeroIntento: i.numeroIntento })),
+  });
+}
+
+/** Equivalente a `revelarSorteoEnVivo` para `tabla_completa` — mismo ritmo
+ *  (`MS_ENTRE_INTENTOS`) y misma lógica de pausa, iterando `cartas` en vez
+ *  de `intentos`. */
+async function revelarSorteoTablaCompletaEnVivo(dinamicaId: string, cartas: CartaCantada[]): Promise<void> {
+  const room = `sala-dinamica:${dinamicaId}`;
+  for (const carta of cartas) {
+    if (!io) return;
+
+    while (sorteosAutomaticosPausablesTablaCompleta.get(dinamicaId)?.pausado) {
+      await esperar(200);
+      if (!io) return;
+    }
+
+    io.to(room).emit('dinamica:sala:carta-cantada', {
+      numeroIntento: carta.numeroIntento,
+      cartaIndice: carta.cartaIndice,
+      ganadores: carta.ganadores.map((g) => ({ numeroBoleto: g.boleto.numeroBoleto, lugar: g.lugar })),
+    });
+    const estadoPausa = sorteosAutomaticosPausablesTablaCompleta.get(dinamicaId);
+    if (estadoPausa) estadoPausa.progreso++;
+    await esperar(MS_ENTRE_INTENTOS);
+  }
+
+  sorteosAutomaticosPausablesTablaCompleta.delete(dinamicaId);
+  await cerrarSalaYAnunciarTablaCompleta(dinamicaId, cartas);
+}
+
+/** Equivalente a `cerrarSalaYAnunciar` para `tabla_completa` — el resultado
+ *  final son los ganadores de cada carta cantada, no de cada intento. */
+async function cerrarSalaYAnunciarTablaCompleta(dinamicaId: string, cartas: CartaCantada[]): Promise<void> {
+  const room = `sala-dinamica:${dinamicaId}`;
+  const cierre = await cerrarSala(dinamicaId);
+  if (!io || !cierre.success) return;
+
+  io.to(room).emit('dinamica:sala:estado-cambio', { estado: 'cerrada' });
+  io.to(room).emit('dinamica:sala:sorteo-cerrado', {
+    hashVerificacion: cierre.data.hashVerificacion,
+    semillaAleatoria: cierre.data.semillaAleatoria,
+    ganadores: cartas.flatMap((c) =>
+      c.ganadores.map((g) => ({ lugar: g.lugar, numeroBoleto: g.boleto.numeroBoleto, numeroIntento: c.numeroIntento })),
+    ),
   });
 }
 
