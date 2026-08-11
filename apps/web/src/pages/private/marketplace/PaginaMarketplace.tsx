@@ -136,6 +136,15 @@ export function PaginaMarketplace() {
     // criterio que el resto de la página con query params de un solo uso),
     // pero sí sobrevive un refresh y es shareable por link.
     function cambiarContexto(nuevo: 'articulos' | 'dinamicas') {
+        // Artículos y Dinámicas comparten el mismo `cuerpoRef` (se alternan
+        // con `hidden`, no se desmontan) — así que `scrollTop` es UN solo
+        // valor físico, no "el scroll de cada lado". Sin este guardado, al
+        // volver de un feed largo (scrolleado hondo) al otro más corto, el
+        // navegador clampea el scroll al tope válido del contenido nuevo y
+        // se siente como si todo se hubiera "subido" de golpe. Se guarda el
+        // scroll ACTUAL bajo el contexto que se está dejando; el efecto de
+        // abajo restaura el del contexto al que se entra.
+        if (cuerpoRef.current) scrollPorContextoRef.current[contextoActivo] = cuerpoRef.current.scrollTop;
         setContextoActivo(nuevo);
         const params = new URLSearchParams(window.location.search);
         if (nuevo === 'dinamicas') params.set('dinamicas', '1');
@@ -215,6 +224,17 @@ export function PaginaMarketplace() {
 
     const cuerpoRef = useScrollAppShell();
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+
+    // Scroll recordado por cada lado del switch Artículos↔Dinámicas — ver
+    // el porqué en `cambiarContexto`. Restaurado por el `useLayoutEffect`
+    // de abajo apenas `contextoActivo` cambia (antes del paint, sin salto
+    // visible).
+    const scrollPorContextoRef = useRef<{ articulos: number; dinamicas: number }>({ articulos: 0, dinamicas: 0 });
+    useLayoutEffect(() => {
+        const el = cuerpoRef.current;
+        if (!el) return;
+        el.scrollTop = scrollPorContextoRef.current[contextoActivo];
+    }, [contextoActivo, cuerpoRef]);
 
     // Header móvil se colapsa (oculta subtítulo "En {ciudad} · N publicaciones"
     // + chips de filtros) al hacer scroll hacia abajo, dejando solo la fila
@@ -783,8 +803,10 @@ export function PaginaMarketplace() {
                         <SeccionFeedDinamicas
                             ciudad={ciudad}
                             esModoPersonal={esModoPersonal}
+                            esEscritorio={esEscritorio}
                             headerBottom={headerBottom}
                             visible={contextoActivo === 'dinamicas'}
+                            cuerpoRef={cuerpoRef}
                         />
                     </div>
                 )}

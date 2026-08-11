@@ -55,7 +55,6 @@ export function CardPublicacionNegocioFeed({
 }: CardPublicacionNegocioFeedProps) {
     const navigate = useNavigate();
     const [indiceFoto, setIndiceFoto] = useState(publicacion.fotoPortadaIndex ?? 0);
-    const [lightboxAbierto, setLightboxAbierto] = useState(false);
     const [logoAbierto, setLogoAbierto] = useState(false);
     const [comentariosAbierto, setComentariosAbierto] = useState(false);
 
@@ -169,8 +168,10 @@ export function CardPublicacionNegocioFeed({
             setVideoFullscreenAbierto(true);
             return;
         }
-        setLightboxAbierto(true);
-    }, [esVideoActual]);
+        // Click en la foto → detalle de la publicación (antes abría el
+        // lightbox de zoom; el detalle ya trae la galería completa).
+        onAbrirDetalle(publicacion.id);
+    }, [esVideoActual, onAbrirDetalle, publicacion.id]);
 
     return (
         <article
@@ -435,15 +436,6 @@ export function CardPublicacionNegocioFeed({
                         />
                     </div>
                 </ModalVideoFeed>
-            )}
-
-            {lightboxAbierto && (
-                <ModalImagenes
-                    images={fotos}
-                    initialIndex={indiceFoto}
-                    isOpen={lightboxAbierto}
-                    onClose={() => setLightboxAbierto(false)}
-                />
             )}
 
             {logoAbierto && publicacion.sucursalAvatarUrl && (

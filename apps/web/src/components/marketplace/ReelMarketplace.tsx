@@ -3,13 +3,20 @@
  * ====================
  * Carrusel horizontal con auto-scroll para el "reel" superior del feed v1.2.
  *
- * Comportamiento (decisiones del rediseño):
- *  - **Auto-scroll** cada 4 segundos avanza una card a la izquierda.
- *  - **Pausa al hover** (desktop) y al touch (móvil) — el usuario puede leer
- *    cómodamente.
- *  - **Drag/swipe manual** — siempre permitido. Al soltar, vuelve a fluir.
- *  - **Loop infinito visual** — al llegar al final, vuelve al principio con un
- *    salto suave (sin clonado de items).
+ * Motor: Embla (`useCarruselRotativo`, el mismo hook del rotativo de
+ * Ofertas) en vez del `overflow-x-auto` + drag-a-mano de antes — ese patrón
+ * viejo se sentía "rígido" al arrancar el swipe en móvil (el navegador tarda
+ * ~10-15px en arbitrar scroll-vs-drag; ver el porqué completo en
+ * `hooks/useCarruselRotativo.ts`). Mismo motor que ya usa el carrusel de
+ * cartas de lotería de Dinámicas.
+ *
+ * Comportamiento (Embla + plugin Autoplay se encargan de todo):
+ *  - **Auto-scroll** cada `intervaloMs` avanza una card.
+ *  - **Pausa al hover** (desktop, vía `pausarHover` — cubre también las
+ *    flechas) y al soltar un drag (`stopOnInteraction:false` retoma solo).
+ *  - **Drag/swipe manual** — mouse y touch, nativo de Embla. Un drag real
+ *    cancela el click del card automáticamente (no navega por accidente).
+ *  - **Loop infinito** — Embla lo maneja internamente.
  *  - Si el reel desaparece (filtros activos), el componente padre simplemente
  *    no lo renderiza.
  *
@@ -19,8 +26,8 @@
  * Ubicación: apps/web/src/components/marketplace/ReelMarketplace.tsx
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCarruselRotativo } from '../../hooks/useCarruselRotativo';
 import { CardArticuloReel } from './CardArticuloReel';
 import type { ArticuloFeedInfinito } from '../../types/marketplace';
 
@@ -28,141 +35,31 @@ interface ReelMarketplaceProps {
     articulos: ArticuloFeedInfinito[];
     /** Intervalo de auto-scroll en ms. Default 4000 (4s). */
     intervaloMs?: number;
-    /** Pixels que avanza por tick. Default ~ancho de una card. */
-    pasoPx?: number;
 }
 
-export function ReelMarketplace({
-    articulos,
-    intervaloMs = 4000,
-    pasoPx = 220,
-}: ReelMarketplaceProps) {
-    const contenedorRef = useRef<HTMLDivElement>(null);
-    const [pausado, setPausado] = useState(false);
-
-    // Pausa programable (drag manual también pausa unos segundos al soltar).
-    const reanudarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pausarTemporalmente = useCallback((ms: number) => {
-        setPausado(true);
-        if (reanudarTimeoutRef.current) clearTimeout(reanudarTimeoutRef.current);
-        reanudarTimeoutRef.current = setTimeout(() => setPausado(false), ms);
-    }, []);
-
-    // ─── Auto-scroll ─────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (pausado || articulos.length === 0) return;
-
-        const intervalo = setInterval(() => {
-            const el = contenedorRef.current;
-            if (!el) return;
-
-            const { scrollLeft, scrollWidth, clientWidth } = el;
-            const limite = scrollWidth - clientWidth;
-
-            // Si llegó al final, vuelve al principio con scroll suave.
-            if (scrollLeft + pasoPx >= limite - 4) {
-                el.scrollTo({ left: 0, behavior: 'smooth' });
-            } else {
-                el.scrollBy({ left: pasoPx, behavior: 'smooth' });
-            }
-        }, intervaloMs);
-
-        return () => clearInterval(intervalo);
-    }, [pausado, articulos.length, intervaloMs, pasoPx]);
-
-    // ─── Drag con mouse (desktop) ────────────────────────────────────────────
-    const dragRef = useRef<{
-        activo: boolean;
-        startX: number;
-        scrollLeftInicial: number;
-    }>({ activo: false, startX: 0, scrollLeftInicial: 0 });
-
-    const onMouseDown = useCallback((e: React.MouseEvent) => {
-        const el = contenedorRef.current;
-        if (!el) return;
-        dragRef.current = {
-            activo: true,
-            startX: e.pageX - el.offsetLeft,
-            scrollLeftInicial: el.scrollLeft,
-        };
-        setPausado(true);
-    }, []);
-
-    const onMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!dragRef.current.activo) return;
-        const el = contenedorRef.current;
-        if (!el) return;
-        e.preventDefault();
-        const x = e.pageX - el.offsetLeft;
-        const distancia = (x - dragRef.current.startX) * 1.2;
-        el.scrollLeft = dragRef.current.scrollLeftInicial - distancia;
-    }, []);
-
-    const finalizarDrag = useCallback(() => {
-        if (dragRef.current.activo) {
-            dragRef.current.activo = false;
-            // Pausa adicional 2s después de soltar para que el usuario lea.
-            pausarTemporalmente(2000);
-        }
-    }, [pausarTemporalmente]);
-
-    // ─── Touch (móvil) ───────────────────────────────────────────────────────
-    const onTouchStart = useCallback(() => setPausado(true), []);
-    const onTouchEnd = useCallback(() => pausarTemporalmente(2000), [pausarTemporalmente]);
-
-    // ─── Hover (desktop) ─────────────────────────────────────────────────────
-    const onMouseEnter = useCallback(() => setPausado(true), []);
-    const onMouseLeave = useCallback(() => {
-        finalizarDrag();
-        setPausado(false);
-    }, [finalizarDrag]);
-
-    // ─── Navegación manual con flechas ──────────────────────────────────────
-    const navegarManual = useCallback(
-        (direccion: 'izquierda' | 'derecha') => {
-            const el = contenedorRef.current;
-            if (!el) return;
-            const delta = direccion === 'derecha' ? pasoPx : -pasoPx;
-            el.scrollBy({ left: delta, behavior: 'smooth' });
-            // Pausa 3s después de un click manual para que el usuario lea sin
-            // que el auto-scroll lo corra inmediatamente.
-            pausarTemporalmente(3000);
-        },
-        [pasoPx, pausarTemporalmente]
-    );
+export function ReelMarketplace({ articulos, intervaloMs = 4000 }: ReelMarketplaceProps) {
+    const { emblaRef, pausarHover, siguiente, anterior } = useCarruselRotativo(articulos, intervaloMs, { loop: false });
 
     if (articulos.length === 0) return null;
 
     return (
-        <div
-            data-testid="reel-marketplace-wrapper"
-            className="group/reel relative mb-4"
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-        >
-            <div
-                ref={contenedorRef}
-                data-testid="reel-marketplace"
-                onMouseDown={onMouseDown}
-                onMouseMove={onMouseMove}
-                onMouseUp={finalizarDrag}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
-                style={{
-                    cursor: dragRef.current.activo ? 'grabbing' : 'grab',
-                }}
-            >
-                {articulos.map((articulo) => (
-                    <CardArticuloReel key={articulo.id} articulo={articulo} />
-                ))}
+        <div data-testid="reel-marketplace-wrapper" className="group/reel relative mb-4" {...pausarHover}>
+            {/* `touch-pan-y`: Embla maneja el drag horizontal por JS: el
+                navegador debe seguir libre de interpretar el gesto vertical
+                (scroll de la página / pull-to-refresh) sin que compitan. */}
+            <div ref={emblaRef} className="touch-pan-y overflow-hidden -mx-1 px-1">
+                <div data-testid="reel-marketplace" className="flex gap-3 cursor-grab pb-1 active:cursor-grabbing">
+                    {articulos.map((articulo) => (
+                        <CardArticuloReel key={articulo.id} articulo={articulo} />
+                    ))}
+                </div>
             </div>
 
             {/* Flecha izquierda — solo desktop, aparece al hover sobre el reel */}
             <button
                 type="button"
                 data-testid="reel-flecha-izq"
-                onClick={() => navegarManual('izquierda')}
+                onClick={anterior}
                 aria-label="Anterior"
                 className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-300 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
             >
@@ -173,7 +70,7 @@ export function ReelMarketplace({
             <button
                 type="button"
                 data-testid="reel-flecha-der"
-                onClick={() => navegarManual('derecha')}
+                onClick={siguiente}
                 aria-label="Siguiente"
                 className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-300 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
             >

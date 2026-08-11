@@ -5,10 +5,12 @@
  * layout móvil del tab Feed de Negocios: reel de negocios arriba + feed de
  * publicaciones debajo, en un solo scroll vertical.
  *
- * Carrusel con auto-scroll — mismo comportamiento que `ReelMarketplace.tsx`:
- *  - Auto-scroll cada 4s, pausa al hover/touch/drag (+2-3s de gracia).
- *  - Drag/swipe manual siempre permitido.
- *  - Loop infinito visual (sin clonar items).
+ * Motor: Embla (`useCarruselRotativo`) — mismo tratamiento que
+ * `ReelMarketplace.tsx`/`ReelServicios.tsx`, ver el porqué en
+ * `hooks/useCarruselRotativo.ts`.
+ *  - Auto-scroll cada `intervaloMs`, pausa al hover/drag (Embla + Autoplay).
+ *  - Drag/swipe manual siempre permitido (mouse y touch, nativo de Embla).
+ *  - Loop infinito.
  *  - Flechas manuales solo desktop (aparecen al hover).
  *
  * Usa `CardNegocioReel` (mismo ancho que `CardArticuloReel` de MarketPlace,
@@ -18,9 +20,9 @@
  * Ubicación: apps/web/src/components/negocios/publicaciones/ReelNegociosFeed.tsx
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCarruselRotativo } from '../../../hooks/useCarruselRotativo';
 import { CardNegocioReel } from './CardNegocioReel';
 import type { NegocioResumen } from '../../../types/negocios';
 
@@ -28,150 +30,46 @@ interface ReelNegociosFeedProps {
     negocios: NegocioResumen[];
     /** Intervalo de auto-scroll en ms. Default 4000 (4s). */
     intervaloMs?: number;
-    /** Pixels que avanza por tick. Default ~ancho de una card. */
-    pasoPx?: number;
 }
 
-export function ReelNegociosFeed({
-    negocios,
-    intervaloMs = 4000,
-    pasoPx = 190,
-}: ReelNegociosFeedProps) {
+export function ReelNegociosFeed({ negocios, intervaloMs = 4000 }: ReelNegociosFeedProps) {
     const navigate = useNavigate();
-    const contenedorRef = useRef<HTMLDivElement>(null);
-    const [pausado, setPausado] = useState(false);
-
-    // Pausa programable (drag manual también pausa unos segundos al soltar).
-    const reanudarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pausarTemporalmente = useCallback((ms: number) => {
-        setPausado(true);
-        if (reanudarTimeoutRef.current) clearTimeout(reanudarTimeoutRef.current);
-        reanudarTimeoutRef.current = setTimeout(() => setPausado(false), ms);
-    }, []);
-
-    // ─── Auto-scroll ─────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (pausado || negocios.length === 0) return;
-
-        const intervalo = setInterval(() => {
-            const el = contenedorRef.current;
-            if (!el) return;
-
-            const { scrollLeft, scrollWidth, clientWidth } = el;
-            const limite = scrollWidth - clientWidth;
-
-            if (scrollLeft + pasoPx >= limite - 4) {
-                el.scrollTo({ left: 0, behavior: 'smooth' });
-            } else {
-                el.scrollBy({ left: pasoPx, behavior: 'smooth' });
-            }
-        }, intervaloMs);
-
-        return () => clearInterval(intervalo);
-    }, [pausado, negocios.length, intervaloMs, pasoPx]);
-
-    // ─── Drag con mouse (desktop) ────────────────────────────────────────────
-    const dragRef = useRef<{
-        activo: boolean;
-        startX: number;
-        scrollLeftInicial: number;
-    }>({ activo: false, startX: 0, scrollLeftInicial: 0 });
-
-    const onMouseDown = useCallback((e: React.MouseEvent) => {
-        const el = contenedorRef.current;
-        if (!el) return;
-        dragRef.current = {
-            activo: true,
-            startX: e.pageX - el.offsetLeft,
-            scrollLeftInicial: el.scrollLeft,
-        };
-        setPausado(true);
-    }, []);
-
-    const onMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!dragRef.current.activo) return;
-        const el = contenedorRef.current;
-        if (!el) return;
-        e.preventDefault();
-        const x = e.pageX - el.offsetLeft;
-        const distancia = (x - dragRef.current.startX) * 1.2;
-        el.scrollLeft = dragRef.current.scrollLeftInicial - distancia;
-    }, []);
-
-    const finalizarDrag = useCallback(() => {
-        if (dragRef.current.activo) {
-            dragRef.current.activo = false;
-            pausarTemporalmente(2000);
-        }
-    }, [pausarTemporalmente]);
-
-    // ─── Touch (móvil) ───────────────────────────────────────────────────────
-    const onTouchStart = useCallback(() => setPausado(true), []);
-    const onTouchEnd = useCallback(() => pausarTemporalmente(2000), [pausarTemporalmente]);
-
-    // ─── Hover (desktop) ─────────────────────────────────────────────────────
-    const onMouseEnter = useCallback(() => setPausado(true), []);
-    const onMouseLeave = useCallback(() => {
-        finalizarDrag();
-        setPausado(false);
-    }, [finalizarDrag]);
-
-    // ─── Navegación manual con flechas ──────────────────────────────────────
-    const navegarManual = useCallback(
-        (direccion: 'izquierda' | 'derecha') => {
-            const el = contenedorRef.current;
-            if (!el) return;
-            const delta = direccion === 'derecha' ? pasoPx : -pasoPx;
-            el.scrollBy({ left: delta, behavior: 'smooth' });
-            pausarTemporalmente(3000);
-        },
-        [pasoPx, pausarTemporalmente]
-    );
+    const { emblaRef, pausarHover, siguiente, anterior } = useCarruselRotativo(negocios, intervaloMs, { loop: false });
 
     if (negocios.length === 0) return null;
 
     return (
-        <div
-            data-testid="reel-negocios-feed-wrapper"
-            className="group/reel relative mb-4"
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-        >
-            <div
-                ref={contenedorRef}
-                data-testid="reel-negocios-feed"
-                onMouseDown={onMouseDown}
-                onMouseMove={onMouseMove}
-                onMouseUp={finalizarDrag}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
-                style={{ cursor: dragRef.current.activo ? 'grabbing' : 'grab' }}
-            >
-                {negocios.map((negocio) => (
-                    <CardNegocioReel
-                        key={negocio.sucursalId}
-                        negocio={{
-                            sucursalId: negocio.sucursalId,
-                            usuarioId: negocio.usuarioId,
-                            nombre: negocio.negocioNombre,
-                            imagenPerfil: negocio.logoUrl ?? undefined,
-                            fotoPerfil: negocio.fotoPerfil,
-                            sucursalNombre: negocio.sucursalNombre,
-                            esPrincipal: negocio.esPrincipal,
-                            totalSucursales: negocio.totalSucursales,
-                            galeria: negocio.galeria.map((g) => ({ url: g.url, titulo: g.titulo ?? undefined })),
-                        }}
-                        onClick={() => navigate(`/negocios/${negocio.sucursalId}`)}
-                    />
-                ))}
+        <div data-testid="reel-negocios-feed-wrapper" className="group/reel relative mb-4" {...pausarHover}>
+            {/* `touch-pan-y`: Embla maneja el drag horizontal por JS, el
+                gesto vertical (scroll de la página / pull-to-refresh) se le
+                deja libre al navegador. */}
+            <div ref={emblaRef} className="touch-pan-y overflow-hidden -mx-1 px-1">
+                <div data-testid="reel-negocios-feed" className="flex gap-3 cursor-grab pb-1 active:cursor-grabbing">
+                    {negocios.map((negocio) => (
+                        <CardNegocioReel
+                            key={negocio.sucursalId}
+                            negocio={{
+                                sucursalId: negocio.sucursalId,
+                                usuarioId: negocio.usuarioId,
+                                nombre: negocio.negocioNombre,
+                                imagenPerfil: negocio.logoUrl ?? undefined,
+                                fotoPerfil: negocio.fotoPerfil,
+                                sucursalNombre: negocio.sucursalNombre,
+                                esPrincipal: negocio.esPrincipal,
+                                totalSucursales: negocio.totalSucursales,
+                                galeria: negocio.galeria.map((g) => ({ url: g.url, titulo: g.titulo ?? undefined })),
+                            }}
+                            onClick={() => navigate(`/negocios/${negocio.sucursalId}`)}
+                        />
+                    ))}
+                </div>
             </div>
 
             {/* Flechas — solo desktop, aparecen al hover sobre el reel */}
             <button
                 type="button"
                 data-testid="reel-negocios-flecha-izq"
-                onClick={() => navegarManual('izquierda')}
+                onClick={anterior}
                 aria-label="Anterior"
                 className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-300 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
             >
@@ -180,7 +78,7 @@ export function ReelNegociosFeed({
             <button
                 type="button"
                 data-testid="reel-negocios-flecha-der"
-                onClick={() => navegarManual('derecha')}
+                onClick={siguiente}
                 aria-label="Siguiente"
                 className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-300 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
             >

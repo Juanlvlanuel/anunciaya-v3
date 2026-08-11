@@ -59,10 +59,7 @@ export function CuadroHonorMovil({ rifas }: CuadroHonorProps) {
     }
 
     return (
-        <div className="mb-4">
-            <div className="px-3">
-                <EncabezadoCuadroHonor />
-            </div>
+        <div className="mt-4 mb-4">
             <div ref={emblaRef} className="touch-pan-y overflow-hidden">
                 <div data-testid="reel-cuadro-honor" className="flex gap-3 px-3 pb-1">
                     {rifas.map((d) => (

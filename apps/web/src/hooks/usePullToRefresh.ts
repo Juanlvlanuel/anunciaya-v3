@@ -36,6 +36,12 @@ const UMBRAL_PX = 70;
 const RESISTENCIA = 0.5;
 /** Tope visual del jalón (no crece más aunque sigas jalando). */
 const MAX_PULL_PX = 100;
+/** Px de movimiento (en cualquier eje) antes de decidir si el gesto es
+ *  horizontal o vertical. Por debajo de esto no se toca `distancia` — un
+ *  swipe horizontal sobre un carrusel (Embla) arranca con algo de ruido
+ *  vertical en los primeros px, y sin este umbral ese ruido ya alcanzaba a
+ *  asomar el ícono del pull-to-refresh un instante. */
+const UMBRAL_DECISION_EJE = 8;
 
 export function usePullToRefresh({
     onRefresh,
@@ -50,6 +56,10 @@ export function usePullToRefresh({
 
     // Refs para leer valores actuales dentro de los listeners sin recrearlos.
     const inicioY = useRef<number | null>(null);
+    const inicioX = useRef<number | null>(null);
+    // Eje del gesto — se decide UNA vez por gesto, apenas hay movimiento
+    // perceptible (`UMBRAL_DECISION_EJE`). `null` = todavía indeciso.
+    const eje = useRef<'horizontal' | 'vertical' | null>(null);
     const jalando = useRef(false);
     const distanciaRef = useRef(0);
     const refrescandoRef = useRef(false);
@@ -65,14 +75,35 @@ export function usePullToRefresh({
             // Solo armamos el gesto si estamos pegados al tope del scroll.
             if (el.scrollTop <= 0) {
                 inicioY.current = e.touches[0].clientY;
+                inicioX.current = e.touches[0].clientX;
+                eje.current = null;
                 jalando.current = true;
                 setGestoActivo(true);
             }
         };
 
         const onTouchMove = (e: TouchEvent) => {
-            if (!jalando.current || inicioY.current === null) return;
+            if (!jalando.current || inicioY.current === null || inicioX.current === null) return;
             const delta = e.touches[0].clientY - inicioY.current;
+            const deltaX = e.touches[0].clientX - inicioX.current;
+
+            // Decidir el eje UNA sola vez, apenas el dedo se movió lo
+            // suficiente para saber hacia dónde va — con menos que eso,
+            // esperamos (evita "morder" el primer px de un swipe horizontal
+            // sobre un carrusel, que siempre trae algo de ruido vertical).
+            if (eje.current === null) {
+                if (Math.abs(deltaX) < UMBRAL_DECISION_EJE && Math.abs(delta) < UMBRAL_DECISION_EJE) return;
+                eje.current = Math.abs(deltaX) > Math.abs(delta) ? 'horizontal' : 'vertical';
+                if (eje.current === 'horizontal') {
+                    // Es un swipe horizontal (carrusel) — soltamos el gesto
+                    // del pull sin tocar `distancia` ni llamar
+                    // `preventDefault`: Embla se encarga del resto solito.
+                    jalando.current = false;
+                    setGestoActivo(false);
+                    return;
+                }
+            }
+
             if (delta <= 0) {
                 // El usuario empezó a subir/scrollear normal: cancelamos.
                 if (distanciaRef.current !== 0) {
@@ -97,6 +128,7 @@ export function usePullToRefresh({
             const estabaJalando = jalando.current;
             jalando.current = false;
             inicioY.current = null;
+            inicioX.current = null;
 
             if (estabaJalando && distanciaRef.current >= UMBRAL_PX && !refrescandoRef.current) {
                 refrescandoRef.current = true;

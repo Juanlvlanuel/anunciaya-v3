@@ -25,9 +25,12 @@
  * Ubicación: apps/web/src/components/dinamicas/SeccionFeedDinamicas.tsx
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { AlertCircle, Loader2, Ticket } from 'lucide-react';
 import { useFeedInfinitoDinamicas, useSalonFamaDinamicas } from '../../hooks/queries/useDinamicas';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { useMinDuracionVisible } from '../../hooks/useMinDuracionVisible';
+import { IndicadorRefrescoFeed } from '../ui/IndicadorRefrescoFeed';
 import { CardDinamica } from './CardDinamica';
 import { ComposerSectionDinamicas } from './composer/ComposerSectionDinamicas';
 import { CuadroHonorMovil, CuadroHonorLista } from './CuadroHonorDinamicas';
@@ -35,6 +38,7 @@ import { CuadroHonorMovil, CuadroHonorLista } from './CuadroHonorDinamicas';
 interface SeccionFeedDinamicasProps {
     ciudad: string | null;
     esModoPersonal: boolean;
+    esEscritorio: boolean;
     /** Borde inferior del header sticky (px) — ancla la columna fija del
      *  Cuadro de Honor. Mismo valor que ya usa `SeccionFeedArticulos`
      *  (mismo header compartido). */
@@ -45,17 +49,30 @@ interface SeccionFeedDinamicasProps {
      *  cambiar el ancho de scrollbar y correr el contenido centrado unos px
      *  (mismo criterio que `SeccionFeedArticulos`). */
     visible: boolean;
+    cuerpoRef: RefObject<HTMLDivElement | null>;
 }
 
-export function SeccionFeedDinamicas({ ciudad, esModoPersonal, headerBottom, visible }: SeccionFeedDinamicasProps) {
+export function SeccionFeedDinamicas({ ciudad, esModoPersonal, esEscritorio, headerBottom, visible, cuerpoRef }: SeccionFeedDinamicasProps) {
     const {
         data,
         isLoading,
         isError,
+        isRefetching: isRefetchingFeed,
+        refetch,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
     } = useFeedInfinitoDinamicas({ ciudad });
+
+    // Jalar para refrescar (móvil) — mismo patrón que SeccionFeedArticulos.
+    const pull = usePullToRefresh({
+        onRefresh: () => refetch(),
+        scrollRef: cuerpoRef,
+        habilitado: !esEscritorio,
+    });
+    const refrescandoFeedCrudo = isRefetchingFeed && !isFetchingNextPage;
+    const refrescandoFeed = useMinDuracionVisible(refrescandoFeedCrudo, 700);
+    const progresoRefresco = refrescandoFeed ? 1 : pull.progreso;
 
     const dinamicas = useMemo(() => data?.pages.flatMap((p) => p.dinamicas) ?? [], [data]);
 
@@ -155,6 +172,20 @@ export function SeccionFeedDinamicas({ ciudad, esModoPersonal, headerBottom, vis
 
     return (
         <>
+            {/* Indicador de refresco — jalón (pull.progreso) o refetch en
+                curso (React Query, ej. focus de ventana). Mismo componente
+                que MP/Servicios/Negocios. */}
+            {!isLoading && !isError && (
+                <IndicadorRefrescoFeed
+                    testId="dinamicas-feed-refrescando"
+                    progreso={progresoRefresco}
+                    refrescando={refrescandoFeed}
+                    sinTransicion={pull.gestoActivo}
+                    icon={<Ticket className="h-9 w-9 text-amber-600" strokeWidth={2.25} />}
+                    claseAnillo="border-amber-200 border-t-amber-600"
+                />
+            )}
+
             {/* Cuadro de Honor — móvil: carrusel arriba de todo. */}
             <div className="lg:hidden">
                 <CuadroHonorMovil rifas={rifasHonor} />

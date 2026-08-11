@@ -99,11 +99,23 @@ const DURACION_SNAP_EMBLA = 30;
  */
 const UMBRAL_DRAG_PX = 4;
 
+interface OpcionesCarruselRotativo {
+  /** Si el carrusel da la vuelta al llegar al último slide. Default `true`
+   *  (rotativo tipo hero/Ofertas). Los reels de feed (MP/Servicios/Negocios)
+   *  lo apagan: al llegar al final se detiene ahí — el usuario regresa
+   *  deslizando hacia atrás en vez de seguir "de vuelta" al primero. Con
+   *  `loop:false` el plugin Autoplay se detiene solo al no poder avanzar
+   *  más (no salta al inicio). */
+  loop?: boolean;
+}
+
 export function useCarruselRotativo<T>(
   items: T[],
   intervaloMs: number = 7000,
+  opciones: OpcionesCarruselRotativo = {},
 ): RetornoCarruselRotativo<T> {
   const total = items.length;
+  const loop = opciones.loop ?? true;
 
   // Plugin Autoplay creado una sola vez por intervalo. Las opciones:
   //  - delay: tiempo entre slides
@@ -134,7 +146,7 @@ export function useCarruselRotativo<T>(
   // percibe como "se queda pegada un momento y luego cambia de golpe".
   const emblaOptions = useMemo(
     () => ({
-      loop: total > 1,
+      loop: loop && total > 1,
       duration: DURACION_SNAP_EMBLA,
       // align:'start' alinea cada slide al borde izquierdo del viewport.
       // Con slides de basis-full (100% del ancho) es indistinguible de
@@ -146,7 +158,7 @@ export function useCarruselRotativo<T>(
       // instante, sin esperar a moverse 10 px (default).
       dragThreshold: UMBRAL_DRAG_PX,
     }),
-    [total],
+    [total, loop],
   );
 
   // Guard contra <=1 slides: el plugin Autoplay de Embla (v8.6.0) sale
@@ -208,7 +220,17 @@ export function useCarruselRotativo<T>(
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const aplicar = () => {
       const plugin = emblaApi.plugins().autoplay;
-      if (!plugin) return;
+      // `total > 1` (items) no es lo mismo que "hay más de 1 snap point":
+      // con `loop:false` y pocos items que ya caben enteros en el viewport
+      // (ej. una ciudad con solo 2-3 negocios en el reel), Embla calcula
+      // UN solo snap aunque haya varios slides — ahí el plugin Autoplay
+      // (v8.6.0) sale temprano de su `init()` sin inicializar `delay`, y
+      // llamar `.play()` truena con "Cannot read properties of undefined
+      // (reading '0')" dentro de su `setTimer`. Mismo bug que ya documentó
+      // el guard de `emblaPlugins` de abajo, pero ahí se checa por count de
+      // ITEMS antes de que exista `emblaApi` — acá sí podemos preguntarle
+      // a Embla directo cuántos snaps reales tiene.
+      if (!plugin || emblaApi.scrollSnapList().length <= 1) return;
       if (mq.matches) plugin.stop();
       else plugin.play();
     };
