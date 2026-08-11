@@ -756,7 +756,7 @@ export function PaginaDinamica() {
                                     <div ref={emblaRefBoletos} className="touch-pan-y overflow-hidden">
                                         <div className="flex gap-2">
                                             {numerosBoletosCartaUnica.map((numero) => (
-                                                <div key={numero} className="shrink-0 grow-0 basis-[70%]">
+                                                <div key={numero} className="shrink-0 grow-0 basis-[92%]">
                                                     {renderBotonTabla(numero)}
                                                 </div>
                                             ))}

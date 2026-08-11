@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Grid3x3, Trophy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Grid3x3, Trophy } from 'lucide-react';
 import type { CartaCantadaEvento } from '../../../types/dinamicas';
 import { CARTAS_LOTERIA } from '../../../data/cartasLoteria';
 import type { TablaLoteria } from '../../../data/tablasLoteria';
@@ -54,6 +54,16 @@ export function TablaCompletaSorteo({ cartasReveladas, numeroLugaresGanadores, s
     const animarRevelacion = ultima !== null && ultima.numeroIntento === numeroIntentoAnimable;
 
     const cartaActual = ultima ? CARTAS_LOTERIA[ultima.cartaIndice - 1] : null;
+
+    // Historial en 3 líneas + flechas (en vez de 1 sola fila que crece sin
+    // límite y desborda la página) — mismo patrón que el carrusel de
+    // boletos de PaginaDinamica.tsx (grid-flow-col con filas fijas).
+    const historialScrollRef = useRef<HTMLDivElement>(null);
+    function desplazarHistorial(direccion: 1 | -1) {
+        const el = historialScrollRef.current;
+        if (!el) return;
+        el.scrollBy({ left: direccion * el.clientWidth * 0.8, behavior: 'smooth' });
+    }
     const gananciaUltima = ultima?.ganadores ?? [];
 
     return (
@@ -148,31 +158,56 @@ export function TablaCompletaSorteo({ cartasReveladas, numeroLugaresGanadores, s
                     <p className="pb-2 pt-2 text-center text-sm font-medium text-slate-500">Esperando la primera carta…</p>
                 ) : (
                     anteriores.length > 0 && (
-                        <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                            {anteriores.map((carta) => {
-                                const info = CARTAS_LOTERIA[carta.cartaIndice - 1];
-                                const gano = carta.ganadores.length > 0;
-                                return (
-                                    <div key={carta.numeroIntento} className="flex shrink-0 flex-col items-center gap-1">
-                                        <div
-                                            className={`relative overflow-hidden rounded-lg border-2 ${gano ? 'border-amber-400' : 'border-slate-200'}`}
-                                            style={{ width: 44, height: 66 }}
-                                        >
-                                            <img src={info.archivo} alt={info.nombre} className="h-full w-full object-cover" />
+                        <div className="relative mt-3 min-w-0">
+                            {/* 2 líneas fijas en vez de 1 sola fila que crece sin límite
+                                y desborda la página — crece horizontal (flechas), nunca
+                                vertical. Mismo patrón que el carrusel de boletos de
+                                PaginaDinamica.tsx. */}
+                            <div
+                                ref={historialScrollRef}
+                                className="grid touch-pan-x grid-flow-col grid-rows-[repeat(2,116px)] auto-cols-[64px] gap-2 overflow-x-auto scroll-smooth px-10 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            >
+                                {anteriores.map((carta) => {
+                                    const info = CARTAS_LOTERIA[carta.cartaIndice - 1];
+                                    const gano = carta.ganadores.length > 0;
+                                    return (
+                                        <div key={carta.numeroIntento} className="flex flex-col items-center gap-1">
+                                            <div
+                                                className={`relative overflow-hidden rounded-lg border-2 ${gano ? 'border-amber-400' : 'border-slate-200'}`}
+                                                style={{ width: 64, height: 96 }}
+                                            >
+                                                <img src={info.archivo} alt={info.nombre} className="h-full w-full object-cover" />
+                                                {gano && (
+                                                    <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500">
+                                                        <Trophy className="h-3 w-3 text-white" strokeWidth={3} />
+                                                    </span>
+                                                )}
+                                            </div>
                                             {gano && (
-                                                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500">
-                                                    <Trophy className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                                                <span className="text-[11px] font-bold uppercase tracking-wide text-amber-600">
+                                                    {carta.ganadores.map((g) => `Lugar ${g.lugar}`).join(', ')}
                                                 </span>
                                             )}
                                         </div>
-                                        {gano && (
-                                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
-                                                {carta.ganadores.map((g) => `Lugar ${g.lugar}`).join(', ')}
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => desplazarHistorial(-1)}
+                                aria-label="Cartas anteriores"
+                                className="absolute left-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md lg:cursor-pointer lg:hover:bg-slate-200"
+                            >
+                                <ChevronLeft className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => desplazarHistorial(1)}
+                                aria-label="Cartas siguientes"
+                                className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md lg:cursor-pointer lg:hover:bg-slate-200"
+                            >
+                                <ChevronRight className="h-5 w-5 text-slate-700" strokeWidth={2.5} />
+                            </button>
                         </div>
                     )
                 )}
@@ -205,7 +240,7 @@ export function TablaCompletaSorteo({ cartasReveladas, numeroLugaresGanadores, s
                                         return (
                                             <div
                                                 key={carta.numero}
-                                                className={`relative aspect-[2/3] overflow-hidden rounded-md border ${marcada ? 'border-amber-400' : 'border-slate-200'}`}
+                                                className={`relative aspect-[2/3] overflow-hidden rounded-md border lg:rounded-xl ${marcada ? 'border-amber-400' : 'border-slate-200'}`}
                                             >
                                                 <img
                                                     src={carta.archivo}
@@ -213,8 +248,8 @@ export function TablaCompletaSorteo({ cartasReveladas, numeroLugaresGanadores, s
                                                     className={`h-full w-full object-cover ${marcada ? '' : 'opacity-40 grayscale'}`}
                                                 />
                                                 {marcada && (
-                                                    <span className="absolute inset-0 flex items-center justify-center bg-amber-500/25">
-                                                        <Trophy className="h-3.5 w-3.5 text-amber-600 drop-shadow" strokeWidth={3} />
+                                                    <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 shadow-sm">
+                                                        <Trophy className="h-2.5 w-2.5 text-white" strokeWidth={3} />
                                                     </span>
                                                 )}
                                             </div>

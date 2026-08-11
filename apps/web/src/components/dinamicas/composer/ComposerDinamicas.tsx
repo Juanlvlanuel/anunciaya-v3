@@ -821,17 +821,22 @@ export function ComposerDinamicas({
                                             />
                                         </div>
                                     </div>
-                                    <div className="relative col-span-2 lg:col-span-1 lg:w-40 lg:shrink-0 2xl:w-52">
-                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-500 lg:left-3.5 lg:text-[15px]">$</span>
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            data-testid="composer-dinamicas-precio-boleto"
-                                            value={draft.precioBoleto}
-                                            onChange={(e) => actualizar({ precioBoleto: e.target.value.replace(/[^\d.]/g, '') })}
-                                            placeholder="Precio del Boleto"
-                                            className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-6 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-8 lg:pr-3 lg:text-[15px]"
-                                        />
+                                    <div className="col-span-2 lg:col-span-1 lg:w-40 lg:shrink-0 2xl:w-52">
+                                        {draft.metodoSorteo === 'tabla_completa' && (
+                                            <span aria-hidden className="invisible mb-0.5 hidden text-center text-[14px] font-bold lg:block">Máximo 150</span>
+                                        )}
+                                        <div className="relative">
+                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-500 lg:left-3.5 lg:text-[15px]">$</span>
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                data-testid="composer-dinamicas-precio-boleto"
+                                                value={draft.precioBoleto}
+                                                onChange={(e) => actualizar({ precioBoleto: e.target.value.replace(/[^\d.]/g, '') })}
+                                                placeholder="Precio del Boleto"
+                                                className="w-full rounded-full border-2 border-amber-400 bg-white py-2 pl-6 pr-2 text-[13px] font-semibold text-slate-900 outline-none tabular-nums placeholder:text-slate-400 lg:pl-8 lg:pr-3 lg:text-[15px]"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                                 {/* El número final se calcula solo — inicio + total - 1 —

@@ -262,7 +262,7 @@ export function PaginaSalaDinamicaPublica() {
 
                         <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[3fr_2fr] lg:items-start lg:gap-6">
                             {/* ─── Columna izquierda (60%) — escenario del evento ─── */}
-                            <div className="space-y-3">
+                            <div className="min-w-0 space-y-3">
                                 {esOrganizador &&
                                     dinamica.metodoSorteo !== 'tabla_completa' &&
                                     dinamica.numeroIntentosSorteo === null &&
