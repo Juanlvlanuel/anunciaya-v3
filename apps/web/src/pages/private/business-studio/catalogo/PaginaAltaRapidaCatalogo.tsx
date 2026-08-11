@@ -213,6 +213,159 @@ function ToggleTipoCelda({
 }
 
 // =============================================================================
+// SUBCOMPONENTE: Tarjeta de artículo — vista móvil (<lg)
+// =============================================================================
+// La tabla tipo hoja de cálculo (grid de 5 columnas) no cabe cómoda en móvil.
+// Esta tarjeta apilada cubre los mismos campos/acciones que la fila de
+// escritorio, con inputs más altos (mejor objetivo táctil) y sin scroll
+// anidado — la página entera hace scroll normal.
+
+function FilaCardMovil({
+  fila,
+  errores,
+  conError,
+  categoriasSugeridas,
+  onActualizar,
+  onEliminar,
+}: {
+  fila: FilaBorrador;
+  errores: string[];
+  conError: boolean;
+  categoriasSugeridas: string[];
+  onActualizar: (cambios: Partial<FilaBorrador>) => void;
+  onEliminar: () => void;
+}) {
+  return (
+    <div
+      className={`relative rounded-xl border-2 p-3 space-y-2.5 ${
+        conError ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'
+      } ${!fila.incluida ? 'opacity-50' : ''}`}
+    >
+      {fila.origen !== 'manual' && (
+        <span
+          className="absolute -left-1.5 -top-1.5 w-2.5 h-2.5 rounded-full bg-purple-500 z-10"
+          title="Sugerido por IA — revisa antes de publicar"
+        />
+      )}
+
+      {/* Fila superior: incluir + tipo | imagen + eliminar */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Tooltip text={fila.incluida ? 'Excluir de la publicación' : 'Incluir al publicar'} position="bottom">
+            <button
+              type="button"
+              onClick={() => onActualizar({ incluida: !fila.incluida })}
+              className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                fila.incluida ? 'bg-slate-700 border-slate-700' : 'bg-white border-slate-300 hover:border-slate-400'
+              }`}
+              data-testid={`checkbox-incluir-movil-${fila.clientId}`}
+            >
+              {fila.incluida && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+            </button>
+          </Tooltip>
+          <ToggleTipoCelda
+            valor={fila.tipo}
+            onChange={(tipo) => onActualizar({ tipo })}
+            testIdPrefix={`toggle-tipo-movil-${fila.clientId}`}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          {fila.imagenPrincipal && (
+            <img
+              src={fila.imagenPrincipal}
+              alt=""
+              className="w-9 h-9 rounded-lg object-cover shrink-0 border border-slate-200"
+              title="Imagen del artículo"
+            />
+          )}
+          <Tooltip text="Eliminar">
+            <button
+              type="button"
+              onClick={onEliminar}
+              className="p-1.5 rounded-lg cursor-pointer text-red-600 hover:bg-red-100"
+              data-testid={`btn-eliminar-fila-movil-${fila.clientId}`}
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Nombre */}
+      <input
+        type="text"
+        value={fila.nombre}
+        onChange={(e) => onActualizar({ nombre: e.target.value })}
+        placeholder="Nombre del artículo"
+        maxLength={LIMITES.nombreMax}
+        data-testid={`input-nombre-movil-${fila.clientId}`}
+        className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
+      />
+
+      {/* Descripción */}
+      <input
+        type="text"
+        value={fila.descripcion}
+        onChange={(e) => onActualizar({ descripcion: e.target.value })}
+        placeholder="Descripción (opcional)"
+        maxLength={LIMITES.descripcionMax}
+        data-testid={`input-descripcion-movil-${fila.clientId}`}
+        className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
+      />
+
+      {/* Categoría + Precio */}
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="text"
+          list="datalist-categorias-alta-rapida"
+          value={fila.categoria}
+          onChange={(e) => onActualizar({ categoria: e.target.value })}
+          placeholder="Categoría"
+          maxLength={LIMITES.categoriaMax}
+          data-testid={`input-categoria-movil-${fila.clientId}`}
+          className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
+        />
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={fila.precioBase}
+            onChange={(e) => onActualizar({ precioBase: e.target.value })}
+            placeholder="0.00"
+            data-testid={`input-precio-movil-${fila.clientId}`}
+            className="w-full h-10 pl-6 pr-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+          />
+        </div>
+      </div>
+
+      {/* Visible */}
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        <span className="text-xs font-semibold text-slate-500">Visible en el catálogo</span>
+        <Tooltip text={fila.disponible ? 'Ocultar' : 'Mostrar'}>
+          <button
+            type="button"
+            onClick={() => onActualizar({ disponible: !fila.disponible })}
+            className="p-1.5 rounded-lg cursor-pointer hover:bg-green-100"
+            data-testid={`btn-visible-movil-${fila.clientId}`}
+          >
+            {fila.disponible
+              ? <Eye className="w-5 h-5 text-slate-700" />
+              : <EyeOff className="w-5 h-5 text-slate-700" />
+            }
+          </button>
+        </Tooltip>
+      </div>
+
+      {conError && (
+        <p className="text-xs font-semibold text-red-600">{errores.join(' · ')}</p>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -567,7 +720,17 @@ export function PaginaAltaRapidaCatalogo() {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border-2 border-slate-300 overflow-hidden" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <>
+            <datalist id="datalist-categorias-alta-rapida">
+              {categoriasSugeridas.map((cat) => (
+                <option key={cat} value={cat} />
+              ))}
+            </datalist>
+
+            {/* ============================================================= */}
+            {/* Laptop/desktop (≥lg): tabla tipo hoja de cálculo               */}
+            {/* ============================================================= */}
+            <div className="hidden lg:block rounded-xl border-2 border-slate-300 overflow-hidden" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div className="overflow-x-auto">
               <div className="min-w-[760px]">
                 {/* Header */}
@@ -581,12 +744,6 @@ export function PaginaAltaRapidaCatalogo() {
                   <span>Precio</span>
                   <span className="text-center">Acciones</span>
                 </div>
-
-                <datalist id="datalist-categorias-alta-rapida">
-                  {categoriasSugeridas.map((cat) => (
-                    <option key={cat} value={cat} />
-                  ))}
-                </datalist>
 
                 {/* Filas — alto fijo con scroll interno, así la caja no cambia de tamaño según cuántos artículos tenga */}
                 <div className="h-[480px] overflow-y-auto bg-white">
@@ -739,7 +896,38 @@ export function PaginaAltaRapidaCatalogo() {
                 </button>
               </div>
             </div>
-          </div>
+            </div>
+
+            {/* ============================================================= */}
+            {/* Móvil (<lg): tarjetas apiladas                                 */}
+            {/* ============================================================= */}
+            <div className="lg:hidden space-y-2.5">
+              {filas.map((fila) => {
+                const errores = erroresPorFila.get(fila.clientId) ?? [];
+                const conError = filasConErrorRevelado.has(fila.clientId) && errores.length > 0;
+                return (
+                  <FilaCardMovil
+                    key={fila.clientId}
+                    fila={fila}
+                    errores={errores}
+                    conError={conError}
+                    categoriasSugeridas={categoriasSugeridas}
+                    onActualizar={(cambios) => actualizarFila(fila.clientId, cambios)}
+                    onEliminar={() => eliminarFila(fila.clientId)}
+                  />
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => agregarFila('manual')}
+                className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                data-testid="btn-agregar-fila-footer-movil"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar fila
+              </button>
+            </div>
+          </>
         )}
 
         {/* ================================================================= */}
