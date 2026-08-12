@@ -33,7 +33,8 @@ export type TipoMensaje =
   | 'ubicacion'
   | 'contacto'
   | 'sistema'
-  | 'cupon';
+  | 'cupon'
+  | 'pedido';
 
 /** Estados de entrega del mensaje (palomitas) */
 export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';

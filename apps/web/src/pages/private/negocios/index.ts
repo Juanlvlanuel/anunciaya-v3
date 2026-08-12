@@ -17,3 +17,4 @@
 export { PaginaNegocios } from './PaginaNegocios';
 export { PaginaPerfilNegocio } from './PaginaPerfilNegocio';
 export { PaginaPublicacionNegocio } from './PaginaPublicacionNegocio';
+export { PaginaCatalogoNegocio } from './PaginaCatalogoNegocio';

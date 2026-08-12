@@ -15,7 +15,7 @@
 
 import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic, Ticket, ChevronRight, ImageOff } from 'lucide-react';
+import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic, Ticket, ChevronRight, ImageOff, ShoppingBag } from 'lucide-react';
 import { Mapa, Marker } from '../mapa/Mapa';
 import type { Mensaje, ContenidoImagen } from '../../types/chatya';
 import { SelectorEmojis } from './SelectorEmojis';
@@ -2069,8 +2069,62 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
               }
             })()}
 
+            {/* Contenido pedido (burbuja especial — estilo ticket, armado desde el Catálogo público) */}
+            {mensaje.tipo === 'pedido' && !mensaje.eliminado && (() => {
+              try {
+                const datos = JSON.parse(mensaje.contenido);
+                const items: { nombre: string; precio: number; cantidad: number; subtotal: number }[] = datos.items ?? [];
+                return (
+                  <>
+                    <div className="w-72 lg:w-64 2xl:w-72 rounded-xl overflow-hidden bg-white" style={{ border: '2px solid #1e293b' }}>
+                      {/* Header */}
+                      <div className="flex items-center gap-2 px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
+                        <ShoppingBag className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm lg:text-xs 2xl:text-sm font-extrabold text-white leading-tight">Pedido</p>
+                          {datos.negocioNombre && (
+                            <p className="text-[11px] lg:text-[10px] 2xl:text-[11px] font-medium text-white/60 truncate leading-tight">{datos.negocioNombre}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Items */}
+                      <div className="px-3 py-2.5 lg:px-2.5 lg:py-2 2xl:px-3 2xl:py-2.5 space-y-1.5">
+                        {items.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-sm lg:text-xs 2xl:text-sm">
+                            <span className="font-bold text-slate-500 shrink-0">{item.cantidad}x</span>
+                            <span className="flex-1 font-medium text-slate-700 min-w-0 break-words">{item.nombre}</span>
+                            <span className="font-bold text-slate-800 shrink-0">${item.subtotal.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Total */}
+                      <div className="flex items-center justify-between px-3 py-2 lg:px-2.5 lg:py-1.5 2xl:px-3 2xl:py-2 border-t-2 border-slate-200">
+                        <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-500">Total</span>
+                        <span className="text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">${Number(datos.total ?? 0).toFixed(2)}</span>
+                      </div>
+
+                      {/* Nota */}
+                      {datos.nota && (
+                        <div className="px-3 pb-2.5 lg:px-2.5 lg:pb-2 2xl:px-3 2xl:pb-2.5">
+                          <p className="text-xs lg:text-[11px] 2xl:text-xs font-medium text-slate-600 bg-slate-100 rounded-lg px-2.5 py-1.5">📝 {datos.nota}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className={`flex justify-end mt-1 ${esMio ? 'text-white/70' : 'text-white/55'}`}>
+                      <span className="text-[11px]">{hora}</span>
+                      {esMio && !esMisNotas && <Palomitas estado={mensaje.estado} />}
+                    </div>
+                  </>
+                );
+              } catch {
+                return <p className="text-sm font-medium text-slate-600">Pedido no disponible</p>;
+              }
+            })()}
+
             {/* Contenido + hora (texto normal) */}
-            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && mensaje.tipo !== 'audio' && mensaje.tipo !== 'ubicacion' && mensaje.tipo !== 'cupon' && (esSoloEmojis ? (
+            {mensaje.tipo !== 'imagen' && mensaje.tipo !== 'documento' && mensaje.tipo !== 'audio' && mensaje.tipo !== 'ubicacion' && mensaje.tipo !== 'cupon' && mensaje.tipo !== 'pedido' && (esSoloEmojis ? (
               <>
                 {/* Emojis grandes sin burbuja */}
                 <p className={`leading-none lg:pr-7 ${esMio ? 'text-right' : 'text-left'} ${infoEmoji.cantidad === 1 ? 'py-1' : 'py-0.5'}`}>

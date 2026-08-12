@@ -451,7 +451,7 @@ export async function enviarMensajeController(req: Request, res: Response) {
       });
     }
 
-    if (tipo === 'texto' && contenido.length > 5000) {
+    if ((tipo === 'texto' || tipo === 'pedido') && contenido.length > 5000) {
       return res.status(400).json({
         success: false,
         message: 'El mensaje no puede exceder 5,000 caracteres',

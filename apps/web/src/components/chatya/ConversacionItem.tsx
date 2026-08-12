@@ -9,7 +9,7 @@
  */
 
 import { memo, useRef, useCallback } from 'react';
-import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket, MapPin, User } from 'lucide-react';
+import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket, MapPin, User, ShoppingBag } from 'lucide-react';
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
@@ -302,6 +302,9 @@ export const ConversacionItem = memo(function ConversacionItem({ conversacion, a
                       } catch {
                         return <><Ticket className="w-3.5 h-3.5 shrink-0 inline align-[-3px] mr-0.5" />Cupón</>;
                       }
+                    }
+                    if (tipo === 'pedido') {
+                      return <><ShoppingBag className="w-3.5 h-3.5 text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />Pedido</>;
                     }
                     return <TextoConEmojis texto={texto} tamañoEmoji={22} />;
                   })()

@@ -1956,6 +1956,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'articulo_negocio'::character varying, 'servicio'::character varying, 'directo'::character varying, 'notas'::character varying, 'dinamica'::character varying])::text[])`),
 	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas' OR (participante1_sucursal_id IS NOT NULL AND participante2_sucursal_id IS NOT NULL AND participante1_sucursal_id <> participante2_sucursal_id)`),
+	check("chat_conv_ultimo_mensaje_tipo_check", sql`(ultimo_mensaje_tipo IS NULL) OR ((ultimo_mensaje_tipo)::text = ANY ((ARRAY['texto'::character varying, 'imagen'::character varying, 'audio'::character varying, 'documento'::character varying, 'ubicacion'::character varying, 'contacto'::character varying, 'sistema'::character varying, 'cupon'::character varying, 'pedido'::character varying])::text[]))`),
 ]);
 
 export const chatMensajes = pgTable("chat_mensajes", {
@@ -2015,7 +2016,7 @@ export const chatMensajes = pgTable("chat_mensajes", {
 		name: "fk_chat_msg_empleado"
 	}).onDelete("set null"),
 	check("chat_msg_modo_check", sql`(emisor_modo IS NULL OR (emisor_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[]))`),
-	check("chat_msg_tipo_check", sql`(tipo)::text = ANY ((ARRAY['texto'::character varying, 'imagen'::character varying, 'audio'::character varying, 'documento'::character varying, 'ubicacion'::character varying, 'contacto'::character varying, 'sistema'::character varying, 'cupon'::character varying])::text[])`),
+	check("chat_msg_tipo_check", sql`(tipo)::text = ANY ((ARRAY['texto'::character varying, 'imagen'::character varying, 'audio'::character varying, 'documento'::character varying, 'ubicacion'::character varying, 'contacto'::character varying, 'sistema'::character varying, 'cupon'::character varying, 'pedido'::character varying])::text[])`),
 	check("chat_msg_estado_check", sql`(estado)::text = ANY ((ARRAY['enviado'::character varying, 'entregado'::character varying, 'leido'::character varying])::text[])`),
 ]);
 

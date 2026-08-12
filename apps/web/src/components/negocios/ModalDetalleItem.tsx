@@ -187,10 +187,10 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
             // `_modalUI` causaba que al cerrar el detalle también se
             // cerrara el listado por colisión de marcas en el state.
             discriminador="_modalDetalleItem"
-            className="min-w-[330px] max-w-[80vw] lg:max-w-xs 2xl:max-w-sm"
+            className="min-w-[400px] max-w-[80vw] lg:max-w-sm 2xl:max-w-md"
         >
             {/* Imagen Hero con overlay */}
-            <div className="relative h-52 lg:h-44 2xl:h-56 bg-slate-200">
+            <div className="relative h-72 lg:h-60 2xl:h-72 bg-slate-200">
                     {item.imagenPrincipal ? (
                         <img
                             src={item.imagenPrincipal}
@@ -207,10 +207,10 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
                             )}
                         </div>
                     )}
-                    
+
                     {/* Overlay gradiente — pointer-events-none para no bloquear el click en la imagen */}
                     <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
-                    
+
                     {/* Botones flotantes arriba-derecha */}
                     <div className="absolute top-3 right-3 flex gap-2">
                         <Tooltip text="Compartir" position="bottom">
@@ -231,7 +231,7 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
                             </button>
                         </Tooltip>
                     </div>
-                    
+
                     {/* Badge disponibilidad arriba-izquierda */}
                     {item.disponible !== null && (
                         <div className="absolute top-3 left-3 lg:top-2 lg:left-2 2xl:top-3 2xl:left-3">
@@ -245,7 +245,7 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
                             </span>
                         </div>
                     )}
-                    
+
                     {/* Título y categoría sobre la imagen */}
                     <div
                         className="absolute bottom-0 left-0 right-0 p-4 lg:p-3 2xl:p-4 cursor-pointer"
@@ -265,10 +265,13 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
                 {/* Franja divisora */}
                 <div className="h-1.5 shrink-0" style={{ background: 'linear-gradient(90deg, #1e293b, #334155, #1e293b)' }} />
 
-                {/* Contenido */}
-                <div className="flex-1 overflow-y-auto">
+                {/* Contenido — con descripción crece según el contenido; sin
+                    descripción se le da un alto mínimo fijo (más alto que el
+                    natural de solo precio+contacto) para que no se vea tan
+                    corto/vacío. */}
+                <div className={`flex-1 overflow-y-auto ${!item.descripcion ? 'min-h-48 lg:min-h-40 2xl:min-h-48' : ''}`}>
                     {/* Precio + contacto */}
-                    <div className={`mx-4 lg:mx-3 2xl:mx-4 mt-4 lg:mt-3 2xl:mt-4 p-3 flex items-center justify-between ${item.descripcion ? 'rounded-xl bg-slate-200/60' : ''}`}>
+                    <div className="mx-4 lg:mx-3 2xl:mx-4 mt-4 lg:mt-3 2xl:mt-4 p-3 flex items-center justify-between rounded-xl bg-slate-200/60">
                         <div>
                             {item.precioDesde && (
                                 <span className="text-slate-600 text-sm lg:text-[11px] 2xl:text-sm font-semibold block mb-0.5">Desde</span>

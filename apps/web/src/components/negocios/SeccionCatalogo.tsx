@@ -8,13 +8,14 @@
  * CARACTERÍSTICAS:
  * - Muestra preview de 2-5 items + card "Ver más"
  * - Cards VERTICALES (imagen arriba, info abajo)
- * - Click en cualquier parte abre ModalCatalogo completo
+ * - Click en cualquier parte navega a PaginaCatalogoNegocio (full-screen)
  * - Click en imagen abre ModalImagenes
  * - Sin scroll infinito (eso está en el modal)
  * - 3 breakpoints: móvil (3 cols), laptop @5xl: (5 cols), desktop @[96rem]: (6 cols)
  */
 
 import { useState, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   ChevronRight,
@@ -28,7 +29,6 @@ const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />
 const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useDragScroll } from '@/hooks/useDragScroll';
-import { ModalCatalogo } from './ModalCatalogo';
 import { ModalDetalleItem } from './ModalDetalleItem';
 
 // =============================================================================
@@ -55,18 +55,18 @@ interface SeccionCatalogoProps {
   whatsapp?: string | null;
   /** Segundo WhatsApp opcional del negocio (ej. línea de pedidos aparte de la principal). */
   whatsappAlterno?: string | null;
-  nombreNegocio?: string;
   negocioUsuarioId?: string | null;
   sucursalId?: string | null;
   negocioNombre?: string | null;
-  /** Logo/foto de perfil del negocio. Se propaga a ModalCatalogo y
-   *  ModalDetalleItem para que el chat temporal muestre el avatar. */
+  /** Logo/foto de perfil del negocio. Se propaga a ModalDetalleItem para
+   *  que el chat temporal muestre el avatar. */
   logoUrl?: string | null;
   /** Página pública de negocio (/p/negocio/...): más ancho disponible
-   *  (sin ColumnaIzquierda/Derecha) → 4 items en laptop en vez de 3. */
+   *  (sin ColumnaIzquierda/Derecha) → 4 items en laptop en vez de 3.
+   *  También decide el prefijo de ruta al navegar al catálogo completo. */
   esRutaPublica?: boolean;
-  /** Se propaga a `ModalDetalleItem`/`ModalCatalogo` — abre el modal de
-   *  auth (en vez del toast) cuando un visitante sin sesión usa ChatYA. */
+  /** Se propaga a `ModalDetalleItem` — abre el modal de auth (en vez del
+   *  toast) cuando un visitante sin sesión usa ChatYA. */
   onRequiereAuth?: () => void;
 }
 
@@ -87,7 +87,6 @@ export function SeccionCatalogo({
   catalogo,
   whatsapp,
   whatsappAlterno,
-  nombreNegocio = 'Catálogo',
   negocioUsuarioId,
   sucursalId,
   negocioNombre,
@@ -98,9 +97,9 @@ export function SeccionCatalogo({
   // ---------------------------------------------------------------------------
   // ESTADOS
   // ---------------------------------------------------------------------------
-  const [modalAbierto, setModalAbierto] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState<ItemCatalogo | null>(null);
   const { esMobile, esDesktop } = useBreakpoint();
+  const navigate = useNavigate();
 
   // Drag-to-scroll en el carrusel mobile — affordance desktop al embeberse en preview/ChatYA
   const refScroll = useRef<HTMLDivElement>(null);
@@ -129,7 +128,8 @@ export function SeccionCatalogo({
   // ---------------------------------------------------------------------------
 
   const handleAbrirModal = () => {
-    setModalAbierto(true);
+    if (!sucursalId) return;
+    navigate(esRutaPublica ? `/p/negocio/${sucursalId}/catalogo` : `/negocios/${sucursalId}/catalogo`);
   };
 
   const handleItemClick = (item: ItemCatalogo, e: React.MouseEvent) => {
@@ -266,21 +266,6 @@ export function SeccionCatalogo({
           </div>
         </div>
       </div>
-
-      {/* ============ MODAL CATÁLOGO ============ */}
-      <ModalCatalogo
-        abierto={modalAbierto}
-        onCerrar={() => setModalAbierto(false)}
-        catalogo={catalogo}
-        whatsapp={whatsapp}
-        whatsappAlterno={whatsappAlterno}
-        nombreNegocio={nombreNegocio}
-        negocioUsuarioId={negocioUsuarioId}
-        sucursalId={sucursalId}
-        negocioNombre={negocioNombre}
-        logoUrl={logoUrl}
-        onRequiereAuth={onRequiereAuth}
-      />
 
       {/* ============ MODAL DETALLE ITEM ============ */}
       <ModalDetalleItem

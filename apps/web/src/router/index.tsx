@@ -50,7 +50,7 @@ import TestModalSesion from '../pages/private/TestModalSesion';
 // Páginas de usuario (nuevas - Fase 4)
 import PaginaGuardados from '../pages/private/guardados/PaginaGuardados';
 import PaginaMisPublicaciones from '../pages/private/publicaciones/PaginaMisPublicaciones';
-import { PaginaNegocios, PaginaPerfilNegocio, PaginaPublicacionNegocio } from '../pages/private/negocios';
+import { PaginaNegocios, PaginaPerfilNegocio, PaginaPublicacionNegocio, PaginaCatalogoNegocio } from '../pages/private/negocios';
 // ⭐ NUEVO: CardYA (Fase X)
 import PaginaCardYA from '../pages/private/cardya/PaginaCardYA';
 import PaginaMisCupones from '../pages/private/cupones/PaginaMisCupones';
@@ -217,6 +217,10 @@ const router = createBrowserRouter([
         element: <PaginaPerfilNegocio />,
       },
       {
+        path: '/p/negocio/:sucursalId/catalogo',
+        element: <PaginaCatalogoNegocio />,
+      },
+      {
         path: '/p/articulo/:articuloId',
         element: <PaginaArticuloPublico />,
       },
@@ -338,6 +342,10 @@ const router = createBrowserRouter([
               {
                 path: ':sucursalId',
                 element: <PaginaPerfilNegocio />,
+              },
+              {
+                path: ':sucursalId/catalogo',
+                element: <PaginaCatalogoNegocio />,
               },
             ],
           },
