@@ -227,36 +227,36 @@ function PanelPedidoContenido({
 
   if (pedido.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="flex-1 min-h-0 flex items-center justify-center">
         <div className="text-center px-4">
           <ShoppingBag className="w-10 h-10 text-slate-300 mx-auto mb-2" />
           <p className="text-sm font-semibold text-slate-600">Tu pedido está vacío</p>
-          <p className="text-xs text-slate-500 mt-1">Agrega artículos del catálogo para armar tu pedido</p>
+          <p className="text-base text-slate-600 mt-1">Agrega artículos del catálogo para armar tu pedido</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex-1 min-h-0 flex flex-col">
       {/* Cuerpo — scroll propio, independiente del footer */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-3">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 pt-3 pb-3">
         {pedido.map((item) => (
-          <div key={item.articuloId} className="flex flex-col gap-1.5 pb-3 border-b border-slate-100 last:border-0 last:pb-0" data-testid={`linea-pedido-${item.articuloId}`}>
+          <div key={item.articuloId} className="flex flex-col gap-1.5 pb-3 border-b-2 border-slate-200 last:border-0 last:pb-0" data-testid={`linea-pedido-${item.articuloId}`}>
             {/* Fila 1: imagen + nombre completo (sin truncar) + quitar */}
             <div className="flex items-start gap-2.5">
-              <div className="w-11 h-11 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+              <div className="w-11 h-11 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-300">
                 {item.imagenPrincipal ? (
                   <img src={item.imagenPrincipal} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 text-slate-300" />
+                    <ImageIcon className="w-5 h-5 text-slate-400" />
                   </div>
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 leading-snug">{item.nombre}</p>
-                <p className="text-xs text-slate-500 font-medium">${item.precio.toFixed(2)} c/u</p>
+                <p className="text-sm font-semibold text-slate-800 leading-snug break-words">{item.nombre}</p>
+                <p className="text-sm text-slate-600 font-medium">${item.precio.toFixed(2)} c/u</p>
               </div>
               <button
                 type="button"
@@ -264,7 +264,7 @@ function PanelPedidoContenido({
                 className="p-1.5 rounded-lg cursor-pointer text-red-600 hover:bg-red-100 shrink-0"
                 data-testid={`btn-quitar-pedido-${item.articuloId}`}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-5 h-5" />
               </button>
             </div>
 
@@ -287,7 +287,7 @@ function PanelPedidoContenido({
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-              <span className="text-base font-bold text-slate-800 w-16 text-right shrink-0">
+              <span className="text-base font-bold text-slate-800 text-right shrink-0 whitespace-nowrap">
                 ${(item.precio * item.cantidad).toFixed(2)}
               </span>
             </div>
@@ -299,9 +299,9 @@ function PanelPedidoContenido({
           onChange={(e) => setNota(e.target.value)}
           placeholder="Nota para el negocio (opcional)"
           maxLength={300}
-          rows={2}
+          rows={6}
           data-testid="textarea-nota-pedido"
-          className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-slate-500 resize-none"
+          className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg text-base font-medium text-slate-700 placeholder:text-slate-500 focus:outline-none focus:border-slate-500 resize-none"
         />
       </div>
 
@@ -311,7 +311,7 @@ function PanelPedidoContenido({
           verde, integrada al resto del panel. */}
       <div className="shrink-0 -mx-4 mt-3 px-4 pt-3 pb-4 border-t-2 border-slate-200">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-bold text-slate-500">Total</span>
+          <span className="text-sm font-bold text-slate-600">Total</span>
           <span className="text-2xl font-extrabold text-slate-900">${total.toFixed(2)}</span>
         </div>
 
@@ -583,22 +583,36 @@ export function PaginaCatalogoNegocio() {
         {tieneAmbos && (
           <>
             <button
-              onClick={() => { setTipoSeleccionado('producto'); setCategoriaSeleccionada(null); }}
-              className={`h-11 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border-2 cursor-pointer shrink-0 ${
-                tipoSeleccionado === 'producto' ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-600'
+              onClick={() => { setTipoSeleccionado(tipoSeleccionado === 'producto' ? null : 'producto'); setCategoriaSeleccionada(null); }}
+              className={`h-11 px-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer shrink-0 ${
+                tipoSeleccionado === 'producto'
+                  ? 'bg-slate-800 border-slate-800 text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
               }`}
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              {totalProductos}
+              <ShoppingBag className="w-4 h-4" />
+              <span className="hidden lg:inline">Productos</span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                tipoSeleccionado === 'producto' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
+              }`}>
+                {totalProductos}
+              </span>
             </button>
             <button
-              onClick={() => { setTipoSeleccionado('servicio'); setCategoriaSeleccionada(null); }}
-              className={`h-11 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border-2 cursor-pointer shrink-0 ${
-                tipoSeleccionado === 'servicio' ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-600'
+              onClick={() => { setTipoSeleccionado(tipoSeleccionado === 'servicio' ? null : 'servicio'); setCategoriaSeleccionada(null); }}
+              className={`h-11 px-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer shrink-0 ${
+                tipoSeleccionado === 'servicio'
+                  ? 'bg-slate-800 border-slate-800 text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
               }`}
             >
-              <Wrench className="w-3.5 h-3.5" />
-              {totalServicios}
+              <Wrench className="w-4 h-4" />
+              <span className="hidden lg:inline">Servicios</span>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                tipoSeleccionado === 'servicio' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
+              }`}>
+                {totalServicios}
+              </span>
             </button>
           </>
         )}
@@ -607,7 +621,7 @@ export function PaginaCatalogoNegocio() {
             <button
               onClick={() => setDropdownCatAbierto((v) => !v)}
               className={`h-11 flex items-center gap-1.5 px-3 rounded-lg text-sm font-semibold border-2 cursor-pointer ${
-                categoriaSeleccionada ? 'bg-slate-300 border-slate-400 text-slate-800' : 'bg-white border-slate-300 text-slate-600'
+                categoriaSeleccionada ? 'bg-slate-300 border-slate-400 text-slate-800' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
               }`}
             >
               <span className="hidden lg:inline truncate max-w-[120px]">{categoriaSeleccionada || 'Categoría'}</span>
@@ -668,8 +682,18 @@ export function PaginaCatalogoNegocio() {
             número de artículos): scroll interno único si el contenido
             excede el alto disponible. */}
         <div className="hidden lg:flex lg:flex-col sticky top-4 h-[530px] 2xl:h-[800px] rounded-xl border-2 border-slate-300 bg-white shadow-md overflow-hidden">
-          <h3 className="shrink-0 text-base font-bold text-slate-800 px-4 pt-4 pb-3">Tu pedido {totalItemsPedido > 0 && `(${totalItemsPedido})`}</h3>
-          <div className="flex-1 min-h-0 px-4">
+          <div className="shrink-0 flex items-center gap-2.5 px-4 pt-4 pb-3 border-b-2 border-slate-200">
+            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
+              <ShoppingBag className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800">Tu pedido</h3>
+            {totalItemsPedido > 0 && (
+              <span className="ml-auto min-w-[22px] h-[22px] px-1.5 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">
+                {totalItemsPedido}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col px-4">
             <PanelPedidoContenido {...panelProps} />
           </div>
         </div>
@@ -702,13 +726,34 @@ export function PaginaCatalogoNegocio() {
       <ModalBottom
         abierto={drawerPedidoAbierto}
         onCerrar={() => setDrawerPedidoAbierto(false)}
-        titulo="Tu pedido"
-        iconoTitulo={<ShoppingBag className="w-5 h-5 text-white" />}
+        mostrarHeader={false}
         headerOscuro
         alturaMaxima="xl"
         sinScrollInterno
       >
-        <div className="flex-1 min-h-0 p-4">
+        {/* Header propio — mismo estilo que los modales de Business Studio
+            (ej. ModalArticulo.tsx): bloque oscuro con círculos decorativos,
+            ícono en círculo y título + subtítulo. */}
+        <div
+          className="relative overflow-hidden px-4 pt-7 pb-3 shrink-0 rounded-t-3xl"
+          style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', boxShadow: '0 4px 16px rgba(15,23,42,0.35)' }}
+        >
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+          <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
+          <div className="relative flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+              <ShoppingBag className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="flex-1 min-w-0 flex items-baseline gap-1.5 text-lg font-bold text-white truncate">
+              Tu pedido
+              <span className="text-sm text-white/70 font-semibold">
+                · {totalItemsPedido} artículo{totalItemsPedido === 1 ? '' : 's'}
+              </span>
+            </h3>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 flex flex-col p-4">
           <PanelPedidoContenido {...panelProps} />
         </div>
       </ModalBottom>
