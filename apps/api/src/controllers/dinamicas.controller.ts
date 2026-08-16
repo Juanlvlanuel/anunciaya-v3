@@ -413,7 +413,7 @@ export async function getDinamicasDeOrganizador(req: Request, res: Response) {
     const incluirCanceladas =
         req.query.incluirCanceladas === '1' && req.usuario?.usuarioId === usuarioId;
 
-    const resultado = await listarDinamicasDeOrganizador(usuarioId, { pagina, limite, incluirCanceladas });
+    const resultado = await listarDinamicasDeOrganizador(usuarioId, { pagina, limite, incluirCanceladas }, req.usuario?.usuarioId);
     if (!resultado.success) {
         return res.status(resultado.code).json(resultado);
     }

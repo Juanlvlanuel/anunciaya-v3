@@ -670,7 +670,14 @@ interface OpcionesDinamicasDeOrganizador {
  *  (que exige que `usuarioId` sea el del token, vía el controller), esta
  *  función es pública: cualquiera puede consultar las Dinámicas de un
  *  tercero. Excluye `borrador` (privado, aún no publicado) siempre. */
-export async function listarDinamicasDeOrganizador(usuarioId: string, opciones: OpcionesDinamicasDeOrganizador = {}) {
+/** `usuarioActualId` es opcional (viene de `verificarTokenOpcional`) — solo
+ *  sirve para calcular el flag `guardado` de cada card, igual patrón que
+ *  `obtenerDinamicaPublica`/`listarDinamicasPublicas`. */
+export async function listarDinamicasDeOrganizador(
+    usuarioId: string,
+    opciones: OpcionesDinamicasDeOrganizador = {},
+    usuarioActualId?: string,
+) {
     try {
         const pagina = Math.max(1, opciones.pagina ?? 1);
         const limite = Math.min(20, Math.max(1, opciones.limite ?? 12));
@@ -678,6 +685,14 @@ export async function listarDinamicasDeOrganizador(usuarioId: string, opciones: 
         const estadosPermitidos = opciones.incluirCanceladas
             ? sql`${dinamicas.estado} IN ('activa', 'pospuesta', 'en_sorteo', 'cerrada', 'cancelada')`
             : sql`${dinamicas.estado} IN ('activa', 'pospuesta', 'en_sorteo', 'cerrada')`;
+        const guardadoExpr = usuarioActualId
+            ? sql<boolean>`EXISTS (
+                SELECT 1 FROM guardados g
+                WHERE g.usuario_id = ${usuarioActualId}
+                  AND g.entity_type = 'dinamica'
+                  AND g.entity_id = ${dinamicas.id}
+              )`
+            : sql<boolean>`FALSE`;
 
         const [filas, insignia] = await Promise.all([
             db
@@ -687,6 +702,7 @@ export async function listarDinamicasDeOrganizador(usuarioId: string, opciones: 
                     organizadorNombre: usuarios.nombre,
                     organizadorApellidos: usuarios.apellidos,
                     organizadorAvatarUrl: usuarios.avatarUrl,
+                    guardado: guardadoExpr,
                 })
                 .from(dinamicas)
                 .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
@@ -714,6 +730,7 @@ export async function listarDinamicasDeOrganizador(usuarioId: string, opciones: 
                         : null;
                 return {
                     ...fila.dinamica,
+                    guardado: fila.guardado,
                     organizador: {
                         id: fila.organizadorId,
                         nombre: fila.organizadorNombre,

@@ -76,4 +76,4 @@ Cada 30 min (mismo criterio que `dinamicas-expiracion.cron.ts`): un UPDATE atóm
 - **Alta Rápida MarketPlace** — entrada de carga masiva (foto/texto/manual → tabla editable → publicar en lote), calcando el patrón de `docs/arquitectura/Alta_Rapida_Catalogo.md` pero para MarketPlace en modo `vendo`. NO reemplaza el alta uno-por-uno que ya existe.
 - Botón "Solicitudes de apartado" en `PaginaMisPublicaciones.tsx` solo se agregó en el header laptop — pendiente replicarlo en mobile/PC si se quiere el mismo acceso en todos los breakpoints.
 - QA E2E completo de los 2 flujos (apartar público → confirmar/rechazar privado → expiración por cron).
-- Correr la migración `docs/migraciones/2026-08-12-marketplace-apartados.sql` en DEV y PROD.
+- ~~Correr la migración `docs/migraciones/2026-08-12-marketplace-apartados.sql` en DEV y PROD.~~ ✅ Corrida en ambos entornos (16 ago 2026).

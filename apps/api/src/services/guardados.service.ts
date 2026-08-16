@@ -773,15 +773,7 @@ export async function obtenerGuardados(
                 .from(guardados)
                 .innerJoin(dinamicas, eq(dinamicas.id, guardados.entityId))
                 .innerJoin(usuarios, eq(usuarios.id, dinamicas.organizadorUsuarioId))
-                .where(and(
-                    ...condiciones,
-                    // Solo Dinámicas que el visitante aún puede ver/participar
-                    // — igual filtro que el feed público. Si el organizador la
-                    // pospone/reactiva sigue visible; si entra en sorteo o
-                    // cierra, desaparece de Mis Guardados (el registro en
-                    // `guardados` se conserva por si vuelve a estar activa).
-                    sql`${dinamicas.estado} IN ('activa', 'pospuesta')`,
-                ))
+                .where(and(...condiciones))
                 .orderBy(sql`${guardados.createdAt} DESC`)
                 .limit(limite)
                 .offset(offset);
@@ -821,7 +813,6 @@ export async function obtenerGuardados(
                     and(
                         eq(guardados.usuarioId, userId),
                         eq(guardados.entityType, 'dinamica'),
-                        sql`${dinamicas.estado} IN ('activa', 'pospuesta')`,
                     ),
                 );
             const total = Number(count);
