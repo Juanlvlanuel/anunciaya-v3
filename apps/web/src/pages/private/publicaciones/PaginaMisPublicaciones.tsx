@@ -37,8 +37,11 @@ import {
     AlertTriangle,
     Ticket,
     XCircle,
+    Lock,
     type LucideIcon,
 } from 'lucide-react';
+import { ModalGestionApartados } from '@/components/marketplace/ModalGestionApartados';
+import { useMisApartados } from '@/hooks/queries/useMarketplace';
 
 import type { ComponentType } from 'react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -194,6 +197,9 @@ export function PaginaMisPublicaciones() {
         return t === 'servicios' || t === 'marketplace' || t === 'dinamicas' ? t : 'marketplace';
     })();
     const [tipoActivo, setTipoActivo] = useState<TipoPublicacion>(tipoInicial);
+    // Mi Catálogo (2026-08-12) — solicitudes de apartado de mis artículos de MarketPlace.
+    const [modalApartadosAbierto, setModalApartadosAbierto] = useState(false);
+    const { data: apartadosPendientes = [] } = useMisApartados('pendiente');
 
     // Limpia el query param `?tipo=` después de leerlo una vez (mismo patrón
     // que `ComposerSection` con `?crear`/`?editar`). Así, si el usuario
@@ -809,6 +815,23 @@ export function PaginaMisPublicaciones() {
                                     {/* Divider vertical sutil */}
                                     <div className="h-7 w-px shrink-0 bg-white/20" />
 
+                                    {/* Apartados — Mi Catálogo (2026-08-12), solo MarketPlace */}
+                                    {tipoActivo === 'marketplace' && (
+                                        <button
+                                            data-testid="btn-apartados-header-laptop"
+                                            onClick={() => setModalApartadosAbierto(true)}
+                                            aria-label="Solicitudes de apartado"
+                                            className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-800 text-white shadow-md ring-2 ring-white/20 transition-transform hover:scale-105"
+                                        >
+                                            <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                                            {apartadosPendientes.length > 0 && (
+                                                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                                                    {apartadosPendientes.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )}
+
                                     {/* Publicar — icon-only */}
                                     <button
                                         data-testid="btn-publicar-header-laptop"
@@ -1295,6 +1318,11 @@ export function PaginaMisPublicaciones() {
                 pendiente={cambiarEstadoMutation.isPending}
                 onCerrar={() => setArticuloAPausar(null)}
                 onConfirmar={handleConfirmarPausar}
+            />
+
+            <ModalGestionApartados
+                abierto={modalApartadosAbierto}
+                onCerrar={() => setModalApartadosAbierto(false)}
             />
 
             <ModalMarcarVendidoArticulo

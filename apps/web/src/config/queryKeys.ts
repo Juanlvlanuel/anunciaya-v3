@@ -259,9 +259,12 @@ export const queryKeys = {
     vendedorPublicaciones: (
       usuarioId: string,
       estado: 'activa' | 'vendida',
-      paginacion: { limit: number; offset: number }
+      paginacion: { limit: number; offset: number; modo?: 'vendo' | 'busco' }
     ) =>
       ['marketplace', 'vendedor', usuarioId, 'publicaciones', estado, paginacion] as const,
+    /** Mi Catálogo (2026-08-12) — solicitudes de apartado de mis artículos. */
+    misApartados: (estado?: string) =>
+      ['marketplace', 'mis-apartados', estado ?? 'todos'] as const,
     /**
      * Mis publicaciones — listado paginado del dueño filtrado por estado.
      * `estado=undefined` significa "todos los no-eliminados". El sufijo

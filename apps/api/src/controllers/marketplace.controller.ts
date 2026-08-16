@@ -30,6 +30,12 @@ import {
     obtenerArticulosDeVendedor,
     eliminarFotoMarketplaceSiHuerfana,
     sugerirArticuloConIA,
+    apartarArticulo,
+    confirmarApartado,
+    rechazarApartado,
+    obtenerApartadosDeVendedor,
+    obtenerConfiguracionApartado,
+    actualizarConfiguracionApartado,
 } from '../services/marketplace.service.js';
 import {
     obtenerSugerencias,
@@ -52,6 +58,8 @@ import {
     buscarQuerySchema,
     crearComentarioSchema,
     editarComentarioSchema,
+    apartarArticuloSchema,
+    configurarApartadoSchema,
     formatearErroresZod,
 } from '../validations/marketplace.schema.js';
 import {
@@ -574,11 +582,16 @@ export async function getPublicacionesDeVendedor(req: Request, res: Response) {
         // render, sin requerir fetch adicional en el frontend.
         const visitanteId = obtenerUsuarioId(req);
 
+        // Mi Catálogo (2026-08-12) pasa modo=vendo para no mezclar "Busco".
+        const modoParam = req.query.modo as string | undefined;
+        const modoFiltro = modoParam === 'vendo' || modoParam === 'busco' ? modoParam : null;
+
         const resultado = await obtenerArticulosDeVendedor(
             usuarioId,
             estadoParam,
             { limit, offset },
-            visitanteId
+            visitanteId,
+            modoFiltro
         );
         return res.json(resultado);
     } catch (error) {
@@ -892,5 +905,167 @@ export async function deleteComentario(req: Request, res: Response) {
     } catch (error) {
         console.error('Error en deleteComentario:', error);
         return res.status(500).json({ success: false, message: 'Error al eliminar el comentario' });
+    }
+}
+
+// =============================================================================
+// APARTAR (Mi Catálogo, 2026-08-12)
+// =============================================================================
+
+/**
+ * POST /api/marketplace/articulos/:id/apartar
+ * Público, sin auth. Body: { nombreComprador, whatsappComprador }.
+ */
+export async function postApartarArticulo(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        if (!UUID_REGEX.test(id)) {
+            return res.status(400).json({ success: false, message: 'El ID del artículo no es válido' });
+        }
+
+        const validacion = apartarArticuloSchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const resultado = await apartarArticulo(
+            id,
+            validacion.data.nombreComprador,
+            validacion.data.whatsappComprador
+        );
+
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en postApartarArticulo:', error);
+        return res.status(500).json({ success: false, message: 'Error al apartar el artículo' });
+    }
+}
+
+/**
+ * PATCH /api/marketplace/apartados/:id/confirmar
+ * Privado — solo el dueño del artículo asociado a la solicitud.
+ */
+export async function patchConfirmarApartado(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        if (!UUID_REGEX.test(id)) {
+            return res.status(400).json({ success: false, message: 'El ID de la solicitud no es válido' });
+        }
+
+        const usuarioId = exigirUsuarioId(req, res);
+        if (!usuarioId) return;
+
+        const resultado = await confirmarApartado(id, usuarioId);
+
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en patchConfirmarApartado:', error);
+        return res.status(500).json({ success: false, message: 'Error al confirmar el apartado' });
+    }
+}
+
+/**
+ * PATCH /api/marketplace/apartados/:id/rechazar
+ * Privado — solo el dueño del artículo asociado a la solicitud.
+ */
+export async function patchRechazarApartado(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        if (!UUID_REGEX.test(id)) {
+            return res.status(400).json({ success: false, message: 'El ID de la solicitud no es válido' });
+        }
+
+        const usuarioId = exigirUsuarioId(req, res);
+        if (!usuarioId) return;
+
+        const resultado = await rechazarApartado(id, usuarioId);
+
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en patchRechazarApartado:', error);
+        return res.status(500).json({ success: false, message: 'Error al rechazar el apartado' });
+    }
+}
+
+/**
+ * GET /api/marketplace/mis-apartados?estado=pendiente
+ * Privado — panel de gestión: solicitudes de apartado de TODOS mis artículos.
+ */
+export async function getMisApartados(req: Request, res: Response) {
+    try {
+        const usuarioId = exigirUsuarioId(req, res);
+        if (!usuarioId) return;
+
+        const estadoParam = req.query.estado as string | undefined;
+        const estadosValidos = ['pendiente', 'confirmado', 'rechazado', 'expirado'];
+        const estadoFiltro = estadoParam && estadosValidos.includes(estadoParam)
+            ? (estadoParam as 'pendiente' | 'confirmado' | 'rechazado' | 'expirado')
+            : undefined;
+
+        const resultado = await obtenerApartadosDeVendedor(usuarioId, estadoFiltro);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getMisApartados:', error);
+        return res.status(500).json({ success: false, message: 'Error al obtener tus apartados' });
+    }
+}
+
+/**
+ * GET /api/marketplace/mi-configuracion-apartado
+ * Privado — horas configuradas de apartado del vendedor actual.
+ */
+export async function getMiConfiguracionApartado(req: Request, res: Response) {
+    try {
+        const usuarioId = exigirUsuarioId(req, res);
+        if (!usuarioId) return;
+
+        const resultado = await obtenerConfiguracionApartado(usuarioId);
+
+        if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getMiConfiguracionApartado:', error);
+        return res.status(500).json({ success: false, message: 'Error al obtener tu configuración' });
+    }
+}
+
+/**
+ * PATCH /api/marketplace/mi-configuracion-apartado
+ * Privado. Body: { apartadoHoras }.
+ */
+export async function patchMiConfiguracionApartado(req: Request, res: Response) {
+    try {
+        const usuarioId = exigirUsuarioId(req, res);
+        if (!usuarioId) return;
+
+        const validacion = configurarApartadoSchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const resultado = await actualizarConfiguracionApartado(usuarioId, validacion.data.apartadoHoras);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en patchMiConfiguracionApartado:', error);
+        return res.status(500).json({ success: false, message: 'Error al actualizar tu configuración' });
     }
 }

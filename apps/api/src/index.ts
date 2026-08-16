@@ -21,6 +21,7 @@ import { inicializarCronVencimientosManuales } from './cron/suscripciones-vencim
 import { inicializarCronPublicidad } from './cron/publicidad.cron.js';
 import { inicializarCronPuntosExpiracion } from './cron/puntos-expiracion.cron.js';
 import { inicializarCronDinamicasExpiracion } from './cron/dinamicas-expiracion.cron.js';
+import { inicializarCronMarketplaceApartadosExpiracion } from './cron/marketplace-apartados-expiracion.cron.js';
 import { inicializarCapturaLogs } from './utils/logBuffer.js';
 import { refrescarEmailSoporte } from './utils/email.js';
 
@@ -62,6 +63,7 @@ const iniciarServidor = async () => {
     inicializarCronPublicidad();            // Expira anuncios vencidos + avisa 3 días antes (cada 12h)
     inicializarCronPuntosExpiracion();      // Expira puntos por inactividad proactivamente (diario 9:00 UTC)
     inicializarCronDinamicasExpiracion();   // Libera boletos reservados y no pagados (cada 30 min)
+    inicializarCronMarketplaceApartadosExpiracion(); // Libera artículos apartados sin concretar (Mi Catálogo, cada 30 min)
     // (Pieza 3) El cron de "foto mensual" de comisiones se RETIRÓ: la comisión recurrente ahora se devenga
     // en cada COBRO (ver comisiones-devengo.service · devengarComisionRecurrenteAlCobro).
   } catch (error) {

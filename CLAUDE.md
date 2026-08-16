@@ -369,6 +369,16 @@ Para probar funcionalidad nueva, crear datos reales en la BD que detonen la func
 
 No apurarse al siguiente paso ni preguntar "¿hacemos commit?" después de cada cambio. El usuario lleva el ritmo y decide cuándo avanzar.
 
+### 9.1 NUNCA correr tsc/eslint por iniciativa propia
+
+**Regla dura, sin excepciones:** no ejecutar `tsc`, `tsc -b`, `tsc --noEmit`, `eslint`, ni ningún comando de typecheck/lint después de editar código — ni tras cada cambio, ni al cerrar una tanda, ni como "verificación de cierre". Solo correrlos cuando Juan lo pida explícitamente **en ese mismo turno** (ej. "corre el typecheck", "revisa que compile", "córrelo").
+
+Esta regla ya se había pedido y revocado varias veces en sesiones pasadas (queda vía memoria en `feedback_correr_typecheck_tras_codear`), y sigue reincidiendo en sesiones nuevas porque la memoria personal no siempre se consulta antes de actuar. Por eso vive aquí, en `CLAUDE.md` — de lectura obligatoria al inicio de cada sesión — y no solo en memoria.
+
+Antes de escribir un comando `Bash` que empiece con `tsc`/`eslint` (o `npx`/`pnpm exec` seguido de esos binarios), preguntarse: *¿Juan lo pidió en este turno?* Si no, no correrlo — cerrar el turno reportando qué se cambió, punto.
+
+Verificación de correctitud del código va por otra vía: revisión visual del propio código, no por ejecutar el compilador.
+
 ### 10. UX desde Perspectiva del Comerciante
 
 Cuestionar textos, botones y flujos pensando como el usuario final. Si un texto puede confundir (ej: "Resolver" suena a que el sistema lo resuelve solo), proponer alternativas claras.

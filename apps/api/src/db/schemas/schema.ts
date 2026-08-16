@@ -164,6 +164,10 @@ export const usuarios = pgTable("usuarios", {
 	rolEquipo: varchar("rol_equipo", { length: 20 }),
 	// Región del GERENTE (el vendedor se deduce de embajador_ciudades; superadmin/normal = null).
 	regionId: uuid("region_id").references((): AnyPgColumn => regiones.id, { onDelete: 'set null' }),
+	// Mi Catálogo (MarketPlace, 2026-08-12) — horas que dura un "apartado"
+	// confirmado antes de liberarse solo. Un solo número por vendedor, no por
+	// artículo (ver marketplace_apartados / articulos_marketplace.apartado_hasta).
+	marketplaceApartadoHoras: integer("marketplace_apartado_horas").default(24).notNull(),
 }, (table) => [
 	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
 	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast()),
@@ -2255,6 +2259,12 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	// TTL — solo se setea al crear; cron del Sprint 7 lo usa para auto-pausar
 	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),
 
+	// Lock vigente de "apartado" (Fase Mi Catálogo, 2026-08-12). NULL = disponible.
+	// Se llena solo cuando el vendedor CONFIRMA una solicitud en marketplace_apartados
+	// — lectura O(1) para pintar "Apartado" en el catálogo sin JOIN. El cron de
+	// expiración lo limpia cuando se vence.
+	apartadoHasta: timestamp("apartado_hasta", { withTimezone: true, mode: 'string' }),
+
 	// Timestamps
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
@@ -2268,6 +2278,7 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	index("idx_marketplace_expira").using("btree", table.expiraAt.asc().nullsLast()),
 	index("idx_marketplace_modo").using("btree", table.modo.asc().nullsLast()),
 	index("idx_marketplace_categoria").using("btree", table.categoriaId.asc().nullsLast()),
+	index("idx_marketplace_apartado_hasta").using("btree", table.apartadoHasta.asc().nullsLast()).where(sql`apartado_hasta IS NOT NULL`),
 	// Índices GIST (ubicacion_aproximada) y GIN (FTS) viven solo en SQL —
 	// Drizzle no soporta declarar GIST/GIN sobre columnas custom geography ni
 	// sobre to_tsvector(). La migración SQL los crea y la BD los mantiene.
@@ -2281,6 +2292,39 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	check("articulos_marketplace_fotos_modo_check", sql`modo = 'busco' OR jsonb_array_length(fotos) >= 1`),
 	// Presupuesto solo aplica a búsquedas.
 	check("articulos_marketplace_presupuesto_modo_check", sql`presupuesto IS NULL OR modo = 'busco'`),
+]);
+
+/**
+ * Solicitudes de "apartado" de un artículo de MarketPlace (Mi Catálogo,
+ * 2026-08-12). Siempre "sin cuenta" — nombre + WhatsApp manual, nunca
+ * usuario_id, porque quien aparta llega por un link compartido en redes
+ * (ej. durante un live de venta), no logueado. Una fila por SOLICITUD
+ * (historial completo); el LOCK vigente vive aparte, en
+ * articulos_marketplace.apartado_hasta.
+ */
+export const marketplaceApartados = pgTable("marketplace_apartados", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	articuloId: uuid("articulo_id").notNull(),
+	nombreComprador: varchar("nombre_comprador", { length: 100 }).notNull(),
+	whatsappComprador: varchar("whatsapp_comprador", { length: 20 }).notNull(),
+	// pendiente | confirmado | rechazado | expirado
+	estado: varchar({ length: 20 }).default('pendiente').notNull(),
+	creadoEn: timestamp("creado_en", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// Cuándo el vendedor confirmó o rechazó (NULL mientras sigue pendiente).
+	resueltoEn: timestamp("resuelto_en", { withTimezone: true, mode: 'string' }),
+	// Solo se llena al confirmar = resuelto_en + usuarios.marketplace_apartado_horas
+	// del vendedor en ese momento (snapshot, no recalcula si cambia su config después).
+	expiraEn: timestamp("expira_en", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_marketplace_apartados_articulo").using("btree", table.articuloId.asc().nullsLast()),
+	index("idx_marketplace_apartados_articulo_estado").using("btree", table.articuloId.asc().nullsLast(), table.estado.asc().nullsLast()),
+	index("idx_marketplace_apartados_expira").using("btree", table.expiraEn.asc().nullsLast()).where(sql`estado = 'confirmado'`),
+	foreignKey({
+		columns: [table.articuloId],
+		foreignColumns: [articulosMarketplace.id],
+		name: "fk_marketplace_apartados_articulo"
+	}).onDelete("cascade"),
+	check("marketplace_apartados_estado_check", sql`estado IN ('pendiente', 'confirmado', 'rechazado', 'expirado')`),
 ]);
 
 

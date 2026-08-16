@@ -67,6 +67,10 @@ const ANCHO_DROPDOWN = 224;
 const MARGEN_VIEWPORT = 8;
 /** Margen mínimo del triángulo respecto a las esquinas redondeadas del dropdown. */
 const MARGEN_FLECHA = 14;
+/** Alto estimado del dropdown (2 opciones + padding) — usado para decidir si
+ *  cabe debajo del ícono o hay que abrirlo hacia arriba. */
+const ALTO_DROPDOWN_ESTIMADO = 104;
+const MARGEN_VERTICAL = 12;
 
 /**
  * Centra el dropdown en `anchorX` (centro X real del ícono clickeado), pero
@@ -88,6 +92,8 @@ interface DropdownPosition {
   top: number;
   /** Centro X real del ícono clickeado (viewport), sin clampear todavía. */
   centro: number;
+  /** true = no había espacio abajo, el dropdown se abre hacia arriba del ícono. */
+  arriba: boolean;
 }
 
 interface OpcionesPendientes {
@@ -124,11 +130,16 @@ export function useAbrirWhatsApp() {
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
+    const cabeAbajo = window.innerHeight - rect.bottom >= ALTO_DROPDOWN_ESTIMADO + MARGEN_VERTICAL;
     setPendiente({
       principal,
       alterno: alterno as string,
       mensaje,
-      posicion: { top: rect.bottom + 12, centro: rect.left + rect.width / 2 },
+      posicion: {
+        top: cabeAbajo ? rect.bottom + MARGEN_VERTICAL : rect.top - ALTO_DROPDOWN_ESTIMADO - MARGEN_VERTICAL,
+        centro: rect.left + rect.width / 2,
+        arriba: !cabeAbajo,
+      },
     });
   }, []);
 
@@ -147,10 +158,14 @@ export function useAbrirWhatsApp() {
           className="fixed w-56 bg-slate-900 rounded-xl shadow-lg py-2 z-9999"
           style={{ top: pendiente.posicion.top, left: boxLeft, transform: 'translateX(-50%)' }}
         >
-          {/* Triángulo apuntando al ícono — arriba del dropdown, ya que este vive debajo del ícono */}
+          {/* Triángulo apuntando al ícono — arriba del dropdown si abre hacia
+              abajo, o abajo del dropdown si no había espacio y abrió hacia arriba. */}
           <div
-            className="absolute bottom-full -translate-x-1/2 w-0 h-0"
-            style={{ left: flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '6px solid #0f172a' }}
+            className={`absolute -translate-x-1/2 w-0 h-0 ${pendiente.posicion.arriba ? 'top-full' : 'bottom-full'}`}
+            style={pendiente.posicion.arriba
+              ? { left: flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #0f172a' }
+              : { left: flechaLeft, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '6px solid #0f172a' }
+            }
           />
           <button
             type="button"

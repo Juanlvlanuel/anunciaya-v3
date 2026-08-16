@@ -59,10 +59,17 @@ import {
     postCrearComentario,
     putEditarComentario,
     deleteComentario,
+    postApartarArticulo,
+    patchConfirmarApartado,
+    patchRechazarApartado,
+    getMisApartados,
+    getMiConfiguracionApartado,
+    patchMiConfiguracionApartado,
 } from '../controllers/marketplace.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
 import { requiereModoPersonal } from '../middleware/validarModo.js';
+import { limitadorApartarMarketplace } from '../middleware/rateLimiter.js';
 
 const router: Router = Router();
 
@@ -104,6 +111,14 @@ router.get('/articulos/:id', verificarTokenOpcional, getArticulo);
  * Incrementa total_vistas. Sin auth requerida.
  */
 router.post('/articulos/:id/vista', postRegistrarVista);
+
+/**
+ * POST /api/marketplace/articulos/:id/apartar
+ * Mi Catálogo (2026-08-12). Público, sin auth — el comprador llega desde un
+ * link compartido en redes. Body: { nombreComprador, whatsappComprador }.
+ * Rate-limited: nadie necesita cuenta para llamarlo.
+ */
+router.post('/articulos/:id/apartar', limitadorApartarMarketplace, postApartarArticulo);
 
 /**
  * POST /api/marketplace/articulos/:id/heartbeat
@@ -199,6 +214,35 @@ router.get(
     getMisArticulos
 );
 
+/**
+ * GET /api/marketplace/mis-apartados?estado=pendiente
+ * Mi Catálogo (2026-08-12) — panel de gestión: solicitudes de apartado de
+ * todos mis artículos.
+ */
+router.get(
+    '/mis-apartados',
+    verificarToken,
+    requiereModoPersonal,
+    getMisApartados
+);
+
+/**
+ * GET/PATCH /api/marketplace/mi-configuracion-apartado
+ * Horas configuradas de apartado del vendedor actual.
+ */
+router.get(
+    '/mi-configuracion-apartado',
+    verificarToken,
+    requiereModoPersonal,
+    getMiConfiguracionApartado
+);
+router.patch(
+    '/mi-configuracion-apartado',
+    verificarToken,
+    requiereModoPersonal,
+    patchMiConfiguracionApartado
+);
+
 // =============================================================================
 // PRIVADOS — CRUD DE ARTÍCULOS
 // =============================================================================
@@ -257,6 +301,32 @@ router.post(
     verificarToken,
     requiereModoPersonal,
     postReactivarArticulo
+);
+
+// =============================================================================
+// APARTADOS (Mi Catálogo, 2026-08-12) — confirmar/rechazar, solo el dueño
+// =============================================================================
+
+/**
+ * PATCH /api/marketplace/apartados/:id/confirmar
+ * El vendedor confirma una solicitud de apartado pendiente.
+ */
+router.patch(
+    '/apartados/:id/confirmar',
+    verificarToken,
+    requiereModoPersonal,
+    patchConfirmarApartado
+);
+
+/**
+ * PATCH /api/marketplace/apartados/:id/rechazar
+ * El vendedor rechaza una solicitud de apartado pendiente.
+ */
+router.patch(
+    '/apartados/:id/rechazar',
+    verificarToken,
+    requiereModoPersonal,
+    patchRechazarApartado
 );
 
 // =============================================================================

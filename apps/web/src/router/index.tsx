@@ -233,6 +233,13 @@ const router = createBrowserRouter([
         element: <PaginaArticuloMarketplacePublico />,
       },
       {
+        // Mi Catálogo (2026-08-12) — link público compartible sin cuenta.
+        // Mismo componente que la ruta privada; detecta el prefijo /p/marketplace
+        // internamente y renderiza la variante pública (solo Vendo + Apartar).
+        path: '/p/marketplace/usuario/:usuarioId',
+        element: <PaginaPerfilVendedor />,
+      },
+      {
         path: '/p/dinamica/:dinamicaId',
         element: <PaginaDinamicaPublica />,
       },

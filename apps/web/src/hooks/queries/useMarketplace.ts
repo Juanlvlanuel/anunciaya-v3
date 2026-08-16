@@ -654,13 +654,15 @@ export function useVendedorMarketplace(usuarioId: string | undefined) {
 export function useVendedorPublicaciones(
     usuarioId: string | undefined,
     estado: 'activa' | 'vendida',
-    paginacion: { limit: number; offset: number } = { limit: 20, offset: 0 }
+    paginacion: { limit: number; offset: number } = { limit: 20, offset: 0 },
+    // Mi Catálogo (2026-08-12) pasa 'vendo' — un "Busco" no se cataloga.
+    modo?: 'vendo' | 'busco'
 ) {
     return useQuery({
         queryKey: queryKeys.marketplace.vendedorPublicaciones(
             usuarioId ?? '',
             estado,
-            paginacion
+            { ...paginacion, modo }
         ),
         queryFn: async (): Promise<PublicacionesDeVendedor> => {
             const response = await api.get<{
@@ -668,7 +670,7 @@ export function useVendedorPublicaciones(
                 data?: ArticuloMarketplace[];
                 paginacion?: PublicacionesDeVendedor['paginacion'];
             }>(`/marketplace/vendedor/${usuarioId}/publicaciones`, {
-                params: { estado, ...paginacion },
+                params: { estado, ...paginacion, modo },
             });
             return {
                 data: response.data.data ?? [],
@@ -976,6 +978,119 @@ export function useEliminarArticuloMarketplace() {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.marketplace.all(),
             });
+        },
+    });
+}
+
+// =============================================================================
+// APARTAR (Mi Catálogo, 2026-08-12)
+// =============================================================================
+
+/**
+ * `POST /marketplace/articulos/:id/apartar` — público, sin auth. El
+ * comprador (sin cuenta) solicita apartar un artículo con nombre + WhatsApp.
+ */
+export function useApartarArticulo() {
+    return useMutation<
+        { success: boolean; message?: string },
+        unknown,
+        { articuloId: string; nombreComprador: string; whatsappComprador: string }
+    >({
+        mutationFn: async ({ articuloId, nombreComprador, whatsappComprador }) => {
+            const response = await api.post(`/marketplace/articulos/${articuloId}/apartar`, {
+                nombreComprador,
+                whatsappComprador,
+            });
+            return response.data;
+        },
+    });
+}
+
+/**
+ * `GET /marketplace/mis-apartados?estado=` — panel de gestión del vendedor:
+ * solicitudes de apartado de TODOS sus artículos.
+ */
+export interface ApartadoDeVendedor {
+    id: string;
+    articulo_id: string;
+    nombre_comprador: string;
+    whatsapp_comprador: string;
+    estado: 'pendiente' | 'confirmado' | 'rechazado' | 'expirado';
+    creado_en: string;
+    resuelto_en: string | null;
+    expira_en: string | null;
+    articulo_titulo: string;
+    articulo_fotos: ArchivoFoto[];
+    articulo_foto_portada_index: number;
+}
+
+export function useMisApartados(estado?: 'pendiente' | 'confirmado' | 'rechazado' | 'expirado') {
+    return useQuery({
+        queryKey: queryKeys.marketplace.misApartados(estado),
+        queryFn: async (): Promise<ApartadoDeVendedor[]> => {
+            const response = await api.get<{ success: boolean; data?: ApartadoDeVendedor[] }>(
+                '/marketplace/mis-apartados',
+                { params: estado ? { estado } : undefined }
+            );
+            return response.data.data ?? [];
+        },
+        staleTime: 30 * 1000,
+    });
+}
+
+/** `PATCH /marketplace/apartados/:id/confirmar` — el vendedor confirma una solicitud. */
+export function useConfirmarApartado() {
+    const queryClient = useQueryClient();
+    return useMutation<{ success: boolean; message?: string }, unknown, { apartadoId: string }>({
+        mutationFn: async ({ apartadoId }) => {
+            const response = await api.patch(`/marketplace/apartados/${apartadoId}/confirmar`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-apartados'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+        },
+    });
+}
+
+/** `PATCH /marketplace/apartados/:id/rechazar` — el vendedor rechaza una solicitud. */
+export function useRechazarApartado() {
+    const queryClient = useQueryClient();
+    return useMutation<{ success: boolean; message?: string }, unknown, { apartadoId: string }>({
+        mutationFn: async ({ apartadoId }) => {
+            const response = await api.patch(`/marketplace/apartados/${apartadoId}/rechazar`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-apartados'] });
+        },
+    });
+}
+
+/** `GET /marketplace/mi-configuracion-apartado` — horas configuradas del vendedor actual. */
+export function useMiConfiguracionApartado() {
+    return useQuery({
+        queryKey: ['marketplace', 'mi-configuracion-apartado'] as const,
+        queryFn: async (): Promise<number> => {
+            const response = await api.get<{ success: boolean; data?: { apartadoHoras: number } }>(
+                '/marketplace/mi-configuracion-apartado'
+            );
+            return response.data.data?.apartadoHoras ?? 24;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+}
+
+/** `PATCH /marketplace/mi-configuracion-apartado` — actualiza las horas de apartado. */
+export function useActualizarConfiguracionApartado() {
+    const queryClient = useQueryClient();
+    return useMutation<{ success: boolean; message?: string }, unknown, { apartadoHoras: number }>({
+        mutationFn: async ({ apartadoHoras }) => {
+            const response = await api.patch('/marketplace/mi-configuracion-apartado', { apartadoHoras });
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mi-configuracion-apartado'] });
         },
     });
 }

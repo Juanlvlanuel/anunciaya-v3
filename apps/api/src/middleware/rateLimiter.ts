@@ -65,3 +65,22 @@ export const limitadorAsistente = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Límite para "Apartar" en Mi Catálogo (MarketPlace): 300 dev, 8 prod por
+// minuto. Endpoint PÚBLICO sin auth que acepta nombre+WhatsApp libremente —
+// sin este límite, cualquiera podría inundar a un vendedor con solicitudes
+// falsas.
+export const limitadorApartarMarketplace = rateLimit({
+  windowMs: 60 * 1000,
+  // 2026-08-15: el catálogo público permite seleccionar varias piezas y
+  // mandar una sola solicitud (1 request HTTP por artículo elegido) — el
+  // límite sube de 8 a 20 para no bloquear una selección legítima de varias
+  // piezas en un solo envío.
+  max: isDev ? 300 : 20,
+  message: {
+    success: false,
+    message: 'Demasiadas solicitudes de apartado, espera un momento',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

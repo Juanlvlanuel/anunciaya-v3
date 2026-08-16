@@ -36,6 +36,7 @@ import {
   Plus,
   Minus,
   Trash2,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -368,6 +369,7 @@ export function PaginaCatalogoNegocio() {
   const [tipoSeleccionado, setTipoSeleccionado] = useState<'producto' | 'servicio' | null>(null);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [dropdownCatAbierto, setDropdownCatAbierto] = useState(false);
+  const [filtrosMovilAbierto, setFiltrosMovilAbierto] = useState(false);
   const dropdownCatRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -572,7 +574,7 @@ export function PaginaCatalogoNegocio() {
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar productos o servicios..."
             data-testid="input-buscar-catalogo-negocio"
-            className="w-full h-11 pl-10 pr-9 bg-white rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-500 border-2 border-slate-300 focus:ring-2 focus:ring-slate-500 outline-none"
+            className="w-full h-11 pl-10 pr-9 bg-white rounded-lg text-base font-semibold text-slate-800 placeholder:text-slate-500 border-2 border-slate-300 focus:ring-2 focus:ring-slate-500 outline-none"
           />
           {busqueda && (
             <button onClick={() => setBusqueda('')} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer">
@@ -580,8 +582,25 @@ export function PaginaCatalogoNegocio() {
             </button>
           )}
         </div>
+
+        {/* Móvil: un solo botón "Filtros" que abre una hoja con tipo + categoría */}
+        {(tieneAmbos || categorias.length > 0) && (
+          <button
+            type="button"
+            onClick={() => setFiltrosMovilAbierto(true)}
+            data-testid="btn-filtros-movil"
+            className="lg:hidden relative shrink-0 w-11 h-11 rounded-lg bg-slate-800 hover:bg-slate-900 flex items-center justify-center cursor-pointer"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-white" />
+            {(tipoSeleccionado || categoriaSeleccionada) && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-white" />
+            )}
+          </button>
+        )}
+
+        {/* Escritorio: fila completa como antes */}
         {tieneAmbos && (
-          <>
+          <div className="hidden lg:flex items-center gap-2">
             <button
               onClick={() => { setTipoSeleccionado(tipoSeleccionado === 'producto' ? null : 'producto'); setCategoriaSeleccionada(null); }}
               className={`h-11 px-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer shrink-0 ${
@@ -591,7 +610,7 @@ export function PaginaCatalogoNegocio() {
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
-              <span className="hidden lg:inline">Productos</span>
+              <span>Productos</span>
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
                 tipoSeleccionado === 'producto' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
               }`}>
@@ -607,24 +626,24 @@ export function PaginaCatalogoNegocio() {
               }`}
             >
               <Wrench className="w-4 h-4" />
-              <span className="hidden lg:inline">Servicios</span>
+              <span>Servicios</span>
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
                 tipoSeleccionado === 'servicio' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
               }`}>
                 {totalServicios}
               </span>
             </button>
-          </>
+          </div>
         )}
         {categorias.length > 0 && (
-          <div ref={dropdownCatRef} className="relative shrink-0">
+          <div ref={dropdownCatRef} className="hidden lg:block relative shrink-0">
             <button
               onClick={() => setDropdownCatAbierto((v) => !v)}
               className={`h-11 flex items-center gap-1.5 px-3 rounded-lg text-sm font-semibold border-2 cursor-pointer ${
                 categoriaSeleccionada ? 'bg-slate-300 border-slate-400 text-slate-800' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
               }`}
             >
-              <span className="hidden lg:inline truncate max-w-[120px]">{categoriaSeleccionada || 'Categoría'}</span>
+              <span className="truncate max-w-[120px]">{categoriaSeleccionada || 'Categoría'}</span>
               <ChevronDown className={`w-4 h-4 ${dropdownCatAbierto ? 'rotate-180' : ''}`} />
             </button>
             {dropdownCatAbierto && (
@@ -655,6 +674,109 @@ export function PaginaCatalogoNegocio() {
           </div>
         )}
       </div>
+
+      {/* Hoja de filtros — solo móvil. Mismo estilo de header que el modal
+          de pedido (fondo oscuro, círculos decorativos, ícono en círculo). */}
+      <ModalBottom
+        abierto={filtrosMovilAbierto}
+        onCerrar={() => setFiltrosMovilAbierto(false)}
+        mostrarHeader={false}
+        headerOscuro
+        alturaMaxima="md"
+        sinScrollInterno
+      >
+        <div
+          className="relative overflow-hidden px-4 pt-7 pb-4 shrink-0 rounded-t-3xl"
+          style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', boxShadow: '0 4px 16px rgba(15,23,42,0.35)' }}
+        >
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+          <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
+          <div className="relative flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+              <SlidersHorizontal className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Filtros</h3>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-4">
+          {tieneAmbos && (
+            <div>
+              <p className="text-sm font-bold text-slate-500 mb-2">Tipo</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTipoSeleccionado(tipoSeleccionado === 'producto' ? null : 'producto')}
+                  className={`flex-1 h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer ${
+                    tipoSeleccionado === 'producto'
+                      ? 'bg-slate-800 border-slate-800 text-white'
+                      : 'bg-white border-slate-300 text-slate-600'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  Productos
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                    tipoSeleccionado === 'producto' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
+                  }`}>
+                    {totalProductos}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setTipoSeleccionado(tipoSeleccionado === 'servicio' ? null : 'servicio')}
+                  className={`flex-1 h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 border-2 cursor-pointer ${
+                    tipoSeleccionado === 'servicio'
+                      ? 'bg-slate-800 border-slate-800 text-white'
+                      : 'bg-white border-slate-300 text-slate-600'
+                  }`}
+                >
+                  <Wrench className="w-4 h-4" />
+                  Servicios
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                    tipoSeleccionado === 'servicio' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-600'
+                  }`}>
+                    {totalServicios}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {categorias.length > 0 && (
+            <div>
+              <p className="text-sm font-bold text-slate-500 mb-2">Categoría</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setCategoriaSeleccionada(null)}
+                  className={`h-10 px-3.5 rounded-lg text-sm font-semibold border-2 cursor-pointer ${
+                    !categoriaSeleccionada ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-600'
+                  }`}
+                >
+                  Todas
+                </button>
+                {categorias.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoriaSeleccionada(cat)}
+                    className={`h-10 px-3.5 rounded-lg text-sm font-semibold border-2 cursor-pointer ${
+                      categoriaSeleccionada === cat ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-600'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setFiltrosMovilAbierto(false)}
+            data-testid="btn-aplicar-filtros-movil"
+            className="w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold cursor-pointer"
+          >
+            Ver resultados
+          </button>
+        </div>
+      </ModalBottom>
 
       {/* Grid + panel */}
       <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-5 lg:items-start">

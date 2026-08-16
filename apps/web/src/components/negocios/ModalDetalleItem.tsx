@@ -187,10 +187,10 @@ export function ModalDetalleItem({ item, whatsapp, whatsappAlterno, negocioUsuar
             // `_modalUI` causaba que al cerrar el detalle también se
             // cerrara el listado por colisión de marcas en el state.
             discriminador="_modalDetalleItem"
-            className="min-w-[400px] max-w-[80vw] lg:max-w-sm 2xl:max-w-md"
+            className="min-w-[330px] max-w-[80vw] lg:max-w-sm 2xl:max-w-md"
         >
             {/* Imagen Hero con overlay */}
-            <div className="relative h-72 lg:h-60 2xl:h-72 bg-slate-200">
+            <div className="relative h-52 lg:h-60 2xl:h-72 bg-slate-200">
                     {item.imagenPrincipal ? (
                         <img
                             src={item.imagenPrincipal}

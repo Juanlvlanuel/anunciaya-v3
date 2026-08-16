@@ -568,6 +568,32 @@ export const editarComentarioSchema = z.object({
 
 export type EditarComentarioInput = z.infer<typeof editarComentarioSchema>;
 
+// =============================================================================
+// APARTAR (Mi Catálogo, 2026-08-12) — sin cuenta, solo nombre + WhatsApp
+// =============================================================================
+
+export const apartarArticuloSchema = z.object({
+    nombreComprador: z
+        .string()
+        .trim()
+        .min(2, 'El nombre debe tener al menos 2 caracteres')
+        .max(100, 'El nombre no puede exceder 100 caracteres'),
+    whatsappComprador: z
+        .string()
+        .trim()
+        .min(8, 'El número de WhatsApp no es válido')
+        .max(20, 'El número de WhatsApp no es válido'),
+});
+
+export type ApartarArticuloInput = z.infer<typeof apartarArticuloSchema>;
+
+/** Ajuste único por vendedor — cuántas horas dura un apartado confirmado. */
+export const configurarApartadoSchema = z.object({
+    apartadoHoras: z.coerce.number().int().min(1, 'Mínimo 1 hora').max(168, 'Máximo 168 horas (7 días)'),
+});
+
+export type ConfigurarApartadoInput = z.infer<typeof configurarApartadoSchema>;
+
 export default {
     crearArticuloSchema,
     actualizarArticuloSchema,
@@ -581,4 +607,6 @@ export default {
     campoUUID,
     crearComentarioSchema,
     editarComentarioSchema,
+    apartarArticuloSchema,
+    configurarApartadoSchema,
 };

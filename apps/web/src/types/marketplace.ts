@@ -109,6 +109,12 @@ export interface ArticuloMarketplace {
      * (feed infinito, publicaciones del vendedor). Sin sesión = false.
      */
     guardado?: boolean;
+    /**
+     * Mi Catálogo (2026-08-12) — lock vigente de "apartado" (NULL/undefined
+     * = disponible). Solo viene poblado en `obtenerArticulosDeVendedor`
+     * (publicaciones del vendedor); el resto de endpoints no lo incluyen aún.
+     */
+    apartadoHasta?: string | null;
 }
 
 /**
@@ -185,6 +191,9 @@ export interface PerfilVendedorMarketplace {
     miembroDesde: string;
     kpis: {
         publicacionesActivas: number;
+        /** 2026-08-15 — split por modo para los chips "Catálogo"/"Busco" del perfil. */
+        publicacionesActivasVendo: number;
+        publicacionesActivasBusco: number;
         vendidos: number;
         /** String formateado del tiempo de respuesta: '<1h', '2h', '1d', '—' */
         tiempoRespuesta: string;
