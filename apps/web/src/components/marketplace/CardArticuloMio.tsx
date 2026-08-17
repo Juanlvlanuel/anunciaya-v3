@@ -197,33 +197,29 @@ export function CardArticuloMio({
 
                 {/* Overlay de estado para `vendida` y `pausada` — semi-translúcido
                     para dejar ver la foto pero comunicar visualmente que el
-                    artículo no está activo. El icono + texto centrado dan
-                    contexto inmediato sin leer el pill. Patrón heredado del
-                    `OverlayVendido` del perfil público del vendedor. */}
+                    artículo no está activo. Pill blanco centrado (mismo
+                    patrón que "Apartado" en Mi Catálogo,
+                    `PaginaPerfilVendedor.tsx`), unificado 2026-08-17. */}
                 {articulo.estado === 'vendida' && (
                     <div
                         data-testid={`overlay-vendido-${articulo.id}`}
-                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/55 backdrop-blur-[1px]"
+                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/35"
                     >
-                        <div className="flex flex-col items-center gap-0.5 text-white">
-                            <PackageX className="h-9 w-9 drop-shadow lg:h-12 lg:w-12" strokeWidth={2} />
-                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-2xl">
-                                Vendido
-                            </span>
-                        </div>
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <PackageX className="h-3.5 w-3.5" strokeWidth={2} />
+                            Vendido
+                        </span>
                     </div>
                 )}
                 {articulo.estado === 'pausada' && (
                     <div
                         data-testid={`overlay-pausado-${articulo.id}`}
-                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/55 backdrop-blur-[1px]"
+                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/35"
                     >
-                        <div className="flex flex-col items-center gap-0.5 text-white">
-                            <PauseCircle className="h-9 w-9 drop-shadow lg:h-12 lg:w-12" strokeWidth={2} />
-                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-2xl">
-                                Pausado
-                            </span>
-                        </div>
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <PauseCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                            Pausado
+                        </span>
                     </div>
                 )}
 

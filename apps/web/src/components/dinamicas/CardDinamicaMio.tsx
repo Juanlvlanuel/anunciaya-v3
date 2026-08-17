@@ -20,7 +20,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ImageOff, MoreVertical, Pencil, Ticket, Users, CalendarClock, Ban, UserPlus, type LucideIcon } from 'lucide-react';
+import { Clock, ImageOff, Lock, MoreVertical, Pencil, Ticket, Users, CalendarClock, Ban, UserPlus, type LucideIcon } from 'lucide-react';
 import Tooltip from '../ui/Tooltip';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type { DinamicaFeedItem } from '../../types/dinamicas';
@@ -117,9 +117,26 @@ export function CardDinamicaMio({ dinamica, onEditar, onAgregarManual, onPospone
                         <ImageOff className="h-8 w-8" strokeWidth={1.5} />
                     </div>
                 )}
-                <span className={`absolute left-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold shadow-md shadow-black/20 ${estado.clase}`}>
-                    {estado.texto}
-                </span>
+                {/* Cerrada/Cancelada — pill blanco centrado sobre la imagen
+                    (mismo patrón que "Apartado"/"Vendido"/"Pausado" en
+                    MarketPlace y Servicios), en vez del badge de esquina que
+                    usan los estados en curso. */}
+                {dinamica.estado === 'cerrada' || dinamica.estado === 'cancelada' ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            {dinamica.estado === 'cancelada' ? (
+                                <Ban className="h-3.5 w-3.5" />
+                            ) : (
+                                <Lock className="h-3.5 w-3.5" />
+                            )}
+                            {estado.texto}
+                        </span>
+                    </div>
+                ) : (
+                    <span className={`absolute left-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold shadow-md shadow-black/20 ${estado.clase}`}>
+                        {estado.texto}
+                    </span>
+                )}
 
                 {tieneAcciones && (
                     <button

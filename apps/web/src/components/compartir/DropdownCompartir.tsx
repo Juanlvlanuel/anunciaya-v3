@@ -162,9 +162,24 @@ export function DropdownCompartir({
 
     const copiarEnlace = async () => {
         try {
-            await navigator.clipboard.writeText(url);
+            // `navigator.clipboard` solo existe en contextos seguros
+            // (https:// o localhost) — al probar por IP de LAN (ej.
+            // 192.168.1.125) por http:// no está disponible. Fallback con
+            // el truco clásico de textarea + execCommand (mismo patrón que
+            // `MenuContextualMensaje.tsx` de ChatYA).
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            }
             notificar.exito('¡Enlace copiado!');
-            
+
             // Ejecutar callback de métricas
             if (onShare) {
                 onShare();

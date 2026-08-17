@@ -38,6 +38,7 @@ import {
     ChevronLeft,
     AlertCircle,
     ShoppingCart,
+    Lock,
     PackageX,
     PauseCircle,
     PlayCircle,
@@ -199,6 +200,9 @@ export function PaginaArticuloMarketplace() {
             : `/p/articulo-marketplace/${articulo.id}`;
 
     const overlayEstado = articulo.estado !== 'activa' ? articulo.estado : null;
+    // Un artículo apartado sigue `estado='activa'` (no es uno de los 3
+    // estados de `overlayEstado`) — se calcula aparte, mismo pill.
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
 
     return (
         <div
@@ -392,8 +396,19 @@ export function PaginaArticuloMarketplace() {
                                 fotos={articulo.fotos}
                                 titulo={articulo.titulo}
                                 fotoPortadaIndex={articulo.fotoPortadaIndex}
+                                overlayEstado={
+                                    overlayEstado ? (
+                                        <OverlayEstado estado={overlayEstado} />
+                                    ) : apartado ? (
+                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl">
+                                            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                                                <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                                                Apartado
+                                            </span>
+                                        </div>
+                                    ) : null
+                                }
                             />
-                            {overlayEstado && <OverlayEstado estado={overlayEstado} />}
 
                             {/* Bloque info — SOLO en móvil. En desktop va en col-derecha. */}
                             <div className="mx-3 mt-5 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">
@@ -831,22 +846,14 @@ interface OverlayEstadoProps {
 }
 
 function OverlayEstado({ estado }: OverlayEstadoProps) {
+    // Pill blanco centrado sobre la imagen — mismo patrón que "Apartado"/
+    // "Vendido"/"Pausado" en las cards de MarketPlace/Servicios/Dinámicas
+    // (2026-08-17), en vez del overlay grande de color sólido a 85% que se
+    // sentía muy invasivo sobre la foto.
     const config = {
-        vendida: {
-            label: 'VENDIDO',
-            bg: 'bg-rose-600/85',
-            icon: PackageX,
-        },
-        pausada: {
-            label: 'PAUSADO',
-            bg: 'bg-slate-700/85',
-            icon: PauseCircle,
-        },
-        eliminada: {
-            label: 'ELIMINADO',
-            bg: 'bg-slate-900/85',
-            icon: PackageX,
-        },
+        vendida: { label: 'Vendido', icon: PackageX },
+        pausada: { label: 'Pausado', icon: PauseCircle },
+        eliminada: { label: 'Eliminado', icon: PackageX },
     }[estado];
 
     const Icon = config.icon;
@@ -854,14 +861,12 @@ function OverlayEstado({ estado }: OverlayEstadoProps) {
     return (
         <div
             data-testid={`overlay-estado-${estado}`}
-            className={`pointer-events-none absolute inset-0 flex items-center justify-center ${config.bg} lg:rounded-xl`}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl"
         >
-            <div className="flex flex-col items-center gap-2 text-white">
-                <Icon className="h-12 w-12" strokeWidth={1.5} />
-                <span className="text-2xl font-extrabold tracking-wider">
-                    {config.label}
-                </span>
-            </div>
+            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+                {config.label}
+            </span>
         </div>
     );
 }

@@ -16,7 +16,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Clock, ImageOff, Ticket } from 'lucide-react';
+import { Ban, Clock, ImageOff, Lock, Ticket } from 'lucide-react';
 import { Icon, ICONOS } from '@/config/iconos';
 import { useGuardados } from '../../hooks/useGuardados';
 import { useSaveBubble } from '../../hooks/useSaveBubble';
@@ -87,9 +87,26 @@ export function CardDinamicaCompacta({ dinamica }: CardDinamicaCompactaProps) {
                         <ImageOff className="h-8 w-8" strokeWidth={1.5} />
                     </div>
                 )}
-                <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm ${estado.clase}`}>
-                    {estado.texto}
-                </span>
+                {/* Cerrada/Cancelada — pill blanco centrado sobre la imagen
+                    (mismo patrón que "Apartado"/"Vendido"/"Pausado" en
+                    MarketPlace y Servicios), en vez del badge de esquina que
+                    usan los estados en curso. */}
+                {dinamica.estado === 'cerrada' || dinamica.estado === 'cancelada' ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            {dinamica.estado === 'cancelada' ? (
+                                <Ban className="h-3.5 w-3.5" />
+                            ) : (
+                                <Lock className="h-3.5 w-3.5" />
+                            )}
+                            {estado.texto}
+                        </span>
+                    </div>
+                ) : (
+                    <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm ${estado.clase}`}>
+                        {estado.texto}
+                    </span>
+                )}
 
                 {/* Botón guardar — esquina sup-der, mismo patrón glass que
                     `CardArticulo.tsx` (MarketPlace) para coherencia visual
@@ -139,7 +156,7 @@ export function CardDinamicaCompacta({ dinamica }: CardDinamicaCompactaProps) {
                 {cuentaRegresiva && (
                     <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
                         <Clock className="h-4 w-4 shrink-0" strokeWidth={2} />
-                        <span>{cuentaRegresiva} para cerrar</span>
+                        <span>{cuentaRegresiva === 'Cerrada' ? cuentaRegresiva : `${cuentaRegresiva} para cerrar`}</span>
                     </div>
                 )}
             </div>

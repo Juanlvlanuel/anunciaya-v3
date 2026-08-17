@@ -17,7 +17,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ImageOff, Play } from 'lucide-react';
+import { ImageOff, Lock, Play } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useIniciarChatMarketplace } from '../../hooks/useIniciarChatMarketplace';
 import { api } from '../../services/api';
@@ -33,6 +33,10 @@ interface CardArticuloReelProps {
 export function CardArticuloReel({ articulo }: CardArticuloReelProps) {
     const navigate = useNavigate();
     const fotoPortada = obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex);
+    // 2026-08-17: un artículo apartado sigue `estado='activa'` y puede
+    // aparecer en el reel "recién publicado" — mismo pill que el resto de
+    // las cards de MarketPlace.
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
 
     // ChatYA — mismo patrón on-demand que `CardArticulo` (variant='glass') y
     // `CardArticuloGuardado`: `ArticuloFeedInfinito` no trae los datos
@@ -95,6 +99,14 @@ export function CardArticuloReel({ articulo }: CardArticuloReelProps) {
                 ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-400">
                         <ImageOff className="h-8 w-8" strokeWidth={1.5} />
+                    </div>
+                )}
+                {apartado && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                            Apartado
+                        </span>
                     </div>
                 )}
             </div>

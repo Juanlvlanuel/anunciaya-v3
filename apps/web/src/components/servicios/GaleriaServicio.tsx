@@ -25,7 +25,7 @@
  * Ubicación: apps/web/src/components/servicios/GaleriaServicio.tsx
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import type { PublicacionDetalle } from '../../types/servicios';
 import { ModalImagenes } from '../ui/ModalImagenes';
@@ -37,9 +37,17 @@ interface GaleriaServicioProps {
      *  estira la portada a `h-full` para igualar el alto del sidebar
      *  derecho con el que se parea en el detalle. */
     alturaCompleta?: boolean;
+    /**
+     * Overlay de estado (pill "Pausado") superpuesto SOLO sobre la foto
+     * principal — nunca sobre la tira de thumbnails. Se renderiza dentro
+     * del wrapper `relative` de la foto (no por fuera del componente): por
+     * fuera, `absolute inset-0` cubriría foto+thumbnails combinados y el
+     * pill quedaría descentrado (mismo fix que `GaleriaArticulo`, 2026-08-17).
+     */
+    overlayEstado?: ReactNode;
 }
 
-export function GaleriaServicio({ publicacion, alturaCompleta = false }: GaleriaServicioProps) {
+export function GaleriaServicio({ publicacion, alturaCompleta = false, overlayEstado }: GaleriaServicioProps) {
     const fotos = publicacion.fotos ?? [];
     const portadaIdx = Math.max(
         0,
@@ -156,6 +164,7 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                         onClose={() => setLightboxAbierto(false)}
                     />
                 )}
+                {overlayEstado}
             </div>
         );
     }
@@ -262,6 +271,7 @@ export function GaleriaServicio({ publicacion, alturaCompleta = false }: Galeria
                         </button>
                     </>
                 )}
+                {overlayEstado}
             </div>
 
             {/* Tira de thumbnails horizontal — móvil + desktop, solo con

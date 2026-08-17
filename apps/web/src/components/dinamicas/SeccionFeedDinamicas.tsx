@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { AlertCircle, Loader2, Ticket } from 'lucide-react';
+import { AlertCircle, Loader2, Sparkles, Ticket } from 'lucide-react';
 import { useFeedInfinitoDinamicas, useSalonFamaDinamicas } from '../../hooks/queries/useDinamicas';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useMinDuracionVisible } from '../../hooks/useMinDuracionVisible';
@@ -239,15 +239,42 @@ export function SeccionFeedDinamicas({ ciudad, esModoPersonal, esEscritorio, hea
                             </div>
                         </div>
                     ) : dinamicas.length === 0 ? (
-                        <div className="flex flex-col items-center px-6 py-16 text-center">
-                            <div
-                                className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-                                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-                            >
-                                <Ticket className="h-8 w-8 text-white" strokeWidth={2} />
+                        // 2026-08-17: mismo lenguaje visual que el estado vacío
+                        // de PaginaPerfilVendedor.tsx (halos animate-ping +
+                        // sparkles decorativos + ícono con gradient) — antes
+                        // era un círculo plano sin animación. Ámbar en vez de
+                        // teal para mantener la identidad de color de Dinámicas.
+                        <div className="relative flex flex-col items-center px-6 pt-10 pb-12 text-center lg:pt-16 lg:pb-20">
+                            <Sparkles
+                                className="absolute left-8 top-2 h-5 w-5 animate-pulse text-amber-400/70"
+                                style={{ animationDuration: '2.5s' }}
+                            />
+                            <Sparkles
+                                className="absolute right-10 top-10 h-4 w-4 animate-pulse text-amber-300/70"
+                                style={{ animationDuration: '3.2s', animationDelay: '0.6s' }}
+                            />
+                            <div className="relative mb-6">
+                                <div
+                                    className="absolute inset-0 -m-5 animate-ping rounded-full bg-amber-300/40"
+                                    style={{ animationDuration: '2.4s' }}
+                                />
+                                <div
+                                    className="absolute inset-0 -m-2 animate-ping rounded-full bg-amber-400/40"
+                                    style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+                                />
+                                <div
+                                    className="relative flex h-24 w-24 items-center justify-center rounded-full shadow-xl"
+                                    style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                                >
+                                    <Ticket className="h-11 w-11 text-white" strokeWidth={2} />
+                                </div>
                             </div>
-                            <h3 className="mb-1.5 text-lg font-bold text-slate-900">Aún no hay Dinámicas en {ciudad}</h3>
-                            <p className="max-w-sm text-sm text-slate-600">
+                            <h3 className="mb-2 text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                                Aún no hay Dinámicas
+                                <br />
+                                en {ciudad}
+                            </h3>
+                            <p className="max-w-sm text-base text-slate-600">
                                 Organiza una rifa o concurso entre vecinos — coordina el pago y la entrega fuera de la app.
                             </p>
                         </div>

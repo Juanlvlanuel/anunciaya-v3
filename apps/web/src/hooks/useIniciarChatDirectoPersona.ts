@@ -58,6 +58,11 @@ interface IniciarChatDirectoPersonaInput {
     apellidos?: string;
     /** Avatar del usuario. `null` si no tiene foto cargada. */
     avatarUrl: string | null;
+    /** Mensaje que precarga el input del chat (2026-08-17) — igual patrón
+     *  que `useIniciarChatMarketplace`: si ya hay conversación, se guarda
+     *  como borrador de esa conv; si es nueva, va como `borradorInicial`
+     *  del chat temporal. No se envía solo, el usuario lo confirma. */
+    mensaje?: string;
 }
 
 export function useIniciarChatDirectoPersona() {
@@ -66,12 +71,13 @@ export function useIniciarChatDirectoPersona() {
     const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
     const conversaciones = useChatYAStore((s) => s.conversaciones);
     const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
+    const guardarBorrador = useChatYAStore((s) => s.guardarBorrador);
     const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     return async function iniciarChatDirectoPersona(
         input: IniciarChatDirectoPersonaInput,
     ): Promise<void> {
-        const { usuarioId, nombre, apellidos = '', avatarUrl } = input;
+        const { usuarioId, nombre, apellidos = '', avatarUrl, mensaje } = input;
 
         if (!sesion.autenticado) {
             notificar.advertencia('Inicia sesión para enviar un mensaje');
@@ -105,6 +111,7 @@ export function useIniciarChatDirectoPersona() {
 
         if (convExistente) {
             abrirConversacion(convExistente.id);
+            if (mensaje) guardarBorrador(convExistente.id, mensaje);
             abrirChatYA();
             return;
         }
@@ -123,6 +130,7 @@ export function useIniciarChatDirectoPersona() {
                 participante2Modo: 'personal',
                 contextoTipo: 'directo',
             },
+            borradorInicial: mensaje,
         });
         abrirChatYA();
     };

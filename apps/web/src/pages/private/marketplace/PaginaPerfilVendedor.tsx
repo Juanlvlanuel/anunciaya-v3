@@ -57,7 +57,6 @@ import {
     UserPlus,
     UserCheck,
     AlertCircle,
-    PackageX,
     ShoppingBag,
     ShoppingCart,
     BadgeCheck,
@@ -97,6 +96,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 import { useAuthStore, type Usuario } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
+import { useIniciarChatMarketplace } from '../../../hooks/useIniciarChatMarketplace';
 import {
     useVendedorMarketplace,
     useVendedorPublicaciones,
@@ -221,6 +221,31 @@ function PerfilVendedorPrivado() {
     const [articuloDetalle, setArticuloDetalle] = useState<ArticuloMarketplace | null>(null);
     // Zoom del avatar en el header — click para ver la foto en grande.
     const [avatarModalAbierto, setAvatarModalAbierto] = useState(false);
+
+    // Posición del sidebar de Apartar (2026-08-17): es `fixed` (ver
+    // PanelApartar) — un `right` fijo por Tailwind no sirve aquí porque esta
+    // página vive dentro de MainLayout, con una columna de publicidad de
+    // ancho variable a la derecha; sin medir, el sidebar podía quedar
+    // encima de esa columna en vez de a su izquierda. Se mide el borde
+    // derecho y la orilla superior reales de la grilla de cards.
+    const cardsRef = useRef<HTMLDivElement>(null);
+    const [posicionSidebar, setPosicionSidebar] = useState<{ left: number; top: number } | null>(null);
+
+    useLayoutEffect(() => {
+        if (seleccionadosApartar.size === 0) return;
+        const medir = () => {
+            if (cardsRef.current) {
+                const rect = cardsRef.current.getBoundingClientRect();
+                // +16 = el `lg:py-4` del div interior (`cardsRef` está en el
+                // wrapper de afuera, que no tiene padding propio) — sin esto
+                // el sidebar quedaba 16px más arriba que las cards reales.
+                setPosicionSidebar({ left: rect.right + 16, top: rect.top + 16 });
+            }
+        };
+        medir();
+        window.addEventListener('resize', medir);
+        return () => window.removeEventListener('resize', medir);
+    }, [seleccionadosApartar.size]);
 
     const { data: perfil, isLoading: cargandoPerfil, isError } =
         useVendedorMarketplace(usuarioId);
@@ -409,6 +434,7 @@ function PerfilVendedorPrivado() {
             nombre: perfil.nombre,
             apellidos: perfil.apellidos,
             avatarUrl: perfil.avatarUrl,
+            mensaje: `Hola ${perfil.nombre}, vi tu catálogo en AnunciaYA. `,
         });
     };
 
@@ -498,7 +524,7 @@ function PerfilVendedorPrivado() {
                             (Publicaciones/Vendidos) se quitaron: el conteo ya
                             se ve en cada chip, y "Vendidos" no aportaba
                             confianza real en un vendedor chico. */}
-                        <div className="relative z-10 px-3 pt-4 pb-3.5 lg:px-4 lg:py-3 2xl:px-3 2xl:pt-3.5 2xl:pb-3">
+                        <div className="relative z-10 px-3 pt-3 pb-2.5 lg:px-4 lg:py-2.5 2xl:px-3 2xl:pt-3 2xl:pb-2.5">
                             {/* Renglón 1 — volver + avatar + nombre/ciudad + contacto.
                                 items-start (2026-08-16): el bloque de texto ahora
                                 tiene 3 líneas (nombre/ciudad/íconos) y se alinea
@@ -508,15 +534,27 @@ function PerfilVendedorPrivado() {
                                     data-testid="btn-volver-perfil"
                                     onClick={handleVolver}
                                     aria-label="Volver"
-                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white"
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white"
                                 >
                                     <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
                                 </button>
 
-                                {/* Avatar — agrandado (2026-08-16) + status dot */}
-                                <div className="relative shrink-0">
+                                {/* Avatar — agrandado (2026-08-17, ahora a la
+                                    par del alto que ocupan nombre+íconos) +
+                                    anillo animado (conic-gradient girando,
+                                    igual que el sidebar de la vista pública)
+                                    + status dot. */}
+                                <div className="relative shrink-0 h-16 w-16 lg:h-16 lg:w-16">
                                     <div
-                                        className={`h-14 w-14 overflow-hidden rounded-full shadow-md lg:h-12 lg:w-12 ${
+                                        className="absolute inset-0 animate-spin rounded-full"
+                                        style={{
+                                            background: 'conic-gradient(from 0deg, #2dd4bf, #38bdf8, #a855f7, #f97316, #2dd4bf)',
+                                            animationDuration: '3s',
+                                        }}
+                                    />
+                                    <div className="absolute inset-[3px] rounded-full bg-black" />
+                                    <div
+                                        className={`absolute inset-[6px] overflow-hidden rounded-full ${
                                             perfil.avatarUrl ? 'lg:cursor-pointer' : ''
                                         }`}
                                         onClick={perfil.avatarUrl ? () => setAvatarModalAbierto(true) : undefined}
@@ -536,15 +574,33 @@ function PerfilVendedorPrivado() {
                                             </div>
                                         )}
                                     </div>
-                                    <span
-                                        className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-slate-950 lg:h-3 lg:w-3 ${
-                                            estadoPresencia === 'conectado'
-                                                ? 'bg-emerald-500'
-                                                : estadoPresencia === 'ausente'
-                                                    ? 'bg-amber-400'
-                                                    : 'bg-slate-400'
-                                        }`}
-                                    />
+                                    {/* Sobre el borde de la FOTO (inset-[6px]),
+                                        no de la esquina del anillo — antes
+                                        quedaba flotando en el hueco del
+                                        anillo animado. 2026-08-17: el badge
+                                        de Verificado vive AQUÍ siempre que es
+                                        vendedor (antes solo en tu propio
+                                        perfil; el resto veía el check junto
+                                        al nombre — se unificó, ya no hay
+                                        badge junto al nombre en ningún caso).
+                                        El puntito de en línea/ausente solo
+                                        aplica a perfiles que NO son
+                                        vendedores. */}
+                                    {esVendedor ? (
+                                        <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-black bg-white lg:h-6 lg:w-6">
+                                            <BadgeCheck className="h-full w-full fill-blue-500 text-white" strokeWidth={2.5} />
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className={`absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-black lg:bottom-0.5 lg:right-0.5 lg:h-3.5 lg:w-3.5 ${
+                                                estadoPresencia === 'conectado'
+                                                    ? 'bg-emerald-500'
+                                                    : estadoPresencia === 'ausente'
+                                                        ? 'bg-amber-400'
+                                                        : 'bg-slate-400'
+                                            }`}
+                                        />
+                                    )}
                                     {avatarModalAbierto && perfil.avatarUrl && (
                                         <ModalImagenes
                                             images={[perfil.avatarUrl]}
@@ -559,23 +615,35 @@ function PerfilVendedorPrivado() {
                                     y debajo, el contacto directo (WhatsApp/
                                     ChatYA/Agregar contacto), que antes vivía
                                     a la derecha del renglón. */}
-                                <div className="min-w-0 flex-1 lg:flex-none">
+                                <div className={`min-w-0 flex-1 lg:flex-none ${esUnoMismo ? 'self-center' : ''}`}>
+                                    {/* 2026-08-17: en tu propio perfil no
+                                        salen los íconos de contacto (no te
+                                        contactas a ti mismo) — sin ellos, el
+                                        nombre en 1 sola línea se ve muy
+                                        angosto/desbalanceado contra el
+                                        avatar. Ahí (solo ahí) se fuerza a 2
+                                        líneas y el bloque completo se centra
+                                        verticalmente contra el avatar
+                                        (`self-center` arriba); en el perfil
+                                        de alguien más se queda la estructura
+                                        de siempre (1 línea truncada + íconos
+                                        debajo, alineado arriba). El check de
+                                        Verificado ya no va aquí en NINGÚN
+                                        caso — se unificó en el propio avatar
+                                        (ver más arriba), tanto en tu perfil
+                                        como en el de alguien más. */}
                                     <h1 className="flex items-center gap-1.5 text-xl font-extrabold leading-tight tracking-tight text-white lg:text-lg">
-                                        <span className="truncate">
-                                            {perfil.nombre} {perfil.apellidos}
-                                        </span>
-                                        {esVendedor && (
-                                            <BadgeCheck
-                                                className="h-5 w-5 shrink-0 fill-blue-500 text-white"
-                                                strokeWidth={2.5}
-                                                aria-label="Vendedor con publicaciones"
-                                            />
+                                        {esUnoMismo ? (
+                                            <span className="flex flex-col">
+                                                <span className="truncate">{perfil.nombre}</span>
+                                                <span className="truncate">{perfil.apellidos}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="truncate">
+                                                {perfil.nombre} {perfil.apellidos}
+                                            </span>
                                         )}
                                     </h1>
-                                    {perfil.ciudad && (
-                                        <p className="truncate text-sm font-medium text-white/50">{perfil.ciudad}</p>
-                                    )}
-
                                     {!esUnoMismo && !estaBloqueado && (
                                         <div className="mt-1 flex items-center gap-1">
                                             {perfil.telefono && (
@@ -632,7 +700,7 @@ function PerfilVendedorPrivado() {
                                     en su propio renglón (ver más abajo). */}
                                 {(esVendedor || esOrganizador) && (
                                     <div
-                                        className="hidden flex-1 items-center justify-center gap-2 overflow-x-auto lg:flex [&::-webkit-scrollbar]:hidden"
+                                        className="hidden flex-1 items-center justify-center gap-2 self-center overflow-x-auto lg:flex [&::-webkit-scrollbar]:hidden"
                                         style={{ scrollbarWidth: 'none' }}
                                     >
                                         {esVendedor && (
@@ -656,13 +724,22 @@ function PerfilVendedorPrivado() {
                                             </>
                                         )}
                                         {esOrganizador && (
-                                            <ChipUnificado
-                                                activo={grupoActivo === 'dinamicas'}
-                                                label="Dinámicas"
-                                                count={dinamicasOrganizador?.dinamicas.length ?? 0}
-                                                onClick={() => setGrupoActivo('dinamicas')}
-                                                testId="chip-dinamicas-desktop"
-                                            />
+                                            <>
+                                                <ChipUnificado
+                                                    activo={grupoActivo === 'dinamicas' && subFiltroDinamicas === 'activa'}
+                                                    label="Dinámicas"
+                                                    count={dinamicasActivas.length}
+                                                    onClick={() => { setGrupoActivo('dinamicas'); setSubFiltroDinamicas('activa'); }}
+                                                    testId="chip-dinamicas-desktop"
+                                                />
+                                                <ChipUnificado
+                                                    activo={grupoActivo === 'dinamicas' && subFiltroDinamicas === 'cerrada'}
+                                                    label="Cerradas"
+                                                    count={dinamicasCerradas.length}
+                                                    onClick={() => { setGrupoActivo('dinamicas'); setSubFiltroDinamicas('cerrada'); }}
+                                                    testId="chip-dinamicas-cerradas-desktop"
+                                                />
+                                            </>
                                         )}
                                     </div>
                                 )}
@@ -675,35 +752,128 @@ function PerfilVendedorPrivado() {
                                     compartir — se conserva el botón Bloquear.
                                     Solo en la tab MarketPlace: el link
                                     compartido nunca incluye Dinámicas. */}
+                                {/* 2026-08-17: `Tooltip` en móvil ignora su
+                                    `className` (regresa `children` sin
+                                    envolver, ver Tooltip.tsx) — el
+                                    `hidden lg:block` de abajo nunca ocultó el
+                                    ícono real en móvil, solo su tooltip.
+                                    Ahora el `hidden lg:block` envuelve por
+                                    FUERA del propio `Tooltip`. Esta copia de
+                                    escritorio queda oculta en móvil; la
+                                    copia de móvil vive en el renglón 2. */}
                                 {esVendedor && grupoActivo === 'marketplace' && (
-                                    <Tooltip
-                                        text={esUnoMismo ? 'Compartir mi Catálogo' : 'Compartir este catálogo'}
-                                        position="bottom"
-                                        className="hidden shrink-0 lg:block"
+                                    <div className="hidden shrink-0 lg:block">
+                                        <Tooltip
+                                            text={esUnoMismo ? 'Compartir mi Catálogo' : 'Compartir este catálogo'}
+                                            position="bottom"
+                                        >
+                                            <DropdownCompartir
+                                                url={`${window.location.origin}/p/marketplace/usuario/${perfil.id}`}
+                                                texto={`¡Mira ${esUnoMismo ? 'mi' : 'este'} catálogo en AnunciaYA! ${perfil.nombre} ${perfil.apellidos}`}
+                                                titulo={esUnoMismo ? 'Mi Catálogo' : `Catálogo de ${perfil.nombre}`}
+                                                variante="dark"
+                                            />
+                                        </Tooltip>
+                                    </div>
+                                )}
+                                {!esUnoMismo && !(esVendedor && grupoActivo === 'marketplace') && (
+                                    <div className="hidden shrink-0 lg:block">
+                                        <Tooltip
+                                            text={estaBloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}
+                                            position="bottom"
+                                        >
+                                            <button
+                                                data-testid="btn-toggle-bloqueo"
+                                                onClick={handleToggleBloqueo}
+                                                disabled={accionBloqueoEnCurso}
+                                                aria-label={estaBloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}
+                                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-60 lg:cursor-pointer lg:hover:bg-white/10 ${
+                                                    estaBloqueado
+                                                        ? 'text-red-400 lg:hover:text-red-300'
+                                                        : 'text-white/50 lg:hover:text-white'
+                                                }`}
+                                            >
+                                                {estaBloqueado ? (
+                                                    <ShieldOff className="h-5 w-5" strokeWidth={2.5} />
+                                                ) : (
+                                                    <Ban className="h-5 w-5" strokeWidth={2.5} />
+                                                )}
+                                            </button>
+                                        </Tooltip>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Renglón 2 — solo móvil (`lg:hidden`): en
+                                laptop/PC los mismos chips ya viven arriba,
+                                en el renglón 1. Chips alineados a la
+                                izquierda (2026-08-17, antes centrados); el
+                                ícono de Compartir/Bloquear —oculto en móvil
+                                hasta ahora, solo vivía en el renglón 1 de
+                                escritorio— se agrega aquí, a la derecha, al
+                                mismo nivel que los chips. */}
+                            {(esVendedor || esOrganizador) && (
+                                <div className="mt-2 flex items-center justify-between gap-2 lg:hidden">
+                                    <div
+                                        className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+                                        style={{ scrollbarWidth: 'none' }}
                                     >
+                                        {esVendedor && (
+                                            <>
+                                                <ChipUnificado
+                                                    activo={grupoActivo === 'marketplace' && subFiltroMP === 'vendo'}
+                                                    label="Catálogo"
+                                                    count={totalActivosVendo}
+                                                    onClick={() => { setGrupoActivo('marketplace'); setSubFiltroMP('vendo'); }}
+                                                    testId="chip-catalogo"
+                                                />
+                                                {esUnoMismo && (
+                                                    <ChipUnificado
+                                                        activo={grupoActivo === 'marketplace' && subFiltroMP === 'vendida'}
+                                                        label="Vendidas"
+                                                        count={totalVendidos}
+                                                        onClick={() => { setGrupoActivo('marketplace'); setSubFiltroMP('vendida'); }}
+                                                        testId="chip-vendidas"
+                                                    />
+                                                )}
+                                            </>
+                                        )}
+                                        {esOrganizador && (
+                                            <>
+                                                <ChipUnificado
+                                                    activo={grupoActivo === 'dinamicas' && subFiltroDinamicas === 'activa'}
+                                                    label="Dinámicas"
+                                                    count={dinamicasActivas.length}
+                                                    onClick={() => { setGrupoActivo('dinamicas'); setSubFiltroDinamicas('activa'); }}
+                                                    testId="chip-dinamicas"
+                                                />
+                                                <ChipUnificado
+                                                    activo={grupoActivo === 'dinamicas' && subFiltroDinamicas === 'cerrada'}
+                                                    label="Cerradas"
+                                                    count={dinamicasCerradas.length}
+                                                    onClick={() => { setGrupoActivo('dinamicas'); setSubFiltroDinamicas('cerrada'); }}
+                                                    testId="chip-dinamicas-cerradas"
+                                                />
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {esVendedor && grupoActivo === 'marketplace' && (
                                         <DropdownCompartir
                                             url={`${window.location.origin}/p/marketplace/usuario/${perfil.id}`}
                                             texto={`¡Mira ${esUnoMismo ? 'mi' : 'este'} catálogo en AnunciaYA! ${perfil.nombre} ${perfil.apellidos}`}
                                             titulo={esUnoMismo ? 'Mi Catálogo' : `Catálogo de ${perfil.nombre}`}
                                             variante="dark"
                                         />
-                                    </Tooltip>
-                                )}
-                                {!esUnoMismo && !(esVendedor && grupoActivo === 'marketplace') && (
-                                    <Tooltip
-                                        text={estaBloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}
-                                        position="bottom"
-                                        className="hidden shrink-0 lg:block"
-                                    >
+                                    )}
+                                    {!esUnoMismo && !(esVendedor && grupoActivo === 'marketplace') && (
                                         <button
-                                            data-testid="btn-toggle-bloqueo"
+                                            data-testid="btn-toggle-bloqueo-movil"
                                             onClick={handleToggleBloqueo}
                                             disabled={accionBloqueoEnCurso}
                                             aria-label={estaBloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}
-                                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-60 lg:cursor-pointer lg:hover:bg-white/10 ${
-                                                estaBloqueado
-                                                    ? 'text-red-400 lg:hover:text-red-300'
-                                                    : 'text-white/50 lg:hover:text-white'
+                                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-60 ${
+                                                estaBloqueado ? 'text-red-400' : 'text-white/50'
                                             }`}
                                         >
                                             {estaBloqueado ? (
@@ -712,46 +882,6 @@ function PerfilVendedorPrivado() {
                                                 <Ban className="h-5 w-5" strokeWidth={2.5} />
                                             )}
                                         </button>
-                                    </Tooltip>
-                                )}
-                            </div>
-
-                            {/* Renglón 2 — solo móvil (`lg:hidden`): en
-                                laptop/PC los mismos chips ya viven arriba,
-                                en el renglón 1. */}
-                            {(esVendedor || esOrganizador) && (
-                                <div
-                                    className="mt-2 flex items-center justify-center gap-2 overflow-x-auto lg:hidden [&::-webkit-scrollbar]:hidden"
-                                    style={{ scrollbarWidth: 'none' }}
-                                >
-                                    {esVendedor && (
-                                        <>
-                                            <ChipUnificado
-                                                activo={grupoActivo === 'marketplace' && subFiltroMP === 'vendo'}
-                                                label="Catálogo"
-                                                count={totalActivosVendo}
-                                                onClick={() => { setGrupoActivo('marketplace'); setSubFiltroMP('vendo'); }}
-                                                testId="chip-catalogo"
-                                            />
-                                            {esUnoMismo && (
-                                                <ChipUnificado
-                                                    activo={grupoActivo === 'marketplace' && subFiltroMP === 'vendida'}
-                                                    label="Vendidas"
-                                                    count={totalVendidos}
-                                                    onClick={() => { setGrupoActivo('marketplace'); setSubFiltroMP('vendida'); }}
-                                                    testId="chip-vendidas"
-                                                />
-                                            )}
-                                        </>
-                                    )}
-                                    {esOrganizador && (
-                                        <ChipUnificado
-                                            activo={grupoActivo === 'dinamicas'}
-                                            label="Dinámicas"
-                                            count={dinamicasOrganizador?.dinamicas.length ?? 0}
-                                            onClick={() => setGrupoActivo('dinamicas')}
-                                            testId="chip-dinamicas"
-                                        />
                                     )}
                                 </div>
                             )}
@@ -761,65 +891,42 @@ function PerfilVendedorPrivado() {
             </div>
 
             {/* CONTENEDOR — max 920px para igualar al feed de MP. Móvil: contenedor con scroll propio.
-                2026-08-15: con selección de Apartar activa, se vuelve un grid
-                `[1fr_288px]` (Laptop) / `[1fr_320px]` (PC, 2026-08-16) dentro
-                del MISMO `max-w-7xl`/padding que usa el header (arriba) — el
-                sidebar (`PanelApartar` variante="grid",
-                columna derecha, `sticky`) queda alineado por construcción de
-                CSS al borde derecho del header, sin medir nada por JS; el
-                contenido (columna izquierda) queda alineado al borde
-                izquierdo del header de la misma forma. Sin selección, vuelve
-                al contenedor de una sola columna angosto de siempre. */}
+                2026-08-17: `PanelApartar` volvió a ser `fixed` (porteado a
+                document.body, ver su comentario) — ya no es una columna
+                real del grid, así que aquí solo queda reservarle margen-
+                derecha al contenido cuando hay selección, para que las
+                cards no queden debajo de él. Sin selección, vuelve al
+                contenedor de una sola columna angosto de siempre. */}
             <div
                 ref={cuerpoRef}
                 className={`flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-7xl lg:px-6 ${
-                    seleccionadosApartar.size > 0
-                        ? 'lg:grid lg:grid-cols-[1fr_288px] lg:items-start lg:gap-5 2xl:grid-cols-[1fr_320px] 2xl:px-8'
-                        : '2xl:max-w-[920px] 2xl:px-4'
+                    seleccionadosApartar.size > 0 ? '2xl:px-8' : '2xl:max-w-[920px] 2xl:px-4'
                 }`}
             >
-                <div className="min-w-0">
+                <div ref={cardsRef} className={`min-w-0 ${seleccionadosApartar.size > 0 ? 'lg:mr-[19rem] 2xl:mr-[21rem]' : ''}`}>
                 <div className="px-3 py-5 lg:px-0 lg:py-4">
 
                     {/* 2026-08-16: HeroCard y TabsGrupo se quitaron de aquí —
                         la identidad+contacto y los chips de grupo/sub-filtro
                         ahora viven arriba, en el header oscuro unificado.
-                        Solo queda el sub-filtro Activas/Cerradas de Dinámicas
-                        (un tercer nivel que solo aplica dentro de esa tab) y
-                        el grid de contenido. */}
+                        2026-08-17: el sub-filtro Activas/Cerradas de
+                        Dinámicas también se subió al header (chips
+                        "Dinámicas"/"Cerradas" junto a Catálogo/Vendidas) —
+                        aquí ya solo queda el grid de contenido. */}
                     {(esVendedor || esOrganizador) && (
                         <div>
-                            {grupoActivo === 'dinamicas' && (
-                                <div className="mt-3 flex items-center gap-2 lg:mt-0">
-                                    <ChipSubFiltro
-                                        activo={subFiltroDinamicas === 'activa'}
-                                        label="Activas"
-                                        count={dinamicasActivas.length}
-                                        onClick={() => setSubFiltroDinamicas('activa')}
-                                        testId="subfiltro-dinamicas-activas"
-                                    />
-                                    <ChipSubFiltro
-                                        activo={subFiltroDinamicas === 'cerrada'}
-                                        label="Cerradas"
-                                        count={dinamicasCerradas.length}
-                                        onClick={() => setSubFiltroDinamicas('cerrada')}
-                                        testId="subfiltro-dinamicas-cerradas"
-                                    />
-                                </div>
-                            )}
-
-                            <div className={`mt-4 ${grupoActivo === 'dinamicas' ? 'lg:mt-2' : 'lg:mt-0'}`}>
+                            <div className="mt-4 lg:mt-0">
                                 {grupoActivo === 'dinamicas' ? (
                                     cargandoDinamicas && !dinamicasOrganizador ? (
                                         <div className="flex min-h-40 items-center justify-center">
                                             <Spinner tamanio="md" />
                                         </div>
                                     ) : dinamicasFiltradas.length === 0 ? (
-                                        <p className="py-16 text-center text-base text-slate-600">
-                                            {subFiltroDinamicas === 'activa'
-                                                ? 'No hay Dinámicas activas en este momento.'
-                                                : 'Todavía no hay Dinámicas cerradas.'}
-                                        </p>
+                                        <EstadoVacio
+                                            tab={subFiltroDinamicas === 'activa' ? 'dinamicas_activa' : 'dinamicas_cerrada'}
+                                            esUnoMismo={esUnoMismo}
+                                            totalTab={0}
+                                        />
                                     ) : (
                                         <div
                                             data-testid="grid-dinamicas"
@@ -901,7 +1008,7 @@ function PerfilVendedorPrivado() {
                     }
                     onLimpiar={() => setSeleccionadosApartar(new Set())}
                     usuarioActual={usuarioActual}
-                    variante="grid"
+                    posicion={posicionSidebar}
                 />
             </div>
 
@@ -940,22 +1047,23 @@ function MiCatalogoPublico() {
     // Click en la card (fuera del círculo de selección) — detalle estilo
     // ModalDetalleItem de Negocios, adaptado a MarketPlace.
     const [articuloDetalle, setArticuloDetalle] = useState<ArticuloMarketplace | null>(null);
+    // Zoom del avatar en el sidebar — click para ver la foto en grande.
+    const [avatarModalAbierto, setAvatarModalAbierto] = useState(false);
 
-    // Alineación del panel de Apartar (2026-08-16): en vez de calcularla con
-    // fórmulas/números fijos (se desalineaban del catálogo real — cada uno
-    // se calculaba por su cuenta), se MIDE directo dónde termina y dónde
-    // arranca la tarjeta de identidad en pantalla, y el panel se coloca
-    // justo ahí (misma orilla derecha, misma orilla superior) — siempre
-    // coincide exacto sin importar tamaño de pantalla ni alto del header.
-    const identidadRef = useRef<HTMLDivElement>(null);
-    const [posicionPanel, setPosicionPanel] = useState<{ left: number; top: number } | null>(null);
+    // Alineación del sidebar de Apartar (2026-08-17): es `fixed` (siempre
+    // visible, no depende de un contenedor con scroll — ver PanelApartar),
+    // así que su posición ya no la resuelve el layout solo. Se MIDE la
+    // orilla superior real de la grilla de cards y se aplica directo por
+    // `style`, igual patrón que se usaba antes de la versión "grid".
+    const cardsRef = useRef<HTMLDivElement>(null);
+    const [posicionSidebar, setPosicionSidebar] = useState<{ left: number; top: number } | null>(null);
 
     useLayoutEffect(() => {
         if (seleccionados.size === 0) return;
         const medir = () => {
-            if (identidadRef.current) {
-                const rect = identidadRef.current.getBoundingClientRect();
-                setPosicionPanel({ left: rect.right + 16, top: rect.top });
+            if (cardsRef.current) {
+                const rect = cardsRef.current.getBoundingClientRect();
+                setPosicionSidebar({ left: rect.right + 16, top: rect.top });
             }
         };
         medir();
@@ -991,12 +1099,19 @@ function MiCatalogoPublico() {
             setModalAuthAbierto(true);
             return;
         }
+        // Esta página pública es "bare" (sin MainLayout) — no tiene montado
+        // el panel flotante de ChatYA. `iniciarChatDirectoPersona` deja la
+        // conversación lista en el store global (persiste entre rutas);
+        // navegar al perfil privado monta MainLayout (y ChatYA con él) y la
+        // conversación aparece ya abierta.
         await iniciarChatDirectoPersona({
             usuarioId: perfil.id,
             nombre: perfil.nombre,
             apellidos: perfil.apellidos,
             avatarUrl: perfil.avatarUrl,
+            mensaje: `Hola ${perfil.nombre}, vi tu catálogo en AnunciaYA. `,
         });
+        navigate(`/marketplace/usuario/${perfil.id}`);
     };
 
     // Mismo shell que el resto de páginas públicas compartibles
@@ -1034,151 +1149,325 @@ function MiCatalogoPublico() {
         <div data-testid="pagina-mi-catalogo" className="flex h-screen flex-col bg-app-degradado">
             <HeaderPublico />
 
-            <main className="flex-1 overflow-y-auto">
-                <div
-                    className={`mx-auto px-3 py-4 lg:px-6 2xl:max-w-7xl 2xl:px-8 ${
-                        // 2026-08-16: en Laptop, sin panel de apartar abierto,
-                        // el bloque completo (tarjeta + cards) se angosta como
-                        // caja propia (`max-w-[59rem]`, 80rem − 21rem) y se
-                        // centra solo — antes usaba el mismo margen-derecha
-                        // que con el panel abierto, dejando un hueco vacío
-                        // sin sentido y todo corrido a la izquierda. Con el
-                        // panel abierto se queda igual que ya funciona: caja
-                        // completa (`max-w-7xl`) + margen-derecha en los
-                        // hijos para dejarle campo al sidebar.
-                        seleccionados.size > 0 ? 'lg:max-w-7xl' : 'lg:max-w-[59rem]'
-                    }`}
+            <div className="flex flex-1 min-h-0">
+                {/* Sidebar izquierdo — identidad del vendedor, SOLO Laptop/PC
+                    (2026-08-17, reemplaza al header horizontal de arriba en
+                    estas resoluciones — fijo, no scrollea con las cards). En
+                    móvil no hay espacio para un sidebar fijo: ahí se
+                    conserva el header horizontal de siempre, dentro de
+                    `<main>` más abajo. */}
+                <aside
+                    className="relative hidden shrink-0 flex-col overflow-hidden lg:flex lg:w-56 2xl:w-64"
+                    style={{ background: '#000000' }}
                 >
-                    {/* Header — identidad del vendedor + contacto directo.
-                        2026-08-15: achicado en Laptop (`lg:`) — antes crecía
-                        respecto a móvil (texto/avatar más grandes en vez de
-                        más chicos), quedando desproporcionado; en Full HD
-                        (`2xl:`) se preserva el tamaño de siempre.
-                        2026-08-16: la tarjeta NUNCA debe ser más ancha que
-                        las cards de abajo. El margen `mr-[21rem]` SOLO se usa
-                        con el panel de apartar abierto (Laptop y PC), para
-                        correr el contenido a la izquierda y dejarle campo al
-                        sidebar. Sin panel, no hace falta margen en ningún
-                        caso — en Laptop la caja del contenedor (arriba) ya
-                        se angosta sola y queda centrada; en PC se queda a su
-                        ancho completo. */}
+                    {/* Glow teal */}
                     <div
-                        ref={identidadRef}
-                        className={`rounded-2xl border-2 border-slate-300 bg-white px-4 py-4 shadow-lg lg:px-4 lg:py-3 2xl:px-6 2xl:py-4 ${
-                            seleccionados.size > 0 ? 'lg:mr-[21rem] 2xl:mr-[21rem]' : '2xl:mr-0'
-                        }`}
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full shadow-md lg:h-11 lg:w-11 2xl:h-14 2xl:w-14">
+                        className="pointer-events-none absolute inset-0"
+                        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(20,184,166,0.14) 0%, transparent 60%)' }}
+                    />
+                    {/* Grid pattern sutil */}
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            opacity: 0.08,
+                            backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                              repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                        }}
+                    />
+                    {/* Línea de acento — borde derecho (equivalente vertical
+                        de las líneas sup/inf del header horizontal de antes) */}
+                    <div
+                        className="pointer-events-none absolute bottom-0 right-0 top-0 w-[3px]"
+                        style={{ background: 'linear-gradient(180deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                    />
+
+                    <div className="relative z-10 flex flex-1 flex-col items-center gap-4 overflow-y-auto px-4 py-6 2xl:gap-5 2xl:px-5 2xl:py-8">
+                        {/* Avatar — anillo animado (conic-gradient girando
+                            detrás, `animate-spin`) + badge de Verificado
+                            sobre el contorno (esquina inf-der), click para
+                            ver en grande. El avatar y el badge van en capas
+                            SEPARADAS del anillo (no dentro de él) para que
+                            solo el color gire, nunca la foto. */}
+                        <div className="relative h-20 w-20 shrink-0 2xl:h-24 2xl:w-24">
+                            <div
+                                className="absolute inset-0 animate-spin rounded-full"
+                                style={{
+                                    background: 'conic-gradient(from 0deg, #2dd4bf, #38bdf8, #a855f7, #f97316, #2dd4bf)',
+                                    animationDuration: '3s',
+                                }}
+                            />
+                            <div className="absolute inset-[3px] rounded-full bg-black" />
+                            <div
+                                className={`absolute inset-[6px] overflow-hidden rounded-full ${
+                                    perfil.avatarUrl ? 'lg:cursor-pointer' : ''
+                                }`}
+                                onClick={perfil.avatarUrl ? () => setAvatarModalAbierto(true) : undefined}
+                            >
                                 {perfil.avatarUrl ? (
                                     <img src={perfil.avatarUrl} alt={perfil.nombre} className="h-full w-full object-cover" />
                                 ) : (
                                     <div
-                                        className="flex h-full w-full items-center justify-center text-xl font-bold text-white"
+                                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white"
                                         style={{ background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 50%, #0f766e 100%)' }}
                                     >
                                         {iniciales}
                                     </div>
                                 )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <h1 className="flex items-center gap-1.5 text-lg font-extrabold text-slate-950 lg:text-base 2xl:text-xl">
-                                    {perfil.nombre} {perfil.apellidos}
-                                    <BadgeCheck className="h-5 w-5 shrink-0 fill-blue-500 text-white" strokeWidth={2.5} />
-                                </h1>
-                                <p className="text-sm font-semibold text-slate-500 lg:text-xs 2xl:text-sm">
-                                    Mi Catálogo · {articulos.length} artículo{articulos.length === 1 ? '' : 's'}
-                                </p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-3">
-                                {perfil.telefono && (
-                                    <button
-                                        type="button"
-                                        data-testid="btn-whatsapp-catalogo"
-                                        onClick={handleWhatsApp}
-                                        aria-label="Contactar por WhatsApp"
-                                        className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
-                                    >
-                                        <WhatsAppIcon className="h-8 w-8 lg:h-6 lg:w-6 2xl:h-7 2xl:w-7" />
-                                    </button>
-                                )}
+                            <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-black bg-white 2xl:h-7 2xl:w-7">
+                                <BadgeCheck className="h-full w-full fill-blue-500 text-white" strokeWidth={2.5} />
+                            </span>
+                        </div>
+                        {avatarModalAbierto && perfil.avatarUrl && (
+                            <ModalImagenes
+                                images={[perfil.avatarUrl]}
+                                initialIndex={0}
+                                isOpen={avatarModalAbierto}
+                                onClose={() => setAvatarModalAbierto(false)}
+                            />
+                        )}
+
+                        {/* Nombre — FORZADO a 2 líneas (nombre / apellidos
+                            en bloques separados), centrado. El badge de
+                            Verificado se movió al avatar (arriba). */}
+                        <div className="flex w-full flex-col items-center gap-0.5 text-center">
+                            <span className="text-sm font-extrabold leading-snug text-white 2xl:text-base">
+                                {perfil.nombre}
+                            </span>
+                            <span className="text-sm font-extrabold leading-snug text-white 2xl:text-base">
+                                {perfil.apellidos}
+                            </span>
+                        </div>
+
+                        {/* Contacto directo */}
+                        <div className="flex items-center gap-3">
+                            {perfil.telefono && (
                                 <button
                                     type="button"
-                                    data-testid="btn-chatya-catalogo"
-                                    onClick={handleEnviarMensaje}
-                                    aria-label="Enviar mensaje por ChatYA"
+                                    data-testid="btn-whatsapp-catalogo"
+                                    onClick={handleWhatsApp}
+                                    aria-label="Contactar por WhatsApp"
                                     className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
                                 >
-                                    <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto shrink-0 object-contain lg:h-7 2xl:h-8" />
+                                    <WhatsAppIcon className="h-7 w-7" />
                                 </button>
+                            )}
+                            <button
+                                type="button"
+                                data-testid="btn-chatya-catalogo"
+                                onClick={handleEnviarMensaje}
+                                aria-label="Enviar mensaje por ChatYA"
+                                className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
+                            >
+                                <img src="/ChatYA.webp" alt="ChatYA" className="h-8 w-auto shrink-0 object-contain" />
+                            </button>
+                        </div>
+
+                        {/* "Mi Catálogo" — mismo lenguaje visual (icono con
+                            gradiente teal + texto bicolor) que antes vivía en
+                            el header horizontal, ahora apilado y centrado
+                            para el sidebar vertical. `mt-auto` (2026-08-17):
+                            lo empuja hasta abajo del sidebar en vez de
+                            quedar pegado justo debajo del contacto. */}
+                        <div className="mt-auto flex flex-col items-center gap-2 pb-2 text-center">
+                            <div
+                                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-md 2xl:h-16 2xl:w-16"
+                                style={{ background: 'linear-gradient(135deg, #2dd4bf, #0d9488)' }}
+                            >
+                                <ShoppingBag className="h-7 w-7 text-white 2xl:h-8 2xl:w-8" strokeWidth={2.5} />
+                            </div>
+                            <span className="text-xl font-extrabold tracking-tight text-white 2xl:text-2xl">
+                                Mi <span className="text-teal-400">Catálogo</span>
+                            </span>
+                            <span className="text-sm font-bold text-white/50">
+                                {articulos.length} artículo{articulos.length === 1 ? '' : 's'}
+                            </span>
+                        </div>
+                    </div>
+                </aside>
+
+                <main className="min-h-0 flex-1 overflow-y-auto">
+                    {/* Header horizontal oscuro — SOLO móvil (`lg:hidden`);
+                        en Laptop/PC la identidad vive en el sidebar de la
+                        izquierda de arriba. */}
+                    <div className="relative mt-1 overflow-hidden shadow-lg lg:hidden" style={{ background: '#000000' }}>
+                        <div
+                            className="pointer-events-none absolute inset-0"
+                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.10) 0%, transparent 55%)' }}
+                        />
+                        <div
+                            className="pointer-events-none absolute inset-0"
+                            style={{
+                                opacity: 0.08,
+                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                            }}
+                        />
+                        <div
+                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                        />
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                        />
+
+                        <div className="relative z-10 px-4 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full shadow-md">
+                                    {perfil.avatarUrl ? (
+                                        <img src={perfil.avatarUrl} alt={perfil.nombre} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div
+                                            className="flex h-full w-full items-center justify-center text-xl font-bold text-white"
+                                            style={{ background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 50%, #0f766e 100%)' }}
+                                        >
+                                            {iniciales}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h1 className="flex items-center gap-1.5 text-lg font-extrabold text-white">
+                                        {perfil.nombre} {perfil.apellidos}
+                                        <BadgeCheck className="h-5 w-5 shrink-0 fill-blue-500 text-white" strokeWidth={2.5} />
+                                    </h1>
+                                    <div className="mt-1.5 flex items-center gap-1">
+                                        {perfil.telefono && (
+                                            <button
+                                                type="button"
+                                                data-testid="btn-whatsapp-catalogo"
+                                                onClick={handleWhatsApp}
+                                                aria-label="Contactar por WhatsApp"
+                                                className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70"
+                                            >
+                                                <WhatsAppIcon className="h-8 w-8" />
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            data-testid="btn-chatya-catalogo"
+                                            onClick={handleEnviarMensaje}
+                                            aria-label="Enviar mensaje por ChatYA"
+                                            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70"
+                                        >
+                                            <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto shrink-0 object-contain" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <div
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-md"
+                                        style={{ background: 'linear-gradient(135deg, #2dd4bf, #0d9488)' }}
+                                    >
+                                        <ShoppingBag className="h-5 w-5 text-white" strokeWidth={2.5} />
+                                    </div>
+                                    <div className="flex flex-col items-start">
+                                        <span className="text-2xl font-extrabold tracking-tight text-white">
+                                            Mi <span className="text-teal-400">Catálogo</span>
+                                        </span>
+                                        <span className="text-sm font-bold text-white/50">
+                                            {articulos.length} artículo{articulos.length === 1 ? '' : 's'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Grid de artículos — selección múltiple: toca varias
-                        piezas y mándalas juntas en un solo formulario.
-                        2026-08-16: sin selección, el margen ya no hace falta
-                        en ningún caso — la caja del contenedor (arriba) ya
-                        se angosta sola y queda centrada en Laptop; en PC
-                        sigue a su ancho completo (5 por fila). Con el panel
-                        abierto, el margen sigue corriendo el contenido a la
-                        izquierda para dejarle campo al sidebar (Laptop
-                        siempre 4 por fila; PC baja de 5 a 4). */}
-                    <div
-                        className={`mt-4 ${
-                            seleccionados.size > 0 ? 'pb-20 lg:mr-[21rem] 2xl:mr-[21rem]' : '2xl:mr-0'
-                        }`}
-                    >
-                        {cargandoPublicaciones && articulos.length === 0 ? (
-                            <div className="flex min-h-40 items-center justify-center">
-                                <Spinner tamanio="md" />
-                            </div>
-                        ) : articulos.length === 0 ? (
-                            <p className="py-16 text-center text-base font-medium text-slate-600">
-                                Este catálogo todavía no tiene artículos.
-                            </p>
-                        ) : (
+                    {/* 2026-08-17: `min-h-full` en este bloque — llena
+                        SIEMPRE el alto visible de `<main>` aunque haya pocos
+                        artículos. El footer vive FUERA de este bloque (más
+                        abajo, como hermano), así que cuando el contenido es
+                        corto el total (bloque + footer) sigue siendo más
+                        alto que lo visible → hace falta scroll para llegar
+                        al footer, en vez de que quede pegado justo debajo de
+                        las últimas cards. (Ojo: si el footer se mete DENTRO
+                        de este `div` o el contenido lleva `flex-1`, el
+                        bloque se estira para tragarse el hueco y el footer
+                        vuelve a quedar visible sin scroll — ya pasó una vez.) */}
+                    <div className="min-h-full">
+                        <div
+                            className={`mx-auto w-full px-3 py-4 lg:px-6 2xl:max-w-[1536px] 2xl:px-8 ${
+                                // 2026-08-17: en Laptop, la caja se ENSANCHA
+                                // la misma cantidad que el margen de abajo
+                                // cuando hay selección (+19rem) — así el
+                                // contenido se recorre a la izquierda en vez
+                                // de encogerse. En PC (`2xl:`) la caja queda
+                                // SIEMPRE en el ancho ancho (1536px, el mismo
+                                // que antes solo se usaba con el sidebar
+                                // abierto) — mismo tamaño de card con o sin
+                                // sidebar, no solo mismo mecanismo de
+                                // desplazamiento.
+                                seleccionados.size > 0 ? 'lg:max-w-[89rem]' : 'lg:max-w-[70rem]'
+                            }`}
+                        >
                             <div
-                                data-testid="grid-mi-catalogo"
-                                className={`grid grid-cols-2 items-start gap-3 lg:grid-cols-4 lg:gap-4 ${
-                                    // PC (2xl): 5 por fila sin selección, 4
-                                    // cuando el panel de apartar está abierto
-                                    // (deja espacio real, no solo un
-                                    // recorte). Laptop no cambia en ningún
-                                    // caso (ya quedó bien así).
-                                    seleccionados.size > 0 ? '2xl:grid-cols-4' : '2xl:grid-cols-5'
-                                }`}
+                                ref={cardsRef}
+                                className={seleccionados.size > 0 ? 'lg:mr-[19rem] 2xl:mr-[21rem]' : ''}
                             >
-                                {articulos.map((a) => (
-                                    <CardCatalogoVendedor
-                                        key={a.id}
-                                        articulo={a}
-                                        seleccionado={seleccionados.has(a.id)}
-                                        onToggleSeleccion={() => handleToggleSeleccion(a.id)}
-                                        onVerDetalle={() => setArticuloDetalle(a)}
-                                    />
-                                ))}
+                                {cargandoPublicaciones && articulos.length === 0 ? (
+                                    <div className="flex min-h-40 items-center justify-center">
+                                        <Spinner tamanio="md" />
+                                    </div>
+                                ) : articulos.length === 0 ? (
+                                    <p className="py-16 text-center text-base font-medium text-slate-600">
+                                        Este catálogo todavía no tiene artículos.
+                                    </p>
+                                ) : (
+                                    <div
+                                        data-testid="grid-mi-catalogo"
+                                        className={`grid grid-cols-2 items-start gap-3 lg:gap-3 2xl:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] ${
+                                            // 2026-08-17: en PC (`2xl:`) ya no
+                                            // se fija un número de columnas —
+                                            // `auto-fill`/`minmax` deja el
+                                            // TAMAÑO del card constante
+                                            // (228px mínimo) y la cantidad
+                                            // por fila sale sola según el
+                                            // espacio disponible: ~6 sin
+                                            // sidebar, ~5 con el sidebar
+                                            // abierto (el margen de abajo
+                                            // reduce el espacio, no el
+                                            // tamaño). Laptop sigue con
+                                            // número fijo (el truco de
+                                            // ensanchar la caja ya deja el
+                                            // tamaño constante ahí).
+                                            seleccionados.size > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-5'
+                                        }`}
+                                    >
+                                        {articulos.map((a) => (
+                                            <CardCatalogoVendedor
+                                                key={a.id}
+                                                articulo={a}
+                                                seleccionado={seleccionados.has(a.id)}
+                                                onToggleSeleccion={() => handleToggleSeleccion(a.id)}
+                                                onVerDetalle={() => setArticuloDetalle(a)}
+                                                ocultarGuardar
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            <PanelApartar
+                                articulos={articulos}
+                                seleccionados={seleccionados}
+                                onQuitar={(id) => handleToggleSeleccion(id)}
+                                onLimpiar={() => setSeleccionados(new Set())}
+                                usuarioActual={null}
+                                posicion={posicionSidebar}
+                            />
+                        </div>
                     </div>
-                </div>
-            </main>
 
-            <FooterPublico />
-
-            <PanelApartar
-                articulos={articulos}
-                seleccionados={seleccionados}
-                onQuitar={(id) => handleToggleSeleccion(id)}
-                onLimpiar={() => setSeleccionados(new Set())}
-                usuarioActual={null}
-                posicion={posicionPanel}
-            />
+                    <FooterPublico />
+                </main>
+            </div>
 
             <ModalDetalleArticuloMarketplace
                 articulo={articuloDetalle}
                 vendedor={perfil}
                 onCerrar={() => setArticuloDetalle(null)}
+                onRequiereAuth={() => setModalAuthAbierto(true)}
             />
 
             <ModalAuthRequerido
@@ -1195,17 +1484,21 @@ function MiCatalogoPublico() {
 
 interface CardCatalogoVendedorProps {
     articulo: ArticuloMarketplace;
-    /** Selección múltiple (2026-08-15): SOLO el círculo la alterna — el
-     *  resto de la card abre el detalle. Calca la interacción de
-     *  "+Agregar" (card) vs click-en-card (detalle) del catálogo de
-     *  Negocios (`PaginaCatalogoNegocio.tsx`). */
+    /** Selección múltiple: el botón "Apartar" full-width la alterna — el
+     *  resto de la card (imagen/título/precio) abre el detalle. Calca la
+     *  interacción de "+Agregar" (botón) vs click-en-card (detalle) del
+     *  catálogo de Negocios (`PaginaCatalogoNegocio.tsx`). */
     seleccionado?: boolean;
     onToggleSeleccion?: () => void;
     /** Click en la card (fuera del círculo) — abre el modal de detalle. */
     onVerDetalle: () => void;
+    /** true en el catálogo público (`MiCatalogoPublico`, 2026-08-16): ahí
+     *  nunca hay usuario logueado (por diseño, ver
+     *  Catalogo_MarketPlace_Apartado.md), así que "Guardar" no aplica. */
+    ocultarGuardar?: boolean;
 }
 
-function CardCatalogoVendedor({ articulo, seleccionado, onToggleSeleccion, onVerDetalle }: CardCatalogoVendedorProps) {
+function CardCatalogoVendedor({ articulo, seleccionado, onToggleSeleccion, onVerDetalle, ocultarGuardar }: CardCatalogoVendedorProps) {
     const fotoPortada = obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex);
     const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
     const modoSeleccion = !!onToggleSeleccion;
@@ -1222,90 +1515,131 @@ function CardCatalogoVendedor({ articulo, seleccionado, onToggleSeleccion, onVer
                 seleccionado ? 'border-emerald-600 ring-2 ring-emerald-200' : 'border-slate-300'
             }`}
         >
-            <button
-                type="button"
+            {/* Imagen — tocar abre el detalle completo (calca el patrón de
+                `PaginaCatalogoNegocio.tsx`: `div` con onClick, no un
+                `<button>` envolvente, para poder anidar el botón "Apartar"
+                sin botón-dentro-de-botón). */}
+            <div
                 onClick={onVerDetalle}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onVerDetalle();
+                    }
+                }}
                 aria-label={`Ver detalle de ${articulo.titulo}`}
-                className="flex flex-1 cursor-pointer flex-col text-left"
+                className="aspect-4/3 shrink-0 cursor-pointer overflow-hidden bg-slate-200"
             >
-                <div className="aspect-4/3 shrink-0 overflow-hidden bg-slate-200">
-                    {fotoPortada ? (
-                        <img src={fotoPortada.url} alt={articulo.titulo} className="h-full w-full object-cover" loading="lazy" />
-                    ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                            <ImageIcon className="h-10 w-10 text-slate-300" />
-                        </div>
-                    )}
-                    {apartado && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60">
-                            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
-                                <Lock className="h-3.5 w-3.5" />
-                                Apartado
-                            </span>
-                        </div>
-                    )}
-                </div>
-                <div className="flex flex-1 flex-col p-3">
-                    <h4 className="min-h-[2.25rem] text-sm font-semibold text-slate-800 line-clamp-2 lg:min-h-[2.5rem]">
-                        {articulo.titulo}
-                    </h4>
-                    <p className="mt-0.5 text-base font-bold text-emerald-600">
-                        ${parseFloat(articulo.precio ?? '0').toFixed(2)}
-                        {articulo.unidadVenta && <span className="text-xs font-medium text-slate-500"> {articulo.unidadVenta}</span>}
-                    </p>
-                </div>
-            </button>
-
-            {/* Círculo de selección — único elemento que alterna la selección;
-                `stopPropagation` evita que el click también dispare el botón
-                de detalle que envuelve el resto de la card. Esquina sup-izq
-                (2026-08-16): la sup-der la ocupa el botón de Guardar. */}
-            {!apartado && modoSeleccion && (
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleSeleccion?.();
-                    }}
-                    data-testid={`checkbox-seleccion-${articulo.id}`}
-                    aria-label={seleccionado ? 'Quitar de la selección' : 'Seleccionar'}
-                    className={`absolute left-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 shadow-md ${
-                        seleccionado
-                            ? 'border-emerald-600 bg-emerald-600 text-white'
-                            : 'border-white bg-white/80 text-transparent hover:bg-white'
-                    }`}
+                {fotoPortada ? (
+                    <img src={fotoPortada.url} alt={articulo.titulo} className="h-full w-full object-cover" loading="lazy" />
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                        <ImageIcon className="h-10 w-10 text-slate-300" />
+                    </div>
+                )}
+                {apartado && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <Lock className="h-3.5 w-3.5" />
+                            Apartado
+                        </span>
+                    </div>
+                )}
+            </div>
+            <div className="flex flex-1 flex-col p-3">
+                <h4
+                    onClick={onVerDetalle}
+                    className="min-h-[2.25rem] cursor-pointer text-sm font-semibold text-slate-800 line-clamp-2 lg:min-h-[2.5rem]"
                 >
-                    <Check className="h-4 w-4" strokeWidth={3} />
-                </button>
-            )}
+                    {articulo.titulo}
+                </h4>
+                <p className="mt-0.5 text-base font-bold text-emerald-600">
+                    ${parseFloat(articulo.precio ?? '0').toFixed(2)}
+                    {articulo.unidadVenta && <span className="text-xs font-medium text-slate-500"> {articulo.unidadVenta}</span>}
+                </p>
+
+                {/* Apartar — full-width, calca "+Agregar" del catálogo de
+                    Negocios (`PaginaCatalogoNegocio.tsx`); reemplaza al
+                    círculo pequeño de la esquina (2026-08-17). Cuando el
+                    artículo ya está apartado, se muestra igual pero
+                    deshabilitado (texto "Apartado") — así todas las cards de
+                    la fila quedan al mismo nivel, con o sin bloqueo. */}
+                {modoSeleccion && (
+                    <div className="mt-auto pt-2">
+                        {apartado ? (
+                            <button
+                                type="button"
+                                disabled
+                                data-testid={`btn-apartar-${articulo.id}`}
+                                className="flex h-9 w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg bg-slate-200 text-sm font-bold text-slate-500"
+                            >
+                                <Lock className="h-4 w-4" />
+                                Apartado
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleSeleccion?.();
+                                }}
+                                data-testid={`btn-apartar-${articulo.id}`}
+                                aria-pressed={seleccionado}
+                                className={`flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-bold transition-colors ${
+                                    seleccionado
+                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                        : 'bg-slate-800 text-white hover:bg-slate-900'
+                                }`}
+                            >
+                                {seleccionado ? (
+                                    <>
+                                        <Check className="h-4 w-4" strokeWidth={3} />
+                                        Seleccionado
+                                    </>
+                                ) : (
+                                    <>
+                                        <Lock className="h-4 w-4" />
+                                        Apartar
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* Guardar — esquina sup-der, mismo estilo glass (amber cuando
                 guardado) que el resto de las cards de MarketPlace
                 (`CardArticulo`). `stopPropagation` por la misma razón que
-                el círculo de selección. */}
-            <button
-                type="button"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    toggleGuardado();
-                }}
-                disabled={guardandoEnCurso}
-                data-testid={`btn-guardar-${articulo.id}`}
-                aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
-                aria-pressed={guardado}
-                className={`absolute right-2 top-2 flex h-[38px] w-[38px] cursor-pointer items-center justify-center rounded-full overflow-visible backdrop-blur-[10px] disabled:opacity-50 ${
-                    guardado ? 'border-2 border-amber-500 bg-white' : 'border border-white/10 bg-black/25'
-                }`}
-            >
-                {guardado && (
-                    <span
-                        aria-hidden
-                        className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
-                        style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
-                    />
-                )}
-                <Icon icon={ICONOS.guardar} className="h-5 w-5" style={{ color: guardado ? '#f59e0b' : 'white' }} />
-            </button>
+                el círculo de selección. Oculto en el catálogo público
+                (`ocultarGuardar`), donde no hay usuario logueado. */}
+            {!ocultarGuardar && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGuardado();
+                    }}
+                    disabled={guardandoEnCurso}
+                    data-testid={`btn-guardar-${articulo.id}`}
+                    aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
+                    aria-pressed={guardado}
+                    className={`absolute right-2 top-2 flex h-[38px] w-[38px] cursor-pointer items-center justify-center rounded-full overflow-visible backdrop-blur-[10px] disabled:opacity-50 ${
+                        guardado ? 'border-2 border-amber-500 bg-white' : 'border border-white/10 bg-black/25'
+                    }`}
+                >
+                    {guardado && (
+                        <span
+                            aria-hidden
+                            className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
+                            style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                        />
+                    )}
+                    <Icon icon={ICONOS.guardar} className="h-5 w-5" style={{ color: guardado ? '#f59e0b' : 'white' }} />
+                </button>
+            )}
         </div>
     );
 }
@@ -1316,7 +1650,7 @@ function CardCatalogoVendedor({ articulo, seleccionado, onToggleSeleccion, onVer
 // compartir+cerrar flotantes, badge de disponibilidad, título+categoría
 // sobre la imagen, franja divisora, precio+contacto, descripción. Adaptado
 // a MarketPlace: contacta al VENDEDOR (ChatYA directo + WhatsApp), no hay
-// botón de agregar/apartar aquí — eso vive solo en el círculo de la card.
+// botón de agregar/apartar aquí — eso vive solo en el botón "Apartar" de la card.
 // =============================================================================
 
 interface VendedorContacto {
@@ -1325,6 +1659,10 @@ interface VendedorContacto {
     apellidos: string;
     avatarUrl: string | null;
     telefono: string | null;
+    /** Necesario para armar el `ArticuloMarketplaceDetalle` que pide
+     *  `useIniciarChatMarketplace` (2026-08-17) — ambos callers pasan
+     *  `perfil`, que ya lo trae. */
+    ciudad: string | null;
 }
 
 interface ModalDetalleArticuloMarketplaceProps {
@@ -1337,8 +1675,9 @@ interface ModalDetalleArticuloMarketplaceProps {
 }
 
 function ModalDetalleArticuloMarketplace({ articulo, vendedor, onCerrar, onRequiereAuth }: ModalDetalleArticuloMarketplaceProps) {
+    const navigate = useNavigate();
     const usuarioActual = useAuthStore((s) => s.usuario);
-    const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
+    const iniciarChatMarketplace = useIniciarChatMarketplace();
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
     const [imagenExpandida, setImagenExpandida] = useState(false);
 
@@ -1363,13 +1702,17 @@ function ModalDetalleArticuloMarketplace({ articulo, vendedor, onCerrar, onRequi
             notificar.error('Debes iniciar sesión para usar ChatYA');
             return;
         }
-        await iniciarChatDirectoPersona({
-            usuarioId: vendedor.id,
-            nombre: vendedor.nombre,
-            apellidos: vendedor.apellidos,
-            avatarUrl: vendedor.avatarUrl,
-        });
+        // Esta página pública es "bare" (sin MainLayout) — no tiene montado
+        // el panel flotante de ChatYA para mostrar la conversación recién
+        // abierta. `iniciarChatMarketplace` sí la deja lista en el store
+        // global (Zustand, persiste entre rutas) — con card de contexto del
+        // artículo + mensaje precargado, igual que en el detalle del feed
+        // normal (2026-08-17). Navegar a la versión privada del perfil
+        // monta MainLayout (y con él, ChatYA) y la conversación aparece ya
+        // abierta.
+        await iniciarChatMarketplace({ ...articulo, vendedor });
         onCerrar();
+        navigate(`/marketplace/usuario/${vendedor.id}`);
     };
 
     return (
@@ -1527,17 +1870,29 @@ interface PanelApartarProps {
      *  público, SIEMPRE sin cuenta aunque el visitante esté logueado (por
      *  diseño — ver docs/arquitectura/Catalogo_MarketPlace_Apartado.md). */
     usuarioActual: Usuario | null;
-    /** 'flotante' (default) — sidebar `fixed` porteado a document.body, para
-     *  el catálogo público (sin columna de publicidad que esquivar). 'grid'
-     *  — el desktop se renderiza SIN portal, como columna `sticky` normal:
-     *  el caller lo coloca dentro de su propio `grid-cols-[1fr_320px]` para
-     *  que quede perfectamente alineado al ancho del header (2026-08-15,
-     *  `PerfilVendedorPrivado`). El móvil (FAB + hoja) siempre se portea,
-     *  en ambas variantes. */
-    variante?: 'flotante' | 'grid';
-    /** Solo variante 'flotante' — posición medida en píxeles (borde derecho
-     *  y orilla superior reales de la tarjeta de identidad), no una fórmula
-     *  ni un valor fijo. Ver `MiCatalogoPublico`. */
+    /** Clase Tailwind para la posición `fixed` en desktop (right/top) —
+     *  2026-08-17: vuelve a ser `fixed` (relativo al viewport, SIEMPRE
+     *  visible) en vez de `sticky` (relativo a su contenedor en el grid).
+     *  Con `sticky` + `items-start`, si el catálogo tenía pocos artículos
+     *  (o el propio sidebar era más alto que la columna de cards) el
+     *  "carril" donde se podía pegar terminaba antes de llegar al footer —
+     *  el sidebar se despegaba y desaparecía a medio scroll, que es
+     *  justo lo que no se quería. `fixed` no tiene ese problema: nunca se
+     *  mueve del viewport pase lo que pase con el contenido. Cada página
+     *  pasa su propio offset porque tienen headers de distinta altura por
+     *  encima (Navbar+header oscuro en la privada, solo HeaderPublico en
+     *  la pública). */
+    claseFijo?: string;
+    /** Posición medida en píxeles (borde derecho y orilla superior reales
+     *  de la grilla de cards, vía `getBoundingClientRect()`) — si se pasa,
+     *  alinea el sidebar ahí (`left`/`top` por `style`) en vez de usar los
+     *  valores fijos de `claseFijo`. Es el mismo patrón que ya se usaba
+     *  antes de la versión "grid": adivinar un `right`/`top` fijo por
+     *  Tailwind se desalinea apenas cambia algo alrededor (ej. la vista
+     *  privada tiene una columna de publicidad de ancho variable — un
+     *  `right-8` fijo puede quedar encima de esa columna en vez de a la
+     *  izquierda). `null`/`undefined` = usar `claseFijo` mientras no haya
+     *  medición (ej. el primer render). */
     posicion?: { left: number; top: number } | null;
 }
 
@@ -1547,7 +1902,7 @@ function PanelApartar({
     onQuitar,
     onLimpiar,
     usuarioActual,
-    variante = 'flotante',
+    claseFijo = 'lg:right-6 lg:top-40 2xl:right-8',
     posicion,
 }: PanelApartarProps) {
     const items = articulos.filter((a) => seleccionados.has(a.id));
@@ -1692,8 +2047,8 @@ function PanelApartar({
                             </p>
                         ) : (
                             <>
-                                <p className="mb-2 text-sm font-medium text-slate-600">
-                                    Déjale tu nombre y WhatsApp al vendedor para que confirme el apartado.
+                                <p className="mb-2 text-sm font-medium text-slate-600 whitespace-nowrap">
+                                    Deja tu nombre y WhatsApp para confirmar.
                                 </p>
                                 <input
                                     type="text"
@@ -1750,47 +2105,27 @@ function PanelApartar({
         </div>
     );
 
-    const desktopSidebar =
-        variante === 'grid' ? (
-            // Mismo patrón que "Tu pedido" de PaginaCatalogoNegocio.tsx:
-            // `sticky` + alto FIJO (no `max-h` dinámico) para que no cambie
-            // de tamaño al hacer scroll. Dos diferencias necesarias frente a
-            // Negocios (que usa `top-4` liso): (1) `lg:mt-4` — el contenido
-            // arranca con `lg:py-4` de padding-top que el sidebar no tiene;
-            // sin este margen quedaba ~16px más arriba que los chips/cards.
-            // (2) `lg:top-24` en vez de `top-4` — esta página (a diferencia
-            // de la de Negocios) tiene su propio header oscuro `sticky
-            // top-0`; con `top-4` el sidebar quedaría tapado detrás de ese
-            // header al hacer scroll. Ancho angosto solo en Laptop (`lg:`,
-            // 2026-08-16): en PC (`2xl:`) vuelve a su ancho de siempre.
-            <div
-                data-testid="panel-apartar-desktop"
-                className="hidden h-[440px] w-80 flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-xl lg:sticky lg:top-18 lg:mt-4 lg:flex lg:w-72 2xl:h-[700px] 2xl:w-80"
-            >
-                {headerSidebar}
-                <div className="flex flex-1 min-h-0 flex-col px-4">{contenido}</div>
-            </div>
-        ) : (
-            <div
-                data-testid="panel-apartar-desktop"
-                // 2026-08-15: alto FIJO (no `max-h` dinámico atado al
-                // viewport) en ambas resoluciones — mismo criterio que la
-                // variante 'grid' del privado, para que no cambie de tamaño
-                // al hacer scroll ni salte entre valores.
-                // 2026-08-16: la posición (izquierda Y arriba) YA NO se
-                // calcula con fórmulas/números fijos (se desalineaban del
-                // catálogo real) — se mide en vivo el borde derecho y la
-                // orilla superior reales de la tarjeta de identidad
-                // (`posicion`, `MiCatalogoPublico`) y se aplican directo por
-                // `style`, así siempre coincide exacto con la tarjeta, sin
-                // importar el ancho de pantalla ni el alto del header.
-                className="fixed z-40 hidden h-[530px] w-80 flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-xl lg:flex 2xl:h-[740px]"
-                style={posicion ? { left: posicion.left, top: posicion.top } : undefined}
-            >
-                {headerSidebar}
-                <div className="flex flex-1 min-h-0 flex-col px-4">{contenido}</div>
-            </div>
-        );
+    // `fixed` + alto FIJO (no `max-h` dinámico) para que no cambie de
+    // tamaño ni desaparezca al hacer scroll (2026-08-17, ver comentario en
+    // `PanelApartarProps.claseFijo`). Ancho angosto solo en Laptop (`lg:`,
+    // 2026-08-16): en PC (`2xl:`) vuelve a su ancho de siempre. Porteado a
+    // `document.body` — dentro de AY, `PerfilVendedorPrivado` vive bajo el
+    // `<main>` de MainLayout, que crea su propio stacking context
+    // (position+z-index): un `fixed` renderizado ahí queda atrapado debajo
+    // del `<aside>` de publicidad (z-30) sin importar el z-index que se le
+    // ponga. Portear al body lo saca de ese árbol (mismo patrón que
+    // `Modal`/`ModalBottom`). En la pública no hay ese problema, pero
+    // portear ahí también es inofensivo.
+    const desktopSidebar = (
+        <div
+            data-testid="panel-apartar-desktop"
+            className={`fixed z-40 hidden h-[440px] w-80 flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-xl lg:flex lg:w-72 2xl:h-[700px] 2xl:w-80 ${claseFijo}`}
+            style={posicion ? { left: posicion.left, top: posicion.top } : undefined}
+        >
+            {headerSidebar}
+            <div className="flex flex-1 min-h-0 flex-col px-4">{contenido}</div>
+        </div>
+    );
 
     const mobilePortal = createPortal(
         <>
@@ -1836,18 +2171,6 @@ function PanelApartar({
         portalTarget
     );
 
-    if (variante === 'grid') {
-        return (
-            <>
-                {desktopSidebar}
-                {mobilePortal}
-            </>
-        );
-    }
-
-    // 'flotante': el desktop también se portea (mismo motivo que el móvil,
-    // ver comentario de `portalTarget` arriba). `mobilePortal` ya es un
-    // portal en sí mismo — no hace falta anidarlo dentro de otro.
     return (
         <>
             {createPortal(desktopSidebar, portalTarget)}
@@ -1897,37 +2220,6 @@ function ChipUnificado({ activo, label, count, onClick, testId }: ChipUnificadoP
     );
 }
 
-interface ChipSubFiltroProps {
-    activo: boolean;
-    label: string;
-    count: number;
-    onClick: () => void;
-    testId: string;
-}
-
-/** Sub-filtro dentro del grupo MarketPlace (En venta/Vendidas) — chip
- *  redondeado, mismo patrón que `ChipsFiltrosFeed.tsx` (variant clara). */
-function ChipSubFiltro({ activo, label, count, onClick, testId }: ChipSubFiltroProps) {
-    return (
-        <button
-            type="button"
-            data-testid={testId}
-            onClick={onClick}
-            aria-pressed={activo}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold lg:cursor-pointer ${
-                activo
-                    ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
-                    : 'border-slate-300 bg-white text-slate-700 lg:hover:border-teal-400 lg:hover:text-teal-700'
-            }`}
-        >
-            <span>{label}</span>
-            <span className={`tabular-nums ${activo ? 'text-white/80' : 'text-slate-400'}`}>
-                {count}
-            </span>
-        </button>
-    );
-}
-
 // =============================================================================
 // CARDS Y ESTADOS
 // =============================================================================
@@ -1937,23 +2229,15 @@ interface CardConOverlayVendidoProps {
 }
 
 function CardConOverlayVendido({ articulo }: CardConOverlayVendidoProps) {
-    return (
-        <div className="relative">
-            <CardArticulo articulo={articulo} variant="compacta" />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-slate-900/60">
-                <div className="flex flex-col items-center gap-1 text-white">
-                    <PackageX className="h-8 w-8" strokeWidth={1.5} />
-                    <span className="text-base font-extrabold tracking-wider">
-                        VENDIDO
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
+    // 2026-08-17: el overlay ahora vive DENTRO de `CardArticulo`
+    // (`overlayVendido`), scopeado solo a la imagen — el `<div>` externo
+    // que oscurecía la card completa (título/precio incluidos) se sentía
+    // más invasivo que el pill de "Apartado" en Mi Catálogo.
+    return <CardArticulo articulo={articulo} variant="compacta" overlayVendido />;
 }
 
 interface EstadoVacioProps {
-    tab: 'vendo' | 'busco' | 'vendida';
+    tab: 'vendo' | 'busco' | 'vendida' | 'dinamicas_activa' | 'dinamicas_cerrada';
     esUnoMismo: boolean;
     totalTab: number;
 }
@@ -1962,6 +2246,9 @@ function EstadoVacio({ tab, esUnoMismo, totalTab }: EstadoVacioProps) {
     // Configuración por tab — icono, título y cuerpo cambian según contexto.
     // Patrón visual unificado con MarketPlace, Negocios, Ofertas, Mis Guardados:
     // halos animate-ping + sparkles decorativos + icono con gradient brand teal.
+    // 2026-08-17: extendido a Dinámicas (activa/cerrada) — antes su "vacío"
+    // era un simple párrafo gris, sin el mismo lenguaje visual que los otros
+    // 2 chips (Catálogo/Vendidas).
     const configPorTab = {
         vendo: {
             icono: <Package className="h-11 w-11 text-white" strokeWidth={2} />,
@@ -1994,6 +2281,18 @@ function EstadoVacio({ tab, esUnoMismo, totalTab }: EstadoVacioProps) {
                 totalTab > 0
                     ? 'No hay más resultados para mostrar.'
                     : 'Cuando se complete una venta, aparecerá aquí.',
+        },
+        dinamicas_activa: {
+            icono: <Ticket className="h-11 w-11 text-white" strokeWidth={2} />,
+            titulo: esUnoMismo ? 'Aún no tienes Dinámicas activas' : 'Sin Dinámicas activas',
+            cuerpo: esUnoMismo
+                ? 'Organiza una rifa y compártela con tu comunidad.'
+                : 'Cuando organice una Dinámica, aparecerá aquí.',
+        },
+        dinamicas_cerrada: {
+            icono: <Lock className="h-11 w-11 text-white" strokeWidth={2} />,
+            titulo: 'Todavía no hay Dinámicas cerradas',
+            cuerpo: 'Aquí aparecerán una vez que se cierren.',
         },
     };
     const config = configPorTab[tab];

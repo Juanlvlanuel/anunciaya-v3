@@ -22,7 +22,7 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query';
-import { ShoppingBag } from 'lucide-react';
+import { Lock, ShoppingBag } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -75,6 +75,9 @@ export function CardArticuloGuardado({
     const condicionLabel = articulo.condicion
         ? ETIQUETA_CONDICION[articulo.condicion]
         : 'ARTÍCULO';
+    // 2026-08-17: un artículo guardado puede seguir apartado — mismo pill
+    // que el resto de las cards de MarketPlace.
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
 
     // ─── Botón ChatYA (mismo patrón que CardServicio en MisGuardados) ──
     // El item guardado NO trae info del vendedor. Hacemos fetch del
@@ -153,6 +156,15 @@ export function CardArticuloGuardado({
                     <ShoppingBag className="h-3 w-3" strokeWidth={2.5} />
                     {condicionLabel}
                 </span>
+
+                {apartado && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                            Apartado
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* ── Info ─────────────────────────────────────────────────── */}

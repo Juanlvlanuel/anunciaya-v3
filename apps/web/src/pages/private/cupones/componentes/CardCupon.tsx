@@ -67,7 +67,20 @@ export default function CardCupon({
     const badge = getBadgeEstado(cupon.estado);
     const BadgeIcono = badge.icono;
     const esActivo = cupon.estado === 'activo';
-    const opacityClass = !esActivo ? 'opacity-60' : '';
+
+    // Overlay "Usado"/"Vencido"/"Revocado" — pill blanco centrado SOLO sobre
+    // la imagen (mismo patrón que "Apartado"/"Vendido"/"Pausado"/"Cerrada"
+    // en MarketPlace, Servicios y Dinámicas), en vez del badge de esquina +
+    // card completa atenuada (2026-08-17). El badge de esquina se conserva
+    // solo para `activo` (informativo, no bloqueante).
+    const overlayEstado = !esActivo ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                <BadgeIcono className="h-3.5 w-3.5" />
+                {badge.label}
+            </span>
+        </div>
+    ) : null;
 
     // Imagen
     const imagenCupon = cupon.imagen ? (
@@ -108,7 +121,7 @@ export default function CardCupon({
             <div
                 data-testid={`cupon-${cupon.cuponId}`}
                 onClick={!esActivo ? () => onVerDetalle(cupon) : undefined}
-                className={`lg:hidden bg-white rounded-2xl overflow-hidden flex flex-row ${opacityClass} ${!esActivo ? 'cursor-pointer' : ''} ${destacado ? 'animate-[glow_1.5s_ease-in-out_2]' : ''}`}
+                className={`lg:hidden bg-white rounded-2xl overflow-hidden flex flex-row ${!esActivo ? 'cursor-pointer' : ''} ${destacado ? 'animate-[glow_1.5s_ease-in-out_2]' : ''}`}
                 style={{
                     border: destacado ? '2px solid #10b981' : '2px solid #cbd5e1',
                     height: '185px',
@@ -120,6 +133,7 @@ export default function CardCupon({
                     {imagenCupon}
                     <div className="absolute inset-y-0 right-0 w-8 pointer-events-none" style={{ background: 'linear-gradient(to left, rgba(255,255,255,0.3), transparent)' }} />
                     {franjaCirculacion}
+                    {overlayEstado}
                     {/* Logo negocio — arriba izquierda (baja si hay franja) */}
                     <div className={`absolute ${tieneFranja ? 'top-9' : 'top-2'} left-2`}>
                         {cupon.negocioLogo ? (
@@ -130,8 +144,9 @@ export default function CardCupon({
                             </div>
                         )}
                     </div>
-                    {/* Badge estado — abajo izquierda (oculto si el negocio está fuera) */}
-                    {!tieneFranja && (
+                    {/* Badge estado — abajo izquierda, solo `activo` (informativo;
+                        el resto de estados ya lo comunica `overlayEstado`). */}
+                    {esActivo && !tieneFranja && (
                         <div className={`absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-lg flex items-center gap-1 ${badge.clases}`}>
                             <BadgeIcono className="w-3 h-3" />
                             <span className="text-[12px] font-bold">{badge.label}</span>
@@ -189,7 +204,7 @@ export default function CardCupon({
             <div
                 data-testid={`cupon-desktop-${cupon.cuponId}`}
                 onClick={!esActivo ? () => onVerDetalle(cupon) : undefined}
-                className={`hidden lg:flex group bg-white rounded-2xl overflow-hidden flex-col ${opacityClass} ${!esActivo ? 'cursor-pointer' : ''}`}
+                className={`hidden lg:flex group bg-white rounded-2xl overflow-hidden flex-col ${!esActivo ? 'cursor-pointer' : ''}`}
                 style={{ border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
             >
                 {/* Imagen + negocio overlay */}
@@ -197,7 +212,8 @@ export default function CardCupon({
                     {imagenCupon}
                     <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
                     {franjaCirculacion}
-                    {!tieneFranja && badgeEstadoEl}
+                    {esActivo && !tieneFranja && badgeEstadoEl}
+                    {overlayEstado}
                     {/* Negocio overlay */}
                     <div className="absolute bottom-2.5 left-3.5 right-3.5">
                         <div className="flex items-center gap-2.5 min-w-0">

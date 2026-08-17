@@ -191,23 +191,19 @@ export function CardServicioMio({
                     </div>
                 )}
 
-                {/* Overlay grande "PAUSADO" — mismo patrón que CardArticuloMio.
-                    Servicios no tiene `vendida` (decisión UX), por eso solo
-                    se renderiza el overlay de `pausada`. */}
+                {/* Overlay "Pausado" — pill blanco centrado (mismo patrón que
+                    "Apartado" en Mi Catálogo, `PaginaPerfilVendedor.tsx`),
+                    unificado 2026-08-17. Servicios no tiene `vendida`
+                    (decisión UX), por eso solo se renderiza `pausada`. */}
                 {estado === 'pausada' && (
                     <div
                         data-testid={`overlay-pausado-${publicacion.id}`}
-                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/55 backdrop-blur-[1px]"
+                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/35"
                     >
-                        <div className="flex flex-col items-center gap-0.5 text-white">
-                            <PauseCircle
-                                className="h-9 w-9 drop-shadow lg:h-12 lg:w-12"
-                                strokeWidth={2}
-                            />
-                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-2xl">
-                                Pausado
-                            </span>
-                        </div>
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <PauseCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                            Pausado
+                        </span>
                     </div>
                 )}
 

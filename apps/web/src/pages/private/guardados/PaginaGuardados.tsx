@@ -14,7 +14,7 @@
  * Ubicación: apps/web/src/pages/private/guardados/PaginaGuardados.tsx
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // GPS manejado internamente por useNegociosSeguidos
 import { useUiStore } from '@/stores/useUiStore';
 import {
@@ -22,6 +22,7 @@ import {
     Tag,
     ChevronRight,
     ChevronLeft,
+    ChevronDown,
     Trash2,
     X,
     Check,
@@ -151,6 +152,10 @@ export function PaginaGuardados() {
     // State
     // ---------------------------------------------------------------------------
     const [tabActivo, setTabActivo] = useState<TabGuardado>('negocios');
+    // Dropdown de tabs del header Laptop (reemplaza la fila de chips — no
+    // cabían ni con label ni solo ícono+número con 5 tabs).
+    const [dropdownTabsAbierto, setDropdownTabsAbierto] = useState(false);
+    const dropdownTabsRef = useRef<HTMLDivElement | null>(null);
     const [ordenamiento, setOrdenamiento] = useState<Ordenamiento>('recientes');
     const [modoSeleccion, setModoSeleccion] = useState(false);
     const [idsSeleccionados, setIdsSeleccionados] = useState<Set<string>>(new Set());
@@ -212,6 +217,16 @@ export function PaginaGuardados() {
         setModoSeleccion(false);
         setIdsSeleccionados(new Set());
     }, [tabActivo]);
+
+    // Cerrar dropdown de tabs (Laptop) al hacer clic fuera
+    useEffect(() => {
+        if (!dropdownTabsAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!dropdownTabsRef.current?.contains(e.target as Node)) setDropdownTabsAbierto(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [dropdownTabsAbierto]);
 
     // ---------------------------------------------------------------------------
     // Fetch Functions
@@ -452,6 +467,17 @@ export function PaginaGuardados() {
         { id: 'servicios', label: 'Servicios', Icono: Briefcase },
     ];
 
+    // Color del ícono dentro del panel del dropdown — mismo color de marca
+    // que cada sección usa en su ficha pública (Negocios azul, Ofertas/
+    // Dinámicas ámbar, MarketPlace teal, Servicios sky).
+    const colorIconoPorTab: Record<TabGuardado, string> = {
+        negocios: 'text-blue-500',
+        ofertas: 'text-amber-500',
+        marketplace: 'text-teal-500',
+        dinamicas: 'text-amber-500',
+        servicios: 'text-sky-500',
+    };
+
     const badgePorTab = (id: TabGuardado) => {
         if (id === 'ofertas') return ofertas.length;
         if (id === 'negocios') return negocios.length;
@@ -469,33 +495,39 @@ export function PaginaGuardados() {
             <div className="shrink-0 z-20 lg:sticky lg:top-0">
                 <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
                     <div
-                        className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                        className="relative rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow rose */}
-                        <div
-                            className="absolute inset-0 pointer-events-none"
-                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(244,63,94,0.10) 0%, transparent 55%)' }}
-                        />
-                        {/* Grid pattern */}
-                        <div
-                            className="absolute inset-0 pointer-events-none"
-                            style={{
-                                opacity: 0.08,
-                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
-                                             repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
-                            }}
-                        />
-                        {/* Línea de acento superior (rose) */}
-                        <div
-                            className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #f43f5e 40%, #fb7185 60%, transparent)' }}
-                        />
-                        {/* Línea de acento inferior (rose) */}
-                        <div
-                            className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #f43f5e 40%, #fb7185 60%, transparent)' }}
-                        />
+                        {/* Capas decorativas de fondo — overflow-hidden vive AQUÍ,
+                            no en el contenedor completo, para que el dropdown de
+                            tabs (Laptop) pueda salirse del header sin quedar
+                            recortado y el fondo redondeado no se vea afectado. */}
+                        <div className="absolute inset-0 overflow-hidden rounded-none lg:rounded-b-3xl pointer-events-none">
+                            {/* Glow rose */}
+                            <div
+                                className="absolute inset-0"
+                                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(244,63,94,0.10) 0%, transparent 55%)' }}
+                            />
+                            {/* Grid pattern */}
+                            <div
+                                className="absolute inset-0"
+                                style={{
+                                    opacity: 0.08,
+                                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                 repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                                }}
+                            />
+                            {/* Línea de acento superior (rose) */}
+                            <div
+                                className="absolute top-0 left-0 right-0 h-[3px] z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #f43f5e 40%, #fb7185 60%, transparent)' }}
+                            />
+                            {/* Línea de acento inferior (rose) */}
+                            <div
+                                className="absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #f43f5e 40%, #fb7185 60%, transparent)' }}
+                            />
+                        </div>
 
                         <div className="relative z-10">
 
@@ -585,35 +617,67 @@ export function PaginaGuardados() {
                                     </span>
                                 </div>
 
-                                <div className="flex items-center gap-2 min-w-0 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-                                    {TABS_GUARDADOS.map(({ id, label, Icono }) => {
-                                        const badge = badgePorTab(id);
-                                        const activo = tabActivo === id;
+                                {/* 2026-08-17: dropdown en vez de fila de chips —
+                                    ni con label ni con solo ícono+número cabían los
+                                    5 tabs en el ancho disponible del header Laptop. */}
+                                <div ref={dropdownTabsRef} className="relative shrink-0">
+                                    {(() => {
+                                        const tabActivoInfo = TABS_GUARDADOS.find((t) => t.id === tabActivo)!;
+                                        const IconoActivo = tabActivoInfo.Icono;
+                                        const badgeActivo = badgePorTab(tabActivoInfo.id);
                                         return (
                                             <button
-                                                key={id}
-                                                data-testid={`tab-guardados-laptop-${id}`}
-                                                onClick={() => handleCambiarTab(id)}
-                                                className={[
-                                                    'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
-                                                    activo
-                                                        ? 'bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/20'
-                                                        : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-rose-400/60',
-                                                ].join(' ')}
+                                                type="button"
+                                                data-testid="dropdown-tabs-guardados-laptop"
+                                                onClick={() => setDropdownTabsAbierto((v) => !v)}
+                                                className="flex items-center gap-2 rounded-full pl-3 pr-2.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/20"
                                             >
-                                                <Icono className="w-4 h-4" strokeWidth={2.5} />
-                                                <span>{label}</span>
-                                                {badge > 0 && (
-                                                    <span className={[
-                                                        'text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center',
-                                                        activo ? 'bg-white text-rose-600' : 'bg-rose-500 text-white',
-                                                    ].join(' ')}>
-                                                        {badge}
+                                                <IconoActivo className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+                                                <span>{tabActivoInfo.label}</span>
+                                                {badgeActivo > 0 && (
+                                                    <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center bg-white text-rose-600">
+                                                        {badgeActivo}
                                                     </span>
                                                 )}
+                                                <ChevronDown
+                                                    className={`w-4 h-4 shrink-0 transition-transform ${dropdownTabsAbierto ? 'rotate-180' : ''}`}
+                                                    strokeWidth={2.5}
+                                                />
                                             </button>
                                         );
-                                    })}
+                                    })()}
+
+                                    {dropdownTabsAbierto && (
+                                        <div className="absolute right-0 mt-1.5 w-52 rounded-xl border-2 border-slate-300 bg-white shadow-lg py-1 overflow-hidden z-30">
+                                            {TABS_GUARDADOS.map(({ id, label, Icono }) => {
+                                                const badge = badgePorTab(id);
+                                                const activo = tabActivo === id;
+                                                return (
+                                                    <button
+                                                        key={id}
+                                                        type="button"
+                                                        data-testid={`dropdown-tab-guardados-laptop-${id}`}
+                                                        onClick={() => { handleCambiarTab(id); setDropdownTabsAbierto(false); }}
+                                                        className={[
+                                                            'w-full flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-left cursor-pointer',
+                                                            activo ? 'bg-rose-100 text-rose-700' : 'text-slate-600 hover:bg-rose-50',
+                                                        ].join(' ')}
+                                                    >
+                                                        <Icono className={`w-4 h-4 shrink-0 ${colorIconoPorTab[id]}`} strokeWidth={2.5} />
+                                                        <span className="flex-1 min-w-0 truncate">{label}</span>
+                                                        {badge > 0 && (
+                                                            <span className={[
+                                                                'text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0',
+                                                                activo ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-600',
+                                                            ].join(' ')}>
+                                                                {badge}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

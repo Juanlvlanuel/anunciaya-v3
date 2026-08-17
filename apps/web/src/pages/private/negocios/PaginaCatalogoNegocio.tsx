@@ -74,7 +74,6 @@ interface ItemCatalogo {
   precioBase: string;
   precioDesde?: boolean | null;
   imagenPrincipal?: string | null;
-  disponible?: boolean | null;
   destacado?: boolean | null;
 }
 
@@ -105,13 +104,12 @@ function CardCatalogoPedido({
 }) {
   const esServicio = item.tipo === 'servicio';
   const esDestacado = item.destacado === true;
-  const noDisponible = item.disponible === false;
 
   return (
     <div
       className={`relative bg-white rounded-xl shadow-md overflow-hidden border-2 flex flex-col ${
         esDestacado ? 'border-amber-300' : 'border-slate-300'
-      } ${noDisponible ? 'opacity-60' : ''}`}
+      }`}
     >
       {esDestacado && (
         <div className="absolute top-2 left-2 z-10 bg-amber-500 text-white px-1.5 py-0.5 rounded-lg flex items-center gap-1">
@@ -160,9 +158,7 @@ function CardCatalogoPedido({
 
         {/* Control de cantidad / agregar — siempre pegado al fondo de la card */}
         <div className="mt-auto pt-1">
-          {noDisponible ? (
-            <p className="text-xs font-semibold text-red-500">No disponible</p>
-          ) : cantidadEnPedido === 0 ? (
+          {cantidadEnPedido === 0 ? (
             <button
               type="button"
               onClick={onAgregar}

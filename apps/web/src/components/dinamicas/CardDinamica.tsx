@@ -20,7 +20,7 @@
 
 import { useCallback, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Clock, ImageOff, Ticket, Users } from 'lucide-react';
+import { Ban, ChevronRight, Clock, ImageOff, Lock, Ticket, Users } from 'lucide-react';
 import { Icon, ICONOS } from '../../config/iconos';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -148,9 +148,26 @@ export function CardDinamica({ dinamica }: CardDinamicaProps) {
                             <ImageOff className="h-10 w-10" strokeWidth={1.5} />
                         </div>
                     )}
-                    <span className={`absolute top-2.5 right-2.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-md shadow-black/20 ${estado.clase}`}>
-                        {estado.texto}
-                    </span>
+                    {/* Cerrada/Cancelada — pill blanco centrado sobre la
+                        imagen (mismo patrón que "Apartado"/"Vendido"/
+                        "Pausado" en MarketPlace y Servicios), en vez del
+                        badge de esquina que usan los estados en curso. */}
+                    {dinamica.estado === 'cerrada' || dinamica.estado === 'cancelada' ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                                {dinamica.estado === 'cancelada' ? (
+                                    <Ban className="h-3.5 w-3.5" />
+                                ) : (
+                                    <Lock className="h-3.5 w-3.5" />
+                                )}
+                                {estado.texto}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className={`absolute top-2.5 right-2.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-md shadow-black/20 ${estado.clase}`}>
+                            {estado.texto}
+                        </span>
+                    )}
                 </button>
 
                 {!esMio && (

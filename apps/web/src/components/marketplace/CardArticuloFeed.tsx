@@ -24,6 +24,7 @@ import {
     ChevronLeft,
     ChevronRight,
     ImageOff,
+    Lock,
     Pencil,
     Play,
 } from 'lucide-react';
@@ -166,6 +167,10 @@ export function CardArticuloFeed({
     const tieneMultiples = fotos.length > 1;
     const fotoActual = fotos[indiceFoto];
     const esVideoActual = fotoActual?.tipo === 'video';
+    // 2026-08-17: un artículo apartado sigue `estado='activa'` y aparece
+    // normal en este feed general (Mi Catálogo no es la única vista que lo
+    // muestra) — mismo pill que `CardArticulo`/`CardCatalogoVendedor`.
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
     const distancia = formatearDistancia(articulo.distanciaMetros);
     const tiempo = formatearTiempoRelativo(articulo.createdAt);
     // `condicion` es opcional desde 2026-05-13. Si es null, no mostramos chip.
@@ -617,6 +622,18 @@ export function CardArticuloFeed({
                                 ))}
                             </div>
                         </>
+                    )}
+
+                    {/* Overlay "Apartado" — pill blanco centrado, mismo patrón
+                        que `CardArticulo`/`CardCatalogoVendedor`. `pointer-events-none`
+                        para no bloquear flechas/dots/swipe de la galería. */}
+                    {apartado && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35">
+                            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                                <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                                Apartado
+                            </span>
+                        </div>
                     )}
                 </div>
             ) : (

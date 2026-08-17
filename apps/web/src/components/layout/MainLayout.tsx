@@ -433,6 +433,15 @@ export function MainLayout() {
                 style={{
                   top: columnsTop,
                   height: `calc(100vh - ${columnsTop})`,
+                  // Reserva SIEMPRE el espacio de la barra de scroll (con o
+                  // sin contenido que la necesite) — sin esto, el ancho
+                  // disponible cambia justo cuando el navegador
+                  // agrega/quita su scrollbar nativa, y como `tieneScroll`
+                  // (el padding-derecha condicional de arriba) se actualiza
+                  // un render DESPUÉS vía JS, se alcanza a ver un brinco/
+                  // encogimiento del contenido al cambiar de tab con más o
+                  // menos filas (ej. Catálogo → Dinámicas en Laptop).
+                  scrollbarGutter: 'stable',
                 }}
               >
                 <Outlet />

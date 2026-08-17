@@ -42,6 +42,7 @@ import {
     ShoppingCart,
     ArrowRight,
     Check,
+    Lock,
 } from 'lucide-react';
 
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
@@ -132,6 +133,9 @@ export function PaginaArticuloMarketplacePublico() {
             ? articulo.estado
             : null;
     const noActiva = estadoNoActivo !== null;
+    // Un artículo apartado sigue `estado='activa'` — se calcula aparte,
+    // mismo pill que el resto de las cards de MarketPlace.
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
     const handleEnviarMensaje = () => {
         if (!usuario) {
             setModalAuthAbierto(true);
@@ -172,8 +176,19 @@ export function PaginaArticuloMarketplacePublico() {
                                     titulo={articulo.titulo}
                                     fotoPortadaIndex={articulo.fotoPortadaIndex}
                                     aspectMovil="aspect-[4/3]"
+                                    overlayEstado={
+                                        estadoNoActivo ? (
+                                            <OverlayEstadoNoActiva estado={estadoNoActivo} />
+                                        ) : apartado ? (
+                                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl">
+                                                <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                                                    <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                                                    Apartado
+                                                </span>
+                                            </div>
+                                        ) : null
+                                    }
                                 />
-                                {estadoNoActivo && <OverlayEstadoNoActiva estado={estadoNoActivo} />}
                             </div>
 
                             {/* Bloque info — SOLO móvil. En desktop va en col-derecha */}
@@ -602,23 +617,24 @@ interface OverlayEstadoNoActivaProps {
 }
 
 function OverlayEstadoNoActiva({ estado }: OverlayEstadoNoActivaProps) {
+    // Pill blanco centrado sobre la imagen — mismo patrón que "Apartado"/
+    // "Vendido"/"Pausado" en las cards de MarketPlace (2026-08-17), en vez
+    // del overlay grande de color sólido a 85% que se sentía muy invasivo.
     const config =
         estado === 'vendida'
-            ? { Icon: PackageX, label: 'VENDIDO', bg: 'bg-rose-600/85' }
-            : { Icon: PauseCircle, label: 'PAUSADO', bg: 'bg-slate-700/85' };
+            ? { Icon: PackageX, label: 'Vendido' }
+            : { Icon: PauseCircle, label: 'Pausado' };
     const Icon = config.Icon;
 
     return (
         <div
             data-testid={`overlay-publico-${estado}`}
-            className={`pointer-events-none absolute inset-0 flex items-center justify-center ${config.bg} lg:rounded-xl`}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl"
         >
-            <div className="flex flex-col items-center gap-2 text-white">
-                <Icon className="h-12 w-12" strokeWidth={1.5} />
-                <span className="text-2xl font-extrabold tracking-wider">
-                    {config.label}
-                </span>
-            </div>
+            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+                {config.label}
+            </span>
         </div>
     );
 }

@@ -37,6 +37,8 @@ import {
     Clock,
     MapPin,
     Navigation,
+    PauseCircle,
+    PlayCircle,
     Star,
     Wrench,
     Zap,
@@ -55,7 +57,9 @@ import { useSaveBubble } from '../../../hooks/useSaveBubble';
 import {
     usePublicacionServicio,
     useRegistrarVistaServicio,
+    useReactivarPublicacionServicio,
 } from '../../../hooks/queries/useServicios';
+import { notificar } from '../../../utils/notificaciones';
 import {
     etiquetaTipoEmpleo,
     formatearDistancia,
@@ -122,6 +126,7 @@ export function PaginaServicio() {
         lng: longitud,
     });
     const registrarVista = useRegistrarVistaServicio();
+    const reactivarMutation = useReactivarPublicacionServicio();
     const vistaYaRegistrada = useRef(false);
     const [modalResenaAbierto, setModalResenaAbierto] = useState(false);
 
@@ -218,6 +223,17 @@ export function PaginaServicio() {
     const isServicio = publicacion.tipo === 'servicio-persona';
     const isVacante = publicacion.tipo === 'vacante-empresa';
     const isSolicito = publicacion.tipo === 'solicito';
+    const esDuenio = usuarioActualId === publicacion.oferente.id;
+    const handleReactivar = async () => {
+        try {
+            const resp = await reactivarMutation.mutateAsync(publicacion.id);
+            notificar.exito(
+                resp.message ?? 'Tu publicación está activa de nuevo. Expira en 30 días.'
+            );
+        } catch {
+            notificar.error('No pudimos reactivar la publicación. Intenta de nuevo.');
+        }
+    };
 
     // Sprint 9.3 (iteración): la galería se OCULTA cuando no aporta
     // contenido visual. Vacantes-empresa siempre muestran el hero (logo
@@ -645,7 +661,10 @@ export function PaginaServicio() {
                                     <div className="space-y-3 lg:space-y-4 lg:col-span-3 min-w-0">
                                         {tieneGaleria && (
                                             <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
-                                                <GaleriaServicio publicacion={publicacion} />
+                                                <GaleriaServicio
+                                                    publicacion={publicacion}
+                                                    overlayEstado={isPausada ? <OverlayPausadaServicio /> : null}
+                                                />
                                             </div>
                                         )}
                                         {cabeceraTituloPrecio}
@@ -666,6 +685,8 @@ export function PaginaServicio() {
                                                 isPausada={isPausada}
                                                 isSolicito={isSolicito}
                                                 sinWrapper
+                                                onReactivar={handleReactivar}
+                                                reactivando={reactivarMutation.isPending}
                                             />
                                         </div>
                                         <div className="mt-auto border-t border-slate-200 px-4 py-3.5">
@@ -677,8 +698,6 @@ export function PaginaServicio() {
                                         </div>
                                     </aside>
                                 </div>
-
-                                {isPausada && <BannerPausada />}
 
                                 <div className="space-y-3 lg:space-y-4">
                                     {cardModalidadUbicacion}
@@ -697,7 +716,11 @@ export function PaginaServicio() {
                                 {tieneGaleria ? (
                                     <div className={`lg:grid lg:grid-cols-5 lg:gap-4 2xl:gap-6 ${isVacante ? '' : 'lg:items-start'}`}>
                                         <div className={`relative -mx-4 lg:mx-0 lg:col-span-3 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300 ${isVacante ? 'lg:h-full' : ''}`}>
-                                            <GaleriaServicio publicacion={publicacion} alturaCompleta={isVacante} />
+                                            <GaleriaServicio
+                                                publicacion={publicacion}
+                                                alturaCompleta={isVacante}
+                                                overlayEstado={isPausada ? <OverlayPausadaServicio /> : null}
+                                            />
                                             {/* El botón guardar vive ahora en el header
                                                 dark sticky superior (mismo patrón que el
                                                 detalle de MarketPlace), no overlay sobre
@@ -710,6 +733,8 @@ export function PaginaServicio() {
                                                     isPausada={isPausada}
                                                     isSolicito={isSolicito}
                                                     sinWrapper
+                                                    onReactivar={handleReactivar}
+                                                    reactivando={reactivarMutation.isPending}
                                                 />
                                             </div>
                                             <div className="border-t border-slate-200 px-4 py-3.5">
@@ -736,6 +761,8 @@ export function PaginaServicio() {
                                                 isPausada={isPausada}
                                                 isSolicito={isSolicito}
                                                 sinWrapper
+                                                onReactivar={handleReactivar}
+                                                reactivando={reactivarMutation.isPending}
                                             />
                                         </div>
                                         <div className="px-4 py-3.5">
@@ -747,8 +774,6 @@ export function PaginaServicio() {
                                         </div>
                                     </div>
                                 )}
-
-                                {isPausada && <BannerPausada />}
 
                                 {/* ─── RESTO A ANCHO COMPLETO ───
                                     Mismo criterio que MarketPlace: nada de columna
@@ -796,34 +821,46 @@ export function PaginaServicio() {
                 {/* Barra de contacto fija inferior en móvil — mismo patrón
                     que el detalle de MarketPlace: fondo negro, línea de
                     acento sky (espejo del header) y se desplaza junto con
-                    el BottomNav al ocultarse/mostrarse en el scroll. */}
-                <div
-                    className="fixed inset-x-0 z-30 shadow-[0_-2px_8px_rgba(0,0,0,0.25)] transition-[bottom] duration-300 ease-out lg:hidden"
-                    style={{
-                        bottom: bottomNavVisible ? 'calc(var(--altura-bottomnav, 68px) - 1px)' : '0px',
-                        background: '#000000',
-                    }}
-                >
+                    el BottomNav al ocultarse/mostrarse en el scroll. Si es
+                    el dueño Y está activa, no hay nada que mostrar (ni
+                    Contactos ni Reactivar) — se omite el wrapper entero
+                    para no dejar una franja negra vacía. */}
+                {(!esDuenio || isPausada) && (
                     <div
-                        className="pointer-events-none absolute top-0 left-0 right-0 h-[3px]"
-                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
-                    />
-                    {isPausada ? (
-                        <div className="px-3 py-3">
-                            <button
-                                disabled
-                                className="w-full py-3 rounded-xl bg-slate-700 text-slate-300 font-bold text-sm cursor-not-allowed"
-                            >
-                                Contacto deshabilitado
-                            </button>
-                        </div>
-                    ) : (
-                        <BarraContactoServicio
-                            publicacion={publicacion}
-                            variante="mobile"
+                        className="fixed inset-x-0 z-30 shadow-[0_-2px_8px_rgba(0,0,0,0.25)] transition-[bottom] duration-300 ease-out lg:hidden"
+                        style={{
+                            bottom: bottomNavVisible ? 'calc(var(--altura-bottomnav, 68px) - 1px)' : '0px',
+                            background: '#000000',
+                        }}
+                    >
+                        <div
+                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px]"
+                            style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
                         />
-                    )}
-                </div>
+                        {esDuenio && isPausada ? (
+                            <div className="p-3">
+                                <BotonReactivarServicio
+                                    onClick={handleReactivar}
+                                    cargando={reactivarMutation.isPending}
+                                />
+                            </div>
+                        ) : isPausada ? (
+                            <div className="px-3 py-3">
+                                <button
+                                    disabled
+                                    className="w-full py-3 rounded-xl bg-slate-700 text-slate-300 font-bold text-sm cursor-not-allowed"
+                                >
+                                    Contacto deshabilitado
+                                </button>
+                            </div>
+                        ) : (
+                            <BarraContactoServicio
+                                publicacion={publicacion}
+                                variante="mobile"
+                            />
+                        )}
+                    </div>
+                )}
             </div>
 
             <ModalCrearResena
@@ -931,26 +968,6 @@ function PillList({ items }: { items: string[] }) {
     );
 }
 
-function BannerPausada() {
-    return (
-        <div className="mt-3 mx-4 lg:mx-0 px-3 py-2.5 rounded-xl bg-amber-100 border border-amber-300 flex items-start gap-2.5">
-            <AlertCircle
-                className="w-4 h-4 text-amber-700 mt-0.5 shrink-0"
-                strokeWidth={2}
-            />
-            <div>
-                <div className="text-sm font-bold text-amber-900">
-                    Publicación pausada
-                </div>
-                <div className="text-sm font-medium text-amber-800 leading-snug">
-                    No puedes contactar mientras esté pausada. Te avisaremos si
-                    vuelve a estar activa.
-                </div>
-            </div>
-        </div>
-    );
-}
-
 // =============================================================================
 // SIDEBAR DESKTOP — Card Contacto (precio + CTAs)
 // =============================================================================
@@ -964,6 +981,8 @@ function SidebarContacto({
     isSolicito,
     sinWrapper = false,
     ocultarContactos = false,
+    onReactivar,
+    reactivando = false,
 }: {
     publicacion: PublicacionDetalle;
     isPausada: boolean;
@@ -974,6 +993,10 @@ function SidebarContacto({
     /** Móvil ya tiene su propia barra fija de Contactos (ChatYA/WhatsApp)
      *  abajo — evita duplicarla dentro de esta card. */
     ocultarContactos?: boolean;
+    /** Dueño + pausada: botón "Reactivar publicación" en vez del CTA de
+     *  contacto (mismo patrón que el detalle de MarketPlace). */
+    onReactivar?: () => void;
+    reactivando?: boolean;
 }) {
     // `esVacante` se deriva dentro del componente — no se pasa como prop
     // para no cambiar la firma. Es necesario para que el helper devuelva
@@ -992,7 +1015,6 @@ function SidebarContacto({
     // quedaba colgado sin botones debajo — UX rota.
     const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
     const esDuenio = usuarioActualId === publicacion.oferente.id;
-    const mostrarContactos = !esDuenio;
 
     return (
         <div className={sinWrapper ? 'space-y-2' : 'bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-3.5'}>
@@ -1100,31 +1122,82 @@ function SidebarContacto({
                 })()}
             </div>
 
-            {/* Contactos — título + barra inline (ChatYA + WhatsApp).
-                Solo se renderiza si el visitante NO es el dueño de la
-                publicación (en ese caso la barra retornaría null y
-                quedaría un título colgado sin botones). */}
-            {mostrarContactos && !ocultarContactos && (
+            {/* Contactos — título + barra inline (ChatYA + WhatsApp). Si el
+                visitante ES el dueño, en su lugar: "Reactivar publicación"
+                (pausada) o un texto informativo (activa) — mismo patrón
+                que el detalle de MarketPlace. */}
+            {!ocultarContactos && (
                 <div className={`border-t border-slate-200 ${sinWrapper ? 'pt-2' : 'pt-3'}`}>
-                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-2">
-                        Contactos
-                    </div>
-                    {isPausada ? (
-                        <button
-                            disabled
-                            className="w-full py-3 rounded-xl bg-slate-200 text-slate-600 font-bold text-sm cursor-not-allowed"
-                        >
-                            Contacto deshabilitado
-                        </button>
+                    {esDuenio && isPausada ? (
+                        <BotonReactivarServicio onClick={onReactivar} cargando={reactivando} />
+                    ) : esDuenio ? (
+                        <p className="text-sm font-medium text-slate-600">
+                            Esta es tu publicación.
+                        </p>
                     ) : (
-                        <BarraContactoServicio
-                            publicacion={publicacion}
-                            variante="desktop"
-                        />
+                        <>
+                            <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-2">
+                                Contactos
+                            </div>
+                            {isPausada ? (
+                                <button
+                                    disabled
+                                    className="w-full py-3 rounded-xl bg-slate-200 text-slate-600 font-bold text-sm cursor-not-allowed"
+                                >
+                                    Contacto deshabilitado
+                                </button>
+                            ) : (
+                                <BarraContactoServicio
+                                    publicacion={publicacion}
+                                    variante="desktop"
+                                />
+                            )}
+                        </>
                     )}
                 </div>
             )}
         </div>
+    );
+}
+
+// =============================================================================
+// BOTÓN REACTIVAR — mismo patrón que el detalle de MarketPlace
+// =============================================================================
+
+// =============================================================================
+// OVERLAY "PAUSADO" — pill blanco centrado sobre la foto (mismo patrón
+// que MarketPlace/Dinámicas, 2026-08-17). Se pasa como `overlayEstado` a
+// `GaleriaServicio`, que lo renderiza scopeado a la foto principal.
+// =============================================================================
+
+function OverlayPausadaServicio() {
+    return (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35">
+            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                <PauseCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                Pausado
+            </span>
+        </div>
+    );
+}
+
+function BotonReactivarServicio({
+    onClick,
+    cargando,
+}: {
+    onClick?: () => void;
+    cargando: boolean;
+}) {
+    return (
+        <button
+            data-testid="btn-reactivar-servicio"
+            onClick={onClick}
+            disabled={cargando}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-sky-600 to-sky-800 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] disabled:opacity-60"
+        >
+            <PlayCircle className="h-4 w-4" strokeWidth={2.5} />
+            {cargando ? 'Reactivando…' : 'Reactivar publicación'}
+        </button>
     );
 }
 

@@ -24,7 +24,7 @@
  * Ubicación: apps/web/src/components/marketplace/GaleriaArticulo.tsx
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, ImageOff, Play } from 'lucide-react';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import type { ArchivoFoto } from '../../types/archivoFoto';
@@ -49,6 +49,15 @@ interface GaleriaArticuloProps {
      * `'aspect-[4/3]'` para unificar con Producto/Ofertas/Servicios.
      */
     aspectMovil?: string;
+    /**
+     * Overlay de estado (pill "Vendido"/"Pausado"/"Apartado") superpuesto
+     * SOLO sobre la foto principal — nunca sobre la tira de thumbnails.
+     * Se renderiza dentro de los wrappers de foto (móvil Y desktop, cada
+     * uno ya `relative`) en vez de que el caller lo superponga por fuera:
+     * por fuera, `absolute inset-0` cubre foto+thumbnails combinados y el
+     * pill queda descentrado (2026-08-17).
+     */
+    overlayEstado?: ReactNode;
 }
 
 export function GaleriaArticulo({
@@ -57,6 +66,7 @@ export function GaleriaArticulo({
     fotoPortadaIndex = 0,
     ajusteImagen = 'contain',
     aspectMovil = 'aspect-square',
+    overlayEstado,
 }: GaleriaArticuloProps) {
     // Reordenar para que la portada sea la primera
     const fotosOrdenadas = (() => {
@@ -203,6 +213,7 @@ export function GaleriaArticulo({
                         {indiceActual + 1}/{total}
                     </div>
                 )}
+                {overlayEstado}
             </div>
 
             {/* ═══════════════════════════════════════════════════════════════
@@ -267,6 +278,7 @@ export function GaleriaArticulo({
                         </button>
                     </>
                 )}
+                {overlayEstado}
             </div>
 
             {/* ═══════════════════════════════════════════════════════════════

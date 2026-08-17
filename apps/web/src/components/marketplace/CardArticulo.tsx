@@ -22,7 +22,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ImageOff, Users, ChevronRight, Pencil, Play } from 'lucide-react';
+import { ImageOff, Users, ChevronRight, Pencil, Play, PackageX, Lock } from 'lucide-react';
 import { Icon, type IconProps } from '@/config/iconos';
 import { ICONOS } from '../../config/iconos';
 
@@ -83,6 +83,14 @@ interface CardArticuloProps {
      * buscador).
      */
     acentoHover?: 'rose';
+    /**
+     * 2026-08-17: pill "Vendido" centrado SOLO sobre la imagen (mismo patrón
+     * que "Apartado" en Mi Catálogo y los overlays de `CardArticuloMio`) —
+     * lo usa `CardConOverlayVendido` (perfil del vendedor) en vez de un
+     * `<div>` externo que oscurecía la card completa (título/precio
+     * incluidos), que se sentía más invasivo.
+     */
+    overlayVendido?: boolean;
 }
 
 export function CardArticulo({
@@ -91,6 +99,7 @@ export function CardArticulo({
     altoFijo,
     ocultarBotonGuardar,
     acentoHover,
+    overlayVendido,
 }: CardArticuloProps) {
     const navigate = useNavigate();
     // `articulo.guardado` viene del backend cuando el visitante está
@@ -102,6 +111,14 @@ export function CardArticulo({
         entityId: articulo.id,
         initialGuardado: articulo.guardado,
     });
+
+    // 2026-08-17: a diferencia de `overlayVendido` (opt-in manual, solo lo
+    // usa la pestaña "Vendidas" del propio vendedor), el bloqueo de apartado
+    // se calcula solo — un artículo apartado sigue `estado='activa'` y
+    // aparece normal en el feed público general, así que CUALQUIER card que
+    // renderice `CardArticulo` (feed/glass/compacta) debe mostrarlo, no solo
+    // Mi Catálogo (`CardCatalogoVendedor`, que ya lo hacía por separado).
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
 
     const fotoPortada = obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex);
     const esNuevo = esArticuloNuevo(articulo.createdAt);
@@ -406,6 +423,28 @@ export function CardArticulo({
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-slate-400">
                         <ImageOff className="h-10 w-10" strokeWidth={1.5} />
+                    </div>
+                )}
+
+                {/* Overlay "Vendido" — pill blanco centrado, solo sobre la
+                    imagen (no sobre título/precio). Ver `overlayVendido`. */}
+                {overlayVendido && (
+                    <div className="absolute inset-0 z-[2] flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <PackageX className="h-3.5 w-3.5" strokeWidth={2} />
+                            Vendido
+                        </span>
+                    </div>
+                )}
+
+                {/* Overlay "Apartado" — mismo pill, calculado solo (ver
+                    comentario en el cálculo de `apartado` arriba). */}
+                {!overlayVendido && apartado && (
+                    <div className="absolute inset-0 z-[2] flex items-center justify-center bg-slate-900/35">
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                            Apartado
+                        </span>
                     </div>
                 )}
 

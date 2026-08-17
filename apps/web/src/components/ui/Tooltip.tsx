@@ -115,7 +115,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
     right: 'translate(0, -50%)',
   };
 
-  const colorFlecha = tono === 'claro' ? '#ffffff' : '#0f172a';
+  const colorFlecha = tono === 'claro' ? '#ffffff' : '#000000';
 
   const arrowStyles: Record<string, React.CSSProperties> = {
     top: {
@@ -190,7 +190,7 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
         >
           <div
             className={`relative text-sm font-medium px-3 py-1.5 rounded-lg whitespace-nowrap ${
-              tono === 'claro' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'
+              tono === 'claro' ? 'bg-white text-slate-900' : 'bg-black text-white'
             }`}
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >

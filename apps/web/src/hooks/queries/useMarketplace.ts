@@ -1012,19 +1012,19 @@ export function useApartarArticulo() {
  */
 export interface ApartadoDeVendedor {
     id: string;
-    articulo_id: string;
-    nombre_comprador: string;
-    whatsapp_comprador: string;
-    estado: 'pendiente' | 'confirmado' | 'rechazado' | 'expirado';
-    creado_en: string;
-    resuelto_en: string | null;
-    expira_en: string | null;
-    articulo_titulo: string;
-    articulo_fotos: ArchivoFoto[];
-    articulo_foto_portada_index: number;
+    articuloId: string;
+    nombreComprador: string;
+    whatsappComprador: string;
+    estado: 'apartado' | 'vendido' | 'rechazado' | 'expirado';
+    creadoEn: string;
+    resueltoEn: string | null;
+    expiraEn: string | null;
+    articuloTitulo: string;
+    articuloFotos: ArchivoFoto[];
+    articuloFotoPortadaIndex: number;
 }
 
-export function useMisApartados(estado?: 'pendiente' | 'confirmado' | 'rechazado' | 'expirado') {
+export function useMisApartados(estado?: 'apartado' | 'vendido' | 'rechazado' | 'expirado') {
     return useQuery({
         queryKey: queryKeys.marketplace.misApartados(estado),
         queryFn: async (): Promise<ApartadoDeVendedor[]> => {
@@ -1038,12 +1038,12 @@ export function useMisApartados(estado?: 'pendiente' | 'confirmado' | 'rechazado
     });
 }
 
-/** `PATCH /marketplace/apartados/:id/confirmar` — el vendedor confirma una solicitud. */
-export function useConfirmarApartado() {
+/** `PATCH /marketplace/apartados/:id/vendido` — el vendedor marca la solicitud como concretada (despublica el artículo). */
+export function useMarcarApartadoVendido() {
     const queryClient = useQueryClient();
     return useMutation<{ success: boolean; message?: string }, unknown, { apartadoId: string }>({
         mutationFn: async ({ apartadoId }) => {
-            const response = await api.patch(`/marketplace/apartados/${apartadoId}/confirmar`);
+            const response = await api.patch(`/marketplace/apartados/${apartadoId}/vendido`);
             return response.data;
         },
         onSuccess: () => {
@@ -1053,7 +1053,7 @@ export function useConfirmarApartado() {
     });
 }
 
-/** `PATCH /marketplace/apartados/:id/rechazar` — el vendedor rechaza una solicitud. */
+/** `PATCH /marketplace/apartados/:id/rechazar` — el vendedor rechaza una solicitud (libera el bloqueo). */
 export function useRechazarApartado() {
     const queryClient = useQueryClient();
     return useMutation<{ success: boolean; message?: string }, unknown, { apartadoId: string }>({
@@ -1063,6 +1063,7 @@ export function useRechazarApartado() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-apartados'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
         },
     });
 }

@@ -22,7 +22,7 @@
  * Ubicación: apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
@@ -38,6 +38,7 @@ import {
     Ticket,
     XCircle,
     Lock,
+    ChevronDown,
     type LucideIcon,
 } from 'lucide-react';
 import { ModalGestionApartados } from '@/components/marketplace/ModalGestionApartados';
@@ -56,6 +57,7 @@ type IconLike =
     | LucideIcon
     | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+import Tooltip from '../../../components/ui/Tooltip';
 import { Spinner } from '../../../components/ui/Spinner';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
@@ -70,6 +72,7 @@ import {
 } from '../../../components/dinamicas/ModalesAccionDinamica';
 import { ComposerSection as ComposerSectionMarketplace } from '../../../components/marketplace/composer/ComposerSection';
 import { ComposerSection as ComposerSectionServicios } from '../../../components/servicios/composer/ComposerSection';
+import { ComposerSectionDinamicas } from '../../../components/dinamicas/composer/ComposerSectionDinamicas';
 import { MisPublicacionesServiciosSection } from '../../../components/servicios/MisPublicacionesServiciosSection';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
@@ -199,7 +202,9 @@ export function PaginaMisPublicaciones() {
     const [tipoActivo, setTipoActivo] = useState<TipoPublicacion>(tipoInicial);
     // Mi Catálogo (2026-08-12) — solicitudes de apartado de mis artículos de MarketPlace.
     const [modalApartadosAbierto, setModalApartadosAbierto] = useState(false);
-    const { data: apartadosPendientes = [] } = useMisApartados('pendiente');
+    // 2026-08-16: ya no hay estado "pendiente" — el badge cuenta los
+    // artículos actualmente 'apartado' (bloqueados, esperando Rechazar o Vendido).
+    const { data: apartadosActivos = [] } = useMisApartados('apartado');
 
     // Limpia el query param `?tipo=` después de leerlo una vez (mismo patrón
     // que `ComposerSection` con `?crear`/`?editar`). Así, si el usuario
@@ -217,6 +222,26 @@ export function PaginaMisPublicaciones() {
     }, []);
     const [tabActivo, setTabActivo] = useState<TabPublicacion>('activa');
     const [borradorExiste, setBorradorExiste] = useState(false);
+    // Dropdown de tabs de estado del header Laptop (reemplaza la fila de
+    // chips — no cabían con el toggle MP/Servicios/Dinámicas + Apartados +
+    // Publicar compartiendo la misma fila angosta).
+    const [dropdownTabsAbierto, setDropdownTabsAbierto] = useState(false);
+    const dropdownTabsRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!dropdownTabsAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!dropdownTabsRef.current?.contains(e.target as Node)) setDropdownTabsAbierto(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [dropdownTabsAbierto]);
+
+    // Cerrar el dropdown al cambiar de tipo (activa/pausada/vendida ya no
+    // aplican igual entre MP/Servicios/Dinámicas).
+    useEffect(() => {
+        setDropdownTabsAbierto(false);
+    }, [tipoActivo]);
 
     // Si el tab actual no aplica al tipo nuevo (ej. estabas en "vendida" y
     // cambiaste a "servicios" que solo tiene activa/pausada), resetear a
@@ -356,10 +381,12 @@ export function PaginaMisPublicaciones() {
     }, [usuarioId]);
 
     // ─── Handlers de navegación / CTAs ───────────────────────────────────────
-    // Composer inline en /marketplace: `?crear=1` lo expande para crear,
-    // `?editar={id}` lo expande para editar. Reemplaza al wizard antiguo.
-    const irAPublicar = () => navegar('/marketplace?crear=1');
-    const continuarBorrador = () => navegar('/marketplace?crear=1');
+    // Composer inline: `?crear=1` lo expande para crear, `?editar={id}` lo
+    // expande para editar. Se dispara en ESTA MISMA página (no en
+    // /marketplace) — el composer ya está montado aquí abajo (condicionado a
+    // `tipoActivo`), así el usuario nunca sale de "Mis Publicaciones".
+    const irAPublicar = () => navegar('/mis-publicaciones?crear=1');
+    const continuarBorrador = () => navegar('/mis-publicaciones?crear=1');
 
     // ─── Handlers de acciones por artículo ───────────────────────────────────
     // El composer de MarketPlace vive montado aquí mismo (más abajo, junto al
@@ -434,7 +461,10 @@ export function PaginaMisPublicaciones() {
     };
 
     // ─── Handlers de acciones por Dinámica ───────────────────────────────────
-    const irAOrganizarDinamica = () => navegar('/marketplace?dinamicas=1&crearDinamica=1');
+    // El composer de Dinámicas también está montado aquí mismo (más abajo,
+    // junto a los de MarketPlace/Servicios) — sin `dinamicas=1` porque ese
+    // param solo aplica al toggle interno de /marketplace.
+    const irAOrganizarDinamica = () => navegar('/mis-publicaciones?crearDinamica=1');
 
     const handleAbrirEditarDinamica = (dinamica: DinamicaFeedItem) => {
         setDinamicaAEditar(dinamica);
@@ -537,6 +567,32 @@ export function PaginaMisPublicaciones() {
         : tipoActivo === 'dinamicas'
         ? 'text-amber-600'
         : 'text-sky-600';
+    // Dropdown de tabs de estado (Laptop) — panel en modo claro con el
+    // mismo color de acento por tipo (no el header oscuro de la página).
+    const tabPanelActivoClase = tipoActivo === 'marketplace'
+        ? 'bg-teal-100 text-teal-700'
+        : tipoActivo === 'dinamicas'
+        ? 'bg-amber-100 text-amber-700'
+        : 'bg-sky-100 text-sky-700';
+    const tabPanelHoverClase = tipoActivo === 'marketplace'
+        ? 'hover:bg-teal-50'
+        : tipoActivo === 'dinamicas'
+        ? 'hover:bg-amber-50'
+        : 'hover:bg-sky-50';
+    const tabPanelBadgeActivoClase = tipoActivo === 'marketplace'
+        ? 'bg-teal-500 text-white'
+        : tipoActivo === 'dinamicas'
+        ? 'bg-amber-500 text-white'
+        : 'bg-sky-500 text-white';
+    // Color del ícono dentro del panel — congruente con lo que indica el
+    // estado (no con el tipo activo): Activas verde, Pausadas ámbar,
+    // Vendidas violeta, Cerradas rojo.
+    const colorIconoPorTab: Record<TabPublicacion, string> = {
+        activa: 'text-emerald-500',
+        pausada: 'text-amber-500',
+        vendida: 'text-violet-500',
+        cerrada: 'text-red-500',
+    };
 
     // Conteo por tab según el tipo activo — cada tipo tiene su propia fuente
     // de datos (MP: `conteoPorTab`, Servicios: callback `onConteos`,
@@ -556,7 +612,7 @@ export function PaginaMisPublicaciones() {
     const handlePublicarClick = () => {
         if (tipoActivo === 'marketplace') return irAPublicar();
         if (tipoActivo === 'dinamicas') return irAOrganizarDinamica();
-        return navegar('/servicios?crear=ofrezco');
+        return navegar('/mis-publicaciones?crear=ofrezco');
     };
     const labelPublicar = tipoActivo === 'marketplace'
         ? 'Publicar artículo'
@@ -583,36 +639,42 @@ export function PaginaMisPublicaciones() {
             <div className="shrink-0 z-20 lg:sticky lg:top-0">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
-                        className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                        className="relative rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow cyan */}
-                        <div
-                            className="pointer-events-none absolute inset-0"
-                            style={{
-                                background:
-                                    'radial-gradient(ellipse at 85% 20%, rgba(6,182,212,0.10) 0%, transparent 55%)',
-                            }}
-                        />
-                        {/* Grid pattern sutil */}
-                        <div
-                            className="pointer-events-none absolute inset-0"
-                            style={{
-                                opacity: 0.08,
-                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
-                                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
-                            }}
-                        />
-                        {/* Línea de acento superior (cyan) */}
-                        <div
-                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
-                        />
-                        {/* Línea de acento inferior (cyan) */}
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
-                        />
+                        {/* Capas decorativas de fondo — overflow-hidden vive AQUÍ,
+                            no en el contenedor completo, para que el dropdown de
+                            tabs (Laptop) pueda salirse del header sin quedar
+                            recortado y el fondo redondeado no se vea afectado. */}
+                        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-none lg:rounded-b-3xl">
+                            {/* Glow cyan */}
+                            <div
+                                className="absolute inset-0"
+                                style={{
+                                    background:
+                                        'radial-gradient(ellipse at 85% 20%, rgba(6,182,212,0.10) 0%, transparent 55%)',
+                                }}
+                            />
+                            {/* Grid pattern sutil */}
+                            <div
+                                className="absolute inset-0"
+                                style={{
+                                    opacity: 0.08,
+                                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                      repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                                }}
+                            />
+                            {/* Línea de acento superior (cyan) */}
+                            <div
+                                className="absolute top-0 left-0 right-0 h-[3px] z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
+                            />
+                            {/* Línea de acento inferior (cyan) */}
+                            <div
+                                className="absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
+                            />
+                        </div>
 
                         <div className="relative z-10">
                             {/* ═══ MOBILE HEADER (< lg) ═══ */}
@@ -751,65 +813,98 @@ export function PaginaMisPublicaciones() {
                                                     ? 'border-amber-400 bg-linear-to-br from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30'
                                                     : 'border-sky-500 bg-linear-to-br from-sky-600 to-sky-700 text-white shadow-md shadow-sky-700/30';
                                             return (
-                                                <button
-                                                    key={tipo.id}
-                                                    data-testid={`selector-${tipo.id}-laptop`}
-                                                    onClick={() => setTipoActivo(tipo.id)}
-                                                    aria-label={tipo.label}
-                                                    aria-pressed={activo}
-                                                    className={[
-                                                        'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all',
-                                                        activo
-                                                            ? claseActivo
-                                                            : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30 hover:bg-white/10 hover:text-white',
-                                                    ].join(' ')}
-                                                >
-                                                    <Icono className="h-4 w-4" strokeWidth={2.5} />
-                                                </button>
+                                                <Tooltip key={tipo.id} text={tipo.label} position="bottom">
+                                                    <button
+                                                        data-testid={`selector-${tipo.id}-laptop`}
+                                                        onClick={() => setTipoActivo(tipo.id)}
+                                                        aria-label={tipo.label}
+                                                        aria-pressed={activo}
+                                                        className={[
+                                                            'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all',
+                                                            activo
+                                                                ? claseActivo
+                                                                : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30 hover:bg-white/10 hover:text-white',
+                                                        ].join(' ')}
+                                                    >
+                                                        <Icono className="h-4 w-4" strokeWidth={2.5} />
+                                                    </button>
+                                                </Tooltip>
                                             );
                                         })}
                                     </div>
                                 </div>
 
                                 <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                                    {/* Tabs de estado por tipo — scrollables si no caben */}
-                                    <div
-                                        data-testid="tabs-mis-publicaciones-laptop"
-                                        className="flex min-w-0 shrink items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
-                                    >
-                                        {TABS_POR_TIPO[tipoActivo].map((tab) => {
-                                            const Icono = tab.Icono;
-                                            const activo = tabActivo === tab.id;
-                                            const conteo = conteoParaTab(tab.id);
+                                    {/* Tab de estado activo — dropdown en vez de fila
+                                        de chips (no cabían junto al toggle de tipo +
+                                        Apartados + Publicar en el ancho disponible). */}
+                                    <div ref={dropdownTabsRef} className="relative shrink-0">
+                                        {(() => {
+                                            const tabInfo = TABS_POR_TIPO[tipoActivo].find((t) => t.id === tabActivo) ?? TABS_POR_TIPO[tipoActivo][0];
+                                            const IconoActivo = tabInfo.Icono;
+                                            const conteoActivo = conteoParaTab(tabInfo.id);
                                             return (
                                                 <button
-                                                    key={tab.id}
-                                                    data-testid={`tab-${tab.id}-laptop`}
-                                                    onClick={() => setTabActivo(tab.id)}
+                                                    type="button"
+                                                    data-testid="dropdown-tabs-mis-publicaciones-laptop"
+                                                    onClick={() => setDropdownTabsAbierto((v) => !v)}
                                                     className={[
-                                                        'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all',
-                                                        activo
-                                                            ? `text-white shadow-md ${tabActivoClase}`
-                                                            : `border-white/15 bg-white/5 text-slate-200 ${tabHoverClase} hover:bg-white/10 hover:text-white`,
+                                                        'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 pl-3.5 pr-2.5 py-1.5 text-sm font-semibold text-white shadow-md transition-all',
+                                                        tabActivoClase,
                                                     ].join(' ')}
                                                 >
-                                                    <Icono className="h-4 w-4" strokeWidth={2.5} />
-                                                    <span>{tab.label}</span>
-                                                    {conteo > 0 && (
-                                                        <span
-                                                            className={[
-                                                                'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold',
-                                                                activo
-                                                                    ? `bg-white ${tabBadgeClase}`
-                                                                    : 'bg-white/20 text-white',
-                                                            ].join(' ')}
-                                                        >
-                                                            {conteo}
+                                                    <IconoActivo className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                                                    <span>{tabInfo.label}</span>
+                                                    {conteoActivo > 0 && (
+                                                        <span className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold ${tabBadgeClase}`}>
+                                                            {conteoActivo}
                                                         </span>
                                                     )}
+                                                    <ChevronDown
+                                                        className={`h-4 w-4 shrink-0 transition-transform ${dropdownTabsAbierto ? 'rotate-180' : ''}`}
+                                                        strokeWidth={2.5}
+                                                    />
                                                 </button>
                                             );
-                                        })}
+                                        })()}
+
+                                        {dropdownTabsAbierto && (
+                                            <div
+                                                data-testid="dropdown-tabs-mis-publicaciones-laptop-panel"
+                                                className="absolute right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border-2 border-slate-300 bg-white py-1 shadow-lg"
+                                            >
+                                                {TABS_POR_TIPO[tipoActivo].map((tab) => {
+                                                    const Icono = tab.Icono;
+                                                    const activo = tabActivo === tab.id;
+                                                    const conteo = conteoParaTab(tab.id);
+                                                    return (
+                                                        <button
+                                                            key={tab.id}
+                                                            type="button"
+                                                            data-testid={`dropdown-tab-${tab.id}-laptop`}
+                                                            onClick={() => { setTabActivo(tab.id); setDropdownTabsAbierto(false); }}
+                                                            className={[
+                                                                'flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm font-semibold',
+                                                                activo ? tabPanelActivoClase : `text-slate-600 ${tabPanelHoverClase}`,
+                                                            ].join(' ')}
+                                                        >
+                                                            <Icono className={`h-4 w-4 shrink-0 ${colorIconoPorTab[tab.id]}`} strokeWidth={2.5} />
+                                                            <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                                                            {conteo > 0 && (
+                                                                <span
+                                                                    className={[
+                                                                        'flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold',
+                                                                        activo ? tabPanelBadgeActivoClase : 'bg-slate-200 text-slate-600',
+                                                                    ].join(' ')}
+                                                                >
+                                                                    {conteo}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Divider vertical sutil */}
@@ -817,33 +912,37 @@ export function PaginaMisPublicaciones() {
 
                                     {/* Apartados — Mi Catálogo (2026-08-12), solo MarketPlace */}
                                     {tipoActivo === 'marketplace' && (
-                                        <button
-                                            data-testid="btn-apartados-header-laptop"
-                                            onClick={() => setModalApartadosAbierto(true)}
-                                            aria-label="Solicitudes de apartado"
-                                            className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-800 text-white shadow-md ring-2 ring-white/20 transition-transform hover:scale-105"
-                                        >
-                                            <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
-                                            {apartadosPendientes.length > 0 && (
-                                                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
-                                                    {apartadosPendientes.length}
-                                                </span>
-                                            )}
-                                        </button>
+                                        <Tooltip text="Solicitudes de apartado" position="bottom">
+                                            <button
+                                                data-testid="btn-apartados-header-laptop"
+                                                onClick={() => setModalApartadosAbierto(true)}
+                                                aria-label="Solicitudes de apartado"
+                                                className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-800 text-white shadow-md ring-2 ring-white/20 transition-transform hover:scale-105"
+                                            >
+                                                <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                                                {apartadosActivos.length > 0 && (
+                                                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                                                        {apartadosActivos.length}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </Tooltip>
                                     )}
 
                                     {/* Publicar — icon-only */}
-                                    <button
-                                        data-testid="btn-publicar-header-laptop"
-                                        onClick={handlePublicarClick}
-                                        aria-label={labelPublicar}
-                                        className={
-                                            'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md ring-2 transition-transform hover:scale-105 ' +
-                                            gradientePublicarHeader
-                                        }
-                                    >
-                                        <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
-                                    </button>
+                                    <Tooltip text={labelPublicar} position="bottom">
+                                        <button
+                                            data-testid="btn-publicar-header-laptop"
+                                            onClick={handlePublicarClick}
+                                            aria-label={labelPublicar}
+                                            className={
+                                                'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md ring-2 transition-transform hover:scale-105 ' +
+                                                gradientePublicarHeader
+                                            }
+                                        >
+                                            <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
 
@@ -993,38 +1092,58 @@ export function PaginaMisPublicaciones() {
                                         </div>
                                     </div>
 
-                                    {/* Derecha: FAB Publicar (solo desktop) — réplica
-                                        exacta del FAB flotante (círculo + Plus animado +
-                                        label), con color según el tipo activo (teal
-                                        MarketPlace / sky Servicios). */}
-                                    <button
-                                        data-testid="btn-publicar-header-desktop"
-                                        onClick={handlePublicarClick}
-                                        aria-label={labelPublicar}
-                                        className="flex shrink-0 cursor-pointer flex-col items-center gap-1 self-center"
-                                    >
-                                        <span
-                                            className={
-                                                'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
-                                                gradientePublicarHeader
-                                            }
+                                    {/* Derecha: Apartados (Mi Catálogo, solo MarketPlace) +
+                                        FAB Publicar (solo desktop) — réplica exacta del FAB
+                                        flotante (círculo + Plus animado + label), con color
+                                        según el tipo activo (teal MarketPlace / sky Servicios). */}
+                                    <div className="flex shrink-0 items-center gap-3 self-center">
+                                        {tipoActivo === 'marketplace' && (
+                                            <Tooltip text="Solicitudes de apartado" position="bottom">
+                                                <button
+                                                    data-testid="btn-apartados-header-desktop"
+                                                    onClick={() => setModalApartadosAbierto(true)}
+                                                    aria-label="Solicitudes de apartado"
+                                                    className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-800 text-white shadow-md ring-2 ring-white/20 transition-transform hover:scale-105"
+                                                >
+                                                    <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                                                    {apartadosActivos.length > 0 && (
+                                                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                                                            {apartadosActivos.length}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </Tooltip>
+                                        )}
+
+                                        <button
+                                            data-testid="btn-publicar-header-desktop"
+                                            onClick={handlePublicarClick}
+                                            aria-label={labelPublicar}
+                                            className="flex shrink-0 cursor-pointer flex-col items-center gap-1"
                                         >
-                                            <Plus
-                                                className="h-6 w-6"
-                                                strokeWidth={2.75}
-                                                style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
-                                            />
-                                        </span>
-                                        <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
-                                            {textoBotonPublicar}
-                                        </span>
-                                        <style>{`
-                                            @keyframes fab-publicar-mp-pulse {
-                                                0%, 100% { transform: rotate(0deg) scale(1); }
-                                                50% { transform: rotate(90deg) scale(1.15); }
-                                            }
-                                        `}</style>
-                                    </button>
+                                            <span
+                                                className={
+                                                    'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
+                                                    gradientePublicarHeader
+                                                }
+                                            >
+                                                <Plus
+                                                    className="h-6 w-6"
+                                                    strokeWidth={2.75}
+                                                    style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
+                                                />
+                                            </span>
+                                            <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
+                                                {textoBotonPublicar}
+                                            </span>
+                                            <style>{`
+                                                @keyframes fab-publicar-mp-pulse {
+                                                    0%, 100% { transform: rotate(0deg) scale(1); }
+                                                    50% { transform: rotate(90deg) scale(1.15); }
+                                                }
+                                            `}</style>
+                                        </button>
+                                    </div>
 
                                 </div>
                             </div>
@@ -1266,13 +1385,14 @@ export function PaginaMisPublicaciones() {
             {/* ════════════════════════════════════════════════════════════════
                 FAB "+ Publicar/Organizar" — visible en los 3 modos
                 (MarketPlace, Servicios, Dinámicas). El destino del onClick
-                cambia según `tipoActivo`:
-                  - marketplace → /marketplace?crear=1 (composer inline MP)
-                  - servicios   → /servicios?crear=ofrezco (composer inline)
-                  - dinamicas   → /marketplace?dinamicas=1&crearDinamica=1
-                Todos expanden el composer en el feed de la sección. La
-                paleta cambia: cyan para MP, sky para Servicios, ámbar para
-                Dinámicas.
+                cambia según `tipoActivo`, pero SIEMPRE se queda en
+                /mis-publicaciones (solo cambia el query string):
+                  - marketplace → ?crear=1
+                  - servicios   → ?crear=ofrezco
+                  - dinamicas   → ?crearDinamica=1
+                Los 3 composers ya están montados más abajo (condicionados a
+                `tipoActivo`) y expanden ahí mismo. La paleta cambia: cyan
+                para MP, sky para Servicios, ámbar para Dinámicas.
             ════════════════════════════════════════════════════════════════ */}
             <button
                 data-testid="fab-publicar"
@@ -1375,18 +1495,20 @@ export function PaginaMisPublicaciones() {
             />
 
             {/* ════════════════════════════════════════════════════════════════
-                COMPOSERS INLINE — Editar (MP/Servicios) se abre AQUÍ MISMO,
-                sin sacar al usuario de "Mis Publicaciones". Cada composer lee
-                `?editar=<id>` de la URL ACTUAL (misma mecánica que usan en
-                /marketplace y /servicios) — por eso se montan condicionados a
-                `tipoActivo`: los dos comparten los nombres de query param
-                `crear`/`editar`, así que solo uno debe estar montado a la vez
-                para no interpretarlos ambos como si fueran suyos.
+                COMPOSERS INLINE — Crear/Editar (MP/Servicios/Dinámicas) se
+                abren AQUÍ MISMO, sin sacar al usuario de "Mis Publicaciones".
+                Cada composer lee sus propios query params de la URL ACTUAL
+                (`crear`/`editar` para MP y Servicios, `crearDinamica`/
+                `editarDinamica` para Dinámicas) — por eso se montan
+                condicionados a `tipoActivo`: MP/Servicios comparten los
+                nombres `crear`/`editar`, así que solo uno debe estar montado
+                a la vez para no interpretarlos ambos como si fueran suyos.
             ════════════════════════════════════════════════════════════════ */}
             {tipoActivo === 'marketplace' && <ComposerSectionMarketplace />}
             {tipoActivo === 'servicios' && (
                 <ComposerSectionServicios modoServiciosDefault={null} />
             )}
+            {tipoActivo === 'dinamicas' && <ComposerSectionDinamicas />}
 
             {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
                 empalmarse con el FAB Publicar (abajo-derecha en móvil); en PC

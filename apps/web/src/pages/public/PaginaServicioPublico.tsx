@@ -173,10 +173,14 @@ export function PaginaServicioPublico() {
                                     en desktop — mismo patrón que el detalle privado. */}
                                 {fotoPortadaUrl && (
                                     <div className="relative lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border-2 lg:border-slate-300">
-                                        <GaleriaServicio publicacion={publicacion} />
-                                        {estadoNoActivo && (
-                                            <OverlayEstadoNoActiva estado={estadoNoActivo} />
-                                        )}
+                                        <GaleriaServicio
+                                            publicacion={publicacion}
+                                            overlayEstado={
+                                                estadoNoActivo ? (
+                                                    <OverlayEstadoNoActiva estado={estadoNoActivo} />
+                                                ) : null
+                                            }
+                                        />
                                     </div>
                                 )}
 
@@ -837,17 +841,18 @@ function BotonContactoPublico({ onClick, className = '' }: BotonContactoProps) {
 }
 
 function OverlayEstadoNoActiva({ estado }: { estado: 'pausada' }) {
+    // Pill blanco centrado sobre la imagen — mismo patrón que el resto de
+    // MarketPlace/Servicios/Dinámicas (2026-08-17), en vez del overlay
+    // grande de color sólido que se sentía muy invasivo.
     return (
         <div
             data-testid={`overlay-publico-${estado}`}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-700/85 lg:rounded-xl"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl"
         >
-            <div className="flex flex-col items-center gap-2 text-white">
-                <PauseCircle className="h-12 w-12" strokeWidth={1.5} />
-                <span className="text-2xl font-extrabold tracking-wider">
-                    PAUSADO
-                </span>
-            </div>
+            <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                <PauseCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                Pausado
+            </span>
         </div>
     );
 }

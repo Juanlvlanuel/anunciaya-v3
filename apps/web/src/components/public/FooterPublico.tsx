@@ -49,7 +49,7 @@ export function FooterPublico() {
     };
 
     return (
-        <footer className="relative bg-black px-4 py-5 lg:px-7 lg:py-5 2xl:px-8 2xl:py-5">
+        <footer className="relative bg-black px-4 py-5 lg:px-7 lg:py-3 2xl:px-8 2xl:py-3">
             {/* Botón "Volver arriba" flotante — solo visible cuando hay
                 scroll bajado. Fade suave con `opacity` + `pointer-events-none`
                 para que no estorbe cuando está oculto. */}
