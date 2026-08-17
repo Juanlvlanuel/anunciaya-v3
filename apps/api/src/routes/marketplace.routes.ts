@@ -60,7 +60,7 @@ import {
     putEditarComentario,
     deleteComentario,
     postApartarArticulo,
-    patchConfirmarApartado,
+    patchMarcarVendidoApartado,
     patchRechazarApartado,
     getMisApartados,
     getMiConfiguracionApartado,
@@ -215,7 +215,7 @@ router.get(
 );
 
 /**
- * GET /api/marketplace/mis-apartados?estado=pendiente
+ * GET /api/marketplace/mis-apartados?estado=apartado
  * Mi Catálogo (2026-08-12) — panel de gestión: solicitudes de apartado de
  * todos mis artículos.
  */
@@ -304,23 +304,24 @@ router.post(
 );
 
 // =============================================================================
-// APARTADOS (Mi Catálogo, 2026-08-12) — confirmar/rechazar, solo el dueño
+// APARTADOS (Mi Catálogo, 2026-08-12) — vendido/rechazar, solo el dueño
 // =============================================================================
 
 /**
- * PATCH /api/marketplace/apartados/:id/confirmar
- * El vendedor confirma una solicitud de apartado pendiente.
+ * PATCH /api/marketplace/apartados/:id/vendido
+ * El vendedor marca una solicitud de apartado como concretada (despublica
+ * el artículo).
  */
 router.patch(
-    '/apartados/:id/confirmar',
+    '/apartados/:id/vendido',
     verificarToken,
     requiereModoPersonal,
-    patchConfirmarApartado
+    patchMarcarVendidoApartado
 );
 
 /**
  * PATCH /api/marketplace/apartados/:id/rechazar
- * El vendedor rechaza una solicitud de apartado pendiente.
+ * El vendedor rechaza una solicitud de apartado (libera el bloqueo).
  */
 router.patch(
     '/apartados/:id/rechazar',

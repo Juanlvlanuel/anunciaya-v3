@@ -426,7 +426,8 @@ export async function obtenerGuardados(
                     a.expira_at AS "articuloExpiraAt",
                     a.created_at AS "articuloCreatedAt",
                     a.updated_at AS "articuloUpdatedAt",
-                    a.vendida_at AS "articuloVendidaAt"
+                    a.vendida_at AS "articuloVendidaAt",
+                    a.apartado_hasta AS "articuloApartadoHasta"
                 FROM guardados g
                 INNER JOIN articulos_marketplace a ON a.id = g.entity_id
                 LEFT JOIN ciudades c ON c.id = a.ciudad_id
@@ -473,6 +474,7 @@ export async function obtenerGuardados(
                 articuloCreatedAt: string;
                 articuloUpdatedAt: string;
                 articuloVendidaAt: string | null;
+                articuloApartadoHasta: string | null;
             }
 
             const guardadosConArticulo = (guardadosRaw.rows as unknown as RawRow[]).map(
@@ -503,6 +505,7 @@ export async function obtenerGuardados(
                         createdAt: r.articuloCreatedAt,
                         updatedAt: r.articuloUpdatedAt,
                         vendidaAt: r.articuloVendidaAt,
+                        apartadoHasta: r.articuloApartadoHasta,
                     },
                 })
             );

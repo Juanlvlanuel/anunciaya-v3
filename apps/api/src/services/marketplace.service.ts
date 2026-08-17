@@ -80,6 +80,8 @@ interface ArticuloRow {
     createdAt: string;
     updatedAt: string;
     vendidaAt: string | null;
+    /** Lock vigente de "apartado" (Mi Catálogo). NULL = disponible. */
+    apartadoHasta: string | null;
 }
 
 interface ArticuloConVendedorRow extends ArticuloRow {
@@ -210,6 +212,7 @@ interface RawArticuloDb {
     created_at: string;
     updated_at: string;
     vendida_at: string | null;
+    apartado_hasta: string | null;
 }
 
 function mapearArticulo(row: RawArticuloDb): ArticuloRow {
@@ -240,6 +243,7 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         vendidaAt: row.vendida_at,
+        apartadoHasta: row.apartado_hasta,
     };
 }
 
@@ -420,7 +424,7 @@ export async function crearArticulo(
                 (SELECT nombre FROM categorias_marketplace WHERE id = articulos_marketplace.categoria_id) AS categoria_nombre,
                 zona_aproximada, estado,
                 total_vistas, total_mensajes, total_guardados,
-                expira_at, created_at, updated_at, vendida_at
+                expira_at, created_at, updated_at, vendida_at, apartado_hasta
         `);
 
         const row = resultado.rows[0] as unknown as RawArticuloDb;
@@ -527,7 +531,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at,
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta,
                 u.id              AS vendedor_id,
                 u.nombre          AS vendedor_nombre,
                 u.apellidos       AS vendedor_apellidos,
@@ -641,7 +645,7 @@ export async function obtenerFeed(
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at,
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta,
                 ST_Distance(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
@@ -676,7 +680,7 @@ export async function obtenerFeed(
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at,
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta,
                 ST_Distance(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
@@ -853,7 +857,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at,
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta,
                 ST_Distance(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography
@@ -986,7 +990,7 @@ export async function obtenerMisArticulos(
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
@@ -1606,11 +1610,10 @@ export async function obtenerArticulosDeVendedor(
 
         const total = (totalResultado.rows[0] as { total: number }).total;
         const data = (
-            resultado.rows as unknown as Array<RawArticuloDb & { usuario_guardo: boolean; apartado_hasta: string | null }>
+            resultado.rows as unknown as Array<RawArticuloDb & { usuario_guardo: boolean }>
         ).map((row) => ({
             ...mapearArticulo(row),
             guardado: row.usuario_guardo,
-            apartadoHasta: row.apartado_hasta,
         }));
 
         return {
@@ -1634,10 +1637,14 @@ export async function obtenerArticulosDeVendedor(
 // cuenta — llega desde un link compartido en redes (ej. un live de venta).
 
 /**
- * El comprador (sin cuenta) solicita apartar un artículo. Queda `pendiente`
- * hasta que el vendedor lo confirme o rechace — el artículo NO se bloquea
- * todavía (varias personas pueden solicitar el mismo artículo; el vendedor
- * elige a cuál confirmar).
+ * El comprador (sin cuenta) solicita apartar un artículo. A diferencia del
+ * diseño original, NO hay paso intermedio de "confirmar": la solicitud nace
+ * directo en `apartado` y bloquea el artículo de inmediato (`apartado_hasta`,
+ * por las horas configuradas en el perfil del vendedor) — nadie más puede
+ * apartarlo mientras tanto. El artículo sigue público (overlay "Apartado" en
+ * el catálogo, no se oculta). El vendedor solo decide después: "Rechazar"
+ * (libera) o "Vendido" (despublica). Si nunca actúa, el cron lo libera solo
+ * al vencer `expira_en`.
  */
 export async function apartarArticulo(
     articuloId: string,
@@ -1646,7 +1653,7 @@ export async function apartarArticulo(
 ) {
     try {
         const articulo = await db.execute(sql`
-            SELECT modo, estado, deleted_at, apartado_hasta
+            SELECT modo, estado, usuario_id, deleted_at, apartado_hasta
             FROM articulos_marketplace
             WHERE id = ${articuloId}
             LIMIT 1
@@ -1659,6 +1666,7 @@ export async function apartarArticulo(
         const row = articulo.rows[0] as {
             modo: string;
             estado: string;
+            usuario_id: string;
             deleted_at: string | null;
             apartado_hasta: string | null;
         };
@@ -1673,13 +1681,29 @@ export async function apartarArticulo(
             return { success: false, message: 'Este artículo ya está apartado', code: 409 };
         }
 
-        const insertado = await db.execute(sql`
-            INSERT INTO marketplace_apartados (articulo_id, nombre_comprador, whatsapp_comprador)
-            VALUES (${articuloId}, ${nombreComprador}, ${whatsappComprador})
-            RETURNING id, creado_en
+        const config = await db.execute(sql`
+            SELECT marketplace_apartado_horas FROM usuarios WHERE id = ${row.usuario_id} LIMIT 1
         `);
+        const horas = (config.rows[0] as { marketplace_apartado_horas: number })?.marketplace_apartado_horas ?? 24;
 
-        return { success: true, data: insertado.rows[0] };
+        const insertado = await db.transaction(async (tx) => {
+            const resultado = await tx.execute(sql`
+                INSERT INTO marketplace_apartados (articulo_id, nombre_comprador, whatsapp_comprador, estado, expira_en)
+                VALUES (${articuloId}, ${nombreComprador}, ${whatsappComprador}, 'apartado', NOW() + make_interval(hours => ${horas}))
+                RETURNING id, creado_en, expira_en
+            `);
+            const fila = resultado.rows[0] as { id: string; creado_en: string; expira_en: string };
+
+            await tx.execute(sql`
+                UPDATE articulos_marketplace
+                SET apartado_hasta = ${fila.expira_en}
+                WHERE id = ${articuloId}
+            `);
+
+            return fila;
+        });
+
+        return { success: true, data: insertado };
     } catch (error) {
         console.error('Error al apartar artículo:', error);
         throw error;
@@ -1687,15 +1711,14 @@ export async function apartarArticulo(
 }
 
 /**
- * El vendedor confirma una solicitud de apartado: bloquea el artículo
- * (`apartado_hasta`) por las horas configuradas en su perfil, y rechaza
- * automáticamente cualquier otra solicitud `pendiente` del mismo artículo
- * (ya no aplican — alguien más se lo llevó).
+ * El vendedor marca una solicitud de apartado como concretada: despublica el
+ * artículo (`estado = 'vendida'`, mismo efecto que marcar vendido desde Mis
+ * Publicaciones) y libera el lock de apartado (ya no aplica, quedó vendido).
  */
-export async function confirmarApartado(apartadoId: string, usuarioId: string) {
+export async function marcarApartadoVendido(apartadoId: string, usuarioId: string) {
     try {
         const verificacion = await db.execute(sql`
-            SELECT ap.id, ap.articulo_id, ap.estado, art.usuario_id, art.apartado_hasta
+            SELECT ap.id, ap.articulo_id, ap.estado, art.usuario_id
             FROM marketplace_apartados ap
             JOIN articulos_marketplace art ON art.id = ap.articulo_id
             WHERE ap.id = ${apartadoId}
@@ -1711,60 +1734,44 @@ export async function confirmarApartado(apartadoId: string, usuarioId: string) {
             articulo_id: string;
             estado: string;
             usuario_id: string;
-            apartado_hasta: string | null;
         };
 
         if (actual.usuario_id !== usuarioId) {
             return { success: false, message: 'No tienes permiso sobre esta solicitud', code: 403 };
         }
-        if (actual.estado !== 'pendiente') {
+        if (actual.estado !== 'apartado') {
             return { success: false, message: 'Esta solicitud ya fue resuelta', code: 409 };
         }
-        if (actual.apartado_hasta && new Date(actual.apartado_hasta) > new Date()) {
-            return { success: false, message: 'Este artículo ya está apartado por otra solicitud', code: 409 };
-        }
-
-        const config = await db.execute(sql`
-            SELECT marketplace_apartado_horas FROM usuarios WHERE id = ${usuarioId} LIMIT 1
-        `);
-        const horas = (config.rows[0] as { marketplace_apartado_horas: number })?.marketplace_apartado_horas ?? 24;
 
         await db.transaction(async (tx) => {
-            const resultado = await tx.execute(sql`
+            await tx.execute(sql`
                 UPDATE marketplace_apartados
-                SET estado = 'confirmado', resuelto_en = NOW(), expira_en = NOW() + make_interval(hours => ${horas})
+                SET estado = 'vendido', resuelto_en = NOW()
                 WHERE id = ${apartadoId}
-                RETURNING expira_en
             `);
-            const expiraEn = (resultado.rows[0] as { expira_en: string }).expira_en;
 
             await tx.execute(sql`
                 UPDATE articulos_marketplace
-                SET apartado_hasta = ${expiraEn}
+                SET estado = 'vendida', vendida_at = NOW(), updated_at = NOW(), apartado_hasta = NULL
                 WHERE id = ${actual.articulo_id}
-            `);
-
-            await tx.execute(sql`
-                UPDATE marketplace_apartados
-                SET estado = 'rechazado', resuelto_en = NOW()
-                WHERE articulo_id = ${actual.articulo_id}
-                  AND estado = 'pendiente'
-                  AND id != ${apartadoId}
             `);
         });
 
-        return { success: true, message: 'Apartado confirmado' };
+        return { success: true, message: 'Marcado como vendido' };
     } catch (error) {
-        console.error('Error al confirmar apartado:', error);
+        console.error('Error al marcar apartado como vendido:', error);
         throw error;
     }
 }
 
-/** El vendedor rechaza una solicitud de apartado — el artículo sigue disponible. */
+/**
+ * El vendedor rechaza una solicitud de apartado — libera el bloqueo
+ * (`apartado_hasta`) para que el artículo vuelva a estar disponible.
+ */
 export async function rechazarApartado(apartadoId: string, usuarioId: string) {
     try {
         const verificacion = await db.execute(sql`
-            SELECT ap.id, ap.estado, art.usuario_id
+            SELECT ap.id, ap.articulo_id, ap.estado, art.usuario_id
             FROM marketplace_apartados ap
             JOIN articulos_marketplace art ON art.id = ap.articulo_id
             WHERE ap.id = ${apartadoId}
@@ -1775,20 +1782,33 @@ export async function rechazarApartado(apartadoId: string, usuarioId: string) {
             return { success: false, message: 'Solicitud de apartado no encontrada', code: 404 };
         }
 
-        const actual = verificacion.rows[0] as { id: string; estado: string; usuario_id: string };
+        const actual = verificacion.rows[0] as {
+            id: string;
+            articulo_id: string;
+            estado: string;
+            usuario_id: string;
+        };
 
         if (actual.usuario_id !== usuarioId) {
             return { success: false, message: 'No tienes permiso sobre esta solicitud', code: 403 };
         }
-        if (actual.estado !== 'pendiente') {
+        if (actual.estado !== 'apartado') {
             return { success: false, message: 'Esta solicitud ya fue resuelta', code: 409 };
         }
 
-        await db.execute(sql`
-            UPDATE marketplace_apartados
-            SET estado = 'rechazado', resuelto_en = NOW()
-            WHERE id = ${apartadoId}
-        `);
+        await db.transaction(async (tx) => {
+            await tx.execute(sql`
+                UPDATE marketplace_apartados
+                SET estado = 'rechazado', resuelto_en = NOW()
+                WHERE id = ${apartadoId}
+            `);
+
+            await tx.execute(sql`
+                UPDATE articulos_marketplace
+                SET apartado_hasta = NULL
+                WHERE id = ${actual.articulo_id}
+            `);
+        });
 
         return { success: true, message: 'Solicitud rechazada' };
     } catch (error) {
@@ -1803,7 +1823,7 @@ export async function rechazarApartado(apartadoId: string, usuarioId: string) {
  */
 export async function obtenerApartadosDeVendedor(
     usuarioId: string,
-    estadoFiltro?: 'pendiente' | 'confirmado' | 'rechazado' | 'expirado'
+    estadoFiltro?: 'apartado' | 'vendido' | 'rechazado' | 'expirado'
 ) {
     try {
         const filtro = estadoFiltro ? sql`AND ap.estado = ${estadoFiltro}` : sql``;
@@ -1859,10 +1879,10 @@ export async function actualizarConfiguracionApartado(usuarioId: string, apartad
 
 /**
  * Cron (cada 30 min, mismo criterio que Dinámicas): libera apartados
- * `confirmado` cuyo `expira_en` ya venció — nunca se concretó la venta.
- * Marca la solicitud como `expirado` (conserva historial, a diferencia de
- * Dinámicas que borra el boleto) y limpia el lock del artículo en un solo
- * UPDATE atómico vía CTE.
+ * `apartado` cuyo `expira_en` ya venció — el vendedor nunca respondió
+ * (ni Rechazar ni Vendido). Marca la solicitud como `expirado` (conserva
+ * historial, a diferencia de Dinámicas que borra el boleto) y limpia el
+ * lock del artículo en un solo UPDATE atómico vía CTE.
  */
 export async function liberarApartadosExpirados(): Promise<number> {
     try {
@@ -1870,7 +1890,7 @@ export async function liberarApartadosExpirados(): Promise<number> {
             WITH vencidos AS (
                 UPDATE marketplace_apartados
                 SET estado = 'expirado'
-                WHERE estado = 'confirmado' AND expira_en < NOW()
+                WHERE estado = 'apartado' AND expira_en < NOW()
                 RETURNING articulo_id
             )
             UPDATE articulos_marketplace
@@ -1906,7 +1926,7 @@ export default {
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,
     apartarArticulo,
-    confirmarApartado,
+    marcarApartadoVendido,
     rechazarApartado,
     obtenerApartadosDeVendedor,
     liberarApartadosExpirados,

@@ -31,7 +31,7 @@ import {
     eliminarFotoMarketplaceSiHuerfana,
     sugerirArticuloConIA,
     apartarArticulo,
-    confirmarApartado,
+    marcarApartadoVendido,
     rechazarApartado,
     obtenerApartadosDeVendedor,
     obtenerConfiguracionApartado,
@@ -949,10 +949,11 @@ export async function postApartarArticulo(req: Request, res: Response) {
 }
 
 /**
- * PATCH /api/marketplace/apartados/:id/confirmar
- * Privado — solo el dueño del artículo asociado a la solicitud.
+ * PATCH /api/marketplace/apartados/:id/vendido
+ * Privado — solo el dueño del artículo asociado a la solicitud. Marca la
+ * solicitud como concretada y despublica el artículo (estado 'vendida').
  */
-export async function patchConfirmarApartado(req: Request, res: Response) {
+export async function patchMarcarVendidoApartado(req: Request, res: Response) {
     try {
         const { id } = req.params;
         if (!UUID_REGEX.test(id)) {
@@ -962,21 +963,22 @@ export async function patchConfirmarApartado(req: Request, res: Response) {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
 
-        const resultado = await confirmarApartado(id, usuarioId);
+        const resultado = await marcarApartadoVendido(id, usuarioId);
 
         if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {
             return res.status(resultado.code).json(resultado);
         }
         return res.json(resultado);
     } catch (error) {
-        console.error('Error en patchConfirmarApartado:', error);
-        return res.status(500).json({ success: false, message: 'Error al confirmar el apartado' });
+        console.error('Error en patchMarcarVendidoApartado:', error);
+        return res.status(500).json({ success: false, message: 'Error al marcar el apartado como vendido' });
     }
 }
 
 /**
  * PATCH /api/marketplace/apartados/:id/rechazar
- * Privado — solo el dueño del artículo asociado a la solicitud.
+ * Privado — solo el dueño del artículo asociado a la solicitud. Libera el
+ * bloqueo del artículo (vuelve a estar disponible para apartarse).
  */
 export async function patchRechazarApartado(req: Request, res: Response) {
     try {
@@ -1001,7 +1003,7 @@ export async function patchRechazarApartado(req: Request, res: Response) {
 }
 
 /**
- * GET /api/marketplace/mis-apartados?estado=pendiente
+ * GET /api/marketplace/mis-apartados?estado=apartado
  * Privado — panel de gestión: solicitudes de apartado de TODOS mis artículos.
  */
 export async function getMisApartados(req: Request, res: Response) {
@@ -1010,9 +1012,9 @@ export async function getMisApartados(req: Request, res: Response) {
         if (!usuarioId) return;
 
         const estadoParam = req.query.estado as string | undefined;
-        const estadosValidos = ['pendiente', 'confirmado', 'rechazado', 'expirado'];
+        const estadosValidos = ['apartado', 'vendido', 'rechazado', 'expirado'];
         const estadoFiltro = estadoParam && estadosValidos.includes(estadoParam)
-            ? (estadoParam as 'pendiente' | 'confirmado' | 'rechazado' | 'expirado')
+            ? (estadoParam as 'apartado' | 'vendido' | 'rechazado' | 'expirado')
             : undefined;
 
         const resultado = await obtenerApartadosDeVendedor(usuarioId, estadoFiltro);

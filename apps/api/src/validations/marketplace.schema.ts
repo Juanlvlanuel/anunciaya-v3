@@ -587,7 +587,7 @@ export const apartarArticuloSchema = z.object({
 
 export type ApartarArticuloInput = z.infer<typeof apartarArticuloSchema>;
 
-/** Ajuste único por vendedor — cuántas horas dura un apartado confirmado. */
+/** Ajuste único por vendedor — cuántas horas dura un apartado antes de liberarse solo. */
 export const configurarApartadoSchema = z.object({
     apartadoHoras: z.coerce.number().int().min(1, 'Mínimo 1 hora').max(168, 'Máximo 168 horas (7 días)'),
 });

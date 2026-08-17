@@ -2260,9 +2260,10 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),
 
 	// Lock vigente de "apartado" (Fase Mi Catálogo, 2026-08-12). NULL = disponible.
-	// Se llena solo cuando el vendedor CONFIRMA una solicitud en marketplace_apartados
-	// — lectura O(1) para pintar "Apartado" en el catálogo sin JOIN. El cron de
-	// expiración lo limpia cuando se vence.
+	// Se llena de inmediato en cuanto alguien apartа (2026-08-16: ya no hay paso
+	// de "confirmar" — el apartado bloquea desde que se solicita) — lectura O(1)
+	// para pintar "Apartado" en el catálogo sin JOIN. El cron de expiración lo
+	// limpia cuando se vence, y "Rechazar"/"Vendido" lo limpian de inmediato.
 	apartadoHasta: timestamp("apartado_hasta", { withTimezone: true, mode: 'string' }),
 
 	// Timestamps
@@ -2301,30 +2302,38 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
  * (ej. durante un live de venta), no logueado. Una fila por SOLICITUD
  * (historial completo); el LOCK vigente vive aparte, en
  * articulos_marketplace.apartado_hasta.
+ *
+ * 2026-08-16 — modelo de 2 estados (sin "pendiente"/"confirmado" por
+ * separado): al solicitar, la fila nace directo en 'apartado' y bloquea el
+ * artículo de inmediato (nadie más puede apartarlo; sigue público con
+ * overlay "Apartado", no oculto). El vendedor solo tiene 2 acciones:
+ * "Rechazar" (→ rechazado, libera el bloqueo) o "Vendido" (→ vendido,
+ * despublica el artículo). 'expirado' lo pone el cron si nunca se resuelve
+ * dentro de las horas configuradas (usuarios.marketplace_apartado_horas).
  */
 export const marketplaceApartados = pgTable("marketplace_apartados", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	articuloId: uuid("articulo_id").notNull(),
 	nombreComprador: varchar("nombre_comprador", { length: 100 }).notNull(),
 	whatsappComprador: varchar("whatsapp_comprador", { length: 20 }).notNull(),
-	// pendiente | confirmado | rechazado | expirado
-	estado: varchar({ length: 20 }).default('pendiente').notNull(),
+	// apartado | vendido | rechazado | expirado
+	estado: varchar({ length: 20 }).default('apartado').notNull(),
 	creadoEn: timestamp("creado_en", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	// Cuándo el vendedor confirmó o rechazó (NULL mientras sigue pendiente).
+	// Cuándo el vendedor rechazó o marcó vendido (NULL mientras sigue apartado).
 	resueltoEn: timestamp("resuelto_en", { withTimezone: true, mode: 'string' }),
-	// Solo se llena al confirmar = resuelto_en + usuarios.marketplace_apartado_horas
+	// Se calcula al crear la solicitud = creado_en + usuarios.marketplace_apartado_horas
 	// del vendedor en ese momento (snapshot, no recalcula si cambia su config después).
 	expiraEn: timestamp("expira_en", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_marketplace_apartados_articulo").using("btree", table.articuloId.asc().nullsLast()),
 	index("idx_marketplace_apartados_articulo_estado").using("btree", table.articuloId.asc().nullsLast(), table.estado.asc().nullsLast()),
-	index("idx_marketplace_apartados_expira").using("btree", table.expiraEn.asc().nullsLast()).where(sql`estado = 'confirmado'`),
+	index("idx_marketplace_apartados_expira").using("btree", table.expiraEn.asc().nullsLast()).where(sql`estado = 'apartado'`),
 	foreignKey({
 		columns: [table.articuloId],
 		foreignColumns: [articulosMarketplace.id],
 		name: "fk_marketplace_apartados_articulo"
 	}).onDelete("cascade"),
-	check("marketplace_apartados_estado_check", sql`estado IN ('pendiente', 'confirmado', 'rechazado', 'expirado')`),
+	check("marketplace_apartados_estado_check", sql`estado IN ('apartado', 'vendido', 'rechazado', 'expirado')`),
 ]);
 
 

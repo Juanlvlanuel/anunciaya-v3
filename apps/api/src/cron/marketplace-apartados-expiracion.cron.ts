@@ -2,7 +2,8 @@
  * marketplace-apartados-expiracion.cron.ts
  * ==========================================
  * Cron job que libera artículos de MarketPlace "apartados" (Mi Catálogo)
- * confirmados y nunca concretados.
+ * cuyo vendedor nunca respondió (ni Rechazar ni Vendido) dentro del tiempo
+ * configurado.
  *
  * Frecuencia: cada 30 minutos (mismo criterio que
  * `dinamicas-expiracion.cron.ts` — TTL corto configurable por vendedor,
@@ -31,7 +32,7 @@ export async function ejecutarCron(): Promise<void> {
             resultado: `${liberados} apartados liberados`,
         });
         if (liberados > 0) {
-            console.log(`[MarketPlace Cron] ${liberados} apartados confirmados liberados por expiración (${duracion}ms)`);
+            console.log(`[MarketPlace Cron] ${liberados} apartados liberados por expiración (${duracion}ms)`);
         }
     } catch (error) {
         registrarEjecucionCron('marketplace-apartados-expiracion', {
@@ -44,7 +45,7 @@ export async function ejecutarCron(): Promise<void> {
 }
 
 export function inicializarCronMarketplaceApartadosExpiracion(): void {
-    console.log('[MarketPlace Cron] Liberación de apartados confirmados cada 30 min (primera ejecución en 30s)');
+    console.log('[MarketPlace Cron] Liberación de apartados vencidos cada 30 min (primera ejecución en 30s)');
     setTimeout(() => {
         ejecutarCron();
         setInterval(ejecutarCron, MS_30_MIN);
