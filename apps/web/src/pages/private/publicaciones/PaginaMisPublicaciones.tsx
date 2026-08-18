@@ -24,7 +24,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
+import { emitirCuandoConectado, emitirEvento, escucharEvento } from '@/services/socketService';
 import {
     ChevronLeft,
     Plus,
@@ -180,6 +182,7 @@ export function PaginaMisPublicaciones() {
     const handleVolver = useVolverAtras('/inicio');
     const cuerpoRef = useScrollAppShell();
     const usuarioId = useAuthStore((s) => s.usuario?.id ?? null);
+    const queryClient = useQueryClient();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
@@ -202,24 +205,83 @@ export function PaginaMisPublicaciones() {
     const [tipoActivo, setTipoActivo] = useState<TipoPublicacion>(tipoInicial);
     // Mi Catálogo (2026-08-12) — solicitudes de apartado de mis artículos de MarketPlace.
     const [modalApartadosAbierto, setModalApartadosAbierto] = useState(false);
+    // Deep-link desde la notificación "alguien apartó tu artículo" (2026-08-18)
+    // — abre el modal directo en el apartado en cuestión, ver efecto de
+    // limpieza de `?apartadoId=` más abajo.
+    const [apartadoIdResaltar, setApartadoIdResaltar] = useState<string | null>(null);
     // 2026-08-16: ya no hay estado "pendiente" — el badge cuenta los
     // artículos actualmente 'apartado' (bloqueados, esperando Rechazar o Vendido).
     const { data: apartadosActivos = [] } = useMisApartados('apartado');
 
-    // Limpia el query param `?tipo=` después de leerlo una vez (mismo patrón
-    // que `ComposerSection` con `?crear`/`?editar`). Así, si el usuario
-    // recarga o comparte el URL, no se queda pegado el filtro inicial.
+    // ─── Sync en vivo del catálogo (2026-08-17) ────────────────────────────
+    // Mismo room `catalogo:{usuarioId}` que usa `PaginaPerfilVendedor.tsx`
+    // (con el propio id — este panel es la gestión del vendedor sobre SU
+    // catálogo). Sin esto, si alguien apartaba/el cron liberaba un artículo
+    // mientras el vendedor tenía Mis Publicaciones abierto, el badge de
+    // Apartados y el overlay de `CardArticuloMio` se quedaban desactualizados
+    // hasta recargar. El socket ya está conectado por la sesión — solo nos
+    // unimos al room y refrescamos las queries al recibir el evento.
+    useEffect(() => {
+        if (!usuarioId) return;
+        const unirseAlRoom = () => emitirEvento('marketplace:catalogo:unirse', { vendedorUsuarioId: usuarioId });
+        emitirCuandoConectado('marketplace:catalogo:unirse', { vendedorUsuarioId: usuarioId });
+        // Re-unirse en cada reconexión — ver comentario análogo en `PaginaPerfilVendedor.tsx`.
+        const dejarDeEscucharConnect = escucharEvento('connect', unirseAlRoom);
+        const dejarDeEscuchar = escucharEvento('marketplace:catalogo:estado', () => {
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-articulos'] });
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-apartados'] });
+        });
+        return () => {
+            emitirEvento('marketplace:catalogo:salir', { vendedorUsuarioId: usuarioId });
+            dejarDeEscucharConnect();
+            dejarDeEscuchar();
+        };
+    }, [usuarioId, queryClient]);
+
+    // Limpia los query params `?tipo=` y `?apartadoId=` después de leerlos.
+    // Los dos se resuelven en el MISMO efecto/navigate — separarlos en 2
+    // efectos independientes es una carrera real: cada uno parte de la misma
+    // `location.search` (stale hasta el próximo render), así que el segundo
+    // `navigate(replace)` pisaría la limpieza del primero y el param ya
+    // borrado reaparecería en la URL.
+    // `?apartadoId=` llega desde la notificación "alguien apartó tu
+    // artículo" (2026-08-18) — abre el modal directo en esa solicitud.
+    //
+    // Depende de `location.search` (2026-08-18, antes `[]` — corría solo al
+    // montar) — si ya estabas EN Mis Publicaciones y llegabas por otra
+    // notificación (misma ruta, el Router no remonta el componente, solo
+    // cambia el query string), el efecto de una sola vez nunca se volvía a
+    // correr y el modal no se abría.
+    //
+    // Además invalida `mis-apartados`/`mis-articulos` a la fuerza — con el
+    // staleTime global (2min), si ya habías visitado esta página antes de
+    // que llegara el apartado nuevo, React Query servía la lista vieja del
+    // caché sin refetch (por eso solo aparecía con un refresh manual, que
+    // limpia el caché por completo).
     useEffect(() => {
         const sp = new URLSearchParams(location.search);
+        let cambiado = false;
         if (sp.has('tipo')) {
             sp.delete('tipo');
+            cambiado = true;
+        }
+        const apartadoId = sp.get('apartadoId');
+        if (apartadoId) {
+            setModalApartadosAbierto(true);
+            setApartadoIdResaltar(apartadoId);
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-apartados'] });
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'mis-articulos'] });
+            sp.delete('apartadoId');
+            cambiado = true;
+        }
+        if (cambiado) {
             const qs = sp.toString();
             navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, {
                 replace: true,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [location.search]);
     const [tabActivo, setTabActivo] = useState<TabPublicacion>('activa');
     const [borradorExiste, setBorradorExiste] = useState(false);
     // Dropdown de tabs de estado del header Laptop (reemplaza la fila de
@@ -910,14 +972,19 @@ export function PaginaMisPublicaciones() {
                                     {/* Divider vertical sutil */}
                                     <div className="h-7 w-px shrink-0 bg-white/20" />
 
-                                    {/* Apartados — Mi Catálogo (2026-08-12), solo MarketPlace */}
+                                    {/* Apartados — Mi Catálogo (2026-08-12), solo MarketPlace.
+                                        Gradiente ámbar (2026-08-17): mismo lenguaje visual que
+                                        "Publicar" (gradiente + ring) en vez del círculo plano
+                                        gris que se sentía desconectado del resto del header.
+                                        Ámbar porque ya es el color semántico de "Apartado" en
+                                        toda la app (pill, badge de estado). */}
                                     {tipoActivo === 'marketplace' && (
                                         <Tooltip text="Solicitudes de apartado" position="bottom">
                                             <button
                                                 data-testid="btn-apartados-header-laptop"
                                                 onClick={() => setModalApartadosAbierto(true)}
                                                 aria-label="Solicitudes de apartado"
-                                                className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-800 text-white shadow-md ring-2 ring-white/20 transition-transform hover:scale-105"
+                                                className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-amber-500 to-amber-700 text-white shadow-md ring-2 ring-amber-300/30 transition-transform hover:scale-105"
                                             >
                                                 <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
                                                 {apartadosActivos.length > 0 && (
@@ -1095,7 +1162,11 @@ export function PaginaMisPublicaciones() {
                                     {/* Derecha: Apartados (Mi Catálogo, solo MarketPlace) +
                                         FAB Publicar (solo desktop) — réplica exacta del FAB
                                         flotante (círculo + Plus animado + label), con color
-                                        según el tipo activo (teal MarketPlace / sky Servicios). */}
+                                        según el tipo activo (teal MarketPlace / sky Servicios).
+                                        Apartados usa el MISMO molde círculo+etiqueta (2026-08-17)
+                                        — antes era un círculo plano gris sin caption, se sentía
+                                        desconectado del resto del header. Ámbar = color semántico
+                                        de "Apartado" ya establecido en toda la app. */}
                                     <div className="flex shrink-0 items-center gap-3 self-center">
                                         {tipoActivo === 'marketplace' && (
                                             <Tooltip text="Solicitudes de apartado" position="bottom">
@@ -1103,14 +1174,19 @@ export function PaginaMisPublicaciones() {
                                                     data-testid="btn-apartados-header-desktop"
                                                     onClick={() => setModalApartadosAbierto(true)}
                                                     aria-label="Solicitudes de apartado"
-                                                    className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-800 text-white shadow-md ring-2 ring-white/20 transition-transform hover:scale-105"
+                                                    className="flex shrink-0 cursor-pointer flex-col items-center gap-1"
                                                 >
-                                                    <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
-                                                    {apartadosActivos.length > 0 && (
-                                                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
-                                                            {apartadosActivos.length}
-                                                        </span>
-                                                    )}
+                                                    <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-amber-500 to-amber-700 text-white shadow-lg ring-2 ring-amber-300/30 transition-transform hover:scale-105">
+                                                        <Lock className="h-6 w-6" strokeWidth={2.5} />
+                                                        {apartadosActivos.length > 0 && (
+                                                            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white ring-2 ring-white">
+                                                                {apartadosActivos.length}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
+                                                        Apartados
+                                                    </span>
                                                 </button>
                                             </Tooltip>
                                         )}
@@ -1443,6 +1519,8 @@ export function PaginaMisPublicaciones() {
             <ModalGestionApartados
                 abierto={modalApartadosAbierto}
                 onCerrar={() => setModalApartadosAbierto(false)}
+                apartadoIdResaltar={apartadoIdResaltar}
+                onResaltadoConsumido={() => setApartadoIdResaltar(null)}
             />
 
             <ModalMarcarVendidoArticulo

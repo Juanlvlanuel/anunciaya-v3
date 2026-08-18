@@ -44,6 +44,24 @@ export function construirLinkWhatsApp(numero: string, mensaje?: string): string 
  * conserva visible (ej. "+1 638 128 0610") porque ahí es información real.
  */
 export function formatearNumero(numero: string): string {
+  const conMas = numero.trim().startsWith('+');
+  const soloDigitos = numero.replace(/\D/g, '');
+
+  // Casos México explícitos ANTES del regex genérico: sin "+" y 10 dígitos
+  // (formato normal guardado en `usuarios.telefono`), o con "+52" pegado
+  // directo a los 10 dígitos sin espacio (ej. "+526383333333" — así llega
+  // el WhatsApp prellenado de un comprador logueado en Apartar). El regex
+  // de abajo rompía este segundo caso: `\d{1,3}` greedy se comía el primer
+  // dígito del número real como si fuera parte de la lada ("+526" en vez
+  // de "+52"), dejando solo 9 dígitos sueltos sin agrupar.
+  if (!conMas && soloDigitos.length === 10) {
+    return `(${soloDigitos.slice(0, 3)}) ${soloDigitos.slice(3, 6)} ${soloDigitos.slice(6)}`;
+  }
+  if (conMas && soloDigitos.length === 12 && soloDigitos.startsWith('52')) {
+    const digitos = soloDigitos.slice(2);
+    return `(${digitos.slice(0, 3)}) ${digitos.slice(3, 6)} ${digitos.slice(6)}`;
+  }
+
   const match = numero.match(/^(\+\d{1,3})?\s*(\d+)$/);
   if (!match) return numero;
   const [, lada, digitos] = match;

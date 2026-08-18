@@ -37,6 +37,9 @@ import type {
     CrearArticuloInput,
     ActualizarArticuloInput,
 } from '../validations/marketplace.schema.js';
+import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
+import { crearNotificacion } from './notificaciones.service.js';
+import { emitirCatalogoEstado } from '../socket.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -1632,28 +1635,42 @@ export async function obtenerArticulosDeVendedor(
 // =============================================================================
 //
 // AnunciaYA solo organiza el apartado; el pago y la entrega ocurren 100%
-// fuera de la plataforma, coordinados por WhatsApp entre comprador y
-// vendedor (mismo espíritu que Dinámicas). El comprador NUNCA necesita
-// cuenta — llega desde un link compartido en redes (ej. un live de venta).
+// fuera de la plataforma. El comprador NUNCA necesita cuenta — llega desde
+// un link compartido en redes (ej. un live de venta) — en ese caso WhatsApp
+// sigue siendo el medio de contacto. Cuando el comprador SÍ está logueado
+// (2026-08-17), el medio principal pasa a ser un chat directo de ChatYA
+// creado y enviado automáticamente al apartar (ver bloque compradorUsuarioId
+// abajo) — WhatsApp queda como respaldo secundario.
 
 /**
- * El comprador (sin cuenta) solicita apartar un artículo. A diferencia del
- * diseño original, NO hay paso intermedio de "confirmar": la solicitud nace
- * directo en `apartado` y bloquea el artículo de inmediato (`apartado_hasta`,
- * por las horas configuradas en el perfil del vendedor) — nadie más puede
- * apartarlo mientras tanto. El artículo sigue público (overlay "Apartado" en
- * el catálogo, no se oculta). El vendedor solo decide después: "Rechazar"
+ * El comprador solicita apartar un artículo (con o sin cuenta AY). NO hay
+ * paso intermedio de "confirmar": la solicitud nace directo en `apartado` y
+ * bloquea el artículo de inmediato (`apartado_hasta`, por las horas
+ * configuradas en el perfil del vendedor) — nadie más puede apartarlo
+ * mientras tanto. El artículo sigue público (overlay "Apartado" en el
+ * catálogo, no se oculta). El vendedor solo decide después: "Rechazar"
  * (libera) o "Vendido" (despublica). Si nunca actúa, el cron lo libera solo
  * al vencer `expira_en`.
+ *
+ * El vendedor SIEMPRE recibe notificación in-app (`marketplace_articulo_apartado`)
+ * y sync en vivo del overlay (`emitirCatalogoEstado`), con o sin cuenta el
+ * comprador. `compradorUsuarioId` (del JWT, ver `postApartarArticulo`) —
+ * cuando viene presente dispara ADEMÁS el chat directo automático: crear/
+ * obtener la conversación de ChatYA con el vendedor + card de contexto del
+ * artículo, y enviar como el comprador un mensaje prellenado ya confirmado
+ * (no queda como borrador — `enviarMensaje` dispara push si el vendedor no
+ * está conectado, y el socket `chatya:mensaje-nuevo` dispara el pitido si sí
+ * lo está, igual que un mensaje normal).
  */
 export async function apartarArticulo(
     articuloId: string,
     nombreComprador: string,
-    whatsappComprador: string
+    whatsappComprador: string,
+    compradorUsuarioId: string | null = null
 ) {
     try {
         const articulo = await db.execute(sql`
-            SELECT modo, estado, usuario_id, deleted_at, apartado_hasta
+            SELECT titulo, modo, estado, usuario_id, deleted_at, apartado_hasta
             FROM articulos_marketplace
             WHERE id = ${articuloId}
             LIMIT 1
@@ -1664,6 +1681,7 @@ export async function apartarArticulo(
         }
 
         const row = articulo.rows[0] as {
+            titulo: string;
             modo: string;
             estado: string;
             usuario_id: string;
@@ -1688,8 +1706,10 @@ export async function apartarArticulo(
 
         const insertado = await db.transaction(async (tx) => {
             const resultado = await tx.execute(sql`
-                INSERT INTO marketplace_apartados (articulo_id, nombre_comprador, whatsapp_comprador, estado, expira_en)
-                VALUES (${articuloId}, ${nombreComprador}, ${whatsappComprador}, 'apartado', NOW() + make_interval(hours => ${horas}))
+                INSERT INTO marketplace_apartados
+                    (articulo_id, nombre_comprador, whatsapp_comprador, estado, expira_en, comprador_usuario_id)
+                VALUES
+                    (${articuloId}, ${nombreComprador}, ${whatsappComprador}, 'apartado', NOW() + make_interval(hours => ${horas}), ${compradorUsuarioId})
                 RETURNING id, creado_en, expira_en
             `);
             const fila = resultado.rows[0] as { id: string; creado_en: string; expira_en: string };
@@ -1702,6 +1722,66 @@ export async function apartarArticulo(
 
             return fila;
         });
+
+        emitirCatalogoEstado(row.usuario_id, {
+            articuloId,
+            apartado: true,
+            apartadoHasta: insertado.expira_en,
+        });
+
+        // Notificación in-app al vendedor (2026-08-17) — SIEMPRE, con o sin
+        // cuenta el comprador. La mayoría de los apartados vienen del
+        // catálogo público (link de un live, comprador anónimo) — atarla a
+        // `compradorUsuarioId` dejaba sin avisar al vendedor en el caso más
+        // común. No crítico: un fallo aquí no debe tumbar la solicitud, que
+        // ya quedó bloqueada arriba.
+        try {
+            await crearNotificacion({
+                usuarioId: row.usuario_id,
+                modo: 'personal',
+                tipo: 'marketplace_articulo_apartado',
+                titulo: 'Apartaron tu artículo',
+                mensaje: `${nombreComprador} apartó "${row.titulo}"`,
+                // Id de la SOLICITUD (no del artículo) — el deep-link abre
+                // Mis Publicaciones > modal de Apartados y resalta esta fila
+                // puntual (ver `obtenerRutaDestino` en PanelNotificaciones.tsx).
+                referenciaId: insertado.id,
+                referenciaTipo: 'marketplace',
+            });
+        } catch (error) {
+            console.error('Error al notificar al vendedor (apartado):', error);
+        }
+
+        // Chat directo automático (2026-08-17): solo cuando el comprador
+        // estaba logueado (ambas partes tienen cuenta AY — el vendedor
+        // siempre la tiene, es dueño de su catálogo). Sin cuenta, el medio
+        // de contacto sigue siendo WhatsApp.
+        if (compradorUsuarioId && compradorUsuarioId !== row.usuario_id) {
+            try {
+                const conv = await crearObtenerConversacion(
+                    {
+                        participante2Id: row.usuario_id,
+                        participante1Modo: 'personal',
+                        participante2Modo: 'personal',
+                        contextoTipo: 'marketplace',
+                        articuloMarketplaceId: articuloId,
+                    },
+                    compradorUsuarioId
+                );
+
+                if (conv.success && conv.data) {
+                    await enviarMensaje({
+                        conversacionId: conv.data.id,
+                        emisorId: compradorUsuarioId,
+                        emisorModo: 'personal',
+                        tipo: 'texto',
+                        contenido: `Hola, aparté "${row.titulo}". Quedo pendiente para coordinar el pago y la entrega.`,
+                    });
+                }
+            } catch (error) {
+                console.error('Error al disparar chat automático de apartado:', error);
+            }
+        }
 
         return { success: true, data: insertado };
     } catch (error) {
@@ -1718,7 +1798,7 @@ export async function apartarArticulo(
 export async function marcarApartadoVendido(apartadoId: string, usuarioId: string) {
     try {
         const verificacion = await db.execute(sql`
-            SELECT ap.id, ap.articulo_id, ap.estado, art.usuario_id
+            SELECT ap.id, ap.articulo_id, ap.estado, ap.comprador_usuario_id, art.usuario_id, art.titulo
             FROM marketplace_apartados ap
             JOIN articulos_marketplace art ON art.id = ap.articulo_id
             WHERE ap.id = ${apartadoId}
@@ -1733,7 +1813,9 @@ export async function marcarApartadoVendido(apartadoId: string, usuarioId: strin
             id: string;
             articulo_id: string;
             estado: string;
+            comprador_usuario_id: string | null;
             usuario_id: string;
+            titulo: string;
         };
 
         if (actual.usuario_id !== usuarioId) {
@@ -1757,6 +1839,29 @@ export async function marcarApartadoVendido(apartadoId: string, usuarioId: strin
             `);
         });
 
+        emitirCatalogoEstado(actual.usuario_id, {
+            articuloId: actual.articulo_id,
+            apartado: false,
+            apartadoHasta: null,
+            estado: 'vendida',
+        });
+
+        if (actual.comprador_usuario_id) {
+            try {
+                await crearNotificacion({
+                    usuarioId: actual.comprador_usuario_id,
+                    modo: 'personal',
+                    tipo: 'marketplace_apartado_vendido',
+                    titulo: '¡Tu apartado se concretó!',
+                    mensaje: `El vendedor confirmó la venta de "${actual.titulo}"`,
+                    referenciaId: actual.articulo_id,
+                    referenciaTipo: 'marketplace',
+                });
+            } catch (error) {
+                console.error('Error al notificar al comprador (apartado vendido):', error);
+            }
+        }
+
         return { success: true, message: 'Marcado como vendido' };
     } catch (error) {
         console.error('Error al marcar apartado como vendido:', error);
@@ -1771,7 +1876,7 @@ export async function marcarApartadoVendido(apartadoId: string, usuarioId: strin
 export async function rechazarApartado(apartadoId: string, usuarioId: string) {
     try {
         const verificacion = await db.execute(sql`
-            SELECT ap.id, ap.articulo_id, ap.estado, art.usuario_id
+            SELECT ap.id, ap.articulo_id, ap.estado, ap.comprador_usuario_id, art.usuario_id, art.titulo
             FROM marketplace_apartados ap
             JOIN articulos_marketplace art ON art.id = ap.articulo_id
             WHERE ap.id = ${apartadoId}
@@ -1786,7 +1891,9 @@ export async function rechazarApartado(apartadoId: string, usuarioId: string) {
             id: string;
             articulo_id: string;
             estado: string;
+            comprador_usuario_id: string | null;
             usuario_id: string;
+            titulo: string;
         };
 
         if (actual.usuario_id !== usuarioId) {
@@ -1809,6 +1916,28 @@ export async function rechazarApartado(apartadoId: string, usuarioId: string) {
                 WHERE id = ${actual.articulo_id}
             `);
         });
+
+        emitirCatalogoEstado(actual.usuario_id, {
+            articuloId: actual.articulo_id,
+            apartado: false,
+            apartadoHasta: null,
+        });
+
+        if (actual.comprador_usuario_id) {
+            try {
+                await crearNotificacion({
+                    usuarioId: actual.comprador_usuario_id,
+                    modo: 'personal',
+                    tipo: 'marketplace_apartado_rechazado',
+                    titulo: 'Tu solicitud fue rechazada',
+                    mensaje: `El vendedor rechazó tu solicitud de apartar "${actual.titulo}"`,
+                    referenciaId: actual.articulo_id,
+                    referenciaTipo: 'marketplace',
+                });
+            } catch (error) {
+                console.error('Error al notificar al comprador (apartado rechazado):', error);
+            }
+        }
 
         return { success: true, message: 'Solicitud rechazada' };
     } catch (error) {
@@ -1896,8 +2025,19 @@ export async function liberarApartadosExpirados(): Promise<number> {
             UPDATE articulos_marketplace
             SET apartado_hasta = NULL
             WHERE id IN (SELECT articulo_id FROM vencidos)
-            RETURNING id
+            RETURNING id, usuario_id
         `);
+
+        // Sync en vivo (2026-08-17): quien tenga el catálogo de ese vendedor
+        // abierto ve desaparecer el overlay "Apartado" sin recargar.
+        for (const fila of resultado.rows as { id: string; usuario_id: string }[]) {
+            emitirCatalogoEstado(fila.usuario_id, {
+                articuloId: fila.id,
+                apartado: false,
+                apartadoHasta: null,
+            });
+        }
+
         return resultado.rows.length;
     } catch (error) {
         console.error('Error al liberar apartados expirados:', error);

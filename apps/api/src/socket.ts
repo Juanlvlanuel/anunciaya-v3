@@ -221,6 +221,23 @@ export function inicializarSocket(httpServer: HttpServer): SocketServer {
     });
 
     // -----------------------------------------------------------------
+    // MarketPlace: Mi Catálogo — sync en vivo del estado de apartado
+    // (2026-08-17). Admite invitados sin token (mismo criterio que la sala
+    // de Dinámicas): el catálogo público de un live de Facebook puede tener
+    // varios visitantes viéndolo a la vez, y sin esto cada uno se queda con
+    // el overlay "Apartado" desactualizado hasta que recarga.
+    // -----------------------------------------------------------------
+    socket.on('marketplace:catalogo:unirse', (data: { vendedorUsuarioId: string }) => {
+      if (!data?.vendedorUsuarioId) return;
+      socket.join(`catalogo:${data.vendedorUsuarioId}`);
+    });
+
+    socket.on('marketplace:catalogo:salir', (data: { vendedorUsuarioId: string }) => {
+      if (!data?.vendedorUsuarioId) return;
+      socket.leave(`catalogo:${data.vendedorUsuarioId}`);
+    });
+
+    // -----------------------------------------------------------------
     // Dinámicas: Sala en vivo (Fase 4.1)
     // -----------------------------------------------------------------
     const roomSala = roomSalaDinamica;
@@ -656,6 +673,21 @@ export function emitirAUsuario(usuarioId: string, evento: string, datos: unknown
     return;
   }
   io.to(`usuario:${usuarioId}`).emit(evento, datos);
+}
+
+/**
+ * Avisa a todos los que están viendo el catálogo de un vendedor (público o
+ * privado, logueados o invitados) que el estado de apartado de un artículo
+ * cambió — para que actualicen el overlay sin recargar. Ver `marketplace.service.ts`
+ * (`apartarArticulo`, `marcarApartadoVendido`, `rechazarApartado`,
+ * `liberarApartadosExpirados`).
+ */
+export function emitirCatalogoEstado(
+  vendedorUsuarioId: string,
+  datos: { articuloId: string; apartado: boolean; apartadoHasta: string | null; estado?: string }
+): void {
+  if (!io) return;
+  io.to(`catalogo:${vendedorUsuarioId}`).emit('marketplace:catalogo:estado', datos);
 }
 
 /**

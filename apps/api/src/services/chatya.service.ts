@@ -374,6 +374,22 @@ async function obtenerDatosParticipante(
 }
 
 /**
+ * Preview legible para un mensaje `tipo: 'sistema'` (card de contexto:
+ * artículo de MarketPlace, publicación de Servicios, oferta/artículo de
+ * negocio, Dinámica). `contenido` es el JSON crudo de la card — sin esto,
+ * la lista de conversaciones mostraba el JSON tal cual (`{"subtipo":...}`).
+ */
+function previewTextoSistema(contenidoJson: string): string {
+    try {
+        const datos = JSON.parse(contenidoJson) as { titulo?: string; nombre?: string };
+        const titulo = datos.titulo ?? datos.nombre;
+        return titulo ? `Sobre: ${titulo}`.substring(0, 100) : 'Detalles compartidos';
+    } catch {
+        return 'Detalles compartidos';
+    }
+}
+
+/**
  * Actualiza el preview del último mensaje en la conversación.
  */
 async function actualizarPreview(
@@ -390,7 +406,7 @@ async function actualizarPreview(
                 : tipo === 'documento' ? '📎 Documento'
                     : tipo === 'ubicacion' ? '📍 Ubicación'
                         : tipo === 'contacto' ? '👤 Contacto'
-                            : tipo === 'sistema' ? texto.substring(0, 100)
+                            : tipo === 'sistema' ? previewTextoSistema(texto)
                                 : texto.substring(0, 100);
 
     const incremento = incrementarNoLeidosDe === 'p1'
@@ -1072,9 +1088,14 @@ async function insertarMensajeContextoMarketplace(
 
         if (!art) return;
 
-        const fotos = (art.fotos as string[] | null) ?? [];
+        // `fotos` es un array de OBJETOS (`{url, tipo, posterUrl?}`), no de
+        // strings — el cast anterior a `string[]` dejaba `fotoUrl` con el
+        // objeto completo en vez de la URL, y el frontend renderizaba
+        // `<img src="[object Object]">` (card sin imagen visible en el chat).
+        const fotos = (art.fotos as Array<{ url: string; tipo: string; posterUrl?: string | null }> | null) ?? [];
         const idx = Math.max(0, Math.min(art.fotoPortadaIndex ?? 0, fotos.length - 1));
-        const fotoUrl = fotos[idx] ?? null;
+        const fotoPortada = fotos[idx] ?? null;
+        const fotoUrl = fotoPortada ? (fotoPortada.tipo === 'video' ? (fotoPortada.posterUrl ?? null) : fotoPortada.url) : null;
 
         const contenido = JSON.stringify({
             subtipo: 'articulo_marketplace',
@@ -1307,9 +1328,12 @@ async function insertarMensajeContextoServicio(
 
         if (!pub) return;
 
-        const fotos = (pub.fotos as string[] | null) ?? [];
+        // Ver comentario análogo en `insertarMensajeContextoMarketplace` —
+        // `fotos` es un array de objetos, no de strings.
+        const fotos = (pub.fotos as Array<{ url: string; tipo: string; posterUrl?: string | null }> | null) ?? [];
         const idx = Math.max(0, Math.min(pub.fotoPortadaIndex ?? 0, fotos.length - 1));
-        const fotoUrl = fotos[idx] ?? null;
+        const fotoPortada = fotos[idx] ?? null;
+        const fotoUrl = fotoPortada ? (fotoPortada.tipo === 'video' ? (fotoPortada.posterUrl ?? null) : fotoPortada.url) : null;
 
         const contenido = JSON.stringify({
             subtipo: 'servicio_publicacion',
@@ -2656,7 +2680,7 @@ export async function eliminarMensaje(
                             : tipoMsg === 'documento' ? '📎 Documento'
                                 : tipoMsg === 'ubicacion' ? '📍 Ubicación'
                                     : tipoMsg === 'contacto' ? '👤 Contacto'
-                                        : tipoMsg === 'sistema' ? (ultimoMsgVivo.contenido ?? '').substring(0, 100)
+                                        : tipoMsg === 'sistema' ? previewTextoSistema(ultimoMsgVivo.contenido ?? '')
                                             : (ultimoMsgVivo.contenido ?? '').substring(0, 100);
 
                 await db
@@ -2710,7 +2734,8 @@ export async function eliminarMensaje(
                                     : ultimoMsgVivo.tipo === 'documento' ? '📎 Documento'
                                         : ultimoMsgVivo.tipo === 'ubicacion' ? '📍 Ubicación'
                                             : ultimoMsgVivo.tipo === 'contacto' ? '👤 Contacto'
-                                                : (ultimoMsgVivo.contenido ?? '').substring(0, 100),
+                                                : ultimoMsgVivo.tipo === 'sistema' ? previewTextoSistema(ultimoMsgVivo.contenido ?? '')
+                                                    : (ultimoMsgVivo.contenido ?? '').substring(0, 100),
                         ultimoMensajeTipo: ultimoMsgVivo.tipo,
                         ultimoMensajeFecha: ultimoMsgVivo.createdAt,
                         ultimoMensajeEstado: ultimoMsgVivo.estado,

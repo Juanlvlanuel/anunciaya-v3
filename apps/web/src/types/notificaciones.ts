@@ -81,7 +81,13 @@ export type TipoNotificacion =
   /** Al participante (con cuenta AY) cuando el organizador reasigna su boleto a otro número. */
   | 'dinamica_boleto_reasignado'
   /** Al participante (con cuenta AY) cuando el organizador libera su boleto. */
-  | 'dinamica_boleto_liberado';
+  | 'dinamica_boleto_liberado'
+  /** Al vendedor cuando un comprador logueado aparta su artículo. */
+  | 'marketplace_articulo_apartado'
+  /** Al comprador (con cuenta) cuando el vendedor rechaza su solicitud de apartado. */
+  | 'marketplace_apartado_rechazado'
+  /** Al comprador (con cuenta) cuando el vendedor marca su apartado como vendido. */
+  | 'marketplace_apartado_vendido';
 
 export type ReferenciaTipo =
   | 'transaccion'

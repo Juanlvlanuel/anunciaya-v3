@@ -316,6 +316,20 @@ export function registrarListenerNotificaciones(): void {
       ) {
         queryClient.invalidateQueries({ queryKey: queryKeys.membresia.mi() });
       }
+      // Apartado resuelto (rechazado/vendido): al comprador — invalida el
+      // detalle del artículo (`referenciaId` = articuloId acá, a diferencia
+      // de `marketplace_articulo_apartado` que usa el id de la solicitud).
+      // Sin esto, si el comprador ya había visitado el detalle antes de que
+      // el vendedor resolviera, React Query servía la lista vieja del caché
+      // (staleTime 2min) al hacer click en la notificación — el overlay
+      // "Apartado" se quedaba pegado hasta un refresh manual.
+      if (
+        (notificacion.tipo === 'marketplace_apartado_rechazado' ||
+          notificacion.tipo === 'marketplace_apartado_vendido') &&
+        notificacion.referenciaId
+      ) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.articulo(notificacion.referenciaId) });
+      }
     }
   );
 

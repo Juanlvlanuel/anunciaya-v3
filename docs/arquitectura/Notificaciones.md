@@ -257,6 +257,9 @@ mensaje: `${nombreCliente} ganó ${puntos} puntos`,
 | `dinamica_boleto_reasignado` | Clock (familia `pendiente`) | Azul | `#1d4ed8 → #3b82f6` |
 | `dinamica_pago_confirmado` | Gift (familia `entregado`) | Verde esmeralda | `#10b981 → #059669` |
 | `dinamica_resultado` | Gift (familia `entregado`) | Verde esmeralda | `#10b981 → #059669` |
+| `marketplace_articulo_apartado` | Clock (familia `pendiente`) | Azul | `#1d4ed8 → #3b82f6` |
+| `marketplace_apartado_rechazado` | AlertTriangle (familia `alerta`) | Rosa | `#f43f5e → #e11d48` |
+| `marketplace_apartado_vendido` | Gift (familia `entregado`) | Verde esmeralda | `#10b981 → #059669` |
 
 > **Familias visuales:** El frontend mapea los tipos a 6 familias (`compra`, `entregado`, `pendiente`, `resena`, `alerta`, `sistema`) en `TIPO_A_FAMILIA`. Los tipos no registrados caen a familia `sistema` por fallback (`?? 'sistema'`). Hoy todos los tipos relacionados con MP/Servicios (broadcast + Q&A) caen al fallback — pendiente diseñar familias propias.
 
@@ -534,6 +537,22 @@ Doc completo del módulo: `docs/arquitectura/Dinamicas.md` §Notificaciones. Tod
 >
 > **Familia visual:** `pendiente` (azul, glifo reloj) para `dinamica_pospuesta`/`dinamica_boleto_reasignado`; `entregado` (verde, glifo trofeo) para `dinamica_pago_confirmado`/`dinamica_resultado` — ver tabla de iconos/colores más abajo.
 
+#### MarketPlace — Apartado / Mi Catálogo (agosto 2026)
+
+Doc completo del feature: `docs/arquitectura/Catalogo_MarketPlace_Apartado.md` §3.4. Todas en `modo: 'personal'` (aunque conceptualmente el destinatario de #31 sea un "vendedor" — Mi Catálogo es P2P entre usuarios personales, no hay negocio de por medio), `referenciaTipo: 'marketplace'`. Helpers en `apps/api/src/services/marketplace.service.ts`, dentro de `apartarArticulo` / `rechazarApartado` / `marcarApartadoVendido`, cada uno en su propio `try/catch` no bloqueante (un fallo acá nunca revierte el apartado, que ya quedó confirmado en BD).
+
+| # | Tipo | Título | Mensaje | Servicio | Contexto |
+|---|------|--------|---------|----------|----------|
+| 31 | `marketplace_articulo_apartado` | `Apartaron tu artículo` | `{nombreComprador} apartó "{titulo}"` | marketplace (`apartarArticulo`) | Al vendedor, **siempre** — con o sin cuenta el comprador. Antes solo disparaba si el comprador tenía cuenta AY (dejaba sin avisar al vendedor en el caso más común: catálogo público de un live, comprador anónimo) — corregido el mismo 18 ago 2026 |
+| 32 | `marketplace_apartado_rechazado` | `Tu solicitud fue rechazada` | `El vendedor rechazó tu solicitud de apartar "{titulo}"` | marketplace (`rechazarApartado`) | Al comprador, **solo si tenía cuenta** (`comprador_usuario_id` no nulo) — sin cuenta no hay a quién notificar in-app |
+| 33 | `marketplace_apartado_vendido` | `¡Tu apartado se concretó!` | `El vendedor confirmó la venta de "{titulo}"` | marketplace (`marcarApartadoVendido`) | Al comprador, **solo si tenía cuenta** — mismo criterio que #32 |
+
+> **`referenciaId`** en #31 es el id de la **solicitud** (`marketplace_apartados.id`), NO el del artículo — a propósito, para el deep-link puntual (ver "Patrón: Deep Link a Mis Publicaciones + Modal de Apartados" más abajo). En #32/#33, `referenciaId` es el id del **artículo** (`articulo_id`) — el comprador no tiene un panel de gestión al que resaltar una fila, el deep-link genérico `case 'marketplace':` (→ `/marketplace/articulo/:id`) es suficiente.
+>
+> **Migración del CHECK:** `docs/migraciones/2026-08-18-notificaciones-tipos-apartado.sql` (agrega los 3 tipos, deja el constraint en 47 valores).
+>
+> **Familia visual:** `pendiente` (azul, glifo reloj) para #31 — requiere acción del vendedor (Rechazar/Vendido), mismo criterio que `voucher_pendiente`/`nueva_recompensa`; `alerta` (rosa) para #32 — mala noticia, mismo tono que `cupon_revocado`/`marketplace_expirada`; `entregado` (verde) para #33 — se concretó, mismo tono que `voucher_generado`/`dinamica_pago_confirmado`.
+
 ---
 
 ### Comerciales (al dueño/empleado)
@@ -645,6 +664,7 @@ El frontend aplica transformaciones automáticas para notificaciones existentes 
 | `apps/api/src/services/resenas.service.ts` | 2 | Nueva reseña (dueño + gerente de la sucursal), respuesta reseña (al cliente) |
 | `apps/api/src/services/alertas.service.ts` | 1 | Alerta de seguridad — `notificarAlertaAlta()`: severidad ALTA → notif `alerta_seguridad` con `referenciaTipo: 'alerta'` (dueño + empleados vía `notificarNegocioCompleto`) |
 | `apps/api/src/services/marketplace/preguntas.ts` | 2 | Nueva pregunta (al vendedor) + pregunta respondida (al comprador) — `referenciaTipo: 'marketplace'`, `.catch()` silencioso |
+| `apps/api/src/services/marketplace.service.ts` | 3 | Apartado — al vendedor (siempre) cuando aparta un comprador, al comprador con cuenta cuando se rechaza/confirma vendido. Ver §"MarketPlace — Apartado / Mi Catálogo" |
 | `apps/api/src/services/servicios/preguntas.ts` | 2 | Nueva pregunta (al oferente/prestador) + pregunta respondida (al usuario) — `referenciaTipo: 'servicio'`, `.catch()` silencioso |
 | `apps/api/src/services/dinamicas.service.ts` | 4 | Dinámica pospuesta (organizador + cada participante con cuenta AY), pago confirmado, boleto reasignado — `referenciaTipo: 'dinamica'`, `.catch()` silencioso. Doc del módulo: `docs/arquitectura/Dinamicas.md` §Notificaciones |
 | `apps/web/src/components/layout/PanelNotificaciones.tsx` | — | Renderizado frontend (IconoNotificacion, ContenidoItem, 5 modos, expansión inline) |
@@ -702,6 +722,31 @@ switch (referenciaTipo) {
 ```
 
 Al abrir el detalle, el componente `SeccionPreguntasServicio` / `SeccionPreguntasArticulo` carga su listado, y el usuario ve directo el hilo de Q&A con su pregunta o la respuesta nueva. No hay scroll automático al hilo (las preguntas son la sección principal del detalle abajo del fold — visibles tras un scroll natural).
+
+---
+
+## Patrón: Deep Link a Mis Publicaciones + Modal (Apartado)
+
+La notificación `marketplace_articulo_apartado` (al vendedor) no navega a un detalle — abre el **panel de gestión** del vendedor directo en la solicitud puntual. Mismo patrón general que `?movId=` en Mi Perfil › Pagos (ver sección "Estatus de pago de membresía" arriba), adaptado a un modal en vez de una página con tabs.
+
+**Interceptado por `tipo`** en `obtenerRutaDestino()` (`PanelNotificaciones.tsx`), ANTES del `case 'marketplace':` genérico (que apunta al detalle del artículo — ruta distinta, no sirve acá):
+
+```typescript
+if (tipo === 'marketplace_articulo_apartado') {
+  return referenciaId
+    ? `/mis-publicaciones?tipo=marketplace&apartadoId=${referenciaId}`
+    : '/mis-publicaciones?tipo=marketplace';
+}
+```
+
+**En destino** (`PaginaMisPublicaciones.tsx`):
+
+1. Un único `useEffect` lee `?tipo=` y `?apartadoId=` de `location.search` y los limpia de la URL en el MISMO `navigate(replace:true)` (los dos van juntos a propósito — separarlos en 2 efectos es una carrera real: el segundo `navigate` parte de un `location.search` que ya no refleja lo que el primero acababa de limpiar, y el param recién borrado reaparece).
+2. El efecto depende de `location.search` (no de `[]`) — si el usuario YA estaba en Mis Publicaciones y llega otra notificación, React Router no remonta el componente (misma ruta, solo cambia el query string); sin esta dependencia el efecto de una sola vez nunca se volvía a disparar y el modal no abría.
+3. Al detectar `apartadoId`, invalida a la fuerza `['marketplace','mis-articulos']` + `['marketplace','mis-apartados']` — con el `staleTime` global (2 min), si el vendedor ya había visitado la página antes de que llegara la solicitud nueva, React Query serviría la lista vieja del caché sin refetch.
+4. Abre `ModalGestionApartados` (prop `apartadoIdResaltar`) — el modal fuerza el tab "Apartados", espera a que la solicitud aparezca en la lista (`useMisApartados('apartado')`) y hace `scrollIntoView({block:'center'})` + resalta la fila con `bg-amber-50 ring-2 ring-inset ring-amber-300` 3.5s (se limpia solo, mismo patrón visual que `?movId=`).
+
+Detalle completo (incluye el bug de reconexión de socket que también se corrigió de paso — sync en vivo del catálogo, sin relación con notificaciones pero descubierto en la misma sesión): `docs/arquitectura/Catalogo_MarketPlace_Apartado.md` §3.4-3.5.
 
 ---
 

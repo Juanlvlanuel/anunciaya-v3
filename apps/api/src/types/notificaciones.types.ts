@@ -89,7 +89,14 @@ export type TipoNotificacion =
   | 'dinamica_boleto_reasignado'
   /** Al participante (con cuenta AY) cuando el organizador libera su
    *  boleto — pierde su lugar, el número vuelve a estar disponible. */
-  | 'dinamica_boleto_liberado';
+  | 'dinamica_boleto_liberado'
+  /** Al vendedor cuando un comprador logueado aparta su artículo (además
+   *  del chat directo automático que dispara apartarArticulo). */
+  | 'marketplace_articulo_apartado'
+  /** Al comprador (con cuenta) cuando el vendedor rechaza su solicitud de apartado. */
+  | 'marketplace_apartado_rechazado'
+  /** Al comprador (con cuenta) cuando el vendedor marca su apartado como vendido. */
+  | 'marketplace_apartado_vendido';
 
 // Idem ReferenciaTipo: 'dinamica' reincorporado en Fase 1 (agosto 2026).
 export type ReferenciaTipo =

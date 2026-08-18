@@ -32,12 +32,14 @@ import {
     AlertCircle,
     ArrowRight,
     BadgeCheck,
+    Ban,
     Calendar,
     Check,
     ChevronLeft,
     ChevronRight,
     Flag,
     Gift,
+    Lock,
     MapPin,
     ShieldCheck,
     Shuffle,
@@ -269,7 +271,26 @@ export function PaginaDinamicaPublica() {
                         <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
                             {/* ─── COLUMNA IZQUIERDA (full width móvil) ─────── */}
                             <div className="min-w-0 space-y-5 lg:mt-8 lg:space-y-6">
-                                <GaleriaArticulo fotos={dinamica.fotosPremio} titulo={dinamica.titulo} ajusteImagen="cover" aspectMovil="aspect-[4/3]" />
+                                <GaleriaArticulo
+                                    fotos={dinamica.fotosPremio}
+                                    titulo={dinamica.titulo}
+                                    ajusteImagen="cover"
+                                    aspectMovil="aspect-[4/3]"
+                                    overlayEstado={
+                                        dinamica.estado === 'cerrada' || dinamica.estado === 'cancelada' ? (
+                                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl">
+                                                <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                                                    {dinamica.estado === 'cancelada' ? (
+                                                        <Ban className="h-3.5 w-3.5" strokeWidth={2} />
+                                                    ) : (
+                                                        <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                                                    )}
+                                                    {dinamica.estado === 'cancelada' ? 'Cancelada' : 'Cerrada'}
+                                                </span>
+                                            </div>
+                                        ) : null
+                                    }
+                                />
 
                                 {/* Bloque info — SOLO móvil. En desktop va en col-derecha */}
                                 <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md lg:hidden">

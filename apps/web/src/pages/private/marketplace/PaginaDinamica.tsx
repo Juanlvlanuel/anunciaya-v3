@@ -34,6 +34,7 @@ import {
     Flag,
     Gift,
     Loader2,
+    Lock,
     MapPin,
     MoreVertical,
     Pencil,
@@ -634,7 +635,25 @@ export function PaginaDinamica() {
                 {/* ─── HERO: Galería (izq) + Info/organizador/acciones (der) ─── */}
                 <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:pt-8">
                     <div className="relative min-w-0">
-                        <GaleriaArticulo fotos={dinamica.fotosPremio} titulo={dinamica.titulo} ajusteImagen="cover" />
+                        <GaleriaArticulo
+                            fotos={dinamica.fotosPremio}
+                            titulo={dinamica.titulo}
+                            ajusteImagen="cover"
+                            overlayEstado={
+                                dinamica.estado === 'cerrada' || dinamica.estado === 'cancelada' ? (
+                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/35 lg:rounded-xl">
+                                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                                            {dinamica.estado === 'cancelada' ? (
+                                                <Ban className="h-3.5 w-3.5" strokeWidth={2} />
+                                            ) : (
+                                                <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                                            )}
+                                            {dinamica.estado === 'cancelada' ? 'Cancelada' : 'Cerrada'}
+                                        </span>
+                                    </div>
+                                ) : null
+                            }
+                        />
 
                         {/* Bloque info — SOLO en móvil. En desktop va en col-derecha. */}
                         <div className="relative mx-3 mt-5 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.06)] lg:hidden">

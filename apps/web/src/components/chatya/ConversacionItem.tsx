@@ -9,7 +9,7 @@
  */
 
 import { memo, useRef, useCallback } from 'react';
-import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket, MapPin, User, ShoppingBag } from 'lucide-react';
+import { Pin, BellOff, ShieldBan, Check, CheckCheck, ChevronDown, ImageIcon, Mic, FileText, Ticket, MapPin, User, ShoppingBag, Info, ShoppingCart } from 'lucide-react';
 import type { Conversacion } from '../../types/chatya';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
@@ -305,6 +305,38 @@ export const ConversacionItem = memo(function ConversacionItem({ conversacion, a
                     }
                     if (tipo === 'pedido') {
                       return <><ShoppingBag className="w-3.5 h-3.5 text-blue-400 shrink-0 inline align-[-3px] mr-0.5" />Pedido</>;
+                    }
+                    if (tipo === 'sistema') {
+                      // El backend normalmente guarda un texto ya amigable
+                      // ("Sobre: X") en `ultimoMensajeTexto` — pero algunas
+                      // conversaciones viejas quedaron con el JSON crudo de la
+                      // card tal cual (bug de backend ya corregido en
+                      // `chatya.service.ts`, sin migración retroactiva de datos).
+                      // Si `texto` "parece" JSON, se parsea y se arma el preview
+                      // amigable acá mismo; si no, ya viene amigable y se muestra
+                      // tal cual.
+                      //
+                      // Ícono por `contextoTipo` (2026-08-18) — no por `subtipo`:
+                      // el texto ya humanizado ("Sobre: X") pierde el subtipo
+                      // original, pero `conversacion.contextoTipo` se mantiene al
+                      // día con la card MÁS RECIENTE (`actualizarContextoConversacion`
+                      // en `crearObtenerConversacion`), así que es la señal
+                      // confiable para distinguir MarketPlace de oferta/negocio/etc.
+                      const esMarketplace = conversacion.contextoTipo === 'marketplace';
+                      const IconoSistema = esMarketplace ? ShoppingCart : Info;
+                      const claseIcono = `w-3.5 h-3.5 ${esMarketplace ? 'text-teal-600' : 'text-blue-400'} shrink-0 inline align-[-3px] mr-0.5`;
+                      if (texto.trim().startsWith('{')) {
+                        let label = esMarketplace ? 'Artículo de MarketPlace' : 'Detalles compartidos';
+                        try {
+                          const datos = JSON.parse(texto) as { titulo?: string; nombre?: string };
+                          const titulo = datos.titulo ?? datos.nombre;
+                          if (titulo) label = `Sobre: ${titulo}`;
+                        } catch {
+                          // label ya quedó en el fallback genérico
+                        }
+                        return <><IconoSistema className={claseIcono} />{label}</>;
+                      }
+                      return <><IconoSistema className={claseIcono} /><TextoConEmojis texto={texto} tamañoEmoji={22} /></>;
                     }
                     return <TextoConEmojis texto={texto} tamañoEmoji={22} />;
                   })()

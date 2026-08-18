@@ -40,6 +40,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../../config/queryKeys';
 import { usePortalTarget } from '../../../hooks/usePortalTarget';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
@@ -110,7 +112,13 @@ import { ModalImagenes } from '../../../components/ui/ModalImagenes';
 import { DropdownCompartir } from '../../../components/compartir';
 import { notificar } from '../../../utils/notificaciones';
 import { parsearFechaPostgres } from '../../../utils/marketplace';
-import { emitirCuandoConectado } from '../../../services/socketService';
+import {
+    emitirCuandoConectado,
+    emitirEvento,
+    escucharEvento,
+    conectarSocket,
+    conectarSocketInvitado,
+} from '../../../services/socketService';
 import type { ArticuloMarketplace, ArticuloFeed } from '../../../types/marketplace';
 import { HeaderPublico } from '../../../components/public/HeaderPublico';
 import { FooterPublico } from '../../../components/public/FooterPublico';
@@ -171,6 +179,7 @@ function PerfilVendedorPrivado() {
     const [searchParams] = useSearchParams();
     const usuarioActual = useAuthStore((s) => s.usuario);
     const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
+    const queryClient = useQueryClient();
 
     // ─── Bloqueo de usuario (sistema reusado de ChatYA) ───────────────────────
     // El bloqueo es BIDIRECCIONAL en backend: si A bloquea a B, ninguno puede
@@ -308,6 +317,32 @@ function PerfilVendedorPrivado() {
         const cancelar = emitirCuandoConectado('chatya:consultar-estado', usuarioId);
         return cancelar;
     }, [usuarioId, perfil, usuarioActual?.id]);
+
+    // ─── Sync en vivo del catálogo (2026-08-17) ────────────────────────────
+    // Room `catalogo:{usuarioId}` — cuando OTRO visitante aparta/el vendedor
+    // resuelve una solicitud, todos los que tienen este catálogo abierto ven
+    // el overlay actualizarse sin recargar (caso real: varias personas viendo
+    // el mismo catálogo durante un live de Facebook). El socket global ya
+    // está conectado (sesión activa arriba del layout) — aquí solo nos unimos
+    // al room y refrescamos la query al recibir el evento.
+    useEffect(() => {
+        if (!usuarioId) return;
+        const unirseAlRoom = () => emitirEvento('marketplace:catalogo:unirse', { vendedorUsuarioId: usuarioId });
+        emitirCuandoConectado('marketplace:catalogo:unirse', { vendedorUsuarioId: usuarioId });
+        // Re-unirse en cada reconexión (backend redeploy, blip de red, o en
+        // dev cada restart de `tsx watch`) — sin esto, el join inicial se
+        // pierde silenciosamente y el room queda "vacío" hasta que se
+        // desmonta/remonta la página.
+        const dejarDeEscucharConnect = escucharEvento('connect', unirseAlRoom);
+        const dejarDeEscuchar = escucharEvento('marketplace:catalogo:estado', () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.vendedor(usuarioId) });
+        });
+        return () => {
+            emitirEvento('marketplace:catalogo:salir', { vendedorUsuarioId: usuarioId });
+            dejarDeEscucharConnect();
+            dejarDeEscuchar();
+        };
+    }, [usuarioId, queryClient]);
 
     // ─── Cargar lista de bloqueados al montar ─────────────────────────────────
     useEffect(() => {
@@ -1009,6 +1044,17 @@ function PerfilVendedorPrivado() {
                     onLimpiar={() => setSeleccionadosApartar(new Set())}
                     usuarioActual={usuarioActual}
                     posicion={posicionSidebar}
+                    onVerConversacion={
+                        perfil
+                            ? () =>
+                                  iniciarChatDirectoPersona({
+                                      usuarioId: perfil.id,
+                                      nombre: perfil.nombre,
+                                      apellidos: perfil.apellidos,
+                                      avatarUrl: perfil.avatarUrl,
+                                  })
+                            : undefined
+                    }
                 />
             </div>
 
@@ -1035,6 +1081,7 @@ function MiCatalogoPublico() {
     const usuarioActual = useAuthStore((s) => s.usuario);
     const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
+    const queryClient = useQueryClient();
     // Sin useScrollAppShell: esta es una ruta pública bare (fuera de
     // MainLayout, sin BottomNav que coordinar) — scroll normal del documento.
 
@@ -1078,6 +1125,30 @@ function MiCatalogoPublico() {
         { limit: 50, offset: 0 },
         'vendo'
     );
+
+    // ─── Sync en vivo del catálogo (2026-08-17) ────────────────────────────
+    // Página bare (sin MainLayout, sin sesión garantizada) — se conecta sola
+    // al socket, con o sin token según haya sesión (mismo criterio que la
+    // sala en vivo de Dinámicas). Caso real: varios visitantes con este link
+    // abierto durante un live de Facebook, apartando piezas distintas — sin
+    // esto cada quien se queda con el overlay desactualizado hasta refrescar.
+    useEffect(() => {
+        if (!usuarioId) return;
+        if (usuarioActual) conectarSocket();
+        else conectarSocketInvitado();
+        const unirseAlRoom = () => emitirEvento('marketplace:catalogo:unirse', { vendedorUsuarioId: usuarioId });
+        emitirCuandoConectado('marketplace:catalogo:unirse', { vendedorUsuarioId: usuarioId });
+        // Re-unirse en cada reconexión — ver comentario análogo en `PerfilVendedorPrivado`.
+        const dejarDeEscucharConnect = escucharEvento('connect', unirseAlRoom);
+        const dejarDeEscuchar = escucharEvento('marketplace:catalogo:estado', () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.vendedor(usuarioId) });
+        });
+        return () => {
+            emitirEvento('marketplace:catalogo:salir', { vendedorUsuarioId: usuarioId });
+            dejarDeEscucharConnect();
+            dejarDeEscuchar();
+        };
+    }, [usuarioId, usuarioActual, queryClient]);
 
     const handleWhatsApp = (e: MouseEvent<HTMLElement>) => {
         if (!perfil?.telefono) return;
@@ -1894,6 +1965,10 @@ interface PanelApartarProps {
      *  izquierda). `null`/`undefined` = usar `claseFijo` mientras no haya
      *  medición (ej. el primer render). */
     posicion?: { left: number; top: number } | null;
+    /** Presente = perfil privado in-app. Abre (o crea) el chat directo con
+     *  el vendedor — la conversación y el mensaje ya quedaron creados por
+     *  el backend al apartar (2026-08-17), este botón solo la muestra. */
+    onVerConversacion?: () => void;
 }
 
 function PanelApartar({
@@ -1904,6 +1979,7 @@ function PanelApartar({
     usuarioActual,
     claseFijo = 'lg:right-6 lg:top-40 2xl:right-8',
     posicion,
+    onVerConversacion,
 }: PanelApartarProps) {
     const items = articulos.filter((a) => seleccionados.has(a.id));
     const esInApp = !!usuarioActual;
@@ -1924,6 +2000,21 @@ function PanelApartar({
     // que ya usan `Modal`/`ModalBottom` en el resto de la app). Se llama
     // ANTES del early-return de abajo — Rules of Hooks.
     const portalTarget = usePortalTarget();
+
+    // Bug (2026-08-18): `enviado` es estado local — si el visitante apartaba
+    // una pieza y, SIN cerrar la pantalla de éxito, seleccionaba otra
+    // distinta (el botón de esa card sí pasaba a "Seleccionado"), el sidebar
+    // se quedaba pegado mostrando el mensaje de éxito viejo en vez del
+    // formulario nombre+WhatsApp de la nueva selección — `handleEnviar` no
+    // toca `seleccionados`, así que nada disparaba el reset salvo cerrar con
+    // el botón "Cerrar" (que si limpia todo vía `onLimpiar`). Cada cambio de
+    // selección (`seleccionados` siempre es un Set nuevo, ver `onToggleSeleccion`)
+    // debe volver a mostrar el formulario para esa selección puntual.
+    useEffect(() => {
+        setEnviado(false);
+        setFallidos([]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [seleccionados]);
 
     if (items.length === 0) return null;
 
@@ -1980,9 +2071,13 @@ function PanelApartar({
                         <Lock className="h-8 w-8 text-emerald-600" strokeWidth={2} />
                     </div>
                     <p className="text-base font-semibold text-slate-800">
-                        {esMultiple
-                            ? `El vendedor revisará tus ${items.length - fallidos.length} solicitudes y te contactará por WhatsApp para confirmar.`
-                            : 'El vendedor revisará tu solicitud y te contactará por WhatsApp para confirmar.'}
+                        {esInApp
+                            ? esMultiple
+                                ? `Le avisamos al vendedor de tus ${items.length - fallidos.length} solicitudes para coordinar el pago y la entrega.`
+                                : 'Le avisamos al vendedor para coordinar el pago y la entrega.'
+                            : esMultiple
+                                ? `El vendedor revisará tus ${items.length - fallidos.length} solicitudes y te contactará por WhatsApp para confirmar.`
+                                : 'El vendedor revisará tu solicitud y te contactará por WhatsApp para confirmar.'}
                     </p>
                     {fallidos.length > 0 && (
                         <p className="text-sm font-medium text-amber-600">
@@ -1991,11 +2086,27 @@ function PanelApartar({
                                 : `${fallidos.length} artículos ya no estaban disponibles.`}
                         </p>
                     )}
+                    {esInApp && onVerConversacion && (
+                        <Tooltip text="Ver conversación" position="top">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onVerConversacion();
+                                    handleCerrarExito();
+                                }}
+                                aria-label="Ver conversación"
+                                data-testid="btn-ver-conversacion-apartar"
+                                className="-mt-1 inline-flex cursor-pointer items-center justify-center transition-transform hover:scale-105"
+                            >
+                                <img src="/ChatYA.webp" alt="" className="h-14 w-auto object-contain" />
+                            </button>
+                        </Tooltip>
+                    )}
                     <button
                         type="button"
                         onClick={handleCerrarExito}
                         data-testid="btn-cerrar-exito-apartar"
-                        className="mt-2 h-11 w-full cursor-pointer rounded-xl bg-slate-800 text-sm font-bold text-white hover:bg-slate-900"
+                        className="h-11 w-full cursor-pointer rounded-xl bg-slate-800 text-sm font-bold text-white hover:bg-slate-900"
                     >
                         Cerrar
                     </button>

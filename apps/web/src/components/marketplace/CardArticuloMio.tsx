@@ -40,6 +40,7 @@ import {
     CheckCircle,
     Trash2,
     ImageOff,
+    Lock,
     PackageX,
     type LucideIcon,
 } from 'lucide-react';
@@ -141,6 +142,10 @@ export function CardArticuloMio({
     // Vendidas no muestran días restantes — el ciclo terminó.
     const dias = articulo.estado === 'vendida' ? null : diasRestantes(articulo.expiraAt);
     const diasUrgente = dias !== null && dias <= 3;
+    // Apartado (2026-08-17): un artículo apartado sigue `estado='activa'`
+    // (no es uno de los 3 estados de arriba) — se calcula aparte, mismo
+    // pill + botón deshabilitado que ya usa "Mi Catálogo".
+    const apartado = !!articulo.apartadoHasta && new Date(articulo.apartadoHasta) > new Date();
 
     const handleClickCard = () => {
         // Ruta del frontend en singular (`articulo`), distinta de la API que
@@ -219,6 +224,17 @@ export function CardArticuloMio({
                         <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
                             <PauseCircle className="h-3.5 w-3.5" strokeWidth={2} />
                             Pausado
+                        </span>
+                    </div>
+                )}
+                {apartado && (
+                    <div
+                        data-testid={`overlay-apartado-${articulo.id}`}
+                        className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/35"
+                    >
+                        <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm font-bold text-slate-800">
+                            <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                            Apartado
                         </span>
                     </div>
                 )}

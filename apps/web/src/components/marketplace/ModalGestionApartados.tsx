@@ -24,9 +24,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Lock, Check, X, Clock, ImageIcon } from 'lucide-react';
+import { Lock, XCircle, CheckCircle, Clock, ImageIcon, Phone } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { Spinner } from '../ui/Spinner';
+import Tooltip from '../ui/Tooltip';
 import {
     useMisApartados,
     useMarcarApartadoVendido,
@@ -37,6 +38,7 @@ import {
 } from '../../hooks/queries/useMarketplace';
 import { obtenerFotoPortada } from '../../utils/marketplace';
 import { notificar } from '../../utils/notificaciones';
+import { formatearNumero } from '../../hooks/useAbrirWhatsApp';
 
 // =============================================================================
 // TIPOS
@@ -45,6 +47,14 @@ import { notificar } from '../../utils/notificaciones';
 interface ModalGestionApartadosProps {
     abierto: boolean;
     onCerrar: () => void;
+    /** Deep-link desde la notificación "alguien apartó tu artículo"
+     *  (2026-08-18) — id de la solicitud a resaltar + auto-scroll al abrir.
+     *  El caller (`PaginaMisPublicaciones.tsx`) ya limpió el `?apartadoId=`
+     *  de la URL; esto solo es el valor a consumir una vez. */
+    apartadoIdResaltar?: string | null;
+    /** Avisa al caller que ya se consumió `apartadoIdResaltar`, para que no
+     *  lo vuelva a pasar si el modal se cierra y se reabre. */
+    onResaltadoConsumido?: () => void;
 }
 
 type FiltroEstado = 'apartado' | 'vendido';
@@ -53,13 +63,46 @@ type FiltroEstado = 'apartado' | 'vendido';
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalGestionApartados({ abierto, onCerrar }: ModalGestionApartadosProps) {
+export function ModalGestionApartados({ abierto, onCerrar, apartadoIdResaltar, onResaltadoConsumido }: ModalGestionApartadosProps) {
     const [filtro, setFiltro] = useState<FiltroEstado>('apartado');
     const { data: apartados = [], isLoading } = useMisApartados(filtro);
 
     const { mutate: marcarVendido, isPending: marcandoVendido } = useMarcarApartadoVendido();
     const { mutate: rechazar, isPending: rechazando } = useRechazarApartado();
     const [procesandoId, setProcesandoId] = useState<string | null>(null);
+
+    // ─── Resaltado + auto-scroll (2026-08-18) ──────────────────────────────
+    // La solicitud nueva siempre nace en el tab "Apartados" — se fuerza ese
+    // filtro al recibir el id. `resaltadoId` es estado LOCAL (no la prop
+    // directa) para que el highlight visual dure sus 3.5s propios aunque el
+    // caller ya haya limpiado `apartadoIdResaltar` (evita re-disparar si el
+    // modal se cierra y se reabre sin recargar la página).
+    const [resaltadoId, setResaltadoId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!apartadoIdResaltar) return;
+        setResaltadoId(apartadoIdResaltar);
+        setFiltro('apartado');
+        onResaltadoConsumido?.();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apartadoIdResaltar]);
+
+    useEffect(() => {
+        if (!resaltadoId || isLoading) return;
+        if (!apartados.some((a) => a.id === resaltadoId)) return;
+        const t = setTimeout(() => {
+            document
+                .querySelector(`[data-testid="fila-apartado-${resaltadoId}"]`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+        return () => clearTimeout(t);
+    }, [apartados, isLoading, resaltadoId]);
+
+    useEffect(() => {
+        if (!resaltadoId) return;
+        const t = setTimeout(() => setResaltadoId(null), 3500);
+        return () => clearTimeout(t);
+    }, [resaltadoId]);
 
     const handleMarcarVendido = (apartadoId: string) => {
         setProcesandoId(apartadoId);
@@ -125,8 +168,8 @@ export function ModalGestionApartados({ abierto, onCerrar }: ModalGestionApartad
                 <div
                     className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl 2xl:rounded-t-2xl"
                     style={{
-                        background: 'linear-gradient(135deg, #2dd4bf, #0d9488)',
-                        boxShadow: '0 4px 16px rgba(13,148,136,0.3)',
+                        background: 'linear-gradient(135deg, #115e59, #0d9488)',
+                        boxShadow: '0 4px 16px rgba(17,94,89,0.35)',
                     }}
                 >
                     {/* Círculos decorativos */}
@@ -178,6 +221,7 @@ export function ModalGestionApartados({ abierto, onCerrar }: ModalGestionApartad
                                         key={apartado.id}
                                         apartado={apartado}
                                         procesando={(marcandoVendido || rechazando) && procesandoId === apartado.id}
+                                        resaltado={apartado.id === resaltadoId}
                                         onMarcarVendido={() => handleMarcarVendido(apartado.id)}
                                         onRechazar={() => handleRechazar(apartado.id)}
                                     />
@@ -280,30 +324,31 @@ function ChipFiltro({ activo, label, onClick }: { activo: boolean; label: string
 // FILA DE SOLICITUD
 // =============================================================================
 
-const ESTADO_LABEL: Record<ApartadoDeVendedor['estado'], { texto: string; clase: string }> = {
-    apartado: { texto: 'Apartado', clase: 'bg-amber-100 text-amber-700' },
-    vendido: { texto: 'Vendido', clase: 'bg-emerald-100 text-emerald-700' },
-    rechazado: { texto: 'Rechazado', clase: 'bg-red-100 text-red-700' },
-    expirado: { texto: 'Expirado', clase: 'bg-slate-200 text-slate-600' },
-};
-
 function FilaApartado({
     apartado,
     procesando,
+    resaltado,
     onMarcarVendido,
     onRechazar,
 }: {
     apartado: ApartadoDeVendedor;
     procesando: boolean;
+    resaltado?: boolean;
     onMarcarVendido: () => void;
     onRechazar: () => void;
 }) {
     const fotoPortada = obtenerFotoPortada(apartado.articuloFotos ?? [], apartado.articuloFotoPortadaIndex);
-    const estadoInfo = ESTADO_LABEL[apartado.estado];
     const whatsappLink = `https://wa.me/${apartado.whatsappComprador.replace(/\D/g, '')}`;
 
     return (
-        <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 transition-colors">
+        <div
+            data-testid={`fila-apartado-${apartado.id}`}
+            className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${
+                resaltado
+                    ? 'border-amber-300 bg-amber-50 ring-2 ring-inset ring-amber-300'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+        >
             <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                 {fotoPortada ? (
                     <img src={fotoPortada.url} alt="" className="w-full h-full object-cover" />
@@ -314,44 +359,47 @@ function FilaApartado({
                 )}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 truncate">{apartado.articuloTitulo}</p>
-                <p className="text-xs text-slate-600 font-medium truncate">
-                    {apartado.nombreComprador} ·{' '}
-                    <a
-                        href={whatsappLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-emerald-600 hover:underline"
-                    >
-                        {apartado.whatsappComprador}
-                    </a>
-                </p>
+                {/* Datos del comprador — son lo más importante de la fila
+                    (a quién contactar), así que van primero y con más peso
+                    que el título del artículo (2026-08-17). */}
+                <p className="text-sm font-bold text-slate-900 truncate">{apartado.nombreComprador}</p>
+                <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:underline"
+                >
+                    <Phone className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+                    {formatearNumero(apartado.whatsappComprador)}
+                </a>
+                <p className="text-xs text-slate-500 font-medium truncate mt-0.5">{apartado.articuloTitulo}</p>
             </div>
-            <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${estadoInfo.clase}`}>
-                {estadoInfo.texto}
-            </span>
             {apartado.estado === 'apartado' && (
                 <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                        type="button"
-                        onClick={onRechazar}
-                        disabled={procesando}
-                        data-testid={`btn-rechazar-apartado-${apartado.id}`}
-                        className="h-9 px-3 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center gap-1.5 text-sm font-bold cursor-pointer disabled:opacity-60"
-                    >
-                        <X className="w-4 h-4" />
-                        Rechazar
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onMarcarVendido}
-                        disabled={procesando}
-                        data-testid={`btn-vendido-apartado-${apartado.id}`}
-                        className="h-9 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 text-sm font-bold cursor-pointer disabled:opacity-60"
-                    >
-                        <Check className="w-4 h-4" />
-                        Vendido
-                    </button>
+                    <Tooltip text="Rechazar" position="top">
+                        <button
+                            type="button"
+                            onClick={onRechazar}
+                            disabled={procesando}
+                            aria-label="Rechazar"
+                            data-testid={`btn-rechazar-apartado-${apartado.id}`}
+                            className="h-9 w-9 rounded-lg hover:bg-red-100 text-red-600 flex items-center justify-center cursor-pointer disabled:opacity-60"
+                        >
+                            <XCircle className="w-6 h-6" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Marcar como vendido" position="top">
+                        <button
+                            type="button"
+                            onClick={onMarcarVendido}
+                            disabled={procesando}
+                            aria-label="Marcar como vendido"
+                            data-testid={`btn-vendido-apartado-${apartado.id}`}
+                            className="h-9 w-9 rounded-lg hover:bg-emerald-100 text-emerald-600 flex items-center justify-center cursor-pointer disabled:opacity-60"
+                        >
+                            <CheckCircle className="w-6 h-6" />
+                        </button>
+                    </Tooltip>
                 </div>
             )}
         </div>

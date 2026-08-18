@@ -30,6 +30,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { getZonaHorariaPorCiudad } from '../../utils/zonaHoraria.js';
 import { sqlExpiracionFinDeDia, TTL_DIAS_DEFAULT } from '../../utils/expiracion.js';
+import { emitirCatalogoEstado } from '../../socket.js';
 
 // =============================================================================
 // HELPER — Crear notificación idempotente
@@ -326,6 +327,18 @@ export async function reactivarArticulo(articuloId: string, usuarioId: string) {
                 updated_at = NOW()
             WHERE id = ${articuloId}
         `);
+
+        // Sync en vivo (2026-08-18) — mismo mecanismo que apartar/rechazar/
+        // vendido (docs/arquitectura/Catalogo_MarketPlace_Apartado.md §3.5):
+        // sin esto, el catálogo público/privado y Mis Publicaciones se
+        // quedaban con el caché de React Query mostrando el artículo como
+        // vendido/pausado hasta un refresh manual.
+        emitirCatalogoEstado(actual.usuario_id, {
+            articuloId,
+            apartado: false,
+            apartadoHasta: null,
+            estado: 'activa',
+        });
 
         const mensaje =
             actual.estado === 'vendida'

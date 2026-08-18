@@ -114,11 +114,16 @@ router.post('/articulos/:id/vista', postRegistrarVista);
 
 /**
  * POST /api/marketplace/articulos/:id/apartar
- * Mi Catálogo (2026-08-12). Público, sin auth — el comprador llega desde un
- * link compartido en redes. Body: { nombreComprador, whatsappComprador }.
- * Rate-limited: nadie necesita cuenta para llamarlo.
+ * Mi Catálogo (2026-08-12). Público, sin auth obligatoria — el comprador
+ * puede llegar desde un link compartido en redes sin cuenta. Body:
+ * { nombreComprador, whatsappComprador }. Rate-limited: nadie necesita
+ * cuenta para llamarlo.
+ * `verificarTokenOpcional` (2026-08-17): si el comprador SÍ está logueado,
+ * puebla `req.usuario` sin rechazar la request cuando no lo está — permite
+ * a `apartarArticulo` disparar el chat directo automático con el vendedor
+ * cuando ambas partes tienen cuenta AY.
  */
-router.post('/articulos/:id/apartar', limitadorApartarMarketplace, postApartarArticulo);
+router.post('/articulos/:id/apartar', verificarTokenOpcional, limitadorApartarMarketplace, postApartarArticulo);
 
 /**
  * POST /api/marketplace/articulos/:id/heartbeat

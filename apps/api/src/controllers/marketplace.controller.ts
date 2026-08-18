@@ -935,7 +935,10 @@ export async function postApartarArticulo(req: Request, res: Response) {
         const resultado = await apartarArticulo(
             id,
             validacion.data.nombreComprador,
-            validacion.data.whatsappComprador
+            validacion.data.whatsappComprador,
+            // Del JWT (verificarTokenOpcional), NUNCA del body — evita que el
+            // comprador pueda "apartar en nombre de" otro usuario.
+            obtenerUsuarioId(req)
         );
 
         if (!resultado.success && 'code' in resultado && typeof resultado.code === 'number') {

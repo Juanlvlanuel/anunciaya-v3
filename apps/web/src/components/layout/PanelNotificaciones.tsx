@@ -148,6 +148,14 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   dinamica_pago_confirmado: 'entregado',
   dinamica_boleto_reasignado: 'pendiente',
   dinamica_boleto_liberado: 'alerta',
+  // Alguien apartó tu artículo — requiere tu acción (rechazar o marcar
+  // vendido en Mis Publicaciones), igual que voucher_pendiente/nueva_recompensa.
+  marketplace_articulo_apartado: 'pendiente',
+  // Al comprador: el vendedor resolvió su solicitud. Rechazado = mala
+  // noticia (mismo tono que cupon_revocado/marketplace_expirada). Vendido =
+  // se concretó (mismo tono que voucher_generado/dinamica_pago_confirmado).
+  marketplace_apartado_rechazado: 'alerta',
+  marketplace_apartado_vendido: 'entregado',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -305,6 +313,17 @@ function obtenerRutaDestino(n: Notificacion): string | null {
     if (!referenciaId) return null;
     const comId = n.comentarioId ? `&comentarioId=${n.comentarioId}` : '';
     return `/marketplace?articuloId=${referenciaId}${comId}`;
+  }
+  // Alguien apartó tu artículo (2026-08-18): al vendedor, directo a Mis
+  // Publicaciones con el modal de Apartados abierto y esta solicitud
+  // resaltada — NO al detalle del artículo (el `case 'marketplace':`
+  // genérico de abajo apunta ahí, así que se intercepta ANTES). `referenciaId`
+  // aquí es el id de la SOLICITUD (`marketplace_apartados.id`), no del
+  // artículo — ver `apartarArticulo` en marketplace.service.ts.
+  if (tipo === 'marketplace_articulo_apartado') {
+    return referenciaId
+      ? `/mis-publicaciones?tipo=marketplace&apartadoId=${referenciaId}`
+      : '/mis-publicaciones?tipo=marketplace';
   }
   if (tipo === 'negocio_publicacion_nuevo_comentario' || tipo === 'negocio_publicacion_respuesta_comentario') {
     if (!referenciaId) return null;

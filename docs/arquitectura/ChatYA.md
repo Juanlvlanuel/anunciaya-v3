@@ -1,6 +1,27 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.7 — Actualizado 9 de julio de 2026 — **MÓDULO COMPLETADO ✅** (+ Notificaciones push web de ChatYA, §4.15.1)
+> **Versión:** v7.8 — Actualizado 18 de agosto de 2026 — **MÓDULO COMPLETADO ✅** (+ Chat directo automático al apartar en MarketPlace, §4.13.1)
+>
+> **Cambios v7.8 (18 ago 2026):** **chat directo automático al Apartar en Mi Catálogo/MarketPlace**
+> (feature completo en `docs/arquitectura/Catalogo_MarketPlace_Apartado.md` §3.4 — este documento
+> solo cubre la parte de ChatYA). Cuando el comprador aparta un artículo estando logueado, el
+> backend (`apartarArticulo` en `marketplace.service.ts`) llama `crearObtenerConversacion()` +
+> `enviarMensaje()` **server-side, sin intervención del usuario**: el mensaje prellenado queda YA
+> CONFIRMADO (no como borrador esperando que alguien lo envíe) — la única excepción a la regla de
+> "toda card se queda en preview hasta que el usuario envía" que rige el resto de §4.13.1. Nuevo
+> punto de entrada en la tabla de §4.13.1. De paso, 3 bugs corregidos que afectaban a TODOS los
+> subtipos de card (no solo el nuevo), encontrados al construir este feature:
+> - **`fotoUrl` roto en las cards de `articulo_marketplace` y `servicio_publicacion`** — el backend
+>   casteaba `fotos` (array de objetos `{url, tipo, posterUrl}`) directo a `string[]`, así que la
+>   card guardaba el objeto entero en vez de la URL (`<img src="[object Object]">`, foto rota en el
+>   chat). `insertarMensajeContextoDinamica` ya lo hacía bien — se igualaron los otros dos.
+> - **Preview de la lista de chats mostraba el JSON crudo** para el último mensaje cuando era
+>   `tipo:'sistema'` (`{"subtipo":"articulo_marketplace",...}` en vez de "Sobre: X") — 3 lugares en
+>   `chatya.service.ts` (`actualizarPreview` + las 2 rutas de recalculo al eliminar el último
+>   mensaje) tenían el mismo fallback crudo; ahora usan el helper `previewTextoSistema()`. El
+>   frontend (`ConversacionItem.tsx`) también gana un caso `tipo==='sistema'` dedicado (con ícono
+>   `Info`) que detecta y parsea JSON crudo al vuelo — arregla también conversaciones viejas que ya
+>   quedaron con el bug guardado en BD, sin necesitar migrar datos.
 >
 > **Cambios v7.7 (9 jul 2026):** **notificaciones push web (Web Push + claves VAPID)** — cuando la
 > PWA está cerrada o en segundo plano, ChatYA reproduce el **sonido del sistema**, muestra un
@@ -535,6 +556,7 @@ Cuando se inicia una conversación desde un punto con contexto (artículo de Mar
 | Detalle del artículo MarketPlace (P2) | `BarraContacto.tsx` → "ChatYA" | `'marketplace'` + `articuloMarketplaceId` | Card del artículo (subtipo `articulo_marketplace`) |
 | Modal de detalle de oferta de negocio | `ModalOfertaDetalle.tsx` → "ChatYA" | `'oferta'` + `contextoReferenciaId` (ofertaId) | Card de la oferta (subtipo `oferta_negocio`) |
 | Modal de detalle de item de catálogo | `ModalDetalleItem.tsx` → "ChatYA" | `'articulo_negocio'` + `contextoReferenciaId` (articuloId) | Card del artículo (subtipo `articulo_negocio`) |
+| **Apartar en Mi Catálogo/MarketPlace** (18 ago 2026) | Backend `apartarArticulo()` — **sin botón**, dispara solo cuando el comprador aparta logueado | `'marketplace'` + `articuloMarketplaceId` | Card del artículo (subtipo `articulo_marketplace`, misma card que la fila de arriba) **+ mensaje de texto prellenado auto-enviado** (`Hola, aparté "X"...`) — única excepción a "queda en preview hasta que el usuario envía", ver nota abajo |
 
 > **No aplica desde "Hacer una pregunta" en P2 Q&A** — esa sección tiene su propio flujo público y NO genera mensaje contextual.
 >
@@ -711,6 +733,21 @@ if (mensaje.tipo === 'sistema') {
 
 `MensajeSistema` parsea el JSON, identifica el `subtipo` y renderiza la card o el pill correspondiente. **No** se aplica el chrome normal de mensajes (avatar, reacciones, swipe, menú contextual). Si el JSON es inválido, fallback a texto plano centrado para preservar compatibilidad con futuros subtipos.
 
+#### Excepción: Apartar auto-envía, no queda en preview (18 ago 2026)
+
+Todo lo descrito arriba en §4.13.1 (preview en input, persistencia diferida al enviar, `contextoPendiente`) asume que hay un **usuario decidiendo** si manda el mensaje. El flujo de Apartar (`docs/arquitectura/Catalogo_MarketPlace_Apartado.md` §3.4) es la única excepción: corre **enteramente en el backend**, sin que el comprador pase por el input del chat.
+
+Dentro de `apartarArticulo()` (`marketplace.service.ts`), si el comprador aparta logueado:
+
+1. `crearObtenerConversacion()` — mismo helper que usa el botón manual "Contactar", con `contextoTipo:'marketplace'` + `articuloMarketplaceId`. Crea la conv si no existía, o reusa la existente e inserta una card nueva (mismo comportamiento que cualquier otro punto de entrada de §4.13.1 — ver "Política de duplicación" arriba).
+2. `enviarMensaje()` — el comprador "envía" el texto prellenado (`Hola, aparté "X". Quedo pendiente para coordinar el pago y la entrega.`) **ya confirmado**, no como borrador. Es el mismo `enviarMensaje()` del envío normal — hereda gratis push notification (si el vendedor está desconectado) y el pitido de `chatya:mensaje-nuevo` por socket (si está conectado), sin código nuevo de notificaciones.
+
+**Por qué está bien romper la regla acá:** en los otros 3 puntos de entrada, la card representa "estoy viendo esto, capaz te escribo" — persistirla sin acción del usuario se sentiría intrusivo (por eso se abandonó el patrón `mensajeContextoOptimista` original, ver nota histórica arriba en §4.13.1). Apartar es distinto: el usuario YA tomó una acción explícita e inequívoca (llenar nombre+WhatsApp y confirmar "Apartar") — el mensaje de chat es la consecuencia natural de esa acción, no una sugerencia. Retenerlo como borrador solo agregaría un paso extra sin sentido.
+
+**Fix relacionado — `fotoUrl` roto en las cards:** al construir este feature se encontró que `insertarMensajeContextoMarketplace` e `insertarMensajeContextoServicio` (ambos en `chatya.service.ts`) casteaban `fotos` (columna jsonb, array de objetos `{url, tipo, posterUrl}`) directo a `string[]` — la card guardaba el objeto entero como si fuera la URL, y el frontend renderizaba `<img src="[object Object]">` (foto invisible en la card, tanto para este flujo nuevo como para el botón manual "Contactar" de siempre). `insertarMensajeContextoDinamica` ya extraía `.url`/`.posterUrl` correctamente — se igualaron los otros dos al mismo patrón.
+
+**Fix relacionado — preview de la lista de chats mostraba JSON crudo:** para un mensaje `tipo:'sistema'`, `actualizarPreview()` y las 2 rutas de recalculo al eliminar el último mensaje (todas en `chatya.service.ts`) guardaban el `contenido` (el JSON de la card) tal cual en `ultimoMensajeTexto`, en vez de un texto legible — la lista de conversaciones mostraba `{"subtipo":"articulo_marketplace",...}` en vez de "Sobre: X". Nuevo helper `previewTextoSistema()` parsea el JSON y arma `Sobre: {título}`, usado en los 3 lugares. El frontend (`ConversacionItem.tsx`) suma un caso `tipo==='sistema'` dedicado (ícono `Info` + detección de JSON crudo al vuelo) — cubre también conversaciones viejas que ya quedaron con el bug guardado en BD, sin depender de una migración de datos.
+
 #### Click en la card → comportamiento por subtipo
 
 La card es clickeable. El handler depende del subtipo:
@@ -741,6 +778,8 @@ La card es clickeable. El handler depende del subtipo:
 - 🔲 Sonido de notificación cuando llega mensaje nuevo (activado por defecto, silenciable)
 - ✅ NO integrado con panel de notificaciones (campanita). Solo badge + sonido en logo ChatYA
 - ✅ Notificaciones **push web** (Web Push + VAPID) con la PWA cerrada o en segundo plano — ver §4.15.1
+
+> **Excepción puntual (18 ago 2026):** el flujo de Apartar SÍ crea una notificación en la campanita (`marketplace_articulo_apartado`) — pero es una notificación del dominio **MarketPlace** ("alguien apartó tu artículo"), disparada en paralelo al mensaje de chat, no derivada de él ni parte de la infraestructura de notificaciones de ChatYA. El chat sigue sin campanita para sus propios mensajes. Detalle completo en `docs/arquitectura/Catalogo_MarketPlace_Apartado.md` §3.4 y en `docs/arquitectura/Notificaciones.md`.
 
 ### 4.15.1 Notificaciones push web (Web Push) — jul 2026
 

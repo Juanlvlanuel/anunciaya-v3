@@ -1,8 +1,8 @@
 # Mi Catálogo (MarketPlace) + Apartar
 
-> **Estado:** Backend completo. Frontend: página pública + Apartar + gestión privada + configuración completos. **Pendiente: Alta Rápida MarketPlace** (carga masiva) y correr la migración de 2026-08-16 (ver §5).
+> **Estado:** Backend completo. Frontend: página pública + Apartar + gestión privada + configuración completos. **Pendiente: Alta Rápida MarketPlace** (carga masiva).
 > **Rutas:** `/p/marketplace/usuario/:usuarioId` (pública) · `/marketplace/usuario/:usuarioId` (privada, sin cambios)
-> Racional de producto: sesión de planeación 2026-08-12. Rediseño a modelo de 2 estados: sesión 2026-08-16.
+> Racional de producto: sesión de planeación 2026-08-12. Rediseño a modelo de 2 estados: sesión 2026-08-16. Chat directo automático al apartar: sesión 2026-08-17.
 
 ---
 
@@ -12,7 +12,7 @@ Le da a un vendedor P2P de MarketPlace un **link público compartible** (sin cue
 
 Flujo (2026-08-16, modelo de 2 estados): el vendedor comparte el link → el comprador (sin cuenta) ve el catálogo, da click en "Apartar" en la pieza que quiere, deja su nombre + WhatsApp → la solicitud **bloquea el artículo de inmediato** (nadie más puede apartarlo; el artículo sigue público con overlay "Apartado", no se oculta) → el vendedor ve la solicitud en su panel privado y decide: **"Rechazar"** (libera el bloqueo) o **"Vendido"** (despublica el artículo). Si nunca actúa, el bloqueo se libera solo al vencer el tiempo configurable.
 
-AnunciaYA solo organiza el apartado — el pago y la entrega ocurren 100% fuera de la plataforma (mismo espíritu que Dinámicas/rifas).
+AnunciaYA solo organiza el apartado — el pago y la entrega ocurren 100% fuera de la plataforma (mismo espíritu que Dinámicas/rifas). El medio de contacto depende de si el comprador tiene cuenta AY: **sin cuenta** (link público, nunca logueado) sigue siendo 100% WhatsApp manual; **con cuenta** (in-app, 2026-08-17) el medio principal pasa a ser un **chat directo de ChatYA creado y enviado automáticamente** al apartar (card del artículo + mensaje prellenado, ya confirmado, no un borrador) — WhatsApp queda como respaldo secundario. Ver §3.4.
 
 ---
 
@@ -20,7 +20,7 @@ AnunciaYA solo organiza el apartado — el pago y la entrega ocurren 100% fuera 
 
 - **Reemplaza al "Perfil de Vendedor"**, no coexiste aparte — lo que vivía en Perfil (tus publicaciones de MarketPlace) es conceptualmente tu inventario/catálogo. La ruta **privada** (`/marketplace/usuario/:id`) sigue funcionando igual que antes (perfil neutral, KPIs, bloqueo, contactos, tab Dinámicas) — pero el grid de MarketPlace en modo "En venta" **también apartar** con la misma card/modal que la ruta pública, para el usuario que llega navegando DENTRO de la app (feed, comentarios) y no por el link externo. Solo el dueño del perfil (`esUnoMismo`) no ve el botón sobre sus propios artículos, y solo artículos `modo='vendo'` lo muestran (no `busco`). La ruta **pública** nueva es para gente SIN cuenta (ej. audiencia de un live).
 - **Dinámicas NO aparece en la versión pública.** Una rifa no es inventario ni se "aparta" con nombre+WhatsApp — mezclarla en el link de un live confundiría a la audiencia.
-- **Apartar es SIEMPRE sin cuenta** (nombre + WhatsApp manual) — a diferencia de Dinámicas, que soporta cuenta o manual. Quien aparta llega de un link en redes, nunca logueado.
+- **Apartar SIEMPRE pide nombre + WhatsApp manual, con o sin cuenta** — el catálogo público (`/p/marketplace/...`) nunca pide login. Pero cuando el comprador SÍ llega logueado (in-app, `PerfilVendedorPrivado`), el backend detecta la cuenta por el JWT y encima del registro nombre+WhatsApp dispara el chat directo automático (§3.4) — no reemplaza el dato manual, lo complementa.
 - **La solicitud bloquea de inmediato** (2026-08-16, reemplaza el diseño original de "el vendedor confirma/rechaza sin lock automático"). Se descartó el paso intermedio de "confirmar": fusionarlo con el bloqueo evita que 2+ compradores pidan la misma pieza a la vez, y el vendedor solo decide el desenlace (Rechazar/Vendido), no si vale la pena reservarla. El overlay "Apartado" (mismo patrón visual que "Vendido"/"Pausado" en Mis Publicaciones) comunica el bloqueo sin ocultar el artículo — quien tenga el link directo no se topa con un 404.
 - **Tiempo de apartado configurable, pero único por vendedor** (no por artículo) — un solo número en `usuarios.marketplace_apartado_horas`, default 24h.
 - **Sin etiqueta/código corto por artículo** — se descartó: como el apartado se hace dando click directo en la pieza dentro del catálogo (no escribiendo un código en el chat del live), no hace falta.
@@ -30,11 +30,12 @@ AnunciaYA solo organiza el apartado — el pago y la entrega ocurren 100% fuera 
 
 ## 3. Backend
 
-### 3.1 Schema (`docs/migraciones/2026-08-12-marketplace-apartados.sql` + `2026-08-16-marketplace-apartados-2-estados.sql`)
+### 3.1 Schema (`docs/migraciones/2026-08-12-marketplace-apartados.sql` + `2026-08-16-marketplace-apartados-2-estados.sql` + `2026-08-17-marketplace-apartados-comprador-usuario.sql`)
 
 | Tabla/columna | Rol |
 |---|---|
-| `marketplace_apartados` | Una fila por SOLICITUD (historial completo). `estado`: `apartado` \| `vendido` \| `rechazado` \| `expirado` (2026-08-16, ya no hay `pendiente`/`confirmado` por separado). Siempre `nombre_comprador` + `whatsapp_comprador`, nunca `usuario_id`. |
+| `marketplace_apartados` | Una fila por SOLICITUD (historial completo). `estado`: `apartado` \| `vendido` \| `rechazado` \| `expirado` (2026-08-16, ya no hay `pendiente`/`confirmado` por separado). Siempre `nombre_comprador` + `whatsapp_comprador`. |
+| `marketplace_apartados.comprador_usuario_id` | (2026-08-17) NULL = comprador sin cuenta AY. Presente = estaba logueado al apartar — dispara el chat directo automático (§3.4). FK a `usuarios`, `ON DELETE SET NULL`. |
 | `articulos_marketplace.apartado_hasta` | El LOCK vigente del artículo (NULL = disponible). Se llena de inmediato al APARTAR (ya no espera confirmación) — lectura O(1) sin JOIN para pintar "Apartado" en el catálogo. Lo limpian "Rechazar", "Vendido" y el cron de expiración. |
 | `usuarios.marketplace_apartado_horas` | Config única del vendedor, default 24. |
 
@@ -54,6 +55,31 @@ Lógica en `services/marketplace.service.ts` (`apartarArticulo`, `marcarApartado
 ### 3.3 Cron (`cron/marketplace-apartados-expiracion.cron.ts`)
 
 Cada 30 min (mismo criterio que `dinamicas-expiracion.cron.ts`): un UPDATE atómico vía CTE marca `estado='expirado'` en las filas `apartado` con `expira_en` vencido, y limpia `apartado_hasta` en `articulos_marketplace`. A diferencia de Dinámicas (que borra el boleto), aquí se conserva el historial — el vendedor puede revisarlo en su panel.
+
+### 3.4 Chat directo automático + notificación (2026-08-17)
+
+`POST /articulos/:id/apartar` ahora usa `verificarTokenOpcional` (antes sin auth alguna) — puebla `req.usuario` si el comprador está logueado, sin rechazar la request si no lo está. El controller pasa `req.usuario?.usuarioId` (nunca del body, para que un comprador no pueda "apartar a nombre de" otro usuario) como `compradorUsuarioId` a `apartarArticulo`.
+
+Dentro de `apartarArticulo` (`marketplace.service.ts`), después de insertar el lock:
+
+1. **Siempre** (con o sin cuenta el comprador) — `crearNotificacion()` con el nuevo tipo `marketplace_articulo_apartado` (familia visual `pendiente`) — alimenta la campanita in-app del vendedor. Corregido 2026-08-17: originalmente vivía adentro del bloque de `compradorUsuarioId` y solo notificaba si el comprador tenía cuenta — dejaba sin avisar al vendedor en el caso más común (catálogo público de un live, comprador anónimo). `referenciaId` es el id de la SOLICITUD (`marketplace_apartados.id`, no el del artículo) — deep-link especial (2026-08-18) en `obtenerRutaDestino` (`PanelNotificaciones.tsx`, interceptado ANTES del `case 'marketplace':` genérico) a `/mis-publicaciones?tipo=marketplace&apartadoId={id}`: abre Mis Publicaciones, auto-abre `ModalGestionApartados` y hace scroll + resalta esa fila con un anillo ámbar 3.5s (mismo patrón que `?movId=` en Mi Perfil › Pagos).
+2. **Solo si `compradorUsuarioId` viene presente** (y no es el propio vendedor) — chat directo automático: `crearObtenerConversacion()` (reusa la función de `chatya.service.ts`, ya soportaba `contextoTipo:'marketplace'` + `articuloMarketplaceId` desde el botón manual "Contactar" del feed) crea o reusa la conversación e inserta la card de contexto del artículo; `enviarMensaje()` — el comprador "envía" un mensaje prellenado (`Hola, aparté "X". Quedo pendiente para coordinar el pago y la entrega.`) YA CONFIRMADO, no como borrador. Como es el mismo `enviarMensaje` que usa el chat manual, hereda gratis: push notification si el vendedor no está conectado, y el pitido/sonido de `chatya:mensaje-nuevo` por socket si sí lo está — sin código nuevo de notificaciones push.
+
+Cada bloque va en su propio `try/catch` no bloqueante: si el chat o la notificación fallan, el apartado en sí ya quedó confirmado arriba (no se revierte).
+
+Frontend: `PanelApartar` (`PaginaPerfilVendedor.tsx`) cambia el copy de la pantalla de éxito cuando `esInApp` (deja de prometer solo WhatsApp) y agrega un botón "Ver conversación" que abre el chat recién creado vía `useIniciarChatDirectoPersona` (sin mandar `mensaje` — solo abre la conversación que el backend ya creó, no duplica el auto-mensaje). El catálogo público (sin cuenta) no cambia: sigue con el copy y flujo 100% WhatsApp de siempre.
+
+Además, `rechazarApartado` y `marcarApartadoVendido` notifican in-app al comprador (si tenía cuenta) con los tipos `marketplace_apartado_rechazado` (familia `alerta`) y `marketplace_apartado_vendido` (familia `entregado`) — antes solo se enteraba si alguien le avisaba manualmente.
+
+### 3.5 Sync en vivo del catálogo (2026-08-17)
+
+Room de Socket.io `catalogo:{vendedorUsuarioId}` (handlers `marketplace:catalogo:unirse`/`salir` en `socket.ts`, admite invitados sin token — mismo criterio que la sala en vivo de Dinámicas). `apartarArticulo`, `marcarApartadoVendido`, `rechazarApartado` y `liberarApartadosExpirados` (cron) emiten `marketplace:catalogo:estado` a ese room vía el helper `emitirCatalogoEstado()` cada vez que cambia el lock de un artículo.
+
+Frontend: `PerfilVendedorPrivado` y `MiCatalogoPublico` (`PaginaPerfilVendedor.tsx`) se unen al room al montar — la privada reusa el socket ya conectado por la sesión; la pública (bare, sin garantía de sesión) llama `conectarSocket()`/`conectarSocketInvitado()` según haya `usuarioActual` o no, igual que `PaginaSalaDinamicaPublica.tsx`. Al recibir el evento, invalida `queryKeys.marketplace.vendedor(usuarioId)` (matchea por prefijo la query de `useVendedorPublicaciones`) — refetch, no parcheo manual del cache. Caso que resuelve: varias personas con el mismo catálogo abierto durante un live de Facebook ven el overlay "Apartado" actualizarse entre ellas sin recargar.
+
+`PaginaMisPublicaciones.tsx` (panel de gestión del propio vendedor) se une al MISMO room con su propio `usuarioId` — sin esto, el badge del botón "Apartados" y el overlay de `CardArticuloMio` quedaban desactualizados si el vendedor tenía esa pantalla abierta mientras alguien apartaba/se liberaba un artículo en paralelo. Invalida `['marketplace','mis-articulos']` + `['marketplace','mis-apartados']` al recibir el evento.
+
+`emitirCatalogoEstado()` se llama en 5 puntos del backend: `apartarArticulo`, `marcarApartadoVendido`, `rechazarApartado`, `liberarApartadosExpirados` (cron) — todos en `marketplace.service.ts` — y **`reactivarArticulo`** (`marketplace/expiracion.ts`, agregado 2026-08-18: reactivar desde "Vendidos" en Mis Publicaciones dejaba el catálogo público/privado y el propio Mis Publicaciones con el caché viejo mostrando el artículo como vendido hasta un refresh manual, mismo síntoma que los otros 4 puntos antes de tener el emit).
 
 ---
 
@@ -75,8 +101,11 @@ Cada 30 min (mismo criterio que `dinamicas-expiracion.cron.ts`): un UPDATE atóm
 
 - **Alta Rápida MarketPlace** — entrada de carga masiva (foto/texto/manual → tabla editable → publicar en lote), calcando el patrón de `docs/arquitectura/Alta_Rapida_Catalogo.md` pero para MarketPlace en modo `vendo`. NO reemplaza el alta uno-por-uno que ya existe.
 - Botón "Solicitudes de apartado" en `PaginaMisPublicaciones.tsx` solo existe en los headers Laptop y PC — pendiente agregarlo también al header móvil.
-- **Correr la migración `docs/migraciones/2026-08-16-marketplace-apartados-2-estados.sql` en DEV y PROD** (rediseño a 2 estados — afecta datos existentes, ver el propio archivo para el detalle del mapeo).
-- Falta notificación en tiempo real al vendedor cuando llega una solicitud de apartado (hoy solo se entera si abre el modal) — discutido pero no implementado.
+- ~~Correr la migración `docs/migraciones/2026-08-16-marketplace-apartados-2-estados.sql` en DEV y PROD.~~ ✅ Corrida en ambos entornos (16 ago 2026).
+- ~~Falta notificación en tiempo real al vendedor cuando llega una solicitud de apartado.~~ ✅ Resuelto 2026-08-17/18: chat directo automático + push/pitido para compradores CON cuenta (§3.4); notificación in-app SIEMPRE al vendedor, con o sin cuenta el comprador (corregido 2026-08-18, vivía atada por error a `compradorUsuarioId`).
+- ~~Correr la migración `docs/migraciones/2026-08-17-marketplace-apartados-comprador-usuario.sql` en DEV y PROD.~~ ✅ Corrida en ambos entornos (17 ago 2026).
+- ~~El overlay "Apartado" del catálogo (público y privado) se quedaba desactualizado si alguien más lo tenía abierto al mismo tiempo (varios visitantes en un live).~~ ✅ Resuelto 2026-08-17/18: sync en vivo por Socket.io (§3.5) + fix de reconexión (el join al room se perdía en cada restart/reconexión del socket, no solo al montar).
+- ~~Correr la migración `docs/migraciones/2026-08-18-notificaciones-tipos-apartado.sql` en DEV y PROD.~~ ✅ Corrida en ambos entornos (18 ago 2026).
 - Falta un lock a nivel BD contra la carrera "2 solicitudes casi simultáneas para el mismo artículo" (hoy es check-then-insert en el service, sin constraint que lo blindee).
-- QA E2E completo del flujo (apartar público → Rechazar/Vendido privado → expiración por cron).
+- ~~QA E2E completo del flujo (apartar público → Rechazar/Vendido privado → notificaciones → sync en vivo).~~ ✅ Verificado 2026-08-18 por Juan: apartar anónimo y con cuenta, chat automático, notificación al vendedor (siempre) y al comprador con cuenta en sus 2 resoluciones (Rechazar/Vendido) con deep-link + sync en vivo en catálogo público y privado — los 3 puntos confirmados uno por uno. Queda pendiente solo la expiración automática por cron (nadie actúa, se libera solo al vencer el tiempo) — no se probó explícitamente esta sesión.
 - ~~Correr la migración `docs/migraciones/2026-08-12-marketplace-apartados.sql` en DEV y PROD.~~ ✅ Corrida en ambos entornos (16 ago 2026).

@@ -1861,8 +1861,11 @@ export const notificaciones = pgTable("notificaciones", {
 	// 2026-08-07-notificaciones-dinamica-pago-confirmado.sql + 'dinamica_boleto_reasignado'
 	// agregado en la migración 2026-08-07-notificaciones-dinamica-boleto-reasignado.sql
 	// + 'dinamica_boleto_liberado' agregado en la migración
-	// 2026-08-07-notificaciones-dinamica-boleto-liberado.sql.
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying, 'pago_rechazado'::character varying, 'pago_aprobado'::character varying, 'pago_anulado'::character varying, 'negocio_publicacion_nuevo_comentario'::character varying, 'negocio_publicacion_respuesta_comentario'::character varying, 'dinamica_pospuesta'::character varying, 'dinamica_resultado'::character varying, 'dinamica_pago_confirmado'::character varying, 'dinamica_boleto_reasignado'::character varying, 'dinamica_boleto_liberado'::character varying])::text[])`),
+	// 2026-08-07-notificaciones-dinamica-boleto-liberado.sql
+	// + 'marketplace_articulo_apartado', 'marketplace_apartado_rechazado',
+	// 'marketplace_apartado_vendido' agregados en la migración
+	// 2026-08-18-notificaciones-tipos-apartado.sql.
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'puntos_por_vencer'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying, 'pago_rechazado'::character varying, 'pago_aprobado'::character varying, 'pago_anulado'::character varying, 'negocio_publicacion_nuevo_comentario'::character varying, 'negocio_publicacion_respuesta_comentario'::character varying, 'dinamica_pospuesta'::character varying, 'dinamica_resultado'::character varying, 'dinamica_pago_confirmado'::character varying, 'dinamica_boleto_reasignado'::character varying, 'dinamica_boleto_liberado'::character varying, 'marketplace_articulo_apartado'::character varying, 'marketplace_apartado_rechazado'::character varying, 'marketplace_apartado_vendido'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying, 'negocio_publicacion'::character varying, 'dinamica'::character varying])::text[]))`),
 ]);
 
@@ -2324,6 +2327,10 @@ export const marketplaceApartados = pgTable("marketplace_apartados", {
 	// Se calcula al crear la solicitud = creado_en + usuarios.marketplace_apartado_horas
 	// del vendedor en ese momento (snapshot, no recalcula si cambia su config después).
 	expiraEn: timestamp("expira_en", { withTimezone: true, mode: 'string' }),
+	// NULL = comprador sin cuenta AY (catálogo público). Presente = el comprador
+	// estaba logueado al apartar — dispara el chat directo automático con el
+	// vendedor (ver apartarArticulo en marketplace.service.ts).
+	compradorUsuarioId: uuid("comprador_usuario_id"),
 }, (table) => [
 	index("idx_marketplace_apartados_articulo").using("btree", table.articuloId.asc().nullsLast()),
 	index("idx_marketplace_apartados_articulo_estado").using("btree", table.articuloId.asc().nullsLast(), table.estado.asc().nullsLast()),
@@ -2333,6 +2340,11 @@ export const marketplaceApartados = pgTable("marketplace_apartados", {
 		foreignColumns: [articulosMarketplace.id],
 		name: "fk_marketplace_apartados_articulo"
 	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.compradorUsuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_marketplace_apartados_comprador_usuario"
+	}).onDelete("set null"),
 	check("marketplace_apartados_estado_check", sql`estado IN ('apartado', 'vendido', 'rechazado', 'expirado')`),
 ]);
 
