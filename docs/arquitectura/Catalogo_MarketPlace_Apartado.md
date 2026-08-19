@@ -30,13 +30,14 @@ AnunciaYA solo organiza el apartado — el pago y la entrega ocurren 100% fuera 
 
 ## 3. Backend
 
-### 3.1 Schema (`docs/migraciones/2026-08-12-marketplace-apartados.sql` + `2026-08-16-marketplace-apartados-2-estados.sql` + `2026-08-17-marketplace-apartados-comprador-usuario.sql`)
+### 3.1 Schema (`docs/migraciones/2026-08-12-marketplace-apartados.sql` + `2026-08-16-marketplace-apartados-2-estados.sql` + `2026-08-17-marketplace-apartados-comprador-usuario.sql` + `2026-08-18-marketplace-veces-vendido.sql`)
 
 | Tabla/columna | Rol |
 |---|---|
 | `marketplace_apartados` | Una fila por SOLICITUD (historial completo). `estado`: `apartado` \| `vendido` \| `rechazado` \| `expirado` (2026-08-16, ya no hay `pendiente`/`confirmado` por separado). Siempre `nombre_comprador` + `whatsapp_comprador`. |
 | `marketplace_apartados.comprador_usuario_id` | (2026-08-17) NULL = comprador sin cuenta AY. Presente = estaba logueado al apartar — dispara el chat directo automático (§3.4). FK a `usuarios`, `ON DELETE SET NULL`. |
 | `articulos_marketplace.apartado_hasta` | El LOCK vigente del artículo (NULL = disponible). Se llena de inmediato al APARTAR (ya no espera confirmación) — lectura O(1) sin JOIN para pintar "Apartado" en el catálogo. Lo limpian "Rechazar", "Vendido" y el cron de expiración. |
+| `articulos_marketplace.veces_vendido` | (2026-08-18) Contador histórico — se incrementa al marcar vendido (vía apartado o directo) y NUNCA se resetea al reactivar. Ver §3.6. |
 | `usuarios.marketplace_apartado_horas` | Config única del vendedor, default 24. |
 
 ### 3.2 Endpoints (`marketplace.routes.ts`)
@@ -70,6 +71,16 @@ Cada bloque va en su propio `try/catch` no bloqueante: si el chat o la notificac
 Frontend: `PanelApartar` (`PaginaPerfilVendedor.tsx`) cambia el copy de la pantalla de éxito cuando `esInApp` (deja de prometer solo WhatsApp) y agrega un botón "Ver conversación" que abre el chat recién creado vía `useIniciarChatDirectoPersona` (sin mandar `mensaje` — solo abre la conversación que el backend ya creó, no duplica el auto-mensaje). El catálogo público (sin cuenta) no cambia: sigue con el copy y flujo 100% WhatsApp de siempre.
 
 Además, `rechazarApartado` y `marcarApartadoVendido` notifican in-app al comprador (si tenía cuenta) con los tipos `marketplace_apartado_rechazado` (familia `alerta`) y `marketplace_apartado_vendido` (familia `entregado`) — antes solo se enteraba si alguien le avisaba manualmente.
+
+### 3.6 Contador histórico `veces_vendido` (2026-08-18)
+
+Reactivar un artículo `vendida` (menú "Re-Activar" en `CardArticuloMio`, llama a `reactivarArticulo()` en `marketplace/expiracion.ts`) lo regresa a `estado='activa'` — sin nada más, el vendedor perdía todo rastro de que ese artículo YA se había vendido antes: "Vendidos" en Mis Publicaciones filtra por `estado` ACTUAL, así que en cuanto se reactivaba desaparecía de ahí sin dejar huella.
+
+Se agregó `articulos_marketplace.veces_vendido` (entero, default 0) — se incrementa +1 en el mismo `UPDATE` cada vez que el artículo pasa a `estado='vendida'`, en los 2 lugares donde eso ocurre: `marcarApartadoVendido` (vía una solicitud de apartado) y `cambiarEstado` (marcar vendido directo desde el menú de Mis Publicaciones, sin apartado de por medio). Reactivar NUNCA lo toca — es estrictamente acumulativo, sobrevive cualquier cantidad de ciclos vendida→activa→vendida.
+
+Solo viaja en `obtenerMisArticulos` (uso privado del dueño en Mis Publicaciones) — el resto de queries del catálogo no lo seleccionan, no es un dato para terceros. Frontend: `CardArticuloMio` muestra un chip teal ("Se vendió N veces antes") en la fila de KPIs, SOLO cuando el artículo NO está vendido ahora mismo (si lo está, el overlay "Vendido" ya lo comunica y el chip sería redundante) — es decir, se ve específicamente en el caso que motivó el fix: un artículo reactivado que ya se había vendido antes.
+
+`cambiarEstado` también gana `emitirCatalogoEstado()` de paso (no lo tenía — mismo gap que `reactivarArticulo` antes de este fix): "Marcar vendido"/"Pausar"/"Reanudar" directo desde Mis Publicaciones ahora también sincroniza en vivo el catálogo público/privado, no solo las acciones de apartado.
 
 ### 3.5 Sync en vivo del catálogo (2026-08-17)
 

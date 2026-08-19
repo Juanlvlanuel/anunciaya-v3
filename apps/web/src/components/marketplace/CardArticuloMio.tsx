@@ -272,6 +272,23 @@ export function CardArticuloMio({
                         </Tooltip>
                     </div>
                 )}
+
+                {/* Badge de vistas flotante (2026-08-18) — SIEMPRE sobre la
+                    foto, en todos los breakpoints (a diferencia del de
+                    expiración, que solo flota en móvil/laptop y vuelve al
+                    row en 2xl). Con el chip nuevo de "vendido antes" ya no
+                    sobraba espacio ni en el row ancho de PC. */}
+                <div className="absolute bottom-2 left-2 z-10">
+                    <Tooltip text={`${articulo.totalVistas} vistas`} position="top">
+                        <div
+                            data-testid={`badge-vistas-${articulo.id}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-1 text-xs font-bold text-white shadow-md backdrop-blur"
+                        >
+                            <Eye className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            <span>{articulo.totalVistas}</span>
+                        </div>
+                    </Tooltip>
+                </div>
             </div>
 
             {/* ── Contenido ──────────────────────────────────────────────────── */}
@@ -298,17 +315,16 @@ export function CardArticuloMio({
                     )}
                 </p>
 
-                {/* Fila 3: KPIs como mini-chips. En móvil son solo 3
-                    (vistas/mensajes/guardados) — el chip de expiración vive
-                    como badge flotante sobre la foto para liberar espacio.
-                    En lg+ aparecen los 4, forzados a 1 sola línea
-                    (`lg:flex-nowrap`) para densidad. */}
+                {/* Fila 3: KPIs como mini-chips (mensajes/guardados + el chip
+                    "vendido antes" cuando aplica). Vistas vive SIEMPRE como
+                    badge flotante sobre la foto (esquina inf. izq., espejo
+                    del de expiración en la derecha) — se sacó del row en
+                    2026-08-18 al sumar "vendido antes" para que no
+                    desbordara. Expiración sigue flotando solo en
+                    móvil/laptop y vuelve al row en 2xl (patrón previo, sin
+                    cambios), donde ya sobra espacio. `lg:flex-nowrap` para
+                    forzar 1 sola línea en desktop. */}
                 <div className="flex flex-wrap items-center gap-1.5 lg:flex-nowrap">
-                    <KpiChip
-                        icono={Eye}
-                        valor={articulo.totalVistas}
-                        label={`${articulo.totalVistas} vistas`}
-                    />
                     <KpiChip
                         icono={MessageCircle}
                         valor={articulo.totalMensajes}
@@ -327,6 +343,24 @@ export function CardArticuloMio({
                             label={dias === 0 ? 'Expira hoy' : `Expira en ${dias} días`}
                             urgente={diasUrgente}
                             className="!hidden 2xl:!inline-flex"
+                        />
+                    )}
+                    {/* Histórico de ventas (2026-08-18) — solo cuando NO está
+                        vendida ahora mismo (si lo está, el overlay "Vendido"
+                        ya lo comunica y este chip sería redundante). Cubre el
+                        caso de Reactivar: `vecesVendido` nunca se resetea, así
+                        que el vendedor no pierde el rastro de que ese
+                        artículo ya se vendió antes. */}
+                    {articulo.estado !== 'vendida' && (articulo.vecesVendido ?? 0) > 0 && (
+                        <KpiChip
+                            icono={PackageX}
+                            valor={articulo.vecesVendido as number}
+                            label={
+                                articulo.vecesVendido === 1
+                                    ? 'Se vendió 1 vez antes'
+                                    : `Se vendió ${articulo.vecesVendido} veces antes`
+                            }
+                            acento="teal"
                         />
                     )}
                 </div>
@@ -442,15 +476,15 @@ interface KpiChipProps {
     valor: number | string;
     label: string;
     urgente?: boolean;
-    acento?: 'amber';
+    acento?: 'amber' | 'teal';
     /** Clases extra para esconder/mostrar el chip por viewport. */
     className?: string;
 }
 
 function KpiChip({ icono: IconoChip, valor, label, urgente, acento, className }: KpiChipProps) {
-    const bgClasses = acento === 'amber' || urgente ? 'bg-amber-100' : 'bg-slate-200';
-    const textClasses = acento === 'amber' || urgente ? 'text-amber-700' : 'text-slate-700';
-    const iconClasses = acento === 'amber' ? 'text-amber-500' : urgente ? 'text-amber-600' : 'text-slate-600';
+    const bgClasses = acento === 'amber' || urgente ? 'bg-amber-100' : acento === 'teal' ? 'bg-teal-100' : 'bg-slate-200';
+    const textClasses = acento === 'amber' || urgente ? 'text-amber-700' : acento === 'teal' ? 'text-teal-700' : 'text-slate-700';
+    const iconClasses = acento === 'amber' ? 'text-amber-500' : acento === 'teal' ? 'text-teal-600' : urgente ? 'text-amber-600' : 'text-slate-600';
     return (
         <Tooltip text={label} position="top">
             <span

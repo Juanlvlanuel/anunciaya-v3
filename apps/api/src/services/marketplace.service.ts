@@ -85,6 +85,10 @@ interface ArticuloRow {
     vendidaAt: string | null;
     /** Lock vigente de "apartado" (Mi Catálogo). NULL = disponible. */
     apartadoHasta: string | null;
+    /** Contador histórico de ventas — nunca se resetea al reactivar. Solo
+     *  seleccionado en `obtenerMisArticulos` (uso privado del dueño); en el
+     *  resto de las queries llega `undefined` → mapea a 0. */
+    vecesVendido: number;
 }
 
 interface ArticuloConVendedorRow extends ArticuloRow {
@@ -216,6 +220,7 @@ interface RawArticuloDb {
     updated_at: string;
     vendida_at: string | null;
     apartado_hasta: string | null;
+    veces_vendido?: number;
 }
 
 function mapearArticulo(row: RawArticuloDb): ArticuloRow {
@@ -247,6 +252,7 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
         updatedAt: row.updated_at,
         vendidaAt: row.vendida_at,
         apartadoHasta: row.apartado_hasta,
+        vecesVendido: row.veces_vendido ?? 0,
     };
 }
 
@@ -993,7 +999,7 @@ export async function obtenerMisArticulos(
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at, a.apartado_hasta, a.veces_vendido
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
@@ -1251,14 +1257,29 @@ export async function cambiarEstado(
             };
         }
 
+        // `veces_vendido` (2026-08-18): contador histórico que NUNCA se
+        // resetea al reactivar — ver comentario en schema.ts. Se incrementa
+        // acá (marcar vendido directo desde Mis Publicaciones) y también en
+        // `marcarApartadoVendido` (marcar vendido vía una solicitud de apartado).
         const setVendidaAt =
-            nuevoEstado === 'vendida' ? sql`, vendida_at = NOW()` : sql``;
+            nuevoEstado === 'vendida' ? sql`, vendida_at = NOW(), veces_vendido = veces_vendido + 1` : sql``;
 
         await db.execute(sql`
             UPDATE articulos_marketplace
             SET estado = ${nuevoEstado}, updated_at = NOW() ${setVendidaAt}
             WHERE id = ${articuloId}
         `);
+
+        // Sync en vivo (2026-08-18) — mismo mecanismo que apartar/rechazar/
+        // vendido/reactivar (docs/arquitectura/Catalogo_MarketPlace_Apartado.md
+        // §3.5). "Marcar vendido"/"Pausar"/"Reanudar" directo desde Mis
+        // Publicaciones también debe reflejarse en vivo en el catálogo.
+        emitirCatalogoEstado(actual.usuario_id, {
+            articuloId,
+            apartado: false,
+            apartadoHasta: null,
+            estado: nuevoEstado,
+        });
 
         return {
             success: true,
@@ -1834,7 +1855,7 @@ export async function marcarApartadoVendido(apartadoId: string, usuarioId: strin
 
             await tx.execute(sql`
                 UPDATE articulos_marketplace
-                SET estado = 'vendida', vendida_at = NOW(), updated_at = NOW(), apartado_hasta = NULL
+                SET estado = 'vendida', vendida_at = NOW(), updated_at = NOW(), apartado_hasta = NULL, veces_vendido = veces_vendido + 1
                 WHERE id = ${actual.articulo_id}
             `);
         });

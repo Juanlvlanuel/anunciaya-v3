@@ -115,6 +115,12 @@ export interface ArticuloMarketplace {
      * (publicaciones del vendedor); el resto de endpoints no lo incluyen aún.
      */
     apartadoHasta?: string | null;
+    /**
+     * Contador histórico de ventas (2026-08-18) — nunca se resetea al
+     * reactivar una publicación. Solo viene poblado en `obtenerMisArticulos`
+     * (Mis Publicaciones); el resto de endpoints no lo incluyen.
+     */
+    vecesVendido?: number;
 }
 
 /**

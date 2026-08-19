@@ -2258,6 +2258,12 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	totalVistas: integer("total_vistas").default(0).notNull(),
 	totalMensajes: integer("total_mensajes").default(0).notNull(),
 	totalGuardados: integer("total_guardados").default(0).notNull(),
+	// Contador histórico (2026-08-18) — se incrementa cada vez que el
+	// artículo pasa a `estado='vendida'` (vía apartado o "Marcar vendido"
+	// directo) y NUNCA se resetea al reactivar. Sin esto, "Vendidos" en Mis
+	// Publicaciones (que filtra por `estado` actual) perdía todo rastro de
+	// una venta pasada en cuanto el vendedor reactivaba la publicación.
+	vecesVendido: integer("veces_vendido").default(0).notNull(),
 
 	// TTL — solo se setea al crear; cron del Sprint 7 lo usa para auto-pausar
 	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),

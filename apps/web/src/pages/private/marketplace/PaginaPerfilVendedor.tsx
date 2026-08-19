@@ -53,6 +53,8 @@ import { InputTelefono, normalizarTelefono } from '../../../components/ui/InputT
 import { obtenerFotoPortada } from '../../../utils/marketplace';
 import { useApartarArticulo } from '../../../hooks/queries/useMarketplace';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
+import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useGuardados } from '../../../hooks/useGuardados';
 import {
     ChevronLeft,
@@ -1074,6 +1076,51 @@ function PerfilVendedorPrivado() {
 // Apartar por artículo, sin bloqueo/contactos/Dinámicas.
 // =============================================================================
 
+/**
+ * Franja de marca compacta (logo + Registrarse) con el mismo degradado
+ * azul→negro del header unificado del catálogo (2026-08-18). Se reusa en
+ * los estados `cargandoPerfil`/`isError` de `MiCatalogoPublico` — antes esos
+ * 2 estados seguían con el `HeaderPublico` viejo sin unificar, así que
+ * durante el instante de carga (o si el perfil no existe) el visitante veía
+ * un flash del header "anterior" antes de que llegaran los datos y
+ * cambiara al header nuevo. Solo móvil (`lg:hidden`) — en desktop esos
+ * estados siguen usando `HeaderPublico` normal, igual que el contenido
+ * cargado.
+ */
+function FranjaMarcaMovil({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+    return (
+        <div
+            className="relative overflow-hidden shadow-lg lg:hidden"
+            style={{ background: 'linear-gradient(180deg, #1447e6 0%, #0f172a 55%, #000000 100%)' }}
+        >
+            <div
+                className="pointer-events-none absolute inset-0"
+                style={{ background: 'radial-gradient(ellipse at 85% 30%, rgba(20,184,166,0.12) 0%, transparent 55%)' }}
+            />
+            <div
+                className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-[3px]"
+                style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+            />
+            <div className="relative z-10 flex items-center justify-between gap-3 px-4 py-3">
+                <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="flex shrink-0 cursor-pointer items-center transition-transform hover:scale-105"
+                >
+                    <img src="/logo-anunciaya-azul.webp" alt="AnunciaYA" className="h-7 w-auto object-contain" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => navigate('/registro')}
+                    className="shrink-0 cursor-pointer rounded-full bg-white px-4 py-1.5 text-xs font-bold text-blue-700 shadow-md transition-all hover:scale-105 hover:bg-blue-50"
+                >
+                    Registrarse
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function MiCatalogoPublico() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
@@ -1082,8 +1129,40 @@ function MiCatalogoPublico() {
     const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
     const { abrir: abrirWhatsApp, menu: menuWhatsApp } = useAbrirWhatsApp();
     const queryClient = useQueryClient();
-    // Sin useScrollAppShell: esta es una ruta pública bare (fuera de
-    // MainLayout, sin BottomNav que coordinar) — scroll normal del documento.
+    // Ruta pública bare (fuera de MainLayout, sin BottomNav que coordinar) —
+    // pero el scroll SÍ es interno (el `<main overflow-y-auto>` de abajo, no
+    // `window`: el shell es `h-screen` con el header fuera del scroll,
+    // mismo patrón que las páginas app-shell propio). `useScrollAppShell`
+    // registra ese contenedor para que `useHideOnScroll` (header de
+    // AnunciaYA, 2026-08-18) sepa de qué elemento leer el scroll — sin esto
+    // escucharía `window`, que aquí nunca se mueve.
+    const cuerpoRef = useScrollAppShell<HTMLElement>();
+    // Ocultar el header al bajar y mostrarlo al subir (solo móvil, el hook
+    // se auto-desactiva en lg+) — mismo patrón que ya usa `BottomNav.tsx`
+    // (`position: fixed` + `hideStyle` con `transform`, sin `max-height` ni
+    // trucos de grid: al estar `fixed` y fuera del flujo normal, ocultarlo
+    // no deja hueco muerto por sí solo — 2026-08-18).
+    const { shouldShow: headerPublicoVisible, hideStyle: headerPublicoHideStyle } = useHideOnScroll({ direction: 'up' });
+    const { esMobile } = useBreakpoint();
+    // Como el header ahora es `fixed` (no reserva espacio en el flujo por sí
+    // mismo), el contenido de abajo necesita un padding-top que "haga
+    // espacio" — mismo patrón que `--altura-bottomnav` en `BottomNav.tsx`
+    // (ResizeObserver sobre el propio elemento, altura real medida en px,
+    // no un valor hardcodeado). A diferencia del BottomNav (altura
+    // reservada SIEMPRE fija), acá el padding se anima junto con
+    // `headerPublicoVisible` para que el contenido suba y "recupere" el
+    // espacio cuando el header se oculta — ese es el punto de todo esto.
+    const headerCatalogoRef = useRef<HTMLDivElement>(null);
+    const [alturaHeaderCatalogo, setAlturaHeaderCatalogo] = useState(0);
+    useEffect(() => {
+        const el = headerCatalogoRef.current;
+        if (!el) return;
+        const medir = () => setAlturaHeaderCatalogo(el.offsetHeight);
+        medir();
+        const observer = new ResizeObserver(medir);
+        observer.observe(el);
+        return () => observer.disconnect();
+    });
 
     const [modalAuthAbierto, setModalAuthAbierto] = useState(false);
     // Selección múltiple (2026-08-15): el visitante marca varias piezas del
@@ -1192,7 +1271,10 @@ function MiCatalogoPublico() {
     if (cargandoPerfil) {
         return (
             <div className="flex h-screen flex-col bg-app-degradado">
-                <HeaderPublico />
+                <div className="hidden lg:block">
+                    <HeaderPublico />
+                </div>
+                <FranjaMarcaMovil navigate={navigate} />
                 <main className="flex flex-1 items-center justify-center overflow-y-auto">
                     <Spinner tamanio="lg" />
                 </main>
@@ -1204,7 +1286,10 @@ function MiCatalogoPublico() {
     if (isError || !perfil) {
         return (
             <div className="flex h-screen flex-col bg-app-degradado">
-                <HeaderPublico />
+                <div className="hidden lg:block">
+                    <HeaderPublico />
+                </div>
+                <FranjaMarcaMovil navigate={navigate} />
                 <main className="flex flex-1 items-center overflow-y-auto">
                     <Estado404 onVolver={() => navigate('/')} />
                 </main>
@@ -1218,7 +1303,158 @@ function MiCatalogoPublico() {
 
     return (
         <div data-testid="pagina-mi-catalogo" className="flex h-screen flex-col bg-app-degradado">
-            <HeaderPublico />
+            {/* Desktop (lg+): `HeaderPublico` normal y siempre visible (con
+                beneficios) — ahí no existe el problema de doble-header, la
+                identidad del vendedor vive en el sidebar de abajo, no
+                apilada arriba. */}
+            <div className="hidden shrink-0 lg:block">
+                <HeaderPublico />
+            </div>
+
+            {/* Móvil: header UNIFICADO (2026-08-18) — antes eran 2 bloques
+                separados (franja azul de AnunciaYA + barra negra de
+                identidad del vendedor) con sombras/fondos propios, un corte
+                duro entre ambos y mucho espacio muerto fijo antes de llegar
+                a las cards. Ahora es 1 solo bloque con un degradado
+                continuo azul→negro, una sola sombra/línea de cierre.
+                `position: fixed` + `hideStyle` (transform) — mismo patrón
+                que `BottomNav.tsx`: al vivir fuera del flujo normal,
+                ocultarlo no deja hueco muerto por sí solo. El `<main>` de
+                abajo compensa con un `padding-top` animado igual de la
+                altura medida (ver `alturaHeaderCatalogo`), así el contenido
+                sube y recupera el espacio cuando el header se oculta. */}
+            <div
+                ref={headerCatalogoRef}
+                className="fixed inset-x-0 top-0 z-40 lg:hidden"
+                style={headerPublicoHideStyle}
+            >
+                <div
+                    className="relative overflow-hidden shadow-lg"
+                    style={{ background: 'linear-gradient(180deg, #1447e6 0%, #0f172a 55%, #000000 100%)' }}
+                >
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{ background: 'radial-gradient(ellipse at 85% 30%, rgba(20,184,166,0.12) 0%, transparent 55%)' }}
+                    />
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            opacity: 0.06,
+                            backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                              repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                        }}
+                    />
+                    <div
+                        className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-[3px]"
+                        style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                    />
+
+                    {/* Franja de marca — logo + Registrarse, compactos. */}
+                    <div className="relative z-10 flex items-center justify-between gap-3 px-4 pt-3 pb-2.5">
+                        <button
+                            type="button"
+                            data-testid="header-catalogo-logo"
+                            onClick={() => navigate('/')}
+                            className="flex shrink-0 cursor-pointer items-center transition-transform hover:scale-105"
+                        >
+                            <img src="/logo-anunciaya-azul.webp" alt="AnunciaYA" className="h-7 w-auto object-contain" />
+                        </button>
+                        <button
+                            type="button"
+                            data-testid="header-catalogo-registrarse"
+                            onClick={() => navigate('/registro')}
+                            className="shrink-0 cursor-pointer rounded-full bg-white px-4 py-1.5 text-xs font-bold text-blue-700 shadow-md transition-all hover:scale-105 hover:bg-blue-50"
+                        >
+                            Registrarse
+                        </button>
+                    </div>
+
+                    {/* Divisor sutil entre las 2 "franjas" — apenas visible,
+                        marca la transición sin cortar el bloque en 2. */}
+                    <div className="relative z-10 mx-4 h-px bg-white/10" />
+
+                    {/* Identidad del vendedor — mismo contenido de siempre
+                        (avatar con anillo+badge+click, nombre a máx. 2
+                        líneas, "Mi Catálogo · N", WhatsApp/ChatYA), ahora
+                        parte del mismo bloque en vez de una barra aparte. */}
+                    <div className="relative z-10 px-4 pb-3.5 pt-3">
+                        <div className="flex items-start gap-3">
+                            <div className="relative h-16 w-16 shrink-0">
+                                <div
+                                    className="absolute inset-0 animate-spin rounded-full"
+                                    style={{
+                                        background: 'conic-gradient(from 0deg, #2dd4bf, #38bdf8, #a855f7, #f97316, #2dd4bf)',
+                                        animationDuration: '3s',
+                                    }}
+                                />
+                                <div className="absolute inset-[3px] rounded-full bg-black" />
+                                <div
+                                    className={`absolute inset-[6px] overflow-hidden rounded-full ${perfil.avatarUrl ? 'cursor-pointer' : ''}`}
+                                    onClick={perfil.avatarUrl ? () => setAvatarModalAbierto(true) : undefined}
+                                >
+                                    {perfil.avatarUrl ? (
+                                        <img src={perfil.avatarUrl} alt={perfil.nombre} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div
+                                            className="flex h-full w-full items-center justify-center text-lg font-bold text-white"
+                                            style={{ background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 50%, #0f766e 100%)' }}
+                                        >
+                                            {iniciales}
+                                        </div>
+                                    )}
+                                </div>
+                                <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-black bg-white">
+                                    <BadgeCheck className="h-full w-full fill-blue-500 text-white" strokeWidth={2.5} />
+                                </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h1 className="line-clamp-2 text-base font-extrabold leading-snug text-white">
+                                    {perfil.nombre} {perfil.apellidos}
+                                </h1>
+                                {/* Iconos de contacto + "Mi Catálogo" en UNA
+                                    sola línea (2026-08-18) — iconos a la
+                                    izquierda, título+badge a la derecha
+                                    (`justify-between`). Ícono de ChatYA
+                                    cambiado al puro ícono (sin wordmark,
+                                    mismo asset que usa el Navbar) — el
+                                    logo completo se veía forzado a este
+                                    tamaño chico. */}
+                                <div className="mt-2 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1">
+                                        {perfil.telefono && (
+                                            <button
+                                                type="button"
+                                                data-testid="btn-whatsapp-catalogo"
+                                                onClick={handleWhatsApp}
+                                                aria-label="Contactar por WhatsApp"
+                                                className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70"
+                                            >
+                                                <WhatsAppIcon className="h-7 w-7" />
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            data-testid="btn-chatya-catalogo"
+                                            onClick={handleEnviarMensaje}
+                                            aria-label="Enviar mensaje por ChatYA"
+                                            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70"
+                                        >
+                                            <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-8 w-auto shrink-0 object-contain" />
+                                        </button>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-1.5">
+                                        <ShoppingBag className="h-5 w-5 shrink-0 text-teal-400" strokeWidth={2.5} />
+                                        <span className="text-xl font-extrabold text-teal-400">Mi Catálogo</span>
+                                        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white/15 px-1.5 text-sm font-bold text-white">
+                                            {articulos.length}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="flex flex-1 min-h-0">
                 {/* Sidebar izquierdo — identidad del vendedor, SOLO Laptop/PC
@@ -1357,94 +1593,18 @@ function MiCatalogoPublico() {
                     </div>
                 </aside>
 
-                <main className="min-h-0 flex-1 overflow-y-auto">
-                    {/* Header horizontal oscuro — SOLO móvil (`lg:hidden`);
-                        en Laptop/PC la identidad vive en el sidebar de la
-                        izquierda de arriba. */}
-                    <div className="relative mt-1 overflow-hidden shadow-lg lg:hidden" style={{ background: '#000000' }}>
-                        <div
-                            className="pointer-events-none absolute inset-0"
-                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.10) 0%, transparent 55%)' }}
-                        />
-                        <div
-                            className="pointer-events-none absolute inset-0"
-                            style={{
-                                opacity: 0.08,
-                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
-                                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
-                            }}
-                        />
-                        <div
-                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
-                        />
-                        <div
-                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
-                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
-                        />
-
-                        <div className="relative z-10 px-4 py-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full shadow-md">
-                                    {perfil.avatarUrl ? (
-                                        <img src={perfil.avatarUrl} alt={perfil.nombre} className="h-full w-full object-cover" />
-                                    ) : (
-                                        <div
-                                            className="flex h-full w-full items-center justify-center text-xl font-bold text-white"
-                                            style={{ background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 50%, #0f766e 100%)' }}
-                                        >
-                                            {iniciales}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <h1 className="flex items-center gap-1.5 text-lg font-extrabold text-white">
-                                        {perfil.nombre} {perfil.apellidos}
-                                        <BadgeCheck className="h-5 w-5 shrink-0 fill-blue-500 text-white" strokeWidth={2.5} />
-                                    </h1>
-                                    <div className="mt-1.5 flex items-center gap-1">
-                                        {perfil.telefono && (
-                                            <button
-                                                type="button"
-                                                data-testid="btn-whatsapp-catalogo"
-                                                onClick={handleWhatsApp}
-                                                aria-label="Contactar por WhatsApp"
-                                                className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70"
-                                            >
-                                                <WhatsAppIcon className="h-8 w-8" />
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            data-testid="btn-chatya-catalogo"
-                                            onClick={handleEnviarMensaje}
-                                            aria-label="Enviar mensaje por ChatYA"
-                                            className="inline-flex cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70"
-                                        >
-                                            <img src="/ChatYA.webp" alt="ChatYA" className="h-9 w-auto shrink-0 object-contain" />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-2">
-                                    <div
-                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-md"
-                                        style={{ background: 'linear-gradient(135deg, #2dd4bf, #0d9488)' }}
-                                    >
-                                        <ShoppingBag className="h-5 w-5 text-white" strokeWidth={2.5} />
-                                    </div>
-                                    <div className="flex flex-col items-start">
-                                        <span className="text-2xl font-extrabold tracking-tight text-white">
-                                            Mi <span className="text-teal-400">Catálogo</span>
-                                        </span>
-                                        <span className="text-sm font-bold text-white/50">
-                                            {articulos.length} artículo{articulos.length === 1 ? '' : 's'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                <main
+                    ref={cuerpoRef}
+                    className="min-h-0 flex-1 overflow-y-auto"
+                    style={
+                        esMobile
+                            ? {
+                                  paddingTop: headerPublicoVisible ? alturaHeaderCatalogo : 0,
+                                  transition: 'padding-top 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+                              }
+                            : undefined
+                    }
+                >
                     {/* 2026-08-17: `min-h-full` en este bloque — llena
                         SIEMPRE el alto visible de `<main>` aunque haya pocos
                         artículos. El footer vive FUERA de este bloque (más
@@ -2245,7 +2405,7 @@ function PanelApartar({
                 type="button"
                 onClick={() => setHojaAbierta(true)}
                 data-testid="btn-abrir-panel-apartar"
-                className="fixed bottom-4 left-1/2 z-40 flex h-12 -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full bg-slate-800 px-5 text-sm font-bold text-white shadow-lg lg:hidden"
+                className="fixed bottom-4 left-1/2 z-40 flex h-12 -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full bg-linear-to-r from-teal-500 to-teal-700 px-5 text-sm font-bold text-white shadow-lg hover:from-teal-600 hover:to-teal-800 lg:hidden"
             >
                 <Lock className="h-4 w-4" />
                 Apartar · {items.length}
