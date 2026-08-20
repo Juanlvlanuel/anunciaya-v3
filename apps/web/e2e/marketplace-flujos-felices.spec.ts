@@ -142,11 +142,15 @@ test.describe('MarketPlace — Flujos felices', () => {
         // En el rediseño Sprint 9 (réplica del composer de Servicios) el
         // wizard `/marketplace/publicar` se eliminó: el FAB ahora expande
         // un composer inline en el feed (`<ComposerSection>`).
+        // Desde Alta Rápida (2026-08-18) el click en modo='vendo' abre un
+        // menú de 2 opciones ("Publicar 1 artículo" / "Subir varios") en vez
+        // de ir directo — hay que elegir la primera opción.
         await page.waitForSelector('[data-testid="fab-publicar"]', {
             timeout: 10000,
         });
 
         await page.locator('[data-testid="fab-publicar"]').click();
+        await page.locator('[data-testid="menu-publicar-uno"]').click();
 
         // El composer expandido debe aparecer al tope del feed.
         await expect(

@@ -21,8 +21,10 @@
  *
  *   PRIVADOS (verificarToken + requiereModoPersonal)
  *   POST   /upload-imagen
+ *   POST   /sugerir-lote-ia            (Alta Rápida)
  *   GET    /mis-articulos
  *   POST   /articulos
+ *   POST   /articulos/bulk             (Alta Rápida)
  *   PUT    /articulos/:id
  *   PATCH  /articulos/:id/estado
  *   DELETE /articulos/:id
@@ -42,12 +44,15 @@ import {
     postRegistrarVista,
     postHeartbeat,
     postCrearArticulo,
+    postCrearArticulosLote,
     putActualizarArticulo,
     patchCambiarEstado,
     deleteArticulo,
     getMisArticulos,
     postUploadImagen,
     postSugerirArticuloIA,
+    postSugerirArticulosLoteIA,
+    postSugerirArticulosLoteTextoIA,
     deleteFotoMarketplaceHuerfana,
     getVendedorMarketplace,
     getPublicacionesDeVendedor,
@@ -196,6 +201,31 @@ router.post(
 );
 
 /**
+ * POST /api/marketplace/sugerir-lote-ia
+ * Body: { imagenesUrls }. Alta Rápida — varias fotos sueltas de una vez;
+ * Gemini las agrupa por objeto físico. Ver coyoIA.service.ts
+ * (sugerirLoteArticulosMarketplace).
+ */
+router.post(
+    '/sugerir-lote-ia',
+    verificarToken,
+    requiereModoPersonal,
+    postSugerirArticulosLoteIA
+);
+
+/**
+ * POST /api/marketplace/sugerir-lote-texto-ia
+ * Body: { texto }. Alta Rápida — igual que /sugerir-lote-ia pero a partir de
+ * texto pegado en vez de fotos.
+ */
+router.post(
+    '/sugerir-lote-texto-ia',
+    verificarToken,
+    requiereModoPersonal,
+    postSugerirArticulosLoteTextoIA
+);
+
+/**
  * DELETE /api/marketplace/foto-huerfana
  * Body: { url }. Composer de publicar dispara esto al descartar borrador
  * para limpiar fotos subidas que aún no están atadas a un artículo.
@@ -261,6 +291,19 @@ router.post(
     verificarToken,
     requiereModoPersonal,
     postCrearArticulo
+);
+
+/**
+ * POST /api/marketplace/articulos/bulk
+ * Alta Rápida — publica hasta 100 artículos modo='vendo' de una sola vez.
+ * Va ANTES de /articulos/:id para que Express no la confunda con la
+ * paramétrica (mismo motivo que el resto de rutas específicas de este archivo).
+ */
+router.post(
+    '/articulos/bulk',
+    verificarToken,
+    requiereModoPersonal,
+    postCrearArticulosLote
 );
 
 /**

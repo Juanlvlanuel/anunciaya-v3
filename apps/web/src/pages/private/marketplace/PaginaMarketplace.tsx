@@ -47,6 +47,7 @@ import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFe
 import { SeccionFeedArticulos } from '../../../components/marketplace/SeccionFeedArticulos';
 import { SeccionFeedDinamicas } from '../../../components/dinamicas/SeccionFeedDinamicas';
 import { FabPublicar } from '../../../components/ui/FabPublicar';
+import { MenuPublicarOpciones } from '../../../components/marketplace/MenuPublicarOpciones';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito, CategoriaMarketplace } from '../../../types/marketplace';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
@@ -272,6 +273,20 @@ export function PaginaMarketplace() {
         observer.observe(el);
         return () => observer.disconnect();
     }, []);
+
+    // Menú "Publicar 1 artículo / Subir varios" del FAB — solo modo='vendo'
+    // (Alta Rápida no soporta 'busco'). En 'busco' el click va directo al
+    // composer, igual que antes.
+    const [menuPublicarAbierto, setMenuPublicarAbierto] = useState(false);
+    const menuPublicarRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!menuPublicarAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!menuPublicarRef.current?.contains(e.target as Node)) setMenuPublicarAbierto(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [menuPublicarAbierto]);
 
     const handlePublicar = () => {
         // Composer inline: scroll arriba + expandir vía query param, pasando el
@@ -818,14 +833,28 @@ export function PaginaMarketplace() {
                 MarketPlace). Color según contexto activo. Ver components/ui/FabPublicar.tsx. */}
             {esModoPersonal && contextoActivo === 'articulos' && (
                 <FabPublicar
-                    onClick={handlePublicar}
+                    ref={menuPublicarRef}
+                    onClick={() => {
+                        if (modoFeed === 'vendo') setMenuPublicarAbierto((v) => !v);
+                        else handlePublicar();
+                    }}
                     ariaLabel="Publicar artículo"
+                    ariaExpanded={modoFeed === 'vendo' ? menuPublicarAbierto : undefined}
                     claseColor="bg-linear-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30"
                     topPublicar={topPublicar}
                     esEscritorio={esEscritorio}
                     bottomNavVisible={bottomNavVisible}
                     labelConCardEscritorio
                     claseRight="right-4 lg:right-[240px] 2xl:right-[394px]"
+                    menu={
+                        modoFeed === 'vendo' && menuPublicarAbierto ? (
+                            <MenuPublicarOpciones
+                                abrirHacia={esEscritorio ? 'abajo' : 'arriba'}
+                                onPublicarUno={() => { setMenuPublicarAbierto(false); handlePublicar(); }}
+                                onSubirVarios={() => { setMenuPublicarAbierto(false); navigate('/mis-publicaciones/alta-rapida'); }}
+                            />
+                        ) : undefined
+                    }
                 />
             )}
             {esModoPersonal && contextoActivo === 'dinamicas' && (

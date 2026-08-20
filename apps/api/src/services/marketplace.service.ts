@@ -30,11 +30,16 @@ import { articulosMarketplace } from '../db/schemas/schema.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { MIME_FOTO_O_VIDEO, type ArchivoFotoInput } from '../validations/archivoFoto.schema.js';
-import { sugerirDatosArticulo } from './coyo/coyoIA.service.js';
+import {
+    sugerirDatosArticulo,
+    sugerirLoteArticulosMarketplace,
+    sugerirLoteArticulosMarketplaceDesdeTexto,
+} from './coyo/coyoIA.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import type { ResultadoValidacion } from './marketplace/filtros.js';
 import type {
     CrearArticuloInput,
+    CrearArticulosLoteMarketplaceInput,
     ActualizarArticuloInput,
 } from '../validations/marketplace.schema.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
@@ -445,6 +450,116 @@ export async function crearArticulo(
         };
     } catch (error) {
         console.error('Error al crear artículo MarketPlace:', error);
+        throw error;
+    }
+}
+
+// =============================================================================
+// CREAR ARTÍCULOS EN LOTE (Alta Rápida MarketPlace)
+// =============================================================================
+
+/**
+ * Crea varios artículos modo='vendo' de una sola vez — Alta Rápida de
+ * MarketPlace. Checklist legal y ubicación se capturan UNA vez para todo el
+ * lote (ver `crearArticulosLoteMarketplaceSchema`); cada fila trae su propia
+ * categoría/título/descripción/precio/fotos.
+ *
+ * Moderación (Capa 1): se valida CADA fila antes de tocar la BD — si
+ * cualquiera dispara rechazo o sugerencia, no se inserta nada (todo o nada,
+ * igual que la transacción) y se devuelve el índice + mensaje de cada fila
+ * con problema para que el frontend la resalte en la tabla de revisión. A
+ * diferencia del composer individual, Alta Rápida no ofrece "continuar de
+ * todos modos" por fila — el comerciante corrige el texto o quita la fila.
+ *
+ * Transacción única: si una fila falla al insertar, se revierten todas.
+ */
+export async function crearArticulosMarketplaceLote(
+    usuarioId: string,
+    datos: CrearArticulosLoteMarketplaceInput
+) {
+    try {
+        const erroresPorFila: { indice: number; mensaje: string }[] = [];
+        datos.articulos.forEach((fila, indice) => {
+            const validacion = validarTextoPublicacion(fila.titulo, fila.descripcion, 'vendo');
+            if (!validacion.valido) {
+                erroresPorFila.push({ indice, mensaje: validacion.mensaje });
+            }
+        });
+        if (erroresPorFila.length > 0) {
+            return {
+                success: false as const,
+                code: 422,
+                message: 'Algunas filas no pasaron la revisión de contenido',
+                erroresPorFila,
+            };
+        }
+
+        const aprox = aleatorizarCoordenada(datos.latitud, datos.longitud);
+        const zonaUsuario = getZonaHorariaPorCiudad(datos.ciudad);
+        const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
+        const ciudadId = await resolverCiudadId(datos.ciudad);
+        const confirmacionesJson = JSON.stringify({
+            ...datos.confirmaciones,
+            aceptadasAt: new Date().toISOString(),
+        });
+
+        const articulosCreados = await db.transaction(async (tx) => {
+            const creados: ArticuloRow[] = [];
+            for (const fila of datos.articulos) {
+                const resultado = await tx.execute(sql`
+                    INSERT INTO articulos_marketplace (
+                        usuario_id, modo, categoria_id, titulo, descripcion, precio,
+                        condicion, acepta_ofertas, unidad_venta,
+                        confirmaciones,
+                        fotos, foto_portada_index,
+                        ubicacion, ubicacion_aproximada,
+                        ciudad_id, zona_aproximada,
+                        expira_at
+                    ) VALUES (
+                        ${usuarioId},
+                        'vendo',
+                        ${fila.categoriaId},
+                        ${fila.titulo},
+                        ${fila.descripcion},
+                        ${fila.precio},
+                        ${fila.condicion ?? null},
+                        ${fila.aceptaOfertas ?? null},
+                        ${fila.unidadVenta ?? null},
+                        ${confirmacionesJson}::jsonb,
+                        ${JSON.stringify(fila.fotos)}::jsonb,
+                        ${fila.fotoPortadaIndex},
+                        ST_SetSRID(ST_MakePoint(${datos.longitud}, ${datos.latitud}), 4326)::geography,
+                        ST_SetSRID(ST_MakePoint(${aprox.lng}, ${aprox.lat}), 4326)::geography,
+                        ${ciudadId},
+                        ${datos.zonaAproximada ?? ''},
+                        ${expiraAtSql}
+                    )
+                    RETURNING
+                        id, usuario_id, modo, categoria_id, titulo, descripcion, precio, presupuesto, urgente,
+                        condicion, acepta_ofertas,
+                        unidad_venta,
+                        fotos, foto_portada_index,
+                        ST_Y(ubicacion_aproximada::geometry) AS lat,
+                        ST_X(ubicacion_aproximada::geometry) AS lng,
+                        (SELECT nombre FROM ciudades WHERE id = articulos_marketplace.ciudad_id) AS ciudad,
+                        (SELECT nombre FROM categorias_marketplace WHERE id = articulos_marketplace.categoria_id) AS categoria_nombre,
+                        zona_aproximada, estado,
+                        total_vistas, total_mensajes, total_guardados,
+                        expira_at, created_at, updated_at, vendida_at, apartado_hasta
+                `);
+                const row = resultado.rows[0] as unknown as RawArticuloDb;
+                creados.push(mapearArticulo(row));
+            }
+            return creados;
+        });
+
+        return {
+            success: true as const,
+            message: `${articulosCreados.length} artículo(s) publicado(s) correctamente`,
+            data: { total: articulosCreados.length, articulos: articulosCreados },
+        };
+    } catch (error) {
+        console.error('Error al crear artículos MarketPlace en lote:', error);
         throw error;
     }
 }
@@ -1406,6 +1521,34 @@ export async function generarUrlUploadImagenMarketplace(
  */
 export async function sugerirArticuloConIA(imagenUrl: string) {
     const resultado = await sugerirDatosArticulo(imagenUrl);
+    if (!resultado.disponible) {
+        return { success: false as const, code: 200, razon: resultado.razon };
+    }
+    return { success: true as const, code: 200, data: resultado.data };
+}
+
+/**
+ * Igual que `sugerirArticuloConIA` pero para Alta Rápida (varias fotos
+ * sueltas de una vez): Gemini las agrupa por objeto físico y sugiere los
+ * datos de cada grupo. El comerciante siempre revisa/corrige antes de
+ * publicar — esto nunca crea artículos directamente.
+ *
+ * Siempre responde `code: 200`, incluso si la IA no está disponible.
+ */
+export async function sugerirArticulosLoteMarketplaceConIA(imagenesUrls: string[]) {
+    const resultado = await sugerirLoteArticulosMarketplace(imagenesUrls);
+    if (!resultado.disponible) {
+        return { success: false as const, code: 200, razon: resultado.razon };
+    }
+    return { success: true as const, code: 200, data: resultado.data };
+}
+
+/**
+ * Igual que `sugerirArticulosLoteMarketplaceConIA` pero a partir de texto
+ * pegado (WhatsApp, Facebook, nota) en vez de fotos.
+ */
+export async function sugerirArticulosLoteMarketplaceTextoConIA(texto: string) {
+    const resultado = await sugerirLoteArticulosMarketplaceDesdeTexto(texto);
     if (!resultado.disponible) {
         return { success: false as const, code: 200, razon: resultado.razon };
     }

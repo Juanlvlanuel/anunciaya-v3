@@ -68,6 +68,12 @@ interface Props<T extends string> {
      *  seleccionado, para volver a `null` sin tener que abrir el menú.
      *  Solo úsalo cuando el campo sea genuinamente opcional. */
     onClear?: () => void;
+    /** Solo con `portal`: ancho fijo del menú en px, en vez de igualar el
+     *  ancho del trigger. Útil cuando el trigger vive en una columna angosta
+     *  (ej. una tabla) pero las opciones son texto largo que se vería
+     *  truncado en ese ancho. Se recorta contra el borde derecho del
+     *  viewport si no cabe completo a partir de `left` del trigger. */
+    anchoMenu?: number;
 }
 
 export function CustomSelect<T extends string>({
@@ -84,6 +90,7 @@ export function CustomSelect<T extends string>({
     claseActivo = 'border-slate-900 ring-2 ring-slate-900/15',
     portal = false,
     onClear,
+    anchoMenu,
 }: Props<T>) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -109,12 +116,16 @@ export function CustomSelect<T extends string>({
         const espacioAbajo = window.innerHeight - rect.bottom;
         const espacioArriba = rect.top;
         const abrirArriba = espacioAbajo < MENU_MAX_ALTO + GAP && espacioArriba > espacioAbajo;
+        const width = anchoMenu ?? rect.width;
+        // Si el menú es más ancho que el trigger (anchoMenu), recortarlo
+        // contra el borde derecho del viewport en vez de salirse.
+        const left = Math.min(rect.left, window.innerWidth - width - 8);
         setPosicion(
             abrirArriba
-                ? { bottom: window.innerHeight - rect.top + GAP, left: rect.left, width: rect.width }
-                : { top: rect.bottom + GAP, left: rect.left, width: rect.width }
+                ? { bottom: window.innerHeight - rect.top + GAP, left, width }
+                : { top: rect.bottom + GAP, left, width }
         );
-    }, []);
+    }, [anchoMenu]);
 
     // Posiciona el menú portalizado al abrir, y lo reubica si el usuario
     // scrollea/redimensiona mientras está abierto (scroll en captura: el

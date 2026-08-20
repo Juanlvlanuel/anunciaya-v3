@@ -86,6 +86,14 @@ REGLAS SAGRADAS (NO ROMPER NUNCA):
  * nuevos" ago-2026 (mismo error 404). Migrado a la familia 3.x en esa fecha.
  * Si `gemini-3.6-flash`/`gemini-3.5-flash-lite` también se retiran algún día,
  * revisar https://ai.google.dev/gemini-api/docs/models por los IDs vigentes.
+ *
+ * `gemini-3.6-flash` NO acepta `thinkingConfig: { thinkingBudget: 0 }`
+ * (400 INVALID_ARGUMENT, confirmado 2026-08-19 tanto con imágenes como con
+ * texto puro — no es un tema de multimodal, el config en sí ya no es válido
+ * para este modelo). Se quitó de las 4 funciones de Alta Rápida que lo usaban
+ * (BS y MarketPlace, foto y texto) — quedan con el thinking default del
+ * modelo. Si se necesita desactivarlo por costo, investigar la forma vigente
+ * en la doc de Gemini antes de reintroducirlo.
  */
 const MODELO_GEMINI_PRINCIPAL = 'gemini-3.6-flash';
 
@@ -165,18 +173,6 @@ type ContenidoGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['
  * sin `config`, igual que antes.
  */
 type ConfigGemini = Parameters<GoogleGenAI['models']['generateContent']>[0]['config'];
-
-/**
- * Desactiva el modo "thinking" (`thinkingBudget: 0` = DISABLED según el SDK).
- * Uso: tareas de extracción/estructuración directa (leer un menú, estructurar
- * texto pegado) donde el razonamiento interno no aporta calidad y sí cuesta
- * caro — se vio que el pensamiento invisible llegaba a ser ~10x más grande
- * que la respuesta útil. Solo se usa en `sugerirListaArticulos` y
- * `sugerirListaArticulosDesdeTexto` (Alta Rápida de Catálogo) — el resto de
- * capacidades de Coyo (preguntas, redacción, el asistente FAB) se dejan con
- * el comportamiento default del modelo a propósito.
- */
-const CONFIG_SIN_THINKING: ConfigGemini = { thinkingConfig: { thinkingBudget: 0 } };
 
 /**
  * Loguea el consumo de tokens de una llamada exitosa a Gemini, etiquetado con
@@ -1146,7 +1142,9 @@ export async function sugerirListaArticulos(
         },
     ];
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirListaArticulos', CONFIG_SIN_THINKING);
+    // Sin thinkingConfig — ver nota en MODELO_GEMINI_PRINCIPAL (thinkingBudget:0
+    // ya no es válido para gemini-3.6-flash, con o sin imagen).
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirListaArticulos');
     if (respuesta === null) {
         console.warn(
             'Coyo IA — sugerirListaArticulos agotó reintentos y fallback de Gemini',
@@ -1209,7 +1207,8 @@ export async function sugerirListaArticulosDesdeTexto(
     const promptCompleto = `${PROMPT_SUGERIR_LISTA_ARTICULOS_TEXTO}\n\nTEXTO DEL COMERCIANTE:\n${texto}`;
     const contents: ContenidoGemini = promptCompleto;
 
-    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirListaArticulosDesdeTexto', CONFIG_SIN_THINKING);
+    // Sin thinkingConfig — ver nota en MODELO_GEMINI_PRINCIPAL.
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirListaArticulosDesdeTexto');
     if (respuesta === null) {
         console.warn(
             'Coyo IA — sugerirListaArticulosDesdeTexto agotó reintentos y fallback de Gemini',
@@ -1259,6 +1258,310 @@ function esListaArticulosCatalogoCruda(
     if (typeof v !== 'object' || v === null) return false;
     const obj = v as Record<string, unknown>;
     return Array.isArray(obj.articulos) && obj.articulos.every(esArticuloCatalogoSugeridoCrudo);
+}
+
+// =============================================================================
+// FUNCIÓN 6 — sugerirLoteArticulosMarketplace (Alta Rápida de MarketPlace)
+// =============================================================================
+//
+// Analiza un lote de fotos SUELTAS y MEZCLADAS (varios artículos personales
+// distintos, cada uno con 1+ fotos desde ángulos distintos) y devuelve los
+// artículos ya AGRUPADOS por objeto físico — a diferencia de
+// `sugerirListaArticulos` (BS), que asume que las fotos son de UN menú/
+// anaquel compartido, aquí cada grupo de fotos que muestre el MISMO objeto
+// se convierte en un solo artículo. Cuando Gemini duda si 2 fotos son el
+// mismo objeto, el prompt le pide separar (nunca fusionar) — el comerciante
+// corrige la agrupación en la tabla de revisión si hace falta, mismo
+// principio de "nunca inventa" que el resto de Coyo. Sin `precioBase`: a
+// diferencia de un menú, una foto de un artículo personal casi nunca trae el
+// precio visible — el precio siempre se captura a mano en la tabla.
+// Disparado desde `PaginaAltaRapidaMarketplace.tsx`.
+
+/** Tope de fotos sueltas que se mandan a Gemini en una sola llamada de Alta Rápida MarketPlace. */
+export const MAX_IMAGENES_ALTA_RAPIDA_MARKETPLACE = 24;
+
+export interface ArticuloMarketplaceLoteSugerido {
+    /** Índices (0-based, sobre el arreglo de fotos que mandó el frontend) de TODAS las fotos que Gemini agrupó como el mismo objeto físico. */
+    indicesFotos: number[];
+    titulo: string;
+    descripcion: string;
+    condicion: CondicionSugerida;
+    categoriaId: number | null;
+}
+
+const PROMPT_SUGERIR_LOTE_MARKETPLACE = `Vas a ayudar a una persona a publicar varios artículos en venta en AnunciaYA (app de comercio local, ventas entre vecinos). Te paso varias fotos SUELTAS y MEZCLADAS de los artículos que quiere vender — pueden ser fotos de objetos completamente distintos, o varias fotos del MISMO objeto tomadas desde ángulos diferentes.
+
+PASO 1 — AGRUPA las fotos por objeto físico: si 2 o más fotos muestran claramente el MISMO objeto (mismo color, forma, detalles, aunque cambie el ángulo o el fondo), van en el mismo grupo. Si tienes duda razonable de si son el mismo objeto o dos objetos distintos y parecidos, TRÁTALOS COMO SEPARADOS — es preferible generar un grupo de más (el usuario los une a mano en la revisión) que fusionar dos artículos distintos por error. Cada foto pertenece a exactamente un grupo.
+
+PASO 2 — Para CADA grupo, escribe una publicación de venta. DIFERENCIA CLAVE: una descripción de FOTOGRAFÍA habla de la imagen — dice "se ve", "se aprecia", "aparece", "está colocado/a sobre..." — como si describieras una pintura. Una descripción de VENTA habla del ARTÍCULO como un hecho, sin mencionar en ningún momento que hay una foto, un fondo o una superficie usados solo para la toma. Escribe SIEMPRE en el segundo modo.
+
+PROHIBIDAS en cualquier parte del texto las palabras/frases: "se ve", "se ven", "se aprecia", "se observa", "se nota", "aparece", "en la imagen", "en la foto", "la foto muestra", "está servido/a en", "está colocado/a sobre", o cualquier mención al fondo, mesa o superficie usados para la toma (a menos que ese objeto sea literalmente parte de lo que se vende).
+
+ESCRIBE EN ESPAÑOL DE MÉXICO, tono natural y directo — como un vecino describiendo lo que vende, NUNCA como catálogo o anuncio publicitario. NUNCA uses adjetivos vendedores de relleno ("excelente", "hermoso", "increíble", "de gran calidad", "imperdible").
+
+PROHIBIDO INVENTAR — si algo no se distingue con claridad en las fotos, OMÍTELO, no lo adivines: no infieras marca ni modelo sin logo/etiqueta legible, no inventes medidas/capacidad/talla, no afirmes que algo "funciona bien".
+
+Para cada grupo devuelve:
+- "indicesFotos": arreglo de los índices (empezando en 0, en el orden en que te las mandé) de TODAS las fotos que pertenecen a este artículo.
+- "titulo": 10 a 80 caracteres, directo, sin precio ni emojis (ej. "Bicicleta de montaña rodada 26").
+- "descripcion": 20 a 500 caracteres, sin emojis ni viñetas ni saltos de línea — texto corrido de 2-4 frases naturales, tono hablado.
+- "condicion": UNA de "nuevo" (sin uso, con empaque/etiquetas), "seminuevo" (uso mínimo sin desgaste notorio), "usado" (desgaste visible normal), "para_reparar" (daño o rotura visible), o null si no se distingue el desgaste con confianza. Básate SOLO en desgaste físico visible, nunca en si funciona.
+- "categoriaNombre": elige la que mejor describa el artículo, ÚNICAMENTE de la lista real en "CATEGORÍAS DISPONIBLES" más abajo, con el nombre EXACTO tal cual aparece. Si ninguna corresponde con confianza, responde null.
+
+Si ninguna foto muestra un artículo vendible con claridad (personas, paisajes, imagen borrosa o ilegible), responde un array vacío.
+
+RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
+{"articulos": [{"indicesFotos": [0,1], "titulo": "...", "descripcion": "...", "condicion": "nuevo"|"seminuevo"|"usado"|"para_reparar"|null, "categoriaNombre": "..."|null}]}`;
+
+/**
+ * Analiza 1 a {@link MAX_IMAGENES_ALTA_RAPIDA_MARKETPLACE} fotos sueltas (ya
+ * subidas a R2, URLs públicas) y devuelve los artículos agrupados por objeto
+ * físico, listos para llenar la tabla de Alta Rápida de MarketPlace.
+ *
+ * @example
+ *   const r = await sugerirLoteArticulosMarketplace(['https://...r2.../marketplace/a.webp', '...b.webp']);
+ *   if (r.disponible) console.log(r.data.length, r.data[0].indicesFotos);
+ */
+export async function sugerirLoteArticulosMarketplace(
+    imagenesUrls: string[],
+): Promise<RespuestaIA<ArticuloMarketplaceLoteSugerido[]>> {
+    const cliente = obtenerCliente();
+    if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
+
+    const urlsAUsar = imagenesUrls.slice(0, MAX_IMAGENES_ALTA_RAPIDA_MARKETPLACE);
+    const [imagenesDescargadas, categorias] = await Promise.all([
+        Promise.all(urlsAUsar.map((url) => descargarImagenComoBase64(url))),
+        obtenerCategoriasMarketplace(),
+    ]);
+
+    // Mapea el índice que Gemini va a usar (0..n-1 sobre las que SÍ se
+    // pudieron descargar) de vuelta al índice ORIGINAL del arreglo que mandó
+    // el frontend — si una imagen falla al descargar se omite del payload,
+    // pero no queremos "correr" los índices originales ni confundir a Gemini
+    // con huecos.
+    const imagenesValidas = imagenesDescargadas
+        .map((img, indiceOriginal) => (img ? { img, indiceOriginal } : null))
+        .filter((v): v is { img: { data: string; mimeType: string }; indiceOriginal: number } => v !== null);
+
+    if (imagenesValidas.length === 0) {
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplace: no se pudo descargar ninguna imagen',
+            imagenesUrls,
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    let promptCompleto = PROMPT_SUGERIR_LOTE_MARKETPLACE;
+    if (categorias.length > 0) {
+        promptCompleto += `\n\nCATEGORÍAS DISPONIBLES:\n${categorias.map((c) => `- ${c.nombre}`).join('\n')}`;
+    }
+
+    const contents: ContenidoGemini = [
+        {
+            role: 'user',
+            parts: [
+                { text: promptCompleto },
+                ...imagenesValidas.map(({ img }) => ({ inlineData: { mimeType: img.mimeType, data: img.data } } as Part)),
+            ],
+        },
+    ];
+
+    // Sin thinkingConfig — ver nota en MODELO_GEMINI_PRINCIPAL.
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirLoteArticulosMarketplace');
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplace agotó reintentos y fallback de Gemini',
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    try {
+        const limpio = limpiarJsonDeGemini(respuesta.texto);
+        const parseado: unknown = JSON.parse(limpio);
+        if (esListaArticulosMarketplaceLoteCruda(parseado)) {
+            // Re-mapea los índices que Gemini usó (sobre `imagenesValidas`)
+            // de vuelta a los índices ORIGINALES del arreglo del frontend,
+            // para que pueda emparejarlos con sus archivos reales.
+            const data = parseado.articulos
+                .map((art) => {
+                    const categoriaEncontrada = categorias.find((c) => c.nombre === art.categoriaNombre);
+                    const indicesFotos = art.indicesFotos
+                        .filter((i) => Number.isInteger(i) && i >= 0 && i < imagenesValidas.length)
+                        .map((i) => imagenesValidas[i].indiceOriginal);
+                    return {
+                        indicesFotos,
+                        titulo: art.titulo,
+                        descripcion: art.descripcion,
+                        condicion: art.condicion,
+                        categoriaId: categoriaEncontrada?.id ?? null,
+                    };
+                })
+                .filter((art) => art.indicesFotos.length > 0);
+            return { disponible: true, data };
+        }
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplace: JSON con shape inválido',
+            respuesta.texto,
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    } catch (error) {
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplace: respuesta no es JSON parseable',
+            { texto: respuesta.texto, error },
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    }
+}
+
+type ArticuloMarketplaceLoteSugeridoCrudo = Omit<ArticuloMarketplaceLoteSugerido, 'categoriaId'> & {
+    categoriaNombre: string | null;
+};
+
+/** Type guard defensivo para un único artículo dentro de la lista que devuelve `sugerirLoteArticulosMarketplace`. */
+function esArticuloMarketplaceLoteSugeridoCrudo(v: unknown): v is ArticuloMarketplaceLoteSugeridoCrudo {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    if (!Array.isArray(obj.indicesFotos) || !obj.indicesFotos.every((i) => typeof i === 'number')) return false;
+    if (typeof obj.titulo !== 'string' || obj.titulo.trim().length === 0) return false;
+    if (typeof obj.descripcion !== 'string') return false;
+    if (
+        obj.condicion !== null &&
+        !(typeof obj.condicion === 'string' && CONDICIONES_SUGERIDAS_VALIDAS.has(obj.condicion))
+    ) {
+        return false;
+    }
+    if (obj.categoriaNombre !== null && typeof obj.categoriaNombre !== 'string') return false;
+    return true;
+}
+
+/** Type guard defensivo para el JSON completo `{ articulos: [...] }` de `sugerirLoteArticulosMarketplace`. */
+function esListaArticulosMarketplaceLoteCruda(
+    v: unknown,
+): v is { articulos: ArticuloMarketplaceLoteSugeridoCrudo[] } {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    return Array.isArray(obj.articulos) && obj.articulos.every(esArticuloMarketplaceLoteSugeridoCrudo);
+}
+
+// =============================================================================
+// FUNCIÓN 7 — sugerirLoteArticulosMarketplaceDesdeTexto (Alta Rápida de MarketPlace)
+// =============================================================================
+//
+// Igual que `sugerirLoteArticulosMarketplace` pero a partir de texto pegado
+// (WhatsApp, Facebook, nota) en vez de fotos — sin agrupación de fotos de
+// por medio (`indicesFotos` no aplica). A diferencia de la entrada por foto,
+// aquí SÍ se extrae precio cuando el texto lo trae escrito (ej. "Bici rodada
+// 26 $800") — nunca lo inventa si no aparece.
+
+export interface ArticuloMarketplaceTextoSugerido {
+    titulo: string;
+    descripcion: string;
+    condicion: CondicionSugerida;
+    categoriaId: number | null;
+    /** `null` si el texto no trae precio para ese artículo — nunca se inventa. */
+    precio: number | null;
+}
+
+const PROMPT_SUGERIR_LOTE_MARKETPLACE_TEXTO = `Vas a ayudar a una persona a publicar varios artículos en venta en AnunciaYA (app de comercio local, ventas entre vecinos). Te paso el texto que ya tiene escrito (pegado de WhatsApp, Facebook o una nota) con su lista de artículos a vender. Tu trabajo es estructurar cada artículo que puedas distinguir con claridad.
+
+QUÉ CUENTA COMO UN ARTÍCULO: cualquier renglón o frase que nombre un objeto en venta, tenga o no precio. NO cuentes como artículo saludos, datos de contacto, horarios, ni frases de cierre ("¡Interesados inbox!").
+
+Para cada artículo devuelve:
+- "titulo": el nombre tal cual aparece, sin el precio ni símbolos de moneda mezclados, sin emojis. Máximo 80 caracteres.
+- "descripcion": SOLO si hay información adicional en el mismo renglón o el siguiente (color, tamaño, estado, qué incluye) — texto corrido, sin viñetas, tono natural, máximo 400 caracteres. Si no hay nada adicional, responde una frase corta neutra basada solo en el título (ej. "Disponible para venta, pregunta por más detalles.") — NUNCA inventes características no mencionadas.
+- "condicion": UNA de "nuevo", "seminuevo", "usado", "para_reparar" SOLO si el texto lo menciona explícita o casi explícitamente (ej. "nuevo, sin usar" → nuevo; "como nuevo" → seminuevo; "usado, con detalles" → usado). Si no se menciona, responde null — NUNCA la infieras del tipo de objeto.
+- "categoriaNombre": elige la que mejor describa el artículo, ÚNICAMENTE de la lista real en "CATEGORÍAS DISPONIBLES" más abajo, con el nombre EXACTO. Si ninguna corresponde con confianza, responde null.
+- "precio": el precio como número entero, SIN signo de moneda ni comas (ej. 800, no "$800.00" ni "800 pesos"). Si el precio no aparece para ese artículo, responde null — NUNCA inventes un precio.
+
+PROHIBIDO INVENTAR: si un dato no está claramente en el texto, usa null en ese campo. Si el texto no contiene ninguna lista de artículos en venta reconocible, responde un array vacío.
+
+RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
+{"articulos": [{"titulo": "...", "descripcion": "...", "condicion": "nuevo"|"seminuevo"|"usado"|"para_reparar"|null, "categoriaNombre": "..."|null, "precio": number|null}]}`;
+
+/**
+ * Estructura una lista de artículos en venta pegada como texto libre — mismo
+ * resultado que `sugerirLoteArticulosMarketplace` pero sin foto de por medio.
+ * Disparado desde `PaginaAltaRapidaMarketplace.tsx`.
+ */
+export async function sugerirLoteArticulosMarketplaceDesdeTexto(
+    texto: string,
+): Promise<RespuestaIA<ArticuloMarketplaceTextoSugerido[]>> {
+    const cliente = obtenerCliente();
+    if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
+
+    const categorias = await obtenerCategoriasMarketplace();
+    let promptCompleto = `${PROMPT_SUGERIR_LOTE_MARKETPLACE_TEXTO}\n\nTEXTO:\n${texto}`;
+    if (categorias.length > 0) {
+        promptCompleto += `\n\nCATEGORÍAS DISPONIBLES:\n${categorias.map((c) => `- ${c.nombre}`).join('\n')}`;
+    }
+    const contents: ContenidoGemini = promptCompleto;
+
+    // Sin thinkingConfig — ver nota en MODELO_GEMINI_PRINCIPAL.
+    const respuesta = await llamarGeminiConReintento(cliente, contents, 'sugerirLoteArticulosMarketplaceDesdeTexto');
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplaceDesdeTexto agotó reintentos y fallback de Gemini',
+        );
+        return { disponible: false, razon: 'error_gemini' };
+    }
+
+    try {
+        const limpio = limpiarJsonDeGemini(respuesta.texto);
+        const parseado: unknown = JSON.parse(limpio);
+        if (esListaArticulosMarketplaceTextoCruda(parseado)) {
+            const data = parseado.articulos.map((art) => {
+                const categoriaEncontrada = categorias.find((c) => c.nombre === art.categoriaNombre);
+                return {
+                    titulo: art.titulo,
+                    descripcion: art.descripcion,
+                    condicion: art.condicion,
+                    categoriaId: categoriaEncontrada?.id ?? null,
+                    precio: art.precio,
+                };
+            });
+            return { disponible: true, data };
+        }
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplaceDesdeTexto: JSON con shape inválido',
+            respuesta.texto,
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    } catch (error) {
+        console.warn(
+            'Coyo IA — sugerirLoteArticulosMarketplaceDesdeTexto: respuesta no es JSON parseable',
+            { texto: respuesta.texto, error },
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    }
+}
+
+type ArticuloMarketplaceTextoSugeridoCrudo = Omit<ArticuloMarketplaceTextoSugerido, 'categoriaId'> & {
+    categoriaNombre: string | null;
+};
+
+function esArticuloMarketplaceTextoSugeridoCrudo(v: unknown): v is ArticuloMarketplaceTextoSugeridoCrudo {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    if (typeof obj.titulo !== 'string' || obj.titulo.trim().length === 0) return false;
+    if (typeof obj.descripcion !== 'string') return false;
+    if (
+        obj.condicion !== null &&
+        !(typeof obj.condicion === 'string' && CONDICIONES_SUGERIDAS_VALIDAS.has(obj.condicion))
+    ) {
+        return false;
+    }
+    if (obj.categoriaNombre !== null && typeof obj.categoriaNombre !== 'string') return false;
+    if (obj.precio !== null && typeof obj.precio !== 'number') return false;
+    return true;
+}
+
+/** Type guard defensivo para el JSON completo `{ articulos: [...] }` de `sugerirLoteArticulosMarketplaceDesdeTexto`. */
+function esListaArticulosMarketplaceTextoCruda(
+    v: unknown,
+): v is { articulos: ArticuloMarketplaceTextoSugeridoCrudo[] } {
+    if (typeof v !== 'object' || v === null) return false;
+    const obj = v as Record<string, unknown>;
+    return Array.isArray(obj.articulos) && obj.articulos.every(esArticuloMarketplaceTextoSugeridoCrudo);
 }
 
 // =============================================================================

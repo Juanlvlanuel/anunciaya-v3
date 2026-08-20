@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { notificar } from '../../utils/notificaciones';
 import type {
     FeedMarketplace,
     ArticuloMarketplaceDetalle,
@@ -416,6 +417,84 @@ export interface CrearArticuloPayload {
 
 export type ActualizarArticuloPayload = Partial<CrearArticuloPayload>;
 
+// =============================================================================
+// ALTA RÁPIDA — CREAR ARTÍCULOS EN LOTE (solo modo='vendo')
+// =============================================================================
+// Checklist legal y ubicación se capturan UNA vez para todo el lote — a
+// diferencia de CrearArticuloPayload, que los lleva por publicación
+// individual. Ver docs/arquitectura/Alta_Rapida_Catalogo.md (Fase 2).
+
+export interface FilaArticuloLoteMarketplace {
+    categoriaId: number;
+    titulo: string;
+    descripcion: string;
+    precio: number;
+    condicion?: CondicionArticulo | null;
+    aceptaOfertas?: boolean | null;
+    unidadVenta?: string | null;
+    fotos: ArchivoFoto[];
+    fotoPortadaIndex: number;
+}
+
+export interface CrearArticulosLoteMarketplacePayload {
+    confirmaciones: {
+        licito: boolean;
+        enPoder: boolean;
+        honesto: boolean;
+        seguro: boolean;
+        version: string;
+    };
+    latitud: number;
+    longitud: number;
+    ciudad: string;
+    zonaAproximada?: string;
+    articulos: FilaArticuloLoteMarketplace[];
+}
+
+interface RespuestaCrearLoteOk {
+    success: true;
+    message: string;
+    data: { total: number; articulos: ArticuloMarketplace[] };
+}
+
+/** `erroresPorFila` viene poblado cuando la Capa 1 de moderación rechazó 1+ filas — nada se insertó (todo o nada). */
+interface RespuestaCrearLoteError {
+    success: false;
+    message: string;
+    erroresPorFila?: { indice: number; mensaje: string }[];
+}
+
+type RespuestaCrearLote = RespuestaCrearLoteOk | RespuestaCrearLoteError;
+
+/**
+ * `POST /api/marketplace/articulos/bulk` — Alta Rápida: publica hasta 100
+ * artículos modo='vendo' de una sola vez. Sin update optimista (mismo motivo
+ * que `useCrearArticulosLote` de BS: el volumen no se presta a un snapshot
+ * temporal razonable) — invalida la lista al terminar.
+ *
+ * Igual que `useCrearArticulo`: la mutación NO maneja `onError` — un 422 por
+ * moderación lanza (axios solo resuelve 2xx), y el caller (la página de Alta
+ * Rápida) necesita el `erroresPorFila` del body del error para resaltar las
+ * filas específicas, no solo un toast genérico. Ver `manejarErrorHttp` en
+ * ComposerMarketplace.tsx para el mismo patrón.
+ */
+export function useCrearArticulosMarketplaceLote() {
+    const queryClient = useQueryClient();
+    return useMutation<RespuestaCrearLote, unknown, CrearArticulosLoteMarketplacePayload>({
+        mutationFn: async (payload) => {
+            const response = await api.post<RespuestaCrearLote>('/marketplace/articulos/bulk', payload);
+            return response.data;
+        },
+        onSuccess: (data) => {
+            if (data.success) {
+                queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+                const total = data.data.total;
+                notificar.exito(`${total} artículo${total === 1 ? '' : 's'} publicado${total === 1 ? '' : 's'}`);
+            }
+        },
+    });
+}
+
 /**
  * Respuesta del backend cuando la moderación interviene. Si `severidad ===
  * 'rechazo'` el HTTP status es 422; si es `'sugerencia'` el HTTP status es
@@ -607,6 +686,76 @@ export function useSugerirArticuloIA() {
                 | { success: true; data: SugerenciaArticuloIA }
                 | { success: false; razon: string }
             >('/marketplace/sugerir-articulo-ia', { imagenUrl });
+            return response.data;
+        },
+    });
+}
+
+/** Resultado de `POST /marketplace/sugerir-lote-ia` — un grupo de fotos ya agrupado por objeto físico. */
+export interface SugerenciaArticuloLoteMarketplace {
+    /** Índices (0-based) sobre el arreglo de URLs que se mandó a analizar. */
+    indicesFotos: number[];
+    titulo: string;
+    descripcion: string;
+    condicion: CondicionArticulo | null;
+    categoriaId: number | null;
+}
+
+/**
+ * Timeout extendido — mismo motivo que `useSugerirArticulosLoteIA` de BS:
+ * `llamarGeminiConReintento` puede hacer varios intentos con backoff antes
+ * de responder, sobre todo con varias imágenes en la misma llamada.
+ */
+const TIMEOUT_SUGERENCIA_LOTE_IA_MS = 60000;
+
+/**
+ * `POST /api/marketplace/sugerir-lote-ia` — Alta Rápida: el usuario sube
+ * varias fotos sueltas de una vez; Gemini las agrupa por objeto físico
+ * (mismo objeto en distintos ángulos = un solo grupo) y sugiere los datos de
+ * cada grupo. Nunca falla "duro" por ausencia de IA — igual que
+ * `useSugerirArticuloIA`.
+ */
+export function useSugerirArticulosMarketplaceLoteIA() {
+    return useMutation({
+        mutationFn: async (imagenesUrls: string[]) => {
+            const response = await api.post<
+                | { success: true; data: SugerenciaArticuloLoteMarketplace[] }
+                | { success: false; razon: string }
+            >(
+                '/marketplace/sugerir-lote-ia',
+                { imagenesUrls },
+                { timeout: TIMEOUT_SUGERENCIA_LOTE_IA_MS }
+            );
+            return response.data;
+        },
+    });
+}
+
+/** Resultado de `POST /marketplace/sugerir-lote-texto-ia` — un artículo extraído del texto pegado. */
+export interface SugerenciaArticuloTextoMarketplace {
+    titulo: string;
+    descripcion: string;
+    condicion: CondicionArticulo | null;
+    categoriaId: number | null;
+    /** `null` si el texto no traía precio para ese artículo. */
+    precio: number | null;
+}
+
+/**
+ * `POST /api/marketplace/sugerir-lote-texto-ia` — Alta Rápida: igual que
+ * `useSugerirArticulosMarketplaceLoteIA` pero a partir de texto pegado.
+ */
+export function useSugerirArticulosMarketplaceLoteTextoIA() {
+    return useMutation({
+        mutationFn: async (texto: string) => {
+            const response = await api.post<
+                | { success: true; data: SugerenciaArticuloTextoMarketplace[] }
+                | { success: false; razon: string }
+            >(
+                '/marketplace/sugerir-lote-texto-ia',
+                { texto },
+                { timeout: TIMEOUT_SUGERENCIA_LOTE_IA_MS }
+            );
             return response.data;
         },
     });

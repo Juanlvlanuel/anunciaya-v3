@@ -16,6 +16,7 @@
 import type { Request, Response } from 'express';
 import {
     crearArticulo,
+    crearArticulosMarketplaceLote,
     obtenerArticuloPorId,
     obtenerFeed,
     obtenerFeedInfinito,
@@ -30,6 +31,8 @@ import {
     obtenerArticulosDeVendedor,
     eliminarFotoMarketplaceSiHuerfana,
     sugerirArticuloConIA,
+    sugerirArticulosLoteMarketplaceConIA,
+    sugerirArticulosLoteMarketplaceTextoConIA,
     apartarArticulo,
     marcarApartadoVendido,
     rechazarApartado,
@@ -46,6 +49,7 @@ import { obtenerCategoriasMarketplace } from '../services/marketplace/categorias
 import { reactivarArticulo } from '../services/marketplace/expiracion.js';
 import {
     crearArticuloSchema,
+    crearArticulosLoteMarketplaceSchema,
     actualizarArticuloSchema,
     cambiarEstadoSchema,
     feedQuerySchema,
@@ -53,6 +57,8 @@ import {
     misArticulosQuerySchema,
     uploadImagenSchema,
     sugerirArticuloIASchema,
+    sugerirLoteArticulosIASchema,
+    sugerirLoteArticulosTextoIASchema,
     sugerenciasQuerySchema,
     popularesQuerySchema,
     buscarQuerySchema,
@@ -271,6 +277,40 @@ export async function postCrearArticulo(req: Request, res: Response) {
 }
 
 /**
+ * POST /api/marketplace/articulos/bulk
+ * Alta Rápida — publica hasta 100 artículos modo='vendo' de una sola vez.
+ */
+export async function postCrearArticulosLote(req: Request, res: Response) {
+    try {
+        const validacion = crearArticulosLoteMarketplaceSchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const usuarioId = obtenerUsuarioId(req);
+        if (!usuarioId) {
+            return res.status(401).json({ success: false, message: 'No autenticado' });
+        }
+
+        const resultado = await crearArticulosMarketplaceLote(usuarioId, validacion.data);
+        if (!resultado.success) {
+            return res.status(resultado.code).json(resultado);
+        }
+        return res.status(201).json(resultado);
+    } catch (error) {
+        console.error('Error en postCrearArticulosLote:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al publicar los artículos',
+        });
+    }
+}
+
+/**
  * PUT /api/marketplace/articulos/:id
  * Actualiza campos editables del artículo (solo dueño). NUNCA modifica
  * `expira_at` (Zod no acepta el campo + service no lo escribe).
@@ -475,6 +515,60 @@ export async function postSugerirArticuloIA(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al generar la sugerencia',
+        });
+    }
+}
+
+/**
+ * POST /api/marketplace/sugerir-lote-ia
+ * Body: { imagenesUrls }. Alta Rápida — el usuario sube varias fotos sueltas
+ * de una vez; Gemini las agrupa por objeto físico y sugiere los datos de
+ * cada grupo. Nunca falla "duro" por ausencia de IA (mismo contrato que
+ * `postSugerirArticuloIA`).
+ */
+export async function postSugerirArticulosLoteIA(req: Request, res: Response) {
+    try {
+        const validacion = sugerirLoteArticulosIASchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const resultado = await sugerirArticulosLoteMarketplaceConIA(validacion.data.imagenesUrls);
+        return res.status(resultado.code).json(resultado);
+    } catch (error) {
+        console.error('Error en postSugerirArticulosLoteIA:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar las sugerencias',
+        });
+    }
+}
+
+/**
+ * POST /api/marketplace/sugerir-lote-texto-ia
+ * Body: { texto }. Alta Rápida — igual que postSugerirArticulosLoteIA pero
+ * a partir de texto pegado en vez de fotos.
+ */
+export async function postSugerirArticulosLoteTextoIA(req: Request, res: Response) {
+    try {
+        const validacion = sugerirLoteArticulosTextoIASchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const resultado = await sugerirArticulosLoteMarketplaceTextoConIA(validacion.data.texto);
+        return res.status(resultado.code).json(resultado);
+    } catch (error) {
+        console.error('Error en postSugerirArticulosLoteTextoIA:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al generar las sugerencias',
         });
     }
 }

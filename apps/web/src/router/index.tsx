@@ -105,6 +105,7 @@ import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticu
 import PaginaDinamica from '../pages/private/marketplace/PaginaDinamica';
 import PaginaSalaDinamica from '../pages/private/marketplace/PaginaSalaDinamica';
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
+import PaginaAltaRapidaMarketplace from '../pages/private/marketplace/PaginaAltaRapidaMarketplace';
 import PaginaServicios from '../pages/private/servicios/PaginaServicios';
 import PaginaServicio from '../pages/private/servicios/PaginaServicio';
 import PaginaPerfilPrestador from '../pages/private/servicios/PaginaPerfilPrestador';
@@ -486,6 +487,14 @@ const router = createBrowserRouter([
             element: (
               <ModoGuard requiereModo="personal">
                 <PaginaMisPublicaciones />
+              </ModoGuard>
+            ),
+          },
+          {
+            path: '/mis-publicaciones/alta-rapida',
+            element: (
+              <ModoGuard requiereModo="personal">
+                <PaginaAltaRapidaMarketplace />
               </ModoGuard>
             ),
           },

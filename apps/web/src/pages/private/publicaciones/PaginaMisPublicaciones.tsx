@@ -45,8 +45,9 @@ import {
 } from 'lucide-react';
 import { ModalGestionApartados } from '@/components/marketplace/ModalGestionApartados';
 import { useMisApartados } from '@/hooks/queries/useMarketplace';
+import { MenuPublicarOpciones } from '@/components/marketplace/MenuPublicarOpciones';
 
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { Icon, type IconProps, ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -299,10 +300,27 @@ export function PaginaMisPublicaciones() {
         return () => document.removeEventListener('mousedown', handler);
     }, [dropdownTabsAbierto]);
 
+    // Mismo dropdown que el header Laptop, pero para la fila inferior móvil
+    // (2026-08-18) — la fila de chips scrollables no dejaba espacio para el
+    // botón de Apartados. Estado separado del de Laptop porque ambos bloques
+    // conviven en el DOM (uno oculto por breakpoint) y no pueden compartir ref.
+    const [dropdownTabsMobileAbierto, setDropdownTabsMobileAbierto] = useState(false);
+    const dropdownTabsMobileRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!dropdownTabsMobileAbierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!dropdownTabsMobileRef.current?.contains(e.target as Node)) setDropdownTabsMobileAbierto(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [dropdownTabsMobileAbierto]);
+
     // Cerrar el dropdown al cambiar de tipo (activa/pausada/vendida ya no
     // aplican igual entre MP/Servicios/Dinámicas).
     useEffect(() => {
         setDropdownTabsAbierto(false);
+        setDropdownTabsMobileAbierto(false);
     }, [tipoActivo]);
 
     // Si el tab actual no aplica al tipo nuevo (ej. estabas en "vendida" y
@@ -726,14 +744,18 @@ export function PaginaMisPublicaciones() {
                                                       repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                                 }}
                             />
-                            {/* Línea de acento superior (cyan) */}
+                            {/* Línea de acento superior (cyan) — z-0: es decorativa,
+                                nunca debe tapar contenido interactivo (dropdowns,
+                                menús) del header. Antes tenía z-20, por encima del
+                                z-10 del contenido — el menú "Publicar" quedaba
+                                cortado detrás de esta línea (2026-08-18). */}
                             <div
-                                className="absolute top-0 left-0 right-0 h-[3px] z-20"
+                                className="absolute top-0 left-0 right-0 h-[3px] z-0"
                                 style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
                             />
-                            {/* Línea de acento inferior (cyan) */}
+                            {/* Línea de acento inferior (cyan) — mismo motivo, z-0. */}
                             <div
-                                className="absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                                className="absolute bottom-0 left-0 right-0 h-[3px] z-0"
                                 style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
                             />
                         </div>
@@ -996,20 +1018,30 @@ export function PaginaMisPublicaciones() {
                                         </Tooltip>
                                     )}
 
-                                    {/* Publicar — icon-only */}
-                                    <Tooltip text={labelPublicar} position="bottom">
-                                        <button
-                                            data-testid="btn-publicar-header-laptop"
-                                            onClick={handlePublicarClick}
-                                            aria-label={labelPublicar}
-                                            className={
-                                                'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md ring-2 transition-transform hover:scale-105 ' +
-                                                gradientePublicarHeader
-                                            }
-                                        >
-                                            <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
-                                        </button>
-                                    </Tooltip>
+                                    {/* Publicar — icon-only. Menú (1 artículo / Varios) solo en MarketPlace. */}
+                                    <MenuPublicarMarketplace
+                                        activo={tipoActivo === 'marketplace'}
+                                        abrirHacia="abajo"
+                                        onClickDirecto={handlePublicarClick}
+                                        onPublicarUno={irAPublicar}
+                                        onSubirVarios={() => navegar('/mis-publicaciones/alta-rapida')}
+                                        renderTrigger={(onClick, abierto) => (
+                                            <Tooltip text={labelPublicar} position="bottom">
+                                                <button
+                                                    data-testid="btn-publicar-header-laptop"
+                                                    onClick={onClick}
+                                                    aria-label={labelPublicar}
+                                                    aria-expanded={abierto}
+                                                    className={
+                                                        'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-md ring-2 transition-transform hover:scale-105 ' +
+                                                        gradientePublicarHeader
+                                                    }
+                                                >
+                                                    <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
+                                                </button>
+                                            </Tooltip>
+                                        )}
+                                    />
                                 </div>
                             </div>
 
@@ -1191,34 +1223,44 @@ export function PaginaMisPublicaciones() {
                                             </Tooltip>
                                         )}
 
-                                        <button
-                                            data-testid="btn-publicar-header-desktop"
-                                            onClick={handlePublicarClick}
-                                            aria-label={labelPublicar}
-                                            className="flex shrink-0 cursor-pointer flex-col items-center gap-1"
-                                        >
-                                            <span
-                                                className={
-                                                    'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
-                                                    gradientePublicarHeader
-                                                }
-                                            >
-                                                <Plus
-                                                    className="h-6 w-6"
-                                                    strokeWidth={2.75}
-                                                    style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
-                                                />
-                                            </span>
-                                            <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
-                                                {textoBotonPublicar}
-                                            </span>
-                                            <style>{`
-                                                @keyframes fab-publicar-mp-pulse {
-                                                    0%, 100% { transform: rotate(0deg) scale(1); }
-                                                    50% { transform: rotate(90deg) scale(1.15); }
-                                                }
-                                            `}</style>
-                                        </button>
+                                        <MenuPublicarMarketplace
+                                            activo={tipoActivo === 'marketplace'}
+                                            abrirHacia="abajo"
+                                            onClickDirecto={handlePublicarClick}
+                                            onPublicarUno={irAPublicar}
+                                            onSubirVarios={() => navegar('/mis-publicaciones/alta-rapida')}
+                                            renderTrigger={(onClick, abierto) => (
+                                                <button
+                                                    data-testid="btn-publicar-header-desktop"
+                                                    onClick={onClick}
+                                                    aria-label={labelPublicar}
+                                                    aria-expanded={abierto}
+                                                    className="flex shrink-0 cursor-pointer flex-col items-center gap-1"
+                                                >
+                                                    <span
+                                                        className={
+                                                            'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
+                                                            gradientePublicarHeader
+                                                        }
+                                                    >
+                                                        <Plus
+                                                            className="h-6 w-6"
+                                                            strokeWidth={2.75}
+                                                            style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
+                                                        />
+                                                    </span>
+                                                    <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
+                                                        {textoBotonPublicar}
+                                                    </span>
+                                                    <style>{`
+                                                        @keyframes fab-publicar-mp-pulse {
+                                                            0%, 100% { transform: rotate(0deg) scale(1); }
+                                                            50% { transform: rotate(90deg) scale(1.15); }
+                                                        }
+                                                    `}</style>
+                                                </button>
+                                            )}
+                                        />
                                     </div>
 
                                 </div>
@@ -1226,8 +1268,11 @@ export function PaginaMisPublicaciones() {
 
                             {/* ── Fila inferior del header — SOLO MÓVIL ──
                                 Layout en 1 sola fila — toggle MP/Servicios FIJO a la
-                                izquierda (icon-only) + divider sutil + tabs Activas/
-                                Pausadas/Vendidas SCROLLABLES a la derecha.
+                                izquierda (icon-only) + divider + dropdown de estado
+                                (Activas/Pausadas/Vendidas) + botón Apartados (solo
+                                MarketPlace). El dropdown reemplazó la fila de chips
+                                scrollables (2026-08-18) para dejarle espacio a Apartados,
+                                mismo ajuste que ya se había hecho en el header Laptop.
                                 En desktop esta fila está oculta porque los toggles+tabs
                                 viven dentro del bloque izquierda del header (debajo del
                                 título "Mis Publicaciones"). */}
@@ -1272,49 +1317,98 @@ export function PaginaMisPublicaciones() {
                                 {/* Divider vertical sutil entre toggles y tabs */}
                                 <div className="h-7 w-px shrink-0 bg-white/20" />
 
-                                {/* Tabs de estado por tipo — scrollables horizontalmente
-                                    si no caben. En modo "servicios" están pre-cableados
-                                    visualmente pero no funcionales (body muestra
-                                    "Próximamente"); los badges de conteo solo aplican
-                                    a marketplace. */}
-                                <div
-                                    data-testid="tabs-mis-publicaciones"
-                                    className="-mr-3 flex flex-1 items-center gap-2 overflow-x-auto pr-3 [&::-webkit-scrollbar]:hidden"
-                                >
-                                    {TABS_POR_TIPO[tipoActivo].map((tab) => {
-                                        const Icono = tab.Icono;
-                                        const activo = tabActivo === tab.id;
-                                        const conteo = conteoParaTab(tab.id);
+                                {/* Tab de estado activo — dropdown (2026-08-18, mismo
+                                    patrón que el header Laptop): la fila de chips
+                                    scrollables no dejaba espacio para el botón de
+                                    Apartados. */}
+                                <div ref={dropdownTabsMobileRef} className="relative shrink-0">
+                                    {(() => {
+                                        const tabInfo = TABS_POR_TIPO[tipoActivo].find((t) => t.id === tabActivo) ?? TABS_POR_TIPO[tipoActivo][0];
+                                        const IconoActivo = tabInfo.Icono;
+                                        const conteoActivo = conteoParaTab(tabInfo.id);
                                         return (
                                             <button
-                                                key={tab.id}
-                                                data-testid={`tab-${tab.id}`}
-                                                onClick={() => setTabActivo(tab.id)}
+                                                type="button"
+                                                data-testid="dropdown-tabs-mis-publicaciones-mobile"
+                                                onClick={() => setDropdownTabsMobileAbierto((v) => !v)}
                                                 className={[
-                                                    'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all',
-                                                    activo
-                                                        ? `text-white shadow-md ${tabActivoClase}`
-                                                        : `border-white/15 bg-white/5 text-slate-200 ${tabHoverClase} hover:bg-white/10 hover:text-white`,
+                                                    'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 pl-3.5 pr-2.5 py-1.5 text-sm font-semibold text-white shadow-md transition-all',
+                                                    tabActivoClase,
                                                 ].join(' ')}
                                             >
-                                                <Icono className="h-4 w-4" strokeWidth={2.5} />
-                                                <span>{tab.label}</span>
-                                                {conteo > 0 && (
-                                                    <span
-                                                        className={[
-                                                            'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold',
-                                                            activo
-                                                                ? `bg-white ${tabBadgeClase}`
-                                                                : 'bg-white/20 text-white',
-                                                        ].join(' ')}
-                                                    >
-                                                        {conteo}
+                                                <IconoActivo className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                                                <span>{tabInfo.label}</span>
+                                                {conteoActivo > 0 && (
+                                                    <span className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold ${tabBadgeClase}`}>
+                                                        {conteoActivo}
                                                     </span>
                                                 )}
+                                                <ChevronDown
+                                                    className={`h-4 w-4 shrink-0 transition-transform ${dropdownTabsMobileAbierto ? 'rotate-180' : ''}`}
+                                                    strokeWidth={2.5}
+                                                />
                                             </button>
                                         );
-                                    })}
+                                    })()}
+
+                                    {dropdownTabsMobileAbierto && (
+                                        <div
+                                            data-testid="dropdown-tabs-mis-publicaciones-mobile-panel"
+                                            className="absolute right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border-2 border-slate-300 bg-white py-1 shadow-lg"
+                                        >
+                                            {TABS_POR_TIPO[tipoActivo].map((tab) => {
+                                                const Icono = tab.Icono;
+                                                const activo = tabActivo === tab.id;
+                                                const conteo = conteoParaTab(tab.id);
+                                                return (
+                                                    <button
+                                                        key={tab.id}
+                                                        type="button"
+                                                        data-testid={`dropdown-tab-${tab.id}-mobile`}
+                                                        onClick={() => { setTabActivo(tab.id); setDropdownTabsMobileAbierto(false); }}
+                                                        className={[
+                                                            'flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm font-semibold',
+                                                            activo ? tabPanelActivoClase : `text-slate-600 ${tabPanelHoverClase}`,
+                                                        ].join(' ')}
+                                                    >
+                                                        <Icono className={`h-4 w-4 shrink-0 ${colorIconoPorTab[tab.id]}`} strokeWidth={2.5} />
+                                                        <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                                                        {conteo > 0 && (
+                                                            <span
+                                                                className={[
+                                                                    'flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold',
+                                                                    activo ? tabPanelBadgeActivoClase : 'bg-slate-200 text-slate-600',
+                                                                ].join(' ')}
+                                                            >
+                                                                {conteo}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
+
+                                {/* Apartados — Mi Catálogo, solo MarketPlace. Mismo
+                                    botón que el header Laptop/PC, ahora también en
+                                    móvil (2026-08-18) gracias al espacio liberado
+                                    por el dropdown de arriba. */}
+                                {tipoActivo === 'marketplace' && (
+                                    <button
+                                        data-testid="btn-apartados-header-mobile"
+                                        onClick={() => setModalApartadosAbierto(true)}
+                                        aria-label="Solicitudes de apartado"
+                                        className="relative ml-auto flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-amber-500 to-amber-700 text-white shadow-md ring-2 ring-amber-300/30"
+                                    >
+                                        <Lock className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                                        {apartadosActivos.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-black">
+                                                {apartadosActivos.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1470,43 +1564,55 @@ export function PaginaMisPublicaciones() {
                 `tipoActivo`) y expanden ahí mismo. La paleta cambia: cyan
                 para MP, sky para Servicios, ámbar para Dinámicas.
             ════════════════════════════════════════════════════════════════ */}
-            <button
-                data-testid="fab-publicar"
-                onClick={handlePublicarClick}
-                aria-label={labelPublicar}
+            <div
                 style={{
                     transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
-                className={`lg:hidden fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 ${
-                    bottomNavVisible ? 'bottom-20' : 'bottom-4'
-                }`}
+                className={`lg:hidden fixed right-4 z-30 ${bottomNavVisible ? 'bottom-20' : 'bottom-4'}`}
             >
-                <span
-                    className={
-                        'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
-                        gradientePublicarFabMovil
-                    }
-                >
-                    <Plus
-                        className="h-6 w-6"
-                        strokeWidth={2.75}
-                        style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
-                    />
-                </span>
-                {/* Label "Publicar"/"Organizar" — visible en móvil y desktop.
-                    Móvil: chip blanco translúcido con sombra para legibilidad
-                    sobre fondos variables. Desktop: texto plano sobre el
-                    gradient azul del MainLayout. */}
-                <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:text-base">
-                    {textoBotonPublicar}
-                </span>
-                <style>{`
-                    @keyframes fab-publicar-mp-pulse {
-                        0%, 100% { transform: rotate(0deg) scale(1); }
-                        50% { transform: rotate(90deg) scale(1.15); }
-                    }
-                `}</style>
-            </button>
+                <MenuPublicarMarketplace
+                    activo={tipoActivo === 'marketplace'}
+                    abrirHacia="arriba"
+                    onClickDirecto={handlePublicarClick}
+                    onPublicarUno={irAPublicar}
+                    onSubirVarios={() => navegar('/mis-publicaciones/alta-rapida')}
+                    renderTrigger={(onClick, abierto) => (
+                        <button
+                            data-testid="fab-publicar"
+                            onClick={onClick}
+                            aria-label={labelPublicar}
+                            aria-expanded={abierto}
+                            className="flex cursor-pointer flex-col items-center gap-1"
+                        >
+                            <span
+                                className={
+                                    'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
+                                    gradientePublicarFabMovil
+                                }
+                            >
+                                <Plus
+                                    className="h-6 w-6"
+                                    strokeWidth={2.75}
+                                    style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
+                                />
+                            </span>
+                            {/* Label "Publicar"/"Organizar" — visible en móvil y desktop.
+                                Móvil: chip blanco translúcido con sombra para legibilidad
+                                sobre fondos variables. Desktop: texto plano sobre el
+                                gradient azul del MainLayout. */}
+                            <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:text-base">
+                                {textoBotonPublicar}
+                            </span>
+                            <style>{`
+                                @keyframes fab-publicar-mp-pulse {
+                                    0%, 100% { transform: rotate(0deg) scale(1); }
+                                    50% { transform: rotate(90deg) scale(1.15); }
+                                }
+                            `}</style>
+                        </button>
+                    )}
+                />
+            </div>
 
             <ModalPausarArticulo
                 abierto={!!articuloAPausar}
@@ -1635,6 +1741,62 @@ const COPY_VACIO: Record<
         mostrarCta: false,
     },
 };
+
+// =============================================================================
+// SUBCOMPONENTE: Menú del botón "Publicar" — solo MarketPlace (2026-08-18)
+// =============================================================================
+// Envuelve el botón "Publicar" existente (mismo look en los 3 lugares donde
+// aparece: header Laptop, header PC, FAB móvil) sin duplicar su JSX. Cuando
+// `activo` es true (tipoActivo==='marketplace') el click abre un menú de 2
+// opciones en vez de ir directo — en Servicios/Dinámicas sigue siendo un
+// click directo, sin menú. Estado propio por instancia (no se comparte un
+// ref entre los 3 lugares — mismo motivo que `dropdownTabsMobileRef` más
+// arriba: los 3 bloques conviven en el DOM, uno oculto por breakpoint).
+function MenuPublicarMarketplace({
+    activo,
+    abrirHacia,
+    renderTrigger,
+    onClickDirecto,
+    onPublicarUno,
+    onSubirVarios,
+}: {
+    activo: boolean;
+    abrirHacia: 'abajo' | 'arriba';
+    renderTrigger: (onClick: () => void, abierto: boolean) => ReactNode;
+    onClickDirecto: () => void;
+    onPublicarUno: () => void;
+    onSubirVarios: () => void;
+}) {
+    const [abierto, setAbierto] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!abierto) return;
+        const handler = (e: MouseEvent) => {
+            if (!ref.current?.contains(e.target as Node)) setAbierto(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [abierto]);
+
+    const handleTriggerClick = () => {
+        if (activo) setAbierto((v) => !v);
+        else onClickDirecto();
+    };
+
+    return (
+        <div ref={ref} className="relative">
+            {renderTrigger(handleTriggerClick, abierto)}
+            {activo && abierto && (
+                <MenuPublicarOpciones
+                    abrirHacia={abrirHacia}
+                    onPublicarUno={() => { setAbierto(false); onPublicarUno(); }}
+                    onSubirVarios={() => { setAbierto(false); onSubirVarios(); }}
+                />
+            )}
+        </div>
+    );
+}
 
 function EstadoVacio({ tab, onPublicar }: EstadoVacioProps) {
     const copy = COPY_VACIO[tab];

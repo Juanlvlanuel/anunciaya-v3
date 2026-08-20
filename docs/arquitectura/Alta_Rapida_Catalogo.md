@@ -1,8 +1,8 @@
-# Alta Rápida de Catálogo (Business Studio)
+# Alta Rápida de Catálogo (Business Studio + MarketPlace)
 
-> **Estado:** Fase 1 completa — Business Studio. Fase 2 (catálogo digital en Modo Personal) pendiente, reusará el motor descrito abajo sobre un modelo de datos propio.
-> **Ruta:** `/business-studio/catalogo/alta-rapida`.
-> Racional de producto: sesión de planeación 2026-08-09.
+> **Estado:** Fase 1 completa — Business Studio. Fase 2 completa — MarketPlace (Modo Personal, solo modo='vendo'), ver §7.
+> **Rutas:** `/business-studio/catalogo/alta-rapida` (BS) · `/mis-publicaciones/alta-rapida` (MarketPlace).
+> Racional de producto: sesión de planeación 2026-08-09 (BS) · 2026-08-18 (MarketPlace).
 
 ---
 
@@ -117,7 +117,51 @@ Botón "Pegar texto" abre un panel inline con `<textarea>` (tope `TEXTO_MAX_CHAR
 - Backend: `db/schemas/schema.ts` (sin cambios), `validations/articulos.schema.ts`, `services/articulos.service.ts`, `services/coyo/coyoIA.service.ts`, `controllers/articulos.controller.ts`, `routes/articulos.routes.ts`
 - Frontend: `types/articulos.ts`, `services/articulosService.ts`, `hooks/queries/useArticulos.ts`, `pages/private/business-studio/catalogo/PaginaAltaRapidaCatalogo.tsx` (nuevo), `pages/private/business-studio/catalogo/PaginaCatalogo.tsx` (botón de entrada), `router/index.tsx` (ruta nueva)
 
-## 6. Pendiente
+## 6. Pendiente (Fase 1 — Business Studio)
 
 - QA E2E manual en prod (foto real de menú, texto pegado real, lote de 50+ filas).
-- Fase 2: catálogo digital en Modo Personal — tabla propia (`usuario_id`, sin `negocio_id`), reusando la tabla editable y `sugerirListaArticulos`/`sugerirListaArticulosDesdeTexto` parametrizados por destino.
+
+---
+
+## 7. Fase 2 — MarketPlace (Modo Personal, 2026-08-18)
+
+**Ruta:** `/mis-publicaciones/alta-rapida`. **Archivo:** `pages/private/marketplace/PaginaAltaRapidaMarketplace.tsx`.
+
+Reusa el modelo de datos existente de `articulos_marketplace` (NO tabla propia — a diferencia de lo que se había anticipado en la Fase 1, no hizo falta: el lote inserta N filas modo='vendo' con la misma forma que `crearArticulo`, dentro de una única transacción). Solo modo='vendo' — la carga masiva de "busco" no aplica.
+
+**Entry point unificado:** el botón "Publicar" (header Laptop, header PC, FAB móvil de `PaginaMisPublicaciones.tsx`) abre un menú de 2 opciones SOLO cuando `tipoActivo==='marketplace'` — "Publicar 1 artículo" (composer de siempre) o "Subir varios" (esta página). En Servicios/Dinámicas sigue siendo un click directo, sin menú. Ver `MenuPublicarMarketplace` (subcomponente al final de `PaginaMisPublicaciones.tsx`).
+
+### 7.1 Diferencias clave vs Fase 1 (Business Studio)
+
+| | BS (menú/anaquel) | MarketPlace (objetos sueltos) |
+|---|---|---|
+| Semántica de fotos | 1-6 fotos = UN listado compartido (menú) | Fotos SUELTAS y mezcladas — Gemini las **agrupa por objeto físico** (mismo artículo en varios ángulos = 1 fila) |
+| Precio por IA (foto) | Sí, si está impreso en el menú | **Nunca** — una foto de un artículo personal casi nunca trae el precio visible |
+| Precio por IA (texto) | Sí | Sí (el vendedor normalmente ya lo escribió al pegar el texto) |
+| Categoría | Texto libre + datalist | Selector real (FK a `categorias_marketplace`) |
+| Checklist legal / ubicación | No aplica (BS no tiene) | **Una vez para todo el lote**, no por fila (`crearArticulosLoteMarketplaceSchema`) |
+| Layout de fila | Grid tipo hoja de cálculo (desktop) + cards (móvil) | Una sola card responsive en todos los breakpoints — las fotos por fila (altura variable) no calzan bien en un grid rígido |
+
+### 7.2 Agrupación de fotos por IA (`sugerirLoteArticulosMarketplace`)
+
+`services/coyo/coyoIA.service.ts` — analiza hasta `MAX_IMAGENES_ALTA_RAPIDA_MARKETPLACE` (24) fotos sueltas en una sola llamada multimodal y devuelve grupos `{ indicesFotos, titulo, descripcion, condicion, categoriaId }`. Cuando Gemini duda si 2 fotos son el mismo objeto, el prompt le pide **separar, nunca fusionar** (mismo principio "nunca inventa" que el resto de Coyo) — es preferible una fila de más (el comerciante la une a mano) que fusionar 2 artículos distintos.
+
+**Corrección de agrupación en la tabla, sin pantalla aparte:** cada fila muestra sus fotos en miniatura; quitar una foto de una fila la manda a un carrusel de "fotos sueltas sin asignar" en la parte superior, donde un `<select>` por foto permite reasignarla a otra fila existente o crear una fila nueva. No hay drag-and-drop — se usa el mismo patrón de selects/clicks del resto de la app.
+
+### 7.3 Entrada por texto (`sugerirLoteArticulosMarketplaceDesdeTexto`)
+
+Mismo principio que `sugerirListaArticulosDesdeTexto` (BS) pero con los campos de MarketPlace (`titulo`/`categoriaId`/`condicion`/`precio`) — sin `indicesFotos` (no hay fotos de por medio). El texto pegado casi siempre SÍ trae el precio (a diferencia de una foto), así que aquí la IA lo extrae cuando está escrito.
+
+### 7.4 Backend — endpoints nuevos
+
+| Método | Endpoint | Middlewares | Body |
+|---|---|---|---|
+| POST | `/api/marketplace/articulos/bulk` | `verificarToken`, `requiereModoPersonal` | `crearArticulosLoteMarketplaceSchema` (confirmaciones + ubicación una vez, `articulos[]` 1-100) |
+| POST | `/api/marketplace/sugerir-lote-ia` | `verificarToken`, `requiereModoPersonal` | `{ imagenesUrls: string[] }` (1-30) |
+| POST | `/api/marketplace/sugerir-lote-texto-ia` | `verificarToken`, `requiereModoPersonal` | `{ texto: string }` (5-5000 chars) |
+
+`crearArticulosMarketplaceLote` (`services/marketplace.service.ts`): valida moderación (Capa 1, `validarTextoPublicacion`) de TODAS las filas antes de tocar la BD — si cualquiera dispara rechazo o sugerencia, no inserta nada y devuelve `erroresPorFila: [{indice, mensaje}]` (HTTP 422) para que el frontend resalte esas filas específicas. Sin "continuar de todos modos" por fila (a diferencia del composer individual) — se corrige el texto o se quita la fila. Inserción real en `db.transaction` (todo o nada), mismo patrón que `crearArticulosLote` de BS.
+
+### 7.5 Pendiente
+
+- QA E2E manual en prod (fotos reales de varios objetos mezclados, verificar agrupación; texto pegado real; lote de 20+ filas).

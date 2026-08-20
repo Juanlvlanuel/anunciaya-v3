@@ -286,6 +286,50 @@ export const crearArticuloSchema = z
 export type CrearArticuloInput = z.infer<typeof crearArticuloSchema>;
 
 // =============================================================================
+// SCHEMA 1.1: CREAR ARTÍCULOS EN LOTE (Alta Rápida MarketPlace)
+// =============================================================================
+// POST /api/marketplace/articulos/bulk
+//
+// Solo modo='vendo' — la carga masiva de "busco" no aplica (una demanda de
+// compra no se sube en lote como un catálogo de objetos). El checklist legal
+// y la ubicación se capturan UNA sola vez para todo el lote (no tiene
+// sentido repetir "¿está en tu poder?" o la ciudad en cada una de hasta 100
+// filas) — a diferencia de `crearArticuloSchema`, que los valida por
+// publicación individual.
+
+const filaArticuloLoteMarketplaceSchema = z
+    .object({
+        categoriaId: campoCategoriaId,
+        titulo: campoTitulo,
+        descripcion: campoDescripcion,
+        precio: campoPrecio,
+        condicion: campoCondicion.nullish(),
+        aceptaOfertas: z.boolean().nullish(),
+        unidadVenta: campoUnidadVenta.nullish(),
+        fotos: campoFotos.min(1, 'Debes incluir al menos 1 foto para vender'),
+        fotoPortadaIndex: campoFotoPortadaIndex.optional().default(0),
+    })
+    .refine((data) => data.fotoPortadaIndex < data.fotos.length, {
+        message: 'fotoPortadaIndex debe ser menor que la cantidad de fotos',
+        path: ['fotoPortadaIndex'],
+    });
+
+export const crearArticulosLoteMarketplaceSchema = z.object({
+    confirmaciones: campoConfirmaciones,
+    latitud: campoLatitud,
+    longitud: campoLongitud,
+    ciudad: campoCiudad,
+    zonaAproximada: campoZonaAproximada.optional(),
+    articulos: z
+        .array(filaArticuloLoteMarketplaceSchema)
+        .min(1, 'Debes incluir al menos 1 artículo')
+        .max(100, 'No puedes publicar más de 100 artículos a la vez'),
+});
+
+export type CrearArticulosLoteMarketplaceInput = z.infer<typeof crearArticulosLoteMarketplaceSchema>;
+export type FilaArticuloLoteMarketplaceInput = z.infer<typeof filaArticuloLoteMarketplaceSchema>;
+
+// =============================================================================
 // SCHEMA 2: ACTUALIZAR ARTÍCULO
 // =============================================================================
 // PUT /api/marketplace/articulos/:id
@@ -525,6 +569,35 @@ export const sugerirArticuloIASchema = z.object({
 export type SugerirArticuloIAInput = z.infer<typeof sugerirArticuloIASchema>;
 
 // =============================================================================
+// POST /api/marketplace/sugerir-lote-ia (Alta Rápida MarketPlace)
+//
+// El usuario sube varias fotos sueltas de una vez (varios artículos, cada
+// uno con 1+ ángulos) — Gemini las agrupa por objeto físico y sugiere los
+// datos de cada grupo. Ver `sugerirLoteArticulosMarketplace` en coyoIA.service.ts.
+
+export const sugerirLoteArticulosIASchema = z.object({
+    imagenesUrls: z
+        .array(z.string().trim().url('Cada imagen debe ser una URL válida'))
+        .min(1, 'Debes incluir al menos 1 imagen')
+        .max(30, 'No puedes analizar más de 30 imágenes a la vez'),
+});
+
+export type SugerirLoteArticulosIAInput = z.infer<typeof sugerirLoteArticulosIASchema>;
+
+// =============================================================================
+// POST /api/marketplace/sugerir-lote-texto-ia (Alta Rápida MarketPlace)
+
+export const sugerirLoteArticulosTextoIASchema = z.object({
+    texto: z
+        .string()
+        .trim()
+        .min(5, 'El texto debe tener al menos 5 caracteres')
+        .max(5000, 'El texto no puede exceder 5000 caracteres'),
+});
+
+export type SugerirLoteArticulosTextoIAInput = z.infer<typeof sugerirLoteArticulosTextoIASchema>;
+
+// =============================================================================
 // HELPER: Formatear errores de Zod v4
 // =============================================================================
 
@@ -596,6 +669,7 @@ export type ConfigurarApartadoInput = z.infer<typeof configurarApartadoSchema>;
 
 export default {
     crearArticuloSchema,
+    crearArticulosLoteMarketplaceSchema,
     actualizarArticuloSchema,
     cambiarEstadoSchema,
     feedQuerySchema,
@@ -603,6 +677,8 @@ export default {
     misArticulosQuerySchema,
     uploadImagenSchema,
     sugerirArticuloIASchema,
+    sugerirLoteArticulosIASchema,
+    sugerirLoteArticulosTextoIASchema,
     formatearErroresZod,
     campoUUID,
     crearComentarioSchema,
