@@ -15,6 +15,12 @@
  * Solo se listan los crons REALMENTE activos (los que `index.ts` inicializa). El
  * cron de comisiones ("foto mensual") se retiró, por eso no aparece aquí.
  *
+ * `marketplace-apartados-expiracion` (19-ago-2026): ya corría cada 30 min y
+ * llamaba `registrarEjecucionCron()` desde su propio archivo, pero nunca
+ * estuvo en este catálogo — su telemetría se guardaba pero `obtenerEstadoCrons()`
+ * solo itera `CATALOGO_CRONS`, así que era invisible en el Panel y no tenía
+ * botón de "ejecutar ahora" (ver `mantenimiento-acciones.service.ts`).
+ *
  * Ubicación: apps/api/src/utils/cronRegistry.ts
  */
 
@@ -101,6 +107,13 @@ export const CATALOGO_CRONS: DefCron[] = [
         id: 'dinamicas-expiracion',
         nombre: 'Expiración de boletos de Dinámicas',
         descripcion: 'Libera boletos reservados que nunca se confirmaron como pagados (24h).',
+        cadencia: 'Cada 30 min',
+        cadenciaMs: 30 * MIN,
+    },
+    {
+        id: 'marketplace-apartados-expiracion',
+        nombre: 'Expiración de Apartados de MarketPlace',
+        descripcion: 'Libera artículos apartados cuyo vendedor nunca respondió (Rechazar/Vendido) dentro del tiempo configurado.',
         cadencia: 'Cada 30 min',
         cadenciaMs: 30 * MIN,
     },

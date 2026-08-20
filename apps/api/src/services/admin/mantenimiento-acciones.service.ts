@@ -31,6 +31,7 @@ import { ejecutarSuspension as correrGracia } from '../../cron/suscripciones-gra
 import { ejecutarExpiracionManuales as correrVencimientos } from '../../cron/suscripciones-vencimientos-manuales.cron.js';
 import { limpiarConversacionesInactivas as correrChatya } from '../../cron/chatya.cron.js';
 import { ejecutarCronDiario as correrAlertas } from '../../cron/alertas.cron.js';
+import { ejecutarCron as correrMarketplaceApartados } from '../../cron/marketplace-apartados-expiracion.cron.js';
 
 // =============================================================================
 // RECOLECTOR R2 — ejecutar limpieza
@@ -97,6 +98,7 @@ const EJECUTORES: Record<string, () => Promise<void>> = {
     'servicios-expiracion': correrServicios,
     'suscripciones-gracia': correrGracia,
     'vencimientos-manuales': correrVencimientos,
+    'marketplace-apartados-expiracion': correrMarketplaceApartados,
 };
 
 export class CronDesconocidoError extends Error {

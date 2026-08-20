@@ -1834,7 +1834,7 @@ export async function apartarArticulo(
 ) {
     try {
         const articulo = await db.execute(sql`
-            SELECT titulo, modo, estado, usuario_id, deleted_at, apartado_hasta
+            SELECT titulo, modo, estado, usuario_id, deleted_at
             FROM articulos_marketplace
             WHERE id = ${articuloId}
             LIMIT 1
@@ -1850,7 +1850,6 @@ export async function apartarArticulo(
             estado: string;
             usuario_id: string;
             deleted_at: string | null;
-            apartado_hasta: string | null;
         };
 
         if (row.deleted_at !== null || row.estado !== 'activa') {
@@ -1859,33 +1858,55 @@ export async function apartarArticulo(
         if (row.modo !== 'vendo') {
             return { success: false, message: 'Este artículo no se puede apartar', code: 400 };
         }
-        if (row.apartado_hasta && new Date(row.apartado_hasta) > new Date()) {
-            return { success: false, message: 'Este artículo ya está apartado', code: 409 };
-        }
 
         const config = await db.execute(sql`
             SELECT marketplace_apartado_horas FROM usuarios WHERE id = ${row.usuario_id} LIMIT 1
         `);
         const horas = (config.rows[0] as { marketplace_apartado_horas: number })?.marketplace_apartado_horas ?? 24;
 
+        // Lock BD (19-ago-2026) contra 2 solicitudes casi simultáneas para el
+        // mismo artículo: el UPDATE condicional de abajo es lo que cierra la
+        // carrera, no la lectura de arriba (esa solo valida existencia/modo,
+        // que no cambian por concurrencia). Postgres toma un row-lock durante
+        // el UPDATE — si 2 requests llegan casi juntos, el 2º espera a que el
+        // 1º haga commit y su WHERE ya evalúa el apartado_hasta recién
+        // escrito por el 1º, así que actualiza 0 filas y falla limpio con
+        // 409 en vez de dejar 2 apartados activos para el mismo artículo.
+        // El índice único parcial `uniq_marketplace_apartados_articulo_activo`
+        // (ver schema.ts + migración 2026-08-19) es la defensa de último
+        // nivel por si algún otro código insertara directo sin pasar por acá.
         const insertado = await db.transaction(async (tx) => {
+            const claim = await tx.execute(sql`
+                UPDATE articulos_marketplace
+                SET apartado_hasta = NOW() + make_interval(hours => ${horas})
+                WHERE id = ${articuloId}
+                  AND estado = 'activa'
+                  AND modo = 'vendo'
+                  AND deleted_at IS NULL
+                  AND (apartado_hasta IS NULL OR apartado_hasta < NOW())
+                RETURNING apartado_hasta
+            `);
+
+            if (claim.rows.length === 0) {
+                return null;
+            }
+
+            const expiraEn = (claim.rows[0] as { apartado_hasta: string }).apartado_hasta;
+
             const resultado = await tx.execute(sql`
                 INSERT INTO marketplace_apartados
                     (articulo_id, nombre_comprador, whatsapp_comprador, estado, expira_en, comprador_usuario_id)
                 VALUES
-                    (${articuloId}, ${nombreComprador}, ${whatsappComprador}, 'apartado', NOW() + make_interval(hours => ${horas}), ${compradorUsuarioId})
+                    (${articuloId}, ${nombreComprador}, ${whatsappComprador}, 'apartado', ${expiraEn}, ${compradorUsuarioId})
                 RETURNING id, creado_en, expira_en
             `);
-            const fila = resultado.rows[0] as { id: string; creado_en: string; expira_en: string };
 
-            await tx.execute(sql`
-                UPDATE articulos_marketplace
-                SET apartado_hasta = ${fila.expira_en}
-                WHERE id = ${articuloId}
-            `);
-
-            return fila;
+            return resultado.rows[0] as { id: string; creado_en: string; expira_en: string };
         });
+
+        if (insertado === null) {
+            return { success: false, message: 'Este artículo ya está apartado', code: 409 };
+        }
 
         emitirCatalogoEstado(row.usuario_id, {
             articuloId,

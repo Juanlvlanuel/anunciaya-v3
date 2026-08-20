@@ -56,7 +56,7 @@ Ambas viven en `services/coyo/coyoIA.service.ts` — la única "cajita" que habl
 Ninguna analiza N imágenes a la vez en ningún otro punto del código — hasta esta feature, `coyoIA.service.ts` solo mandaba una imagen por llamada (`sugerirDatosArticulo`, `interpretarPregunta`). Ambas funciones nuevas:
 - Piden a Gemini un JSON `{"articulos": [...]}` (array, no objeto único) — parseo manual + `limpiarJsonDeGemini` + type guards (`esArticuloCatalogoSugeridoCrudo`, `esListaArticulosCatalogoCruda`), mismo patrón sin `responseSchema` nativo que el resto del archivo.
 - Nunca inventan: si un precio o dato no es legible/visible, el campo vuelve `null` — la fila queda marcada con error en la tabla hasta que el comerciante la complete a mano.
-- Reintento/fallback (`llamarGeminiConReintento`, modelos `gemini-2.5-flash` → `gemini-2.5-flash-lite`) heredado sin cambios.
+- Reintento/fallback (`llamarGeminiConReintento`, modelos `gemini-3.6-flash` → `gemini-3.5-flash-lite`) heredado sin cambios. Ninguna de las dos funciones manda `thinkingConfig` — ver lección "gemini-3.6-flash rechaza thinkingBudget:0" en `docs/estandares/LECCIONES_TECNICAS.md`.
 
 **`sugerirListaArticulos` — prompt de doble caso (`PROMPT_SUGERIR_LISTA_ARTICULOS`).** El prompt le pide a Gemini distinguir entre:
 - **Caso A — menú/anaquel/lista con varios artículos**: extracción literal, nunca inventa `nombre`/`descripcion`/`precioBase` — si no está escrito, `null`.
@@ -140,7 +140,8 @@ Reusa el modelo de datos existente de `articulos_marketplace` (NO tabla propia �
 | Precio por IA (texto) | Sí | Sí (el vendedor normalmente ya lo escribió al pegar el texto) |
 | Categoría | Texto libre + datalist | Selector real (FK a `categorias_marketplace`) |
 | Checklist legal / ubicación | No aplica (BS no tiene) | **Una vez para todo el lote**, no por fila (`crearArticulosLoteMarketplaceSchema`) |
-| Layout de fila | Grid tipo hoja de cálculo (desktop) + cards (móvil) | Una sola card responsive en todos los breakpoints — las fotos por fila (altura variable) no calzan bien en un grid rígido |
+| Layout de fila | Grid tipo hoja de cálculo (desktop, `overflow-x-auto`) | Grid tipo hoja de cálculo con alto fijo (desktop, `GRID_TABLA_MP`, sin scroll horizontal) + cards apiladas (móvil) — ver §7.6 |
+| Checkbox incluir/excluir por fila | Sí | **No** — se quitó (18-ago-2026): Juan lo consideró sin utilidad real ("no le veo sentido"); en MarketPlace **Publicar siempre incluye todas las filas de la tabla**, quitar una fila es la única forma de excluirla. BS lo conserva. |
 
 ### 7.2 Agrupación de fotos por IA (`sugerirLoteArticulosMarketplace`)
 
@@ -164,4 +165,12 @@ Mismo principio que `sugerirListaArticulosDesdeTexto` (BS) pero con los campos d
 
 ### 7.5 Pendiente
 
-- QA E2E manual en prod (fotos reales de varios objetos mezclados, verificar agrupación; texto pegado real; lote de 20+ filas).
+- ~~QA E2E manual en prod (fotos reales de varios objetos mezclados, verificar agrupación; texto pegado real; lote de 20+ filas).~~ ✅ Verificado 2026-08-19 por Juan.
+
+### 7.6 UI de la fila — fotos, descripción y header (19-ago-2026)
+
+**Fotos por fila:** cada fila muestra solo 1 miniatura (la portada); click abre `ModalFotosFila` (patrón "Modal de Detalle" TC-6A, header gradiente teal `#115e59→#0d9488`) con grid 3 columnas de todas las fotos de esa fila, badge "Portada" en la primera, hover-zoom + click para abrir `ModalImagenes` (pantalla completa), botón "Agregar" (oculto al llegar a `MAX_FOTOS_POR_ARTICULO = 12`). Alto fijo `min-h-[540px]` en desktop / `min-h-[80vh]` en móvil (no se achica con pocas fotos, no crece de más con muchas — `max-h-[93vh]` en móvil, `max-h-[75vh]` en desktop).
+
+**Descripción por fila:** columna/ícono propio (`FileText`, se pone en verde-check cuando ya tiene el mínimo de caracteres) — ya NO comparte celda con el título. Click abre `ModalDescripcionFila` (mismo patrón visual que el de fotos) con un `<textarea>` grande + contador de caracteres. En desktop es la columna "Desc." de `GRID_TABLA_MP` (centrada bajo su header, igual que la de Fotos); en móvil es un ícono en la misma línea que Foto + Título + Eliminar.
+
+**Header temático unificado (móvil + desktop):** mismo bloque `#000000` con glow teal + grid pattern + líneas de acento arriba/abajo + `rounded-b-3xl` en desktop que usa `PaginaMisPublicaciones.tsx` — antes el desktop tenía un header claro distinto al de móvil, ahora ambos comparten el mismo tema oscuro (título/subtítulo en blanco, back button con `ChevronLeft`/`ArrowLeft` estilo `text-white/50 hover:text-white`). Los 3 botones de entrada (Subir foto(s) / Pegar texto / Agregar fila) viven dentro del header oscuro en desktop; en móvil siguen en una fila aparte con fondo claro debajo del header (no caben cómodos dentro del bloque oscuro angosto de un celular).

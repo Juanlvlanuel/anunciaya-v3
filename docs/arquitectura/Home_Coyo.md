@@ -428,8 +428,8 @@ futuro se migra a otra LLM (Claude, GPT, etc.), solo se toca este archivo.
 
 - Librería: `@google/genai ^2.6.0` (la oficial vigente — la antigua
   `@google/generative-ai` está descontinuada).
-- Modelo principal: `gemini-2.5-flash`.
-- Modelo fallback: `gemini-2.0-flash`.
+- Modelo principal: `gemini-3.6-flash`.
+- Modelo fallback: `gemini-3.5-flash-lite`.
 - Cliente singleton **lazy** (se construye en el primer uso real, no al arrancar).
 
 ### Funciones expuestas
@@ -470,7 +470,7 @@ como contexto, en vez de dejar al vecino esperando a que la comunidad
 interprete una pregunta ambigua (ej. una foto de una llave goteando + "esto
 se arregla?" → Coyo identifica "plomero plomería" sin que el texto lo diga).
 
-**Cómo funciona:** `gemini-2.5-flash` es multimodal nativo — no se agrega
+**Cómo funciona:** `gemini-3.6-flash` es multimodal nativo — no se agrega
 ningún proveedor ni modelo nuevo. Cuando `pregunta.imagenUrl` existe,
 `orquestador.ts` la pasa a `interpretarPregunta(texto, imagenUrl)`, que:
 
@@ -633,7 +633,7 @@ que provee resiliencia automática transparente:
    segundos.
 2. **Fallback automático a modelo alterno** — si los 3 intentos del
    principal fallan con errores transitorios, intenta con
-   `gemini-2.0-flash` (más estable). Otros 3 intentos antes de rendirse.
+   `gemini-3.5-flash-lite` (más estable). Otros 3 intentos antes de rendirse.
 
 Total: hasta **6 intentos** antes de devolver `null`.
 
@@ -642,13 +642,15 @@ devuelve `null` inmediatamente. Errores 5xx, 429 (rate limit), 408 (timeout)
 y errores sin status (red, DNS) se consideran transitorios.
 
 Logs silenciosos en el path feliz. Solo se loguea cuando hubo recuperación
-(*"Coyo IA — recuperado con gemini-2.0-flash en intento N"*) o cuando se
+(*"Coyo IA — recuperado con gemini-3.5-flash-lite en intento N"*) o cuando se
 agotaron todos los intentos.
 
 Constantes en `coyoIA.service.ts`:
-- `MODELO_GEMINI_PRINCIPAL = 'gemini-2.5-flash'`
-- `MODELO_GEMINI_FALLBACK = 'gemini-2.0-flash'`
+- `MODELO_GEMINI_PRINCIPAL = 'gemini-3.6-flash'`
+- `MODELO_GEMINI_FALLBACK = 'gemini-3.5-flash-lite'`
 - `DELAYS_REINTENTO_MS = [0, 1000, 3000]`
+
+> `gemini-3.6-flash` no acepta `thinkingConfig: { thinkingBudget: 0 }` (400 INVALID_ARGUMENT) — ver lección en `docs/estandares/LECCIONES_TECNICAS.md` §Coyo / IA (Gemini).
 
 Helper `esErrorTransitorio()` decide qué clasificación tiene cada error.
 

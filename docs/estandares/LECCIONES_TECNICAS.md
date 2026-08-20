@@ -156,6 +156,12 @@
 
 ---
 
+## Coyo / IA (Gemini)
+
+- **`gemini-3.6-flash` rechaza `thinkingConfig: { thinkingBudget: 0 }` con 400 INVALID_ARGUMENT — afecta texto e imagen por igual (19-ago-2026)** — El proyecto migró de `gemini-2.5-flash`/`gemini-2.5-flash-lite` a `gemini-3.6-flash`/`gemini-3.5-flash-lite` (commit `8159ee0`, 11-ago-2026); ese mismo commit conservó un `CONFIG_SIN_THINKING = { thinkingConfig: { thinkingBudget: 0 } }` que se pasaba a varias llamadas de `coyoIA.service.ts` para desactivar el "pensamiento" del modelo y abaratar/acelerar la respuesta — válido en `gemini-2.5-flash` pero **no soportado en absoluto por `gemini-3.6-flash`**. El bug quedó latente porque las funciones que lo usaban (Alta Rápida de Business Studio, foto y texto) nunca se probaron en vivo tras la migración. Se detectó al construir Alta Rápida de MarketPlace: primero falló "sugerir con foto" (`400 INVALID_ARGUMENT`); el diagnóstico inicial asumió que era una interacción específica con imágenes multimodales y se quitó el config solo de las 2 funciones de foto — pero "Pegar texto" (sin imagen) siguió fallando con el mismo error idéntico, lo que probó que el config es simplemente inválido para el modelo, sin importar la modalidad. **Regla:** cuando un fix "funciona" en un flujo pero el mismo tipo de llamada existe en otro flujo paralelo (aquí: foto vs texto, o BS vs MarketPlace), no declarar el bug resuelto hasta verificar TODOS los call-sites afectados — un fix parcial que pasa una prueba aislada puede ocultar que la causa raíz era más amplia. **Fix:** se eliminó `CONFIG_SIN_THINKING` por completo de `coyoIA.service.ts` y las 4 funciones que lo usaban (`sugerirListaArticulos`/`sugerirListaArticulosDesdeTexto` de BS, `sugerirLoteArticulosMarketplace`/`sugerirLoteArticulosMarketplaceDesdeTexto` de MarketPlace) ahora llaman a `llamarGeminiConReintento` sin el 4º argumento de config. Documentado también en la doc-comment de `MODELO_GEMINI_PRINCIPAL`. **Si `gemini-3.6-flash`/`gemini-3.5-flash-lite` se retiran en el futuro y se vuelve a un modelo que sí soporte `thinkingBudget`, evaluar si conviene reintroducirlo — no asumir que el config es universal entre versiones de modelo.**
+
+---
+
 ## Autenticación y Permisos
 
 - **JWT con mismo secret = tokens intercambiables** — Si dos sistemas (AnunciaYA y ScanYA) usan el mismo `JWT_SECRET`, `jwt.verify()` acepta tokens de ambos sin distinguir. Solución: verificar campo `_tipo` en el payload para descartar tokens del sistema incorrecto. Descubierto en `verificarTokenChatYA`.

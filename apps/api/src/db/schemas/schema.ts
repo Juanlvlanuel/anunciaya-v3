@@ -2341,6 +2341,14 @@ export const marketplaceApartados = pgTable("marketplace_apartados", {
 	index("idx_marketplace_apartados_articulo").using("btree", table.articuloId.asc().nullsLast()),
 	index("idx_marketplace_apartados_articulo_estado").using("btree", table.articuloId.asc().nullsLast(), table.estado.asc().nullsLast()),
 	index("idx_marketplace_apartados_expira").using("btree", table.expiraEn.asc().nullsLast()).where(sql`estado = 'apartado'`),
+	// Lock BD (19-ago-2026) contra la carrera de 2 solicitudes casi simultáneas
+	// para el mismo artículo — antes era check-then-insert sin ningún
+	// constraint que lo blindeara. Solo puede existir 1 fila 'apartado' por
+	// articulo_id a la vez; combinado con el UPDATE condicional en
+	// `apartarArticulo` (marketplace.service.ts), que ya serializa la carrera
+	// vía el row-lock del propio UPDATE — este índice es la defensa de
+	// último nivel si algún otro código llegara a insertar directo.
+	uniqueIndex("uniq_marketplace_apartados_articulo_activo").using("btree", table.articuloId.asc().nullsLast()).where(sql`estado = 'apartado'`),
 	foreignKey({
 		columns: [table.articuloId],
 		foreignColumns: [articulosMarketplace.id],
