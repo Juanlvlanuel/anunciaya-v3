@@ -351,7 +351,7 @@ function ModalFotosFila({
             headerOscuro
             discriminador="_modalFotosFilaAltaRapidaMP"
         >
-            <div className="flex flex-col min-h-[80vh] max-h-[93vh] lg:min-h-0 lg:max-h-[75vh]">
+            <div className="flex flex-col min-h-[80vh] max-h-[93vh] lg:min-h-[540px] lg:max-h-[75vh]">
                 {/* Header gradiente teal — mismo acento de marca que MarketPlace
                     usa en toda la app (ver ModalGestionApartados.tsx). */}
                 <div
@@ -771,7 +771,7 @@ function FilaTablaMP({
                 onClick={onAbrirFotos}
                 aria-label={fila.fotos.length > 0 ? 'Ver y gestionar fotos' : 'Agregar fotos'}
                 data-testid={`btn-fotos-fila-${fila.clientId}`}
-                className="relative flex h-9 w-9 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-teal-400 hover:text-teal-600 cursor-pointer overflow-hidden"
+                className="relative flex h-9 w-9 items-center justify-center justify-self-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-teal-400 hover:text-teal-600 cursor-pointer overflow-hidden"
             >
                 {fila.origen !== 'manual' && (
                     <span
@@ -817,7 +817,7 @@ function FilaTablaMP({
                 onClick={onAbrirDescripcion}
                 aria-label="Editar descripción"
                 data-testid={`btn-descripcion-fila-${fila.clientId}`}
-                className={`relative flex h-9 w-9 items-center justify-center rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                className={`relative flex h-9 w-9 items-center justify-center justify-self-center rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
                     descripcionCompleta
                         ? 'border-teal-400 bg-teal-50 text-teal-600'
                         : 'border-slate-300 text-slate-400 hover:border-teal-400 hover:text-teal-600'
@@ -870,7 +870,7 @@ function FilaTablaMP({
                     className="p-1.5 rounded-lg cursor-pointer text-red-600 hover:bg-red-100"
                     data-testid={`btn-eliminar-fila-${fila.clientId}`}
                 >
-                    <Trash2 className="h-4.5 w-4.5" />
+                    <Trash2 className="h-5 w-5" />
                 </button>
             </div>
         </div>
@@ -1232,52 +1232,123 @@ export function PaginaAltaRapidaMarketplace() {
             <style dangerouslySetInnerHTML={{ __html: ESTILOS_CSS }} />
 
             {/* ════════════════════════════════════════════════════════════════
-                HEADER — móvil: bloque oscuro fijo (shrink-0) FUERA del scroll,
+                HEADER — bloque oscuro temático unificado móvil + desktop,
                 mismo patrón que PaginaMisPublicaciones.tsx (glow + grid +
-                líneas de acento). Desktop: sin cambios (header claro original).
+                líneas de acento + rounded-b-3xl en desktop).
             ════════════════════════════════════════════════════════════════ */}
             <div className="shrink-0 z-20 lg:sticky lg:top-0">
-                {/* ═══ MOBILE (< lg) — header temático oscuro ═══ */}
-                <div className="relative overflow-hidden lg:hidden" style={{ background: '#000000' }}>
-                    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                        <div
-                            className="absolute inset-0"
-                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(45,212,191,0.12) 0%, transparent 55%)' }}
-                        />
-                        <div
-                            className="absolute inset-0"
-                            style={{
-                                opacity: 0.08,
-                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
-                                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
-                            }}
-                        />
-                        <div
-                            className="absolute bottom-0 left-0 right-0 h-[3px] z-0"
-                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
-                        />
-                    </div>
-                    <div className="relative z-10 flex items-center gap-3 px-3 pt-4 pb-4">
-                        <button
-                            type="button"
-                            data-testid="btn-volver-alta-rapida-mp-movil"
-                            onClick={() => navigate('/mis-publicaciones')}
-                            aria-label="Volver"
-                            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
-                        >
-                            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
-                        </button>
-                        <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                            style={{ background: 'linear-gradient(135deg, #22d3ee, #0891b2)' }}
-                        >
-                            <div className="alta-rapida-mp-icon-bounce">
-                                <Zap className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
-                            </div>
+                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                    <div className="relative rounded-none lg:rounded-b-3xl" style={{ background: '#000000' }}>
+                        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-none lg:rounded-b-3xl">
+                            <div
+                                className="absolute inset-0"
+                                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(45,212,191,0.12) 0%, transparent 55%)' }}
+                            />
+                            <div
+                                className="absolute inset-0"
+                                style={{
+                                    opacity: 0.08,
+                                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                      repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                                }}
+                            />
+                            <div
+                                className="absolute top-0 left-0 right-0 h-[3px] z-0"
+                                style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                            />
+                            <div
+                                className="absolute bottom-0 left-0 right-0 h-[3px] z-0"
+                                style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                            />
                         </div>
-                        <div className="min-w-0">
-                            <h1 className="truncate text-xl font-extrabold tracking-tight text-white">Alta Rápida de Productos</h1>
-                            <p className="text-sm font-medium text-white/70">Publica varios artículos a la vez</p>
+
+                        <div className="relative z-10">
+                            {/* ═══ MOBILE (< lg) ═══ */}
+                            <div className="flex items-center gap-3 px-3 pt-4 pb-4 lg:hidden">
+                                <button
+                                    type="button"
+                                    data-testid="btn-volver-alta-rapida-mp-movil"
+                                    onClick={() => navigate('/mis-publicaciones')}
+                                    aria-label="Volver"
+                                    className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                >
+                                    <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                </button>
+                                <div
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                    style={{ background: 'linear-gradient(135deg, #22d3ee, #0891b2)' }}
+                                >
+                                    <div className="alta-rapida-mp-icon-bounce">
+                                        <Zap className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
+                                    </div>
+                                </div>
+                                <div className="min-w-0">
+                                    <h1 className="truncate text-xl font-extrabold tracking-tight text-white">Alta Rápida de Productos</h1>
+                                    <p className="text-sm font-medium text-white/70">Publica varios artículos a la vez</p>
+                                </div>
+                            </div>
+
+                            {/* ═══ DESKTOP (≥ lg) — mismo tema oscuro que móvil ═══ */}
+                            <div className="hidden items-center justify-between gap-3 px-6 py-3.5 lg:flex lg:flex-wrap 2xl:py-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <button
+                                        type="button"
+                                        data-testid="btn-volver-alta-rapida-mp"
+                                        onClick={() => navigate('/mis-publicaciones')}
+                                        aria-label="Volver"
+                                        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white"
+                                    >
+                                        <ArrowLeft className="w-4.5 h-4.5" strokeWidth={2.5} />
+                                    </button>
+                                    <div
+                                        className="flex items-center justify-center shrink-0"
+                                        style={{
+                                            width: 52, height: 52, borderRadius: 14,
+                                            background: 'linear-gradient(135deg, #22d3ee, #0891b2)',
+                                            boxShadow: '0 6px 20px rgba(8,145,178,0.4)',
+                                        }}
+                                    >
+                                        <div className="alta-rapida-mp-icon-bounce">
+                                            <Zap className="w-6 h-6 text-white" strokeWidth={2.5} />
+                                        </div>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h1 className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight truncate">Alta Rápida de Productos</h1>
+                                        <p className="text-base text-white/70 -mt-1 font-medium">Publica varios artículos a la vez</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                    <Boton
+                                        variante="secundario"
+                                        className="shrink-0"
+                                        data-testid="btn-subir-fotos-alta-rapida-mp"
+                                        iconoIzquierda={analizandoFoto ? undefined : <Camera className="w-4 h-4" />}
+                                        cargando={analizandoFoto}
+                                        onClick={() => inputFotoRef.current?.click()}
+                                    >
+                                        {analizandoFoto ? 'Analizando foto(s)…' : 'Subir foto(s)'}
+                                    </Boton>
+                                    <Boton
+                                        variante="secundario"
+                                        className="shrink-0"
+                                        data-testid="btn-pegar-texto-alta-rapida-mp"
+                                        iconoIzquierda={<ClipboardPaste className="w-4 h-4" />}
+                                        onClick={() => setPanelTextoAbierto((prev) => !prev)}
+                                    >
+                                        Pegar texto
+                                    </Boton>
+                                    <Boton
+                                        variante="primario"
+                                        className="shrink-0"
+                                        data-testid="btn-agregar-fila-alta-rapida-mp"
+                                        iconoIzquierda={<Plus className="w-4 h-4" />}
+                                        onClick={() => agregarFila('manual')}
+                                    >
+                                        Agregar fila
+                                    </Boton>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1315,69 +1386,6 @@ export function PaginaAltaRapidaMarketplace() {
                     >
                         Agregar fila
                     </Boton>
-                </div>
-
-                {/* ═══ DESKTOP (≥ lg) — header original, sin cambios ═══ */}
-                <div className="hidden items-center justify-between gap-3 p-3 lg:flex lg:flex-wrap lg:py-1.5 lg:px-6 2xl:py-3 2xl:px-8">
-                    <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <button
-                                type="button"
-                                data-testid="btn-volver-alta-rapida-mp"
-                                onClick={() => navigate('/mis-publicaciones')}
-                                className="w-9 h-9 rounded-lg flex items-center justify-center border-2 border-slate-300 bg-white hover:bg-slate-100 text-slate-600 shrink-0 cursor-pointer"
-                            >
-                                <ArrowLeft className="w-4 h-4" />
-                            </button>
-                            <div
-                                className="flex items-center justify-center shrink-0"
-                                style={{
-                                    width: 52, height: 52, borderRadius: 14,
-                                    background: 'linear-gradient(135deg, #22d3ee, #0891b2)',
-                                    boxShadow: '0 6px 20px rgba(8,145,178,0.4)',
-                                }}
-                            >
-                                <div className="alta-rapida-mp-icon-bounce">
-                                    <Zap className="w-6 h-6 text-white" strokeWidth={2.5} />
-                                </div>
-                            </div>
-                            <div className="min-w-0">
-                                <h1 className="text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight truncate">Alta Rápida de Productos</h1>
-                                <p className="text-base text-slate-600 -mt-1 font-medium">Publica varios artículos a la vez</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                            <Boton
-                                variante="secundario"
-                                className="shrink-0"
-                                data-testid="btn-subir-fotos-alta-rapida-mp"
-                                iconoIzquierda={analizandoFoto ? undefined : <Camera className="w-4 h-4" />}
-                                cargando={analizandoFoto}
-                                onClick={() => inputFotoRef.current?.click()}
-                            >
-                                {analizandoFoto ? 'Analizando foto(s)…' : 'Subir foto(s)'}
-                            </Boton>
-                            <Boton
-                                variante="secundario"
-                                className="shrink-0"
-                                data-testid="btn-pegar-texto-alta-rapida-mp"
-                                iconoIzquierda={<ClipboardPaste className="w-4 h-4" />}
-                                onClick={() => setPanelTextoAbierto((prev) => !prev)}
-                            >
-                                Pegar texto
-                            </Boton>
-                            <Boton
-                                variante="primario"
-                                className="shrink-0"
-                                data-testid="btn-agregar-fila-alta-rapida-mp"
-                                iconoIzquierda={<Plus className="w-4 h-4" />}
-                                onClick={() => agregarFila('manual')}
-                            >
-                                Agregar fila
-                            </Boton>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -1517,9 +1525,9 @@ export function PaginaAltaRapidaMarketplace() {
                                         className={`grid ${GRID_TABLA_MP} gap-2 px-3 py-2.5 lg:h-[40px] 2xl:h-12 items-center text-[11px] lg:text-[12px] 2xl:text-sm font-bold text-white uppercase tracking-wider`}
                                         style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                                     >
-                                        <span>Fotos</span>
+                                        <span className="text-center">Fotos</span>
                                         <span>Artículo</span>
-                                        <span>Desc.</span>
+                                        <span className="text-center">Desc.</span>
                                         <span>Categoría</span>
                                         <span>Condición</span>
                                         <span>Precio</span>
